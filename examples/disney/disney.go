@@ -10,67 +10,119 @@ import (
    "path"
 )
 
-func (c *command) do_media_id() error {
-   var account disney.Account
-   err := c.cache.Get("Account", &account)
+func (s *session) run_address() error {
+   var client client_data
+   err := s.cache.Get(&client)
    if err != nil {
       return err
    }
-   stream, err := account.Stream(c.media_id)
+   err = client.Account.RefreshToken()
    if err != nil {
       return err
    }
-   hls, err := stream.Hls()
+   err = s.cache.Set(client)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Hls", hls)
+   entity, err := disney.GetEntity(s.address)
    if err != nil {
       return err
    }
-   return maya.ListHls(hls.Body, hls.Url)
+   page, err := client.Account.Page(entity)
+   if err != nil {
+      return err
+   }
+   fmt.Println(page)
+   return nil
 }
 
-func (c *command) run() error {
-   c.cache.Init("SL3000")
-   c.job.CertificateChain = c.cache.Join("CertificateChain")
-   c.job.EncryptSignKey = c.cache.Join("EncryptSignKey")
-   c.cache.Init("disney")
+func (s *session) run_season_id() error {
+   var client client_data
+   err := s.cache.Get(&client)
+   if err != nil {
+      return err
+   }
+   season, err := client.Account.Season(s.season_id)
+   if err != nil {
+      return err
+   }
+   fmt.Println(season)
+   return nil
+}
+
+func (s *session) run_hls() error {
+   var client client_data
+   err := s.cache.Get(&client)
+   if err != nil {
+      return err
+   }
+   s.job.Send = client.Account.PlayReady
+   return s.job.DownloadHls(client.Hls.Body, client.Hls.Url, s.hls)
+}
+
+func (s *session) run_media_id() error {
+   var client client_data
+   err := s.cache.Get(&client)
+   if err != nil {
+      return err
+   }
+   stream, err := client.Account.Stream(s.media_id)
+   if err != nil {
+      return err
+   }
+   client.Hls, err = stream.Hls()
+   if err != nil {
+      return err
+   }
+   err = s.cache.Set(client)
+   if err != nil {
+      return err
+   }
+   return maya.ListHls(client.Hls.Body, client.Hls.Url)
+}
+
+func (s *session) run() error {
+   s.job.CertificateChain, _ = maya.ResolveCache("SL3000/CertificateChain")
+   s.job.EncryptSignKey, _ = maya.ResolveCache("SL3000/EncryptSignKey")
+   err := s.cache.Init("rosso/disney.xml")
+   if err != nil {
+      return err
+   }
    // 1
-   flag.StringVar(&c.email, "e", "", "email")
-   flag.StringVar(&c.password, "p", "", "password")
+   flag.StringVar(&s.email, "e", "", "email")
+   flag.StringVar(&s.password, "p", "", "password")
    // 2
-   flag.StringVar(&c.profile_id, "P", "", "profile ID")
+   flag.StringVar(&s.profile_id, "P", "", "profile ID")
    // 3
-   flag.StringVar(&c.address, "a", "", "address")
+   flag.StringVar(&s.address, "a", "", "address")
    // 4
-   flag.StringVar(&c.season_id, "s", "", "season ID")
+   flag.StringVar(&s.season_id, "s", "", "season ID")
    // 5
-   flag.StringVar(&c.media_id, "m", "", "media ID")
+   flag.StringVar(&s.media_id, "m", "", "media ID")
    // 6
-   flag.IntVar(&c.hls, "h", -1, "HLS ID")
-   flag.StringVar(&c.job.CertificateChain, "C", c.job.CertificateChain, "certificate chain")
-   flag.StringVar(&c.job.EncryptSignKey, "E", c.job.EncryptSignKey, "encrypt sign key")
+   flag.IntVar(&s.hls, "h", -1, "HLS ID")
+   flag.StringVar(&s.job.CertificateChain, "C", s.job.CertificateChain, "certificate chain")
+   flag.StringVar(&s.job.EncryptSignKey, "E", s.job.EncryptSignKey, "encrypt sign key")
    flag.Parse()
-   if c.email != "" {
-      if c.password != "" {
-         return c.do_email_password()
+   if s.email != "" {
+      if s.password != "" {
+         return s.run_email_password()
       }
    }
-   if c.profile_id != "" {
-      return c.do_profile_id()
+   if s.profile_id != "" {
+      return s.run_profile_id()
    }
-   if c.address != "" {
-      return c.do_address()
+   if s.address != "" {
+      return s.run_address()
    }
-   if c.season_id != "" {
-      return c.do_season_id()
+   if s.season_id != "" {
+      return s.run_season_id()
    }
-   if c.media_id != "" {
-      return c.do_media_id()
+   if s.media_id != "" {
+      return s.run_media_id()
    }
-   if c.hls >= 0 {
-      return c.do_hls()
+   if s.hls >= 0 {
+      return s.run_hls()
    }
    return maya.Usage([][]string{
       {"e", "p"},
@@ -78,7 +130,7 @@ func (c *command) run() error {
       {"a"},
       {"s"},
       {"m"},
-      {"h", "C", "E"},
+      {"h", "s", "E"},
    })
 }
 
@@ -90,13 +142,13 @@ func main() {
       }
       return "", true
    })
-   err := new(command).run()
+   err := new(session).run()
    if err != nil {
       log.Fatal(err)
    }
 }
 
-type command struct {
+type session struct {
    cache maya.Cache
    // 1
    email    string
@@ -114,88 +166,40 @@ type command struct {
    job maya.PlayReadyJob
 }
 
-func (c *command) do_email_password() error {
+type client_data struct {
+   Account         *disney.Account
+   InactiveAccount *disney.InactiveAccount
+   Hls             *disney.Hls
+}
+
+func (s *session) run_email_password() error {
    device, err := disney.RegisterDevice()
    if err != nil {
       return err
    }
-   inactive_account, err := device.Login(c.email, c.password)
+   var client client_data
+   client.InactiveAccount, err = device.Login(s.email, s.password)
    if err != nil {
       return err
    }
-   for i, profile := range inactive_account.Data.Login.Account.Profiles {
+   for i, profile := range client.InactiveAccount.Data.Login.Account.Profiles {
       if i >= 1 {
          fmt.Println()
       }
       fmt.Println(&profile)
    }
-   return c.cache.Set("InactiveAccount", inactive_account)
+   return s.cache.Set(client)
 }
 
-func (c *command) do_profile_id() error {
-   var inactive_account disney.InactiveAccount
-   err := c.cache.Get("InactiveAccount", &inactive_account)
+func (s *session) run_profile_id() error {
+   var client client_data
+   err := s.cache.Get(&client)
    if err != nil {
       return err
    }
-   account, err := inactive_account.SwitchProfile(c.profile_id)
+   client.Account, err = client.InactiveAccount.SwitchProfile(s.profile_id)
    if err != nil {
       return err
    }
-   return c.cache.Set("Account", account)
-}
-
-func (c *command) do_address() error {
-   var account disney.Account
-   err := c.cache.Get("Account", &account)
-   if err != nil {
-      return err
-   }
-   err = account.RefreshToken()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Account", account)
-   if err != nil {
-      return err
-   }
-   entity, err := disney.GetEntity(c.address)
-   if err != nil {
-      return err
-   }
-   page, err := account.Page(entity)
-   if err != nil {
-      return err
-   }
-   fmt.Println(page)
-   return nil
-}
-
-func (c *command) do_season_id() error {
-   var account disney.Account
-   err := c.cache.Get("Account", &account)
-   if err != nil {
-      return err
-   }
-   season, err := account.Season(c.season_id)
-   if err != nil {
-      return err
-   }
-   fmt.Println(season)
-   return nil
-}
-
-func (c *command) do_hls() error {
-   var account disney.Account
-   err := c.cache.Get("Account", &account)
-   if err != nil {
-      return err
-   }
-   c.job.Send = account.PlayReady
-   var hls disney.Hls
-   err = c.cache.Get("Hls", &hls)
-   if err != nil {
-      return err
-   }
-   return c.job.DownloadHls(hls.Body, hls.Url, c.hls)
+   return s.cache.Set(client)
 }
