@@ -11,6 +11,37 @@ import (
    "strings"
 )
 
+type InactiveAccount struct {
+   Data struct {
+      Login struct {
+         Account struct {
+            Profiles []Profile
+         }
+      }
+   }
+   Errors     []Error
+   Extensions struct {
+      Sdk struct {
+         Token struct {
+            AccessToken     string
+            AccessTokenType string // AccountWithoutActiveProfile
+         }
+      }
+   }
+}
+
+type Account struct {
+   Extensions struct {
+      Sdk struct {
+         Token struct {
+            AccessToken     string
+            AccessTokenType string // Account
+            RefreshToken    string
+         }
+      }
+   }
+}
+
 const mutation_switch_profile = `
 mutation switchProfile($input: SwitchProfileInput!) {
    switchProfile(switchProfile: $input) {
@@ -73,18 +104,6 @@ func (a *Account) RefreshToken() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(a)
-}
-
-type Account struct {
-   Extensions struct {
-      Sdk struct {
-         Token struct {
-            AccessToken     string
-            AccessTokenType string // Account
-            RefreshToken    string
-         }
-      }
-   }
 }
 
 type Device struct {
@@ -176,28 +195,7 @@ type Stream struct {
    }
 }
 
-///
-
-type AccountWithoutActiveProfile struct {
-   Data struct {
-      Login struct {
-         Account struct {
-            Profiles []Profile
-         }
-      }
-   }
-   Errors     []Error
-   Extensions struct {
-      Sdk struct {
-         Token struct {
-            AccessToken     string
-            AccessTokenType string // AccountWithoutActiveProfile
-         }
-      }
-   }
-}
-
-func (d *Device) Login(email, password string) (*AccountWithoutActiveProfile, error) {
+func (d *Device) Login(email, password string) (*InactiveAccount, error) {
    data, err := json.Marshal(map[string]any{
       "query": mutation_login,
       "variables": map[string]any{
@@ -225,7 +223,7 @@ func (d *Device) Login(email, password string) (*AccountWithoutActiveProfile, er
       return nil, err
    }
    defer resp.Body.Close()
-   var result AccountWithoutActiveProfile
+   var result InactiveAccount
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
@@ -297,7 +295,7 @@ func (p *Profile) String() string {
    return data.String()
 }
 
-func (a *AccountWithoutActiveProfile) SwitchProfile(profileId string) (*Account, error) {
+func (i *InactiveAccount) SwitchProfile(profileId string) (*Account, error) {
    data, err := json.Marshal(map[string]any{
       "query": mutation_switch_profile,
       "variables": map[string]any{
@@ -316,7 +314,7 @@ func (a *AccountWithoutActiveProfile) SwitchProfile(profileId string) (*Account,
    if err != nil {
       return nil, err
    }
-   req.Header.Set("authorization", "Bearer "+a.Extensions.Sdk.Token.AccessToken)
+   req.Header.Set("authorization", "Bearer "+i.Extensions.Sdk.Token.AccessToken)
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err

@@ -10,6 +10,27 @@ import (
    "path"
 )
 
+func (c *command) do_media_id() error {
+   var account disney.Account
+   err := c.cache.Get("Account", &account)
+   if err != nil {
+      return err
+   }
+   stream, err := account.Stream(c.media_id)
+   if err != nil {
+      return err
+   }
+   hls, err := stream.Hls()
+   if err != nil {
+      return err
+   }
+   err = c.cache.Set("Hls", hls)
+   if err != nil {
+      return err
+   }
+   return maya.ListHls(hls.Body, hls.Url)
+}
+
 func (c *command) run() error {
    c.cache.Init("SL3000")
    c.job.CertificateChain = c.cache.Join("CertificateChain")
@@ -28,7 +49,6 @@ func (c *command) run() error {
    flag.StringVar(&c.media_id, "m", "", "media ID")
    // 6
    flag.IntVar(&c.hls, "h", -1, "HLS ID")
-   flag.IntVar(&c.job.Threads, "t", 2, "threads")
    flag.StringVar(&c.job.CertificateChain, "C", c.job.CertificateChain, "certificate chain")
    flag.StringVar(&c.job.EncryptSignKey, "E", c.job.EncryptSignKey, "encrypt sign key")
    flag.Parse()
@@ -99,26 +119,26 @@ func (c *command) do_email_password() error {
    if err != nil {
       return err
    }
-   account_without, err := device.Login(c.email, c.password)
+   inactive_account, err := device.Login(c.email, c.password)
    if err != nil {
       return err
    }
-   for i, profile := range account_without.Data.Login.Account.Profiles {
+   for i, profile := range inactive_account.Data.Login.Account.Profiles {
       if i >= 1 {
          fmt.Println()
       }
       fmt.Println(&profile)
    }
-   return c.cache.Set("AccountWithoutActiveProfile", account_without)
+   return c.cache.Set("InactiveAccount", inactive_account)
 }
 
 func (c *command) do_profile_id() error {
-   var account_without disney.AccountWithoutActiveProfile
-   err := c.cache.Get("AccountWithoutActiveProfile", &account_without)
+   var inactive_account disney.InactiveAccount
+   err := c.cache.Get("InactiveAccount", &inactive_account)
    if err != nil {
       return err
    }
-   account, err := account_without.SwitchProfile(c.profile_id)
+   account, err := inactive_account.SwitchProfile(c.profile_id)
    if err != nil {
       return err
    }
@@ -164,38 +184,18 @@ func (c *command) do_season_id() error {
    fmt.Println(season)
    return nil
 }
+
 func (c *command) do_hls() error {
    var account disney.Account
    err := c.cache.Get("Account", &account)
    if err != nil {
       return err
    }
+   c.job.Send = account.PlayReady
    var hls disney.Hls
    err = c.cache.Get("Hls", &hls)
    if err != nil {
       return err
    }
-   c.job.Send = account.PlayReady
    return c.job.DownloadHls(hls.Body, hls.Url, c.hls)
-}
-
-func (c *command) do_media_id() error {
-   var account disney.Account
-   err := c.cache.Get("Account", &account)
-   if err != nil {
-      return err
-   }
-   stream, err := account.Stream(c.media_id)
-   if err != nil {
-      return err
-   }
-   hls, err := stream.Hls()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Hls", hls)
-   if err != nil {
-      return err
-   }
-   return maya.ListHls(hls.Body, hls.Url)
 }
