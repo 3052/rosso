@@ -8,11 +8,23 @@ import (
    "net/http"
 )
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("rtbf")
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   c.job.Send = state.Entitlement.Widevine
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
+}
+
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/rtbf.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.StringVar(&c.email, "e", "", "email")
    flag.StringVar(&c.password, "p", "", "password")
@@ -36,12 +48,12 @@ func (c *command) run() error {
    }
    return maya.Usage([][]string{
       {"e", "p"},
-      {"a", "x"},
+      {"a"},
       {"d", "C", "P"},
    })
 }
 
-func (c *command) do_address() error {
+func (c *client) do_address() error {
    path, err := rtbf.GetPath(c.address)
    if err != nil {
       return err
@@ -50,12 +62,12 @@ func (c *command) do_address() error {
    if err != nil {
       return err
    }
-   var account rtbf.Account
-   err = c.cache.Get("Account", &account)
+   var state saved_state
+   err = c.cache.Get(&state)
    if err != nil {
       return err
    }
-   identity, err := account.Identity()
+   identity, err := state.Account.Identity()
    if err != nil {
       return err
    }
@@ -63,64 +75,51 @@ func (c *command) do_address() error {
    if err != nil {
       return err
    }
-   entitlement, err := session.Entitlement(asset_id)
+   state.Entitlement, err = session.Entitlement(asset_id)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Entitlement", entitlement)
+   format, err := state.Entitlement.Dash()
    if err != nil {
       return err
    }
-   format, err := entitlement.Dash()
+   state.Dash, err = format.Dash()
    if err != nil {
       return err
    }
-   dash, err := format.Dash()
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
 
-func (c *command) do_email_password() error {
+type saved_state struct {
+   Account *rtbf.Account
+   Dash *rtbf.Dash
+   Entitlement *rtbf.Entitlement
+}
+
+func (c *client) do_email_password() error {
    var account rtbf.Account
    err := account.Fetch(c.email, c.password)
    if err != nil {
       return err
    }
-   return c.cache.Set("Account", account)
-}
-
-func (c *command) do_dash() error {
-   var dash rtbf.Dash
-   err := c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   var entitlement rtbf.Entitlement
-   err = c.cache.Get("Entitlement", &entitlement)
-   if err != nil {
-      return err
-   }
-   c.job.Send = entitlement.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   return c.cache.Set(saved_state{Account: &account})
 }
 
 func main() {
    maya.SetProxy(func(*http.Request) (string, bool) {
       return "", true
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    email    string

@@ -9,32 +9,51 @@ import (
    "path"
 )
 
-func (c *command) do_dash() error {
-   var dash tubi.Dash
-   err := c.cache.Get("Dash", &dash)
+func (c *client) do_tubi() error {
+   var content tubi.Content
+   err := content.Fetch(c.tubi)
    if err != nil {
       return err
    }
-   var video tubi.VideoResource
-   err = c.cache.Get("VideoResource", &video)
+   var state saved_state
+   state.VideoResource = &content.VideoResources[0]
+   state.Dash, err = state.VideoResource.Dash()
    if err != nil {
       return err
    }
-   c.job.Send = video.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   err = c.cache.Set(state)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
+}
+
+type saved_state struct {
+   Dash *tubi.Dash
+   VideoResource *tubi.VideoResource
+}
+
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   c.job.Send = state.VideoResource.Widevine
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
 
 func main() {
    maya.SetProxy(func(req *http.Request) (string, bool) {
       return "", path.Ext(req.URL.Path) != ".mp4"
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    tubi  int
@@ -43,11 +62,13 @@ type command struct {
    job  maya.WidevineJob
 }
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("tubi")
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/tubi.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.IntVar(&c.tubi, "t", 0, "Tubi ID")
    // 2
@@ -62,29 +83,7 @@ func (c *command) run() error {
       return c.do_dash()
    }
    return maya.Usage([][]string{
-      {"t", "x"},
+      {"t"},
       {"d", "c", "p"},
    })
-}
-
-func (c *command) do_tubi() error {
-   var content tubi.Content
-   err := content.Fetch(c.tubi)
-   if err != nil {
-      return err
-   }
-   video := content.VideoResources[0]
-   err = c.cache.Set("VideoResource", video)
-   if err != nil {
-      return err
-   }
-   dash, err := video.Dash()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
 }

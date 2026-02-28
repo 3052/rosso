@@ -9,11 +9,13 @@ import (
    "path"
 )
 
-func (c *command) run() error {
-   c.cache.Init("SL2000")
-   c.job.CertificateChain = c.cache.Join("CertificateChain")
-   c.job.EncryptSignKey = c.cache.Join("EncryptSignKey")
-   c.cache.Init("paramount")
+func (c *client) do() error {
+   c.job.CertificateChain, _ = maya.ResolveCache("SL2000/CertificateChain")
+   c.job.EncryptSignKey, _ = maya.ResolveCache("SL2000/EncryptSignKey")
+   err := c.cache.Init("rosso/paramount.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.StringVar(&c.username, "U", "", "username")
    flag.StringVar(&c.password, "P", "", "password")
@@ -43,7 +45,7 @@ func (c *command) run() error {
    })
 }
 
-func (c *command) do_dash() error {
+func (c *client) do_dash() error {
    app_secret, err := paramount.FetchAppSecret()
    if err != nil {
       return err
@@ -52,33 +54,29 @@ func (c *command) do_dash() error {
    if err != nil {
       return err
    }
-   var content_id string
-   err = c.cache.Get("ContentId", content_id)
+   var state saved_state
+   err = c.cache.Get(&state)
    if err != nil {
       return err
    }
-   var cookie *http.Cookie
-   if c.cookie {
-      cookie = &http.Cookie{}
-      err = c.cache.Get("Cookie", cookie)
-      if err != nil {
-         return err
-      }
+   if !c.cookie {
+      state.Cookie = nil
    }
-   token, err := paramount.PlayReady(at, content_id, cookie)
+   token, err := paramount.PlayReady(at, state.ContentId, state.Cookie)
    if err != nil {
       return err
    }
    c.job.Send = token.Send
-   var dash paramount.Dash
-   err = c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
 
-func (c *command) do_username_password() error {
+type saved_state struct {
+   ContentId string
+   Cookie *http.Cookie
+   Dash *paramount.Dash
+}
+
+func (c *client) do_username_password() error {
    app_secret, err := paramount.FetchAppSecret()
    if err != nil {
       return err
@@ -91,10 +89,10 @@ func (c *command) do_username_password() error {
    if err != nil {
       return err
    }
-   return c.cache.Set("Cookie", cookie)
+   return c.cache.Set(saved_state{Cookie: cookie})
 }
 
-func (c *command) do_paramount() error {
+func (c *client) do_paramount() error {
    app_secret, err := paramount.FetchAppSecret()
    if err != nil {
       return err
@@ -107,22 +105,20 @@ func (c *command) do_paramount() error {
    if err != nil {
       return err
    }
-   dash, err := item.Dash()
+   var state saved_state
+   state.Dash, err = item.Dash()
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
+   state.ContentId = c.paramount
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("ContentId", c.paramount)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    username string
@@ -143,7 +139,7 @@ func main() {
       }
       return "", true
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
