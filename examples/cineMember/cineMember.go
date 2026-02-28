@@ -6,17 +6,20 @@ import (
    "flag"
    "log"
    "net/http"
-   "os"
    "path"
-   "path/filepath"
 )
 
-func (c *command) run() error {
-   cache, err := os.UserCacheDir()
+func (c *command) do_dash() error {
+   var dash cineMember.Dash
+   err := c.cache.Get("Dash", &dash)
    if err != nil {
       return err
    }
-   c.name = filepath.ToSlash(cache) + "/rosso/cineMember.xml"
+   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+}
+
+func (c *command) run() error {
+   c.cache.Init("cineMember")
    // 1
    flag.StringVar(&c.email, "e", "", "email")
    flag.StringVar(&c.password, "p", "", "password")
@@ -24,7 +27,6 @@ func (c *command) run() error {
    flag.StringVar(&c.address, "a", "", "address")
    // 3
    flag.StringVar(&c.dash, "d", "", "DASH ID")
-   flag.IntVar(&c.job.Threads, "t", 2, "threads")
    flag.Parse()
    if c.email != "" {
       if c.password != "" {
@@ -39,22 +41,22 @@ func (c *command) run() error {
    }
    return maya.Usage([][]string{
       {"e", "p"},
-      {"a", "x"},
-      {"d", "t"},
+      {"a"},
+      {"d"},
    })
 }
 
 func (c *command) do_address() error {
-   var cache user_cache
-   err := maya.Read(c.name, &cache)
-   if err != nil {
-      return err
-   }
    id, err := cineMember.FetchId(c.address)
    if err != nil {
       return err
    }
-   stream, err := cache.Session.Stream(id)
+   var session cineMember.Session
+   err = c.cache.Get("Session", &session)
+   if err != nil {
+      return err
+   }
+   stream, err := session.Stream(id)
    if err != nil {
       return err
    }
@@ -62,15 +64,15 @@ func (c *command) do_address() error {
    if err != nil {
       return err
    }
-   cache.Dash, err = link.Dash()
+   dash, err := link.Dash()
    if err != nil {
       return err
    }
-   err = maya.Write(c.name, cache)
+   err = c.cache.Set("Dash", dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(cache.Dash.Body, cache.Dash.Url)
+   return maya.ListDash(dash.Body, dash.Url)
 }
 
 func (c *command) do_email_password() error {
@@ -83,21 +85,7 @@ func (c *command) do_email_password() error {
    if err != nil {
       return err
    }
-   return maya.Write(c.name, user_cache{Session: &session})
-}
-
-type user_cache struct {
-   Dash    *cineMember.Dash
-   Session *cineMember.Session
-}
-
-func (c *command) do_dash() error {
-   var cache user_cache
-   err := maya.Read(c.name, &cache)
-   if err != nil {
-      return err
-   }
-   return c.job.DownloadDash(cache.Dash.Body, cache.Dash.Url, c.dash)
+   return c.cache.Set("Session", session)
 }
 
 func main() {
@@ -111,7 +99,7 @@ func main() {
 }
 
 type command struct {
-   name string
+   cache maya.Cache
    // 1
    email    string
    password string

@@ -7,27 +7,57 @@ import (
    "fmt"
    "log"
    "net/http"
-   "os"
    "path"
-   "path/filepath"
 )
 
-func (c *command) run() error {
-   cache, err := os.UserCacheDir()
+func (c *command) do_playlist() error {
+   var title itv.Title
+   title.LatestAvailableVersion.PlaylistUrl = c.playlist
+   playlist, err := title.Playlist()
    if err != nil {
       return err
    }
-   cache = filepath.ToSlash(cache)
-   c.job.ClientId = cache + "/L3/client_id.bin"
-   c.job.PrivateKey = cache + "/L3/private_key.pem"
-   c.name = cache + "/rosso/itv.xml"
+   media_file, err := playlist.FullHd()
+   if err != nil {
+      return err
+   }
+   err = c.cache.Set("MediaFile", media_file)
+   if err != nil {
+      return err
+   }
+   dash, err := media_file.Dash()
+   if err != nil {
+      return err
+   }
+   err = c.cache.Set("Dash", dash)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(dash.Body, dash.Url)
+}
+
+type command struct {
+   cache maya.Cache
+   // 1
+   address string
+   // 2
+   playlist string
+   // 3
+   dash string
+   job  maya.WidevineJob
+}
+
+func (c *command) run() error {
+   c.cache.Init("L3")
+   c.job.ClientId = c.cache.Join("client_id.bin")
+   c.job.PrivateKey = c.cache.Join("private_key.pem")
+   c.cache.Init("itv")
    // 1
    flag.StringVar(&c.address, "a", "", "address")
    // 2
    flag.StringVar(&c.playlist, "p", "", "playlist URL")
    // 3
    flag.StringVar(&c.dash, "d", "", "DASH ID")
-   flag.IntVar(&c.job.Threads, "t", 2, "threads")
    flag.StringVar(&c.job.ClientId, "C", c.job.ClientId, "client ID")
    flag.StringVar(&c.job.PrivateKey, "P", c.job.PrivateKey, "private key")
    flag.Parse()
@@ -45,21 +75,6 @@ func (c *command) run() error {
       {"p"},
       {"d", "C", "P"},
    })
-}
-
-func (c *command) do_dash() error {
-   var cache user_cache
-   err := maya.Read(c.name, &cache)
-   if err != nil {
-      return err
-   }
-   c.job.Send = cache.MediaFile.Widevine
-   return c.job.DownloadDash(cache.Dash.Body, cache.Dash.Url, c.dash)
-}
-
-type user_cache struct {
-   Dash      *itv.Dash
-   MediaFile *itv.MediaFile
 }
 
 func main() {
@@ -87,36 +102,17 @@ func (c *command) do_address() error {
    return nil
 }
 
-func (c *command) do_playlist() error {
-   var title itv.Title
-   title.LatestAvailableVersion.PlaylistUrl = c.playlist
-   playlist, err := title.Playlist()
+func (c *command) do_dash() error {
+   var media itv.MediaFile
+   err := c.cache.Get("MediaFile", &media)
    if err != nil {
       return err
    }
-   var cache user_cache
-   cache.MediaFile, err = playlist.FullHd()
+   c.job.Send = media.Widevine
+   var dash itv.Dash
+   err = c.cache.Get("Dash", &dash)
    if err != nil {
       return err
    }
-   cache.Dash, err = cache.MediaFile.Dash()
-   if err != nil {
-      return err
-   }
-   err = maya.Write(c.name, cache)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(cache.Dash.Body, cache.Dash.Url)
-}
-
-type command struct {
-   name string
-   // 1
-   address string
-   // 2
-   playlist string
-   // 3
-   dash string
-   job  maya.WidevineJob
+   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
 }
