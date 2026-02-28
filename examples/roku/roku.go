@@ -10,82 +10,82 @@ import (
    "path"
 )
 
-func (c *command) do_set_user() error {
-   var connection roku.Connection
-   err := c.cache.Get("Connection", &connection)
+func (c *client) do_connection() error {
+   connection, err := roku.NewConnection(nil)
    if err != nil {
       return err
    }
-   var link_code roku.LinkCode
-   err = c.cache.Get("LinkCode", &link_code)
+   state := saved_state{Connection: connection}
+   state.LinkCode, err = state.Connection.LinkCode()
    if err != nil {
       return err
    }
-   user, err := connection.User(&link_code)
-   if err != nil {
-      return err
-   }
-   return c.cache.Set("User", user)
+   fmt.Println(state.LinkCode)
+   return c.cache.Set(state)
 }
 
-func (c *command) do_roku() error {
-   var user *roku.User
+type saved_state struct {
+   Dash       *roku.Dash
+   Connection *roku.Connection
+   LinkCode   *roku.LinkCode
+   Playback   *roku.Playback
+   User       *roku.User
+}
+
+func (c *client) do_set_user() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   state.User, err = state.Connection.User(state.LinkCode)
+   if err != nil {
+      return err
+   }
+   return c.cache.Set(state)
+}
+
+func (c *client) do_roku() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   var connection *roku.Connection
    if c.get_user {
-      user = &roku.User{}
-      err := c.cache.Get("User", user)
-      if err != nil {
-         return err
-      }
+      connection, err = roku.NewConnection(state.User)
+   } else {
+      connection, err = roku.NewConnection(nil)
    }
-   connection, err := roku.NewConnection(user)
    if err != nil {
       return err
    }
-   playback, err := connection.Playback(c.roku)
+   state.Playback, err = connection.Playback(c.roku)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Playback", playback)
+   state.Dash, err = state.Playback.Dash()
    if err != nil {
       return err
    }
-   dash, err := playback.Dash()
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
-}
-
-func (c *command) do_dash() error {
-   var dash roku.Dash
-   err := c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   var playback roku.Playback
-   err = c.cache.Get("Playback", &playback)
-   if err != nil {
-      return err
-   }
-   c.job.Send = playback.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
 
 func main() {
    maya.SetProxy(func(req *http.Request) (string, bool) {
       return "", path.Ext(req.URL.Path) != ".mp4"
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    connection bool
@@ -99,11 +99,23 @@ type command struct {
    job  maya.WidevineJob
 }
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("roku")
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   c.job.Send = state.Playback.Widevine
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
+}
+
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/roku.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.BoolVar(&c.connection, "c", false, "connection")
    // 2
@@ -134,20 +146,4 @@ func (c *command) run() error {
       {"r", "g"},
       {"d", "C", "P"},
    })
-}
-func (c *command) do_connection() error {
-   connection, err := roku.NewConnection(nil)
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Connection", connection)
-   if err != nil {
-      return err
-   }
-   link_code, err := connection.LinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(link_code)
-   return c.cache.Set("LinkCode", link_code)
 }

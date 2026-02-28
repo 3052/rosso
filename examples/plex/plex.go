@@ -9,33 +9,41 @@ import (
    "path"
 )
 
-func (c *command) do_dash() error {
-   var dash plex.Dash
-   err := c.cache.Get("Dash", &dash)
+type saved_state struct {
+   Dash      *plex.Dash
+   MediaPart *plex.MediaPart
+   User      *plex.User
+}
+
+func main() {
+   maya.SetProxy(func(req *http.Request) (string, bool) {
+      return "", path.Ext(req.URL.Path) != ".m4s"
+   })
+   err := new(client).do()
    if err != nil {
-      return err
+      log.Fatal(err)
    }
-   var media_part plex.MediaPart
-   err = c.cache.Get("MediaPart", &media_part)
-   if err != nil {
-      return err
-   }
-   var user plex.User
-   err = c.cache.Get("User", &user)
+}
+
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
    c.job.Send = func(data []byte) ([]byte, error) {
-      return user.Widevine(&media_part, data)
+      return state.User.Widevine(state.MediaPart, data)
    }
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("plex")
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/plex.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.StringVar(&c.address, "a", "", "address")
    flag.StringVar(&c.x_forwarded_for, "x", "", "x-forwarded-for")
@@ -56,7 +64,7 @@ func (c *command) run() error {
    })
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    address         string
@@ -66,7 +74,7 @@ type command struct {
    job  maya.WidevineJob
 }
 
-func (c *command) do_address() error {
+func (c *client) do_address() error {
    var user plex.User
    err := user.Fetch()
    if err != nil {
@@ -84,35 +92,19 @@ func (c *command) do_address() error {
    if err != nil {
       return err
    }
-   media_part, err := metadata.Dash()
+   var state saved_state
+   state.MediaPart, err = metadata.Dash()
    if err != nil {
       return err
    }
-   err = c.cache.Set("MediaPart", media_part)
+   state.Dash, err = user.Dash(state.MediaPart, c.x_forwarded_for)
    if err != nil {
       return err
    }
-   dash, err := user.Dash(media_part, c.x_forwarded_for)
+   state.User = &user
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("User", user)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
-}
-
-func main() {
-   maya.SetProxy(func(req *http.Request) (string, bool) {
-      return "", path.Ext(req.URL.Path) != ".m4s"
-   })
-   err := new(command).run()
-   if err != nil {
-      log.Fatal(err)
-   }
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
