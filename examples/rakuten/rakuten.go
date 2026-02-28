@@ -10,52 +10,82 @@ import (
    "path"
 )
 
-func (c *command) do_dash() error {
-   var dash rakuten.Dash
-   err := c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   var language string
-   err = c.cache.Get("Language", &language)
-   if err != nil {
-      return err
-   }
-   var media rakuten.Media
-   err = c.cache.Get("Media", &media)
+func (c *client) do_language() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
    var stream *rakuten.StreamData
-   switch media.Type {
+   switch state.Media.Type {
    case rakuten.MovieType:
-      stream, err = media.MovieStream(
-         language, rakuten.Player.Widevine, rakuten.Quality.HD,
+      stream, err = state.Media.MovieStream(
+         c.language, rakuten.Player.Widevine, rakuten.Quality.FHD,
       )
    case rakuten.TvShowType:
-      var episode string
-      err = c.cache.Get("Episode", &episode)
-      if err != nil {
-         return err
-      }
-      stream, err = media.EpisodeStream(
-         episode, language, rakuten.Player.Widevine, rakuten.Quality.HD,
+      stream, err = state.Media.EpisodeStream(
+         c.episode, c.language, rakuten.Player.Widevine, rakuten.Quality.FHD,
+      )
+   }
+   if err != nil {
+      return err
+   }
+   state.Dash, err = stream.Dash()
+   if err != nil {
+      return err
+   }
+   state.Episode = c.episode
+   state.Language = c.language
+   err = c.cache.Set(state)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
+}
+
+type saved_state struct {
+   Dash     *rakuten.Dash
+   Episode  string
+   Language string
+   Media    *rakuten.Media
+}
+
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   var stream *rakuten.StreamData
+   switch state.Media.Type {
+   case rakuten.MovieType:
+      stream, err = state.Media.MovieStream(
+         state.Language,
+         rakuten.Player.Widevine,
+         rakuten.Quality.HD,
+      )
+   case rakuten.TvShowType:
+      stream, err = state.Media.EpisodeStream(
+         state.Episode,
+         state.Language,
+         rakuten.Player.Widevine,
+         rakuten.Quality.HD,
       )
    }
    if err != nil {
       return err
    }
    c.job.Send = stream.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
 
-func (c *command) do_season() error {
-   var media rakuten.Media
-   err := c.cache.Get("Media", &media)
+func (c *client) do_season() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
-   season, err := media.RequestSeason(c.season)
+   season, err := state.Media.RequestSeason(c.season)
    if err != nil {
       return err
    }
@@ -67,6 +97,7 @@ func (c *command) do_season() error {
    }
    return nil
 }
+
 func main() {
    maya.SetProxy(func(req *http.Request) (string, bool) {
       // everything needs proxy
@@ -76,13 +107,13 @@ func main() {
       }
       return "", true
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    address string
@@ -96,11 +127,13 @@ type command struct {
    job  maya.WidevineJob
 }
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("rakuten")
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/rakuten.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.StringVar(&c.address, "a", "", "address")
    // 2
@@ -133,7 +166,7 @@ func (c *command) run() error {
    })
 }
 
-func (c *command) do_address() error {
+func (c *client) do_address() error {
    var media rakuten.Media
    err := media.ParseURL(c.address)
    if err != nil {
@@ -153,44 +186,5 @@ func (c *command) do_address() error {
       }
       fmt.Println(item)
    }
-   return c.cache.Set("Media", media)
-}
-
-func (c *command) do_language() error {
-   var media rakuten.Media
-   err := c.cache.Get("Media", &media)
-   if err != nil {
-      return err
-   }
-   var stream *rakuten.StreamData
-   switch media.Type {
-   case rakuten.MovieType:
-      stream, err = media.MovieStream(
-         c.language, rakuten.Player.Widevine, rakuten.Quality.FHD,
-      )
-   case rakuten.TvShowType:
-      stream, err = media.EpisodeStream(
-         c.episode, c.language, rakuten.Player.Widevine, rakuten.Quality.FHD,
-      )
-   }
-   if err != nil {
-      return err
-   }
-   dash, err := stream.Dash()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Episode", c.episode)
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Language", c.language)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
+   return c.cache.Set(saved_state{Media: &media})
 }
