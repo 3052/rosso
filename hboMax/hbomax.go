@@ -12,6 +12,123 @@ import (
    "strings"
 )
 
+type Login struct {
+   Data struct {
+      Attributes struct {
+         Token string
+      }
+   }
+}
+
+func (e *Error) Error() string {
+   if e.Detail != "" {
+      return e.Detail
+   }
+   return e.Message
+}
+
+type Error struct {
+   Detail  string // show was filtered by validator
+   Message string // Token is missing or not valid
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors   []Error
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+func (p *Playback) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (l *Login) Widevine(editId string) (*Playback, error) {
+   return l.playback(editId, "widevine")
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL = ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code = ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
+func (v *Video) String() string {
+   var data strings.Builder
+   if v.Attributes.SeasonNumber >= 1 {
+      data.WriteString("season number = ")
+      data.WriteString(strconv.Itoa(v.Attributes.SeasonNumber))
+   }
+   if v.Attributes.EpisodeNumber >= 1 {
+      data.WriteString("\nepisode number = ")
+      data.WriteString(strconv.Itoa(v.Attributes.EpisodeNumber))
+   }
+   if data.Len() >= 1 {
+      data.WriteByte('\n')
+   }
+   data.WriteString("name = ")
+   data.WriteString(v.Attributes.Name)
+   data.WriteString("\nvideo type = ")
+   data.WriteString(v.Attributes.VideoType)
+   data.WriteString("\nedit id = ")
+   data.WriteString(v.Relationships.Edit.Data.Id)
+   return data.String()
+}
+func (p *Playback) Dash() (*Dash, error) {
+   resp, err := http.Get(
+      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Dash
+   result.Body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   result.Url = resp.Request.URL
+   return &result, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
 type ShowKey struct {
    Type string
    Id   string
@@ -218,6 +335,56 @@ func (p *Playback) PlayReady(data []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
+// validVideoTypes acts as a set to hold the video types we want to keep.
+var validVideoTypes = []string{
+   "EPISODE",
+   "MOVIE",
+   "STANDALONE_EVENT",
+}
+
+func (v *Videos) FilterAndSort() {
+   v.Included = slices.DeleteFunc(v.Included, func(vid *Video) bool {
+      if vid.Attributes == nil {
+         return true // Remove videos with nil attributes.
+      }
+      // We return 'true' to delete if the video's type is NOT in our slice.
+      return !slices.Contains(validVideoTypes, vid.Attributes.VideoType)
+   })
+   slices.SortFunc(v.Included, func(a, b *Video) int {
+      if a.Attributes == nil || b.Attributes == nil {
+         return 0 // Consider them equal if attributes are missing.
+      }
+      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
+   })
+}
+
+type Video struct {
+   Attributes *struct {
+      SeasonNumber  int
+      EpisodeNumber int
+      Name          string
+      VideoType     string
+   }
+   Relationships *struct {
+      Edit *struct {
+         Data struct {
+            Id string
+         }
+      }
+   }
+}
+
+type Videos struct {
+   Errors   []Error
+   Included []*Video
+}
+
+///
+
+type St struct {
+   Cookie *http.Cookie
+}
+
 // you must
 // /authentication/linkDevice/initiate
 // first or this will always fail
@@ -269,50 +436,6 @@ func (s *St) Fetch() error {
    return http.ErrNoCookie
 }
 
-// validVideoTypes acts as a set to hold the video types we want to keep.
-var validVideoTypes = []string{
-   "EPISODE",
-   "MOVIE",
-   "STANDALONE_EVENT",
-}
-
-func (v *Videos) FilterAndSort() {
-   v.Included = slices.DeleteFunc(v.Included, func(vid *Video) bool {
-      if vid.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, vid.Attributes.VideoType)
-   })
-   slices.SortFunc(v.Included, func(a, b *Video) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-}
-
-type Video struct {
-   Attributes *struct {
-      SeasonNumber  int
-      EpisodeNumber int
-      Name          string
-      VideoType     string
-   }
-   Relationships *struct {
-      Edit *struct {
-         Data struct {
-            Id string
-         }
-      }
-   }
-}
-
-type Videos struct {
-   Errors   []Error
-   Included []*Video
-}
-
 func (s St) Initiate(market string) (*Initiate, error) {
    var req http.Request
    req.Header = http.Header{}
@@ -346,126 +469,4 @@ func (s St) Initiate(market string) (*Initiate, error) {
       return nil, &result.Errors[0]
    }
    return &result.Data.Attributes, nil
-}
-
-type Login struct {
-   Data struct {
-      Attributes struct {
-         Token string
-      }
-   }
-}
-
-func (e *Error) Error() string {
-   if e.Detail != "" {
-      return e.Detail
-   }
-   return e.Message
-}
-
-type Error struct {
-   Detail  string // show was filtered by validator
-   Message string // Token is missing or not valid
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   []Error
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-type St struct {
-   Cookie *http.Cookie
-}
-
-func (p *Playback) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (l *Login) Widevine(editId string) (*Playback, error) {
-   return l.playback(editId, "widevine")
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL = ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-func (v *Video) String() string {
-   var data strings.Builder
-   if v.Attributes.SeasonNumber >= 1 {
-      data.WriteString("season number = ")
-      data.WriteString(strconv.Itoa(v.Attributes.SeasonNumber))
-   }
-   if v.Attributes.EpisodeNumber >= 1 {
-      data.WriteString("\nepisode number = ")
-      data.WriteString(strconv.Itoa(v.Attributes.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("name = ")
-   data.WriteString(v.Attributes.Name)
-   data.WriteString("\nvideo type = ")
-   data.WriteString(v.Attributes.VideoType)
-   data.WriteString("\nedit id = ")
-   data.WriteString(v.Relationships.Edit.Data.Id)
-   return data.String()
-}
-func (p *Playback) Dash() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Dash
-   result.Body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   result.Url = resp.Request.URL
-   return &result, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
