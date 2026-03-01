@@ -9,6 +9,10 @@ import (
    "path"
 )
 
+type saved_state struct {
+   Asset *molotov.Asset
+}
+
 func (c *command) do_dash() error {
    var asset molotov.Asset
    err := c.cache.Get("Asset", &asset)
