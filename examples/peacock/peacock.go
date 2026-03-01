@@ -9,49 +9,61 @@ import (
    "path"
 )
 
-func (c *command) do_address() error {
-   var cookie http.Cookie
-   err := c.cache.Get("Cookie", &cookie)
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   c.job.Send = state.Playout.Widevine
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
+}
+
+type saved_state struct {
+   Cookie  *http.Cookie
+   Dash    *peacock.Dash
+   Playout *peacock.Playout
+}
+
+func (c *client) do_address() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
    var token peacock.Token
-   err = token.Fetch(&cookie)
+   err = token.Fetch(state.Cookie)
    if err != nil {
       return err
    }
-   playout, err := token.Playout(path.Base(c.address))
+   state.Playout, err = token.Playout(path.Base(c.address))
    if err != nil {
       return err
    }
-   err = c.cache.Set("Playout", playout)
+   endpoint, err := state.Playout.Fastly()
    if err != nil {
       return err
    }
-   endpoint, err := playout.Fastly()
+   state.Dash, err = endpoint.Dash()
    if err != nil {
       return err
    }
-   dash, err := endpoint.Dash()
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
 
-func (c *command) do_email_password() error {
+func (c *client) do_email_password() error {
    cookie, err := peacock.FetchIdSession(c.email, c.password)
    if err != nil {
       return err
    }
-   return c.cache.Set("Cookie", cookie)
+   return c.cache.Set(saved_state{Cookie: cookie})
 }
 
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    email    string
@@ -62,11 +74,14 @@ type command struct {
    dash string
    job  maya.WidevineJob
 }
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("peacock")
+
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/peacock.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.StringVar(&c.email, "e", "", "email")
    flag.StringVar(&c.password, "p", "", "password")
@@ -99,23 +114,8 @@ func main() {
    maya.SetProxy(func(req *http.Request) (string, bool) {
       return "", path.Ext(req.URL.Path) != ".m4s"
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-func (c *command) do_dash() error {
-   var dash peacock.Dash
-   err := c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   var playout peacock.Playout
-   err = c.cache.Get("Playout", &playout)
-   if err != nil {
-      return err
-   }
-   c.job.Send = playout.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
 }

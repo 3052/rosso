@@ -10,44 +10,13 @@ import (
    "path"
 )
 
-func (c *command) do_dash() error {
-   var dash pluto.Dash
-   err := c.cache.Get("Dash", &dash)
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/pluto.xml")
    if err != nil {
       return err
    }
-   c.job.Send = pluto.Widevine
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
-}
-
-func main() {
-   maya.SetProxy(func(req *http.Request) (string, bool) {
-      return "", path.Ext(req.URL.Path) != ".m4s"
-   })
-   err := new(command).run()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type command struct {
-   cache maya.Cache
-   // 1
-   movie string
-   // 2
-   show string
-   // 3
-   episode string
-   // 4
-   dash string
-   job  maya.WidevineJob
-}
-
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("pluto")
    // 1
    flag.StringVar(&c.movie, "m", "", "movie URL")
    // 2
@@ -72,14 +41,14 @@ func (c *command) run() error {
       return c.do_dash()
    }
    return maya.Usage([][]string{
-      {"m", "x"},
+      {"m"},
       {"s"},
       {"e"},
       {"d", "c", "p"},
    })
 }
 
-func (c *command) do_movie() error {
+func (c *client) do_movie() error {
    var series pluto.Series
    err := series.Fetch(path.Base(c.movie))
    if err != nil {
@@ -90,30 +59,34 @@ func (c *command) do_movie() error {
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
+   err = c.cache.Set(saved_state{Dash: &dash})
    if err != nil {
       return err
    }
    return maya.ListDash(dash.Body, dash.Url)
 }
 
-func (c *command) do_show() error {
+func (c *client) do_show() error {
    var series pluto.Series
    err := series.Fetch(path.Base(c.show))
    if err != nil {
       return err
    }
    fmt.Println(&series.Vod[0])
-   return c.cache.Set("Series", series)
+   return c.cache.Set(saved_state{Series: &series})
+}
+type saved_state struct {
+   Dash *pluto.Dash
+   Series *pluto.Series
 }
 
-func (c *command) do_episode() error {
-   var series pluto.Series
-   err := c.cache.Get("Series", &series)
+func (c *client) do_episode() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
-   link, err := series.GetEpisodeURL(c.episode)
+   link, err := state.Series.GetEpisodeURL(c.episode)
    if err != nil {
       return err
    }
@@ -122,9 +95,43 @@ func (c *command) do_episode() error {
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
+   state.Dash = &dash
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
    return maya.ListDash(dash.Body, dash.Url)
+}
+
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   c.job.Send = pluto.Widevine
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
+}
+
+func main() {
+   maya.SetProxy(func(req *http.Request) (string, bool) {
+      return "", path.Ext(req.URL.Path) != ".m4s"
+   })
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache maya.Cache
+   // 1
+   movie string
+   // 2
+   show string
+   // 3
+   episode string
+   // 4
+   dash string
+   job  maya.WidevineJob
 }

@@ -10,11 +10,33 @@ import (
    "path"
 )
 
-func (c *command) run() error {
-   c.cache.Init("SL3000")
-   c.job.CertificateChain = c.cache.Join("CertificateChain")
-   c.job.EncryptSignKey = c.cache.Join("EncryptSignKey")
-   c.cache.Init("hboMax")
+type saved_state struct {
+   Dash     *hboMax.Dash
+   Login    *hboMax.Login
+   Playback *hboMax.Playback
+   St       *hboMax.St
+}
+
+func (c *client) do_login() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   state.Login, err = state.St.Login()
+   if err != nil {
+      return err
+   }
+   return c.cache.Set(state)
+}
+
+func (c *client) do() error {
+   c.job.CertificateChain, _ = maya.ResolveCache("SL3000/CertificateChain")
+   c.job.EncryptSignKey, _ = maya.ResolveCache("SL3000/EncryptSignKey")
+   err := c.cache.Init("rosso/hboMax.xml")
+   if err != nil {
+      return err
+   }
    // 1
    flag.BoolVar(&c.initiate, "i", false, "device initiate")
    flag.StringVar(
@@ -56,22 +78,22 @@ func (c *command) run() error {
    })
 }
 
-func (c *command) do_address() error {
+func (c *client) do_address() error {
    var show hboMax.ShowKey
    err := show.Parse(c.address)
    if err != nil {
       return err
    }
-   var login hboMax.Login
-   err = c.cache.Get("Login", &login)
+   var state saved_state
+   err = c.cache.Get(&state)
    if err != nil {
       return err
    }
    var videos *hboMax.Videos
    if c.season >= 1 {
-      videos, err = login.Season(&show, c.season)
+      videos, err = state.Login.Season(&show, c.season)
    } else {
-      videos, err = login.Movie(&show)
+      videos, err = state.Login.Movie(&show)
    }
    if err != nil {
       return err
@@ -86,38 +108,30 @@ func (c *command) do_address() error {
    return nil
 }
 
-func (c *command) do_edit() error {
-   var login hboMax.Login
-   err := c.cache.Get("Login", &login)
+func (c *client) do_edit() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
-   playback, err := login.PlayReady(c.edit)
+   state.Playback, err = state.Login.PlayReady(c.edit)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Playback", playback)
+   state.Dash, err = state.Playback.Dash()
    if err != nil {
       return err
    }
-   dash, err := playback.Dash()
+   err = c.cache.Set(state)
    if err != nil {
       return err
    }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
 }
 
-func (c *command) do_initiate() error {
+func (c *client) do_initiate() error {
    var st hboMax.St
    err := st.Fetch()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("St", st)
    if err != nil {
       return err
    }
@@ -126,38 +140,20 @@ func (c *command) do_initiate() error {
       return err
    }
    fmt.Println(initiate)
-   return nil
+   return c.cache.Set(saved_state{St: &st})
 }
 
-func (c *command) do_dash() error {
-   var playback hboMax.Playback
-   err := c.cache.Get("Playback", &playback)
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
-   c.job.Send = playback.PlayReady
-   var dash hboMax.Dash
-   err = c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
+   c.job.Send = state.Playback.PlayReady
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
 
-func (c *command) do_login() error {
-   var st hboMax.St
-   err := c.cache.Get("St", &st)
-   if err != nil {
-      return err
-   }
-   login, err := st.Login()
-   if err != nil {
-      return err
-   }
-   return c.cache.Set("Login", login)
-}
-
-type command struct {
+type client struct {
    cache maya.Cache
    // 1
    initiate bool
@@ -178,7 +174,7 @@ func main() {
    maya.SetProxy(func(req *http.Request) (string, bool) {
       return "", path.Ext(req.URL.Path) != ".mp4"
    })
-   err := new(command).run()
+   err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
