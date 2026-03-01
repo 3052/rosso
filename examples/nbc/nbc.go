@@ -9,6 +9,33 @@ import (
    "path"
 )
 
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/nbc.xml")
+   if err != nil {
+      return err
+   }
+   // 1
+   flag.StringVar(&c.address, "a", "", "address")
+   // 2
+   flag.StringVar(&c.dash, "d", "", "DASH ID")
+   flag.IntVar(&c.job.Threads, "t", 2, "threads")
+   flag.StringVar(&c.job.ClientId, "c", c.job.ClientId, "client ID")
+   flag.StringVar(&c.job.PrivateKey, "p", c.job.PrivateKey, "private key")
+   flag.Parse()
+   if c.address != "" {
+      return c.do_address()
+   }
+   if c.dash != "" {
+      return c.do_dash()
+   }
+   return maya.Usage([][]string{
+      {"a"},
+      {"d", "t", "c", "p"},
+   })
+}
+
 func (c *client) do_address() error {
    name, err := nbc.GetName(c.address)
    if err != nil {
@@ -60,30 +87,4 @@ type client struct {
    // 2
    dash string
    job  maya.WidevineJob
-}
-
-func (c *client) do() error {
-   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
-   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
-   err := c.cache.Init("rosso/nbc.xml")
-   if err != nil {
-      return err
-   }
-   // 1
-   flag.StringVar(&c.address, "a", "", "address")
-   // 2
-   flag.StringVar(&c.dash, "d", "", "DASH ID")
-   flag.StringVar(&c.job.ClientId, "c", c.job.ClientId, "client ID")
-   flag.StringVar(&c.job.PrivateKey, "p", c.job.PrivateKey, "private key")
-   flag.Parse()
-   if c.address != "" {
-      return c.do_address()
-   }
-   if c.dash != "" {
-      return c.do_dash()
-   }
-   return maya.Usage([][]string{
-      {"a"},
-      {"d", "c", "p"},
-   })
 }
