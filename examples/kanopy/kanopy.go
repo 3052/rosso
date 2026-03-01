@@ -9,21 +9,78 @@ import (
    "path"
 )
 
-func (c *command) run() error {
-   c.cache.Init("L3")
-   c.job.ClientId = c.cache.Join("client_id.bin")
-   c.job.PrivateKey = c.cache.Join("private_key.pem")
-   c.cache.Init("kanopy")
+func (c *client) do_kanopy() error {
+   var state saved_state
+   err := c.cache.Get(&state)
+   if err != nil {
+      return err
+   }
+   member, err := state.Login.Membership()
+   if err != nil {
+      return err
+   }
+   plays, err := state.Login.Plays(member, c.kanopy)
+   if err != nil {
+      return err
+   }
+   state.PlayManifest, err = plays.Dash()
+   if err != nil {
+      return err
+   }
+   state.Dash, err = state.PlayManifest.Dash()
+   if err != nil {
+      return err
+   }
+   err = c.cache.Set(&state)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(state.Dash.Body, state.Dash.Url)
+}
+
+func main() {
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache maya.Cache
    // 1
+   proxy string
+   // 2
+   email    string
+   password string
+   // 3
+   kanopy int
+   // 4
+   dash string
+   job  maya.WidevineJob
+}
+
+func (c *client) do() error {
+   c.job.ClientId, _ = maya.ResolveCache("L3/client_id.bin")
+   c.job.PrivateKey, _ = maya.ResolveCache("L3/private_key.pem")
+   err := c.cache.Init("rosso/kanopy.xml")
+   if err != nil {
+      return err
+   }
+   // 1
+   flag.StringVar(&c.proxy, "x", "", "proxy")
+   // 2
    flag.StringVar(&c.email, "e", "", "email")
    flag.StringVar(&c.password, "p", "", "password")
-   // 2
-   flag.IntVar(&c.kanopy, "k", 0, "Kanopy ID")
    // 3
+   flag.IntVar(&c.kanopy, "k", 0, "Kanopy ID")
+   // 4
    flag.StringVar(&c.dash, "d", "", "DASH ID")
    flag.StringVar(&c.job.ClientId, "C", c.job.ClientId, "client ID")
    flag.StringVar(&c.job.PrivateKey, "P", c.job.PrivateKey, "private key")
    flag.Parse()
+   maya.SetProxy(func(req *http.Request) (string, bool) {
+      return c.proxy, path.Ext(req.URL.Path) != ".m4s"
+   })
    if c.email != "" {
       if c.password != "" {
          return c.do_email_password()
@@ -42,87 +99,29 @@ func (c *command) run() error {
    })
 }
 
-type command struct {
-   cache maya.Cache
-   // 1
-   email    string
-   password string
-   // 2
-   kanopy int
-   // 3
-   dash string
-   job  maya.WidevineJob
-}
-
-func (c *command) do_email_password() error {
+func (c *client) do_email_password() error {
    var login kanopy.Login
    err := login.Fetch(c.email, c.password)
    if err != nil {
       return err
    }
-   return c.cache.Set("Login", login)
+   return c.cache.Set(saved_state{Login: &login})
 }
-func (c *command) do_dash() error {
-   var login kanopy.Login
-   err := c.cache.Get("Login", &login)
-   if err != nil {
-      return err
-   }
-   var manifest kanopy.PlayManifest
-   err = c.cache.Get("PlayManifest", &manifest)
+
+type saved_state struct {
+   Dash         *kanopy.Dash
+   Login        *kanopy.Login
+   PlayManifest *kanopy.PlayManifest
+}
+
+func (c *client) do_dash() error {
+   var state saved_state
+   err := c.cache.Get(&state)
    if err != nil {
       return err
    }
    c.job.Send = func(data []byte) ([]byte, error) {
-      return login.Widevine(&manifest, data)
+      return state.Login.Widevine(state.PlayManifest, data)
    }
-   var dash kanopy.Dash
-   err = c.cache.Get("Dash", &dash)
-   if err != nil {
-      return err
-   }
-   return c.job.DownloadDash(dash.Body, dash.Url, c.dash)
-}
-
-func (c *command) do_kanopy() error {
-   var login kanopy.Login
-   err := c.cache.Get("Login", &login)
-   if err != nil {
-      return err
-   }
-   member, err := login.Membership()
-   if err != nil {
-      return err
-   }
-   plays, err := login.Plays(member, c.kanopy)
-   if err != nil {
-      return err
-   }
-   manifest, err := plays.Dash()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("PlayManifest", manifest)
-   if err != nil {
-      return err
-   }
-   dash, err := manifest.Dash()
-   if err != nil {
-      return err
-   }
-   err = c.cache.Set("Dash", dash)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(dash.Body, dash.Url)
-}
-
-func main() {
-   maya.SetProxy(func(req *http.Request) (string, bool) {
-      return "", path.Ext(req.URL.Path) != ".m4s"
-   })
-   err := new(command).run()
-   if err != nil {
-      log.Fatal(err)
-   }
+   return c.job.DownloadDash(state.Dash.Body, state.Dash.Url, c.dash)
 }
