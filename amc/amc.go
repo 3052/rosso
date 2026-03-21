@@ -11,12 +11,6 @@ import (
    "strings"
 )
 
-type Metadata struct {
-   EpisodeNumber int
-   Nid           int
-   Title         string
-}
-
 func join(data ...string) string {
    return strings.Join(data, "")
 }
@@ -27,6 +21,63 @@ type Client struct {
       RefreshToken string `json:"refresh_token"`
    }
 }
+
+type Metadata struct {
+   EpisodeNumber int
+   Nid           int
+   Title         string
+}
+
+func (s *Source) Widevine(bcJwt string, data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", s.KeySystems.ComWidevineAlpha.LicenseUrl,
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("bcov-auth", bcJwt)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Source struct {
+   KeySystems struct {
+      ComWidevineAlpha *struct {
+         LicenseUrl string `json:"license_url"`
+      } `json:"com.widevine.alpha"`
+   } `json:"key_systems"`
+   Src  string // URL to the MPD manifest
+   Type string // e.g., "application/dash+xml"
+}
+
+func (s *Source) Dash() (*Dash, error) {
+   resp, err := http.Get(s.Src)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func GetDash(sources []Source) (*Source, error) {
+   for _, source_data := range sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, errors.New("DASH source not found")
+}
+
+///
 
 // Seasons extracts metadata exclusively from a Series
 func (s *Series) Seasons() ([]*Metadata, error) {
@@ -338,53 +389,4 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-func (s *Source) Widevine(bcJwt string, data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", s.KeySystems.ComWidevineAlpha.LicenseUrl,
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("bcov-auth", bcJwt)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-type Source struct {
-   KeySystems struct {
-      ComWidevineAlpha *struct {
-         LicenseUrl string `json:"license_url"`
-      } `json:"com.widevine.alpha"`
-   } `json:"key_systems"`
-   Src  string // URL to the MPD manifest
-   Type string // e.g., "application/dash+xml"
-}
-
-func (s *Source) Dash() (*Dash, error) {
-   resp, err := http.Get(s.Src)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func GetDash(sources []Source) (*Source, error) {
-   for _, source_data := range sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, errors.New("DASH source not found")
 }

@@ -8,6 +8,101 @@ import (
    "log"
 )
 
+func (c *client) do_series() error {
+   series, err := c.Client.Series(c.series)
+   if err != nil {
+      return err
+   }
+   seasons, err := series.Seasons()
+   if err != nil {
+      return err
+   }
+   for i, season := range seasons {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(season)
+   }
+   return nil
+}
+
+func (c *client) do_season() error {
+   season, err := c.Client.Season(c.season)
+   if err != nil {
+      return err
+   }
+   episodes, err := season.Episodes()
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
+func (c *client) do_episode() error {
+   sources, header, err := c.Client.Playback(c.episode)
+   if err != nil {
+      return err
+   }
+   c.Source, err = amc.GetDash(sources)
+   if err != nil {
+      return err
+   }
+   c.BcJwt = amc.BcJwt(header)
+   c.Dash, err = c.Source.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+type client struct {
+   BcJwt  string
+   Client *amc.Client
+   Dash   *amc.Dash
+   Source *amc.Source
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   series int
+   //------------------------
+   season int
+   //------------------------
+   episode int
+   //------------------------
+   dash_id string
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
+      func(data []byte) ([]byte, error) {
+         return c.Source.Widevine(c.BcJwt, data)
+      },
+   )
+}
+
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4f")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
 func (c *client) do() error {
    err := cache.Setup("rosso/amc.xml")
    if err != nil {
@@ -82,100 +177,4 @@ func (c *client) do_refresh() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_series() error {
-   series, err := c.Client.SeriesDetail(c.series)
-   if err != nil {
-      return err
-   }
-   seasons, err := series.ExtractSeasons()
-   if err != nil {
-      return err
-   }
-   for i, season := range seasons {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(season)
-   }
-   return nil
-}
-
-func (c *client) do_season() error {
-   season, err := c.Client.SeasonEpisodes(c.season)
-   if err != nil {
-      return err
-   }
-   episodes, err := season.ExtractEpisodes()
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func (c *client) do_episode() error {
-   sources, header, err := c.Client.Playback(c.episode)
-   if err != nil {
-      return err
-   }
-   c.DataSource, err = amc.GetDash(sources)
-   if err != nil {
-      return err
-   }
-   c.BcJwt = amc.BcJwt(header)
-   c.Dash, err = c.DataSource.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-type client struct {
-   BcJwt      string
-   Client     *amc.Client
-   Dash       *amc.Dash
-   DataSource *amc.DataSource
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-   //------------------------
-   dash_id string
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
-      func(data []byte) ([]byte, error) {
-         return c.DataSource.Widevine(c.BcJwt, data)
-      },
-   )
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4f")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
