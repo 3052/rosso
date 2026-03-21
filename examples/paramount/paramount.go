@@ -104,6 +104,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringVar(&c.Job.PlayReady, "PR", "PlayReady")
    //--------------------------------------------------------------
+   threads := maya.IntVar(&c.Job.Threads, "t", "threads")
+   //--------------------------------------------------------------
    app_secret := maya.BoolVar(new(bool), "a", "app secret")
    //--------------------------------------------------------------
    username := maya.StringVar(&c.username, "U", "username")
@@ -115,6 +117,9 @@ func (c *client) do() error {
    dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
    set := maya.Parse()
    if set[playReady] {
+      return cache.Write(c)
+   }
+   if set[threads] {
       return cache.Write(c)
    }
    if set[app_secret] {
@@ -133,6 +138,7 @@ func (c *client) do() error {
    }
    return maya.Usage([][]*flag.Flag{
       {playReady},
+      {threads},
       {app_secret},
       {username, password},
       {paramount_id, get_cookie},
