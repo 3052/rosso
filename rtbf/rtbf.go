@@ -10,6 +10,10 @@ import (
    "strings"
 )
 
+func join(data ...string) string {
+   return strings.Join(data, "")
+}
+
 func FetchAccount(id, password string) (*Account, error) {
    resp, err := http.PostForm(
       "https://login.auvio.rtbf.be/accounts.login", url.Values{
@@ -72,10 +76,6 @@ func (e *Entitlement) Dash() (*FormatItem, error) {
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-func join(data ...string) string {
-   return strings.Join(data, "")
 }
 
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
