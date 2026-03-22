@@ -1,22 +1,38 @@
 package main
 
 import (
+   "io"
    "net/http"
    "net/url"
    "os"
+   "strings"
 )
 
 func main() {
    var req http.Request
    req.Header = http.Header{}
+   req.Header.Add("Accept", "*/*")
+   req.Header.Add("Accept-Encoding", "identity")
+   req.Header.Add("Accept-Language", "en-US,en;q=0.5")
+   req.Header.Add("Authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
+   req.Header.Add("Content-Length", "137")
+   req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+   req.Header.Add("Origin", "https://www.crave.ca")
+   req.Header.Add("Priority", "u=4")
+   req.Header.Add("Referer", "https://www.crave.ca/")
+   req.Header.Add("Sec-Fetch-Dest", "empty")
+   req.Header.Add("Sec-Fetch-Mode", "cors")
+   req.Header.Add("Sec-Fetch-Site", "cross-site")
+   req.Header.Add("Te", "trailers")
+   req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
+   req.Method = "POST"
+   req.ProtoMajor = 1
+   req.ProtoMinor = 1
    req.URL = &url.URL{}
-   req.URL.Host = "stream.video.9c9media.com"
-   req.URL.Path = "/meta/content/938361/contentpackage/8143402/destination/1880/platform/1"
-   value := url.Values{}
-   value["format"] = []string{"mpd"}
-   req.Header.Add("Authorization", "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2OTk2N2RhOWM5M2VlZjVkZjIwZjg3MTIiLCJzY29wZSI6ImFjY291bnQ6d3JpdGUgZGVmYXVsdCBtYXR1cml0eTphZHVsdCIsImlzcyI6Imh0dHBzOi8vYWNjb3VudC5iZWxsbWVkaWEuY2EiLCJjb250ZXh0Ijp7InByb2ZpbGVfaWQiOiI2OTk3MGVmYTczMTc2ZDJiMmU1M2E1YTMiLCJicmFuZF9pZHMiOlsiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTExIiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE0IiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE1Il19LCJleHAiOjE3NzQyMDE5MDIsImlhdCI6MTc3NDE4NzUwMiwidmVyc2lvbiI6IlYyIiwianRpIjoiOWFmNDA5ZjMtNTMzNC00OWQwLWI5NzYtYmUyNmZmOGZkMDg3IiwiYXV0aG9yaXRpZXMiOlsiUkVHVUxBUl9VU0VSIl0sImNsaWVudF9pZCI6ImNyYXZlLXdlYiJ9.ipnWI2we9vx6wKx3u8ZJuqDjZ46nr7c_vYqn6u28IOSvLfvEuWfWiE8C2UQxVzUzYZeSiQRw-vpbzgKE-KMR4ZfBSlU2f3AcvP6wcDkBGaXkMvfao-dIbbeUHDMjeX1seCE2LzJ0N73MZ4503NZ6heHmCphkZN3wtwsgo6ZnejWD5uT3JkN-rPGcJr_y17VMf87RfuI4OG4qJH5x4NPIDcfy8uF4xcXVU6nFi6clewEb5ivV5aYMXb78lZhyCBYlL2v_DDcJ5jTgfRyThvpYnPpB6G5898JJGE-LPJUJHb17q1_7u6ocWlDPEifvNG9-c0AyG1hgLVJl28Yr4IGGVg")
-   req.URL.RawQuery = value.Encode()
+   req.URL.Host = "account.bellmedia.ca"
+   req.URL.Path = "/api/login/v2.2"
    req.URL.Scheme = "https"
+   req.Body = io.NopCloser(strings.NewReader(data))
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       panic(err)
@@ -26,3 +42,8 @@ func main() {
       panic(err)
    }
 }
+
+var data = url.Values{
+   "grant_type":[]string{"magic_link_token"},
+   "magic_link_token":[]string{"MgZ_TtZxjd_pPLXjbvAqo_SQpTJOsz_tKPd8Mr7kr4Cnnjqm5eS125kLuecrMKbIxovx-qdUSbBn_pQ9iqlahA=="},
+}.Encode()
