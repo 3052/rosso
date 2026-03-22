@@ -8,51 +8,6 @@ import (
    "testing"
 )
 
-func TestPlayReady(t *testing.T) {
-   user, err := output("credential", "-h=api.nordvpn.com", "-k=user")
-   if err != nil {
-      t.Fatal(err)
-   }
-   password, err := output("credential", "-h=api.nordvpn.com")
-   if err != nil {
-      t.Fatal(err)
-   }
-   http.DefaultTransport = &http.Transport{
-      Proxy: http.ProxyURL(&url.URL{
-         Scheme: "https",
-         User:   url.UserPassword(user, password),
-         Host:   "uk813.nordvpn.com:89",
-      }),
-   }
-   var play Playlist
-   err = play.playReady("10_6201_0001.002")
-   if err != nil {
-      t.Fatal(err)
-   }
-   hd, err := play.FullHd()
-   if err != nil {
-      t.Fatal(err)
-   }
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   err = os.WriteFile(
-      cache+"/itv/PlayReady", []byte(hd.KeyServiceUrl), os.ModePerm,
-   )
-   if err != nil {
-      t.Fatal(err)
-   }
-}
-
-func output(name string, arg ...string) (string, error) {
-   data, err := exec.Command(name, arg...).Output()
-   if err != nil {
-      return "", err
-   }
-   return string(data), nil
-}
-
 var watch_tests = []struct {
    category string
    watch    []string

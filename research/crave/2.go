@@ -1,14 +1,17 @@
-package main
+package crave
 
 import (
    "io"
    "net/http"
    "net/url"
-   "os"
    "strings"
 )
 
-func main() {
+func Two() (*http.Response, error) {
+   var data = url.Values{
+      "grant_type":[]string{"magic_link_token"},
+      "magic_link_token":[]string{"MgZ_TtZxjd_pPLXjbvAqo_SQpTJOsz_tKPd8Mr7kr4Cnnjqm5eS125kLuecrMKbIxovx-qdUSbBn_pQ9iqlahA=="},
+   }.Encode()
    var req http.Request
    req.Header = http.Header{}
    req.Header.Add("Accept", "*/*")
@@ -33,17 +36,5 @@ func main() {
    req.URL.Path = "/api/login/v2.2"
    req.URL.Scheme = "https"
    req.Body = io.NopCloser(strings.NewReader(data))
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      panic(err)
-   }
-   err = resp.Write(os.Stdout)
-   if err != nil {
-      panic(err)
-   }
+   return http.DefaultClient.Do(&req)
 }
-
-var data = url.Values{
-   "grant_type":[]string{"magic_link_token"},
-   "magic_link_token":[]string{"MgZ_TtZxjd_pPLXjbvAqo_SQpTJOsz_tKPd8Mr7kr4Cnnjqm5eS125kLuecrMKbIxovx-qdUSbBn_pQ9iqlahA=="},
-}.Encode()

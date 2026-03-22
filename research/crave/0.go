@@ -1,14 +1,18 @@
-package main
+package crave
 
 import (
    "io"
    "net/http"
    "net/url"
-   "os"
    "strings"
 )
 
-func main() {
+func zero(username, password string) (*http.Response, error) {
+   var data = url.Values{
+      "username":[]string{username},
+      "password":[]string{password},
+      "grant_type":[]string{"password"},
+   }.Encode()
    var req http.Request
    req.Header = http.Header{}
    req.Method = "POST"
@@ -19,19 +23,5 @@ func main() {
    req.Body = io.NopCloser(strings.NewReader(data))
    req.Header.Add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
    req.Header.Add("Authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      panic(err)
-   }
-   err = resp.Write(os.Stdout)
-   if err != nil {
-      panic(err)
-   }
+   return http.DefaultClient.Do(&req)
 }
-
-var data = url.Values{
-   "password":[]string{""},
-   "username":[]string{""},
-   "grant_type":[]string{"password"},
-}.Encode()
-
