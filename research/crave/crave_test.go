@@ -21,7 +21,6 @@ func TestFour(t *testing.T) {
          return nil, nil
       },
    }
-   // 2. authTokens
    cache, err := os.UserCacheDir()
    if err != nil {
       t.Fatal(err)
@@ -35,24 +34,16 @@ func TestFour(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   // 3. ssoTokens
-   magic_link_token, err := GenerateMagicLink(auth_tokens.AccessToken)
-   if err != nil {
-      t.Fatal(err)
-   }
-   sso_tokens, err := MagicLinkLogin(magic_link_token)
-   if err != nil {
-      t.Fatal(err)
-   }
-   // 4. profiles
-   profiles, err := GetProfiles(auth_tokens.AccountID, sso_tokens.AccessToken)
+   profiles, err := GetProfiles(auth_tokens.AccountID, auth_tokens.AccessToken)
    if err != nil {
       t.Fatal(err)
    }
    i := slices.IndexFunc(profiles, func(p *Profile) bool {
       return p.HasPin == false
    })
-   final_tokens, err := ProfileLogin(sso_tokens.RefreshToken, profiles[i].ID, "")
+   final_tokens, err := ProfileLogin(
+      auth_tokens.RefreshToken, profiles[i].ID, "",
+   )
    if err != nil {
       t.Fatal(err)
    }
@@ -97,4 +88,31 @@ func run(name string, arg ...string) (string, error) {
       return "", err
    }
    return data.String(), nil
+}
+
+func TestLoginPassword(t *testing.T) {
+   username, err := run("credential", "-h=crave.ca", "-k=username")
+   if err != nil {
+      t.Fatal(err)
+   }
+   password, err := run("credential", "-h=crave.ca")
+   if err != nil {
+      t.Fatal(err)
+   }
+   auth_tokens, err := PasswordLogin(username, password, "")
+   if err != nil {
+      t.Fatal(err)
+   }
+   data, err := json.Marshal(auth_tokens)
+   if err != nil {
+      t.Fatal(err)
+   }
+   cache, err := os.UserCacheDir()
+   if err != nil {
+      t.Fatal(err)
+   }
+   err = os.WriteFile(cache + "/rosso/crave.json", data, os.ModePerm)
+   if err != nil {
+      t.Fatal(err)
+   }
 }
