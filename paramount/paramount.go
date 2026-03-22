@@ -19,7 +19,7 @@ import (
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func Login(at, username, password string) (*http.Cookie, error) {
+func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
    data := url.Values{
       "j_username": {username},
       "j_password": {password},

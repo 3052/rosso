@@ -19,7 +19,7 @@ func (c *client) do_username_password() error {
    if err != nil {
       return err
    }
-   c.CbsCom, err = paramount.Login(at, c.username, c.password)
+   c.CbsCom, err = paramount.FetchCbsCom(at, c.username, c.password)
    if err != nil {
       return err
    }

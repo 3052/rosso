@@ -263,11 +263,11 @@ func (s *Stream) Hls() (*Hls, error) {
    if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
-   data, err := io.ReadAll(resp.Body)
+   body, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
-   return &Hls{data, resp.Request.URL}, nil
+   return &Hls{Body: body, Url: resp.Request.URL}, nil
 }
 
 func (t *Token) String() string {
