@@ -10,7 +10,7 @@ import (
 )
 
 // PasswordLogin performs the initial login to get the first set of tokens.
-func (c *Client) PasswordLogin(username, password, recaptchaToken string) (*TokenResponse, error) {
+func PasswordLogin(username, password, recaptchaToken string) (*TokenResponse, error) {
    endpoint := fmt.Sprintf("%s/api/login/v2.1", BaseURL)
 
    data := url.Values{}
@@ -31,7 +31,7 @@ func (c *Client) PasswordLogin(username, password, recaptchaToken string) (*Toke
    req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Accept", "application/json, text/plain, */*")
 
-   resp, err := c.HTTPClient.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

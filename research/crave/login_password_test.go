@@ -15,8 +15,7 @@ func TestLoginPassword(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   client := NewClient()
-   auth_tokens, err := client.PasswordLogin(username, password, "")
+   auth_tokens, err := PasswordLogin(username, password, "")
    if err != nil {
       t.Fatal(err)
    }

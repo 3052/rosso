@@ -5,7 +5,21 @@ import (
    "net/url"
 )
 
-func four() (*http.Response, error) {
+const (
+   BaseURL = "https://account.bellmedia.ca"
+   // Basic base64("crave-web:default")
+   BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
+   UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
+)
+
+type TokenResponse struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountID    string `json:"account_id,omitempty"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
+func (t *TokenResponse) four() (*http.Response, error) {
    var req http.Request
    req.Header = http.Header{}
    req.URL = &url.URL{}
@@ -13,14 +27,8 @@ func four() (*http.Response, error) {
    req.URL.Path = "/meta/content/938361/contentpackage/8143402/destination/1880/platform/1"
    value := url.Values{}
    value["format"] = []string{"mpd"}
-   req.Header.Add("Authorization", "Bearer " + four_bearer)
+   req.Header.Add("Authorization", "Bearer " + t.AccessToken)
    req.URL.RawQuery = value.Encode()
    req.URL.Scheme = "https"
    return http.DefaultClient.Do(&req)
 }
-
-// "scope": "account:write default maturity:adult"
-//const four_bearer = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2OTk2N2RhOWM5M2VlZjVkZjIwZjg3MTIiLCJzY29wZSI6ImFjY291bnQ6d3JpdGUgZGVmYXVsdCBtYXR1cml0eTphZHVsdCIsImlzcyI6Imh0dHBzOi8vYWNjb3VudC5iZWxsbWVkaWEuY2EiLCJjb250ZXh0Ijp7InByb2ZpbGVfaWQiOiI2OTk3MGVmYTczMTc2ZDJiMmU1M2E1YTMiLCJicmFuZF9pZHMiOlsiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTExIiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE0IiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE1Il19LCJleHAiOjE3NzQyMDE5MDIsImlhdCI6MTc3NDE4NzUwMiwidmVyc2lvbiI6IlYyIiwianRpIjoiOWFmNDA5ZjMtNTMzNC00OWQwLWI5NzYtYmUyNmZmOGZkMDg3IiwiYXV0aG9yaXRpZXMiOlsiUkVHVUxBUl9VU0VSIl0sImNsaWVudF9pZCI6ImNyYXZlLXdlYiJ9.ipnWI2we9vx6wKx3u8ZJuqDjZ46nr7c_vYqn6u28IOSvLfvEuWfWiE8C2UQxVzUzYZeSiQRw-vpbzgKE-KMR4ZfBSlU2f3AcvP6wcDkBGaXkMvfao-dIbbeUHDMjeX1seCE2LzJ0N73MZ4503NZ6heHmCphkZN3wtwsgo6ZnejWD5uT3JkN-rPGcJr_y17VMf87RfuI4OG4qJH5x4NPIDcfy8uF4xcXVU6nFi6clewEb5ivV5aYMXb78lZhyCBYlL2v_DDcJ5jTgfRyThvpYnPpB6G5898JJGE-LPJUJHb17q1_7u6ocWlDPEifvNG9-c0AyG1hgLVJl28Yr4IGGVg"
-
-const four_bearer = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2OTk2N2RhOWM5M2VlZjVkZjIwZjg3MTIiLCJzY29wZSI6ImFjY291bnQ6d3JpdGUgZGVmYXVsdCBtYXR1cml0eTphZHVsdCIsImlzcyI6Imh0dHBzOi8vYWNjb3VudC5iZWxsbWVkaWEuY2EiLCJjb250ZXh0Ijp7InByb2ZpbGVfaWQiOiI2OTk3MGVmYTczMTc2ZDJiMmU1M2E1YTMiLCJicmFuZF9pZHMiOlsiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTExIiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE0IiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE1Il19LCJleHAiOjE3NzQyMzE1MzYsImlhdCI6MTc3NDIxNzEzNiwidmVyc2lvbiI6IlYyIiwianRpIjoiYzlkMDdkZWMtNTc4NC00NDk4LWE4NmEtOWVjZjEyMTI1ZWFjIiwiYXV0aG9yaXRpZXMiOlsiUkVHVUxBUl9VU0VSIl0sImNsaWVudF9pZCI6ImNyYXZlLXdlYiJ9.3sTRSiiGCXr7E0ugS1vlkPU9BDYeCFrHjd0qMAYE9-3aJG3kWeb6lKQvN_7LrUByR-2dc9GI_x3YslzDpkCE1G5lCVM4l03rZirBjTfRMLkLjoMvesGfxPq7IDoLjlw1BAY9_dZh2KevykS3dVXRjFtlyqUunY0_FfNU_IX69EeEd1ZTvuunyfmioXFSDE5hvFCfJYr__UClRKKSnUO_SJKwkcuaQcFEeztjBUOyaF-CH1Kh-j3FLjtVcE51IisO4E9iQCEDljsdTgxAC4RWVk2pUewvXHeVcPTaz6w9YmowW4s5tILp1eMuA0pm65G8CJyCzagfnYHXhDMDq0Ke6w"
-

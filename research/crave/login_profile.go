@@ -10,7 +10,7 @@ import (
 )
 
 // ProfileLogin exchanges a refresh token for a fully authorized profile-specific Bearer token.
-func (c *Client) ProfileLogin(refreshToken, profileID, profilePin string) (*TokenResponse, error) {
+func ProfileLogin(refreshToken, profileID, profilePin string) (*TokenResponse, error) {
    endpoint := fmt.Sprintf("%s/api/login/v2.2", BaseURL)
 
    data := url.Values{}
@@ -34,7 +34,7 @@ func (c *Client) ProfileLogin(refreshToken, profileID, profilePin string) (*Toke
    req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Origin", "https://www.crave.ca")
 
-   resp, err := c.HTTPClient.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

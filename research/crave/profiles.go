@@ -17,7 +17,7 @@ type Profile struct {
 }
 
 // GetProfiles fetches the list of profiles associated with the account.
-func (c *Client) GetProfiles(accountID, accessToken string) ([]*Profile, error) {
+func GetProfiles(accountID, accessToken string) ([]*Profile, error) {
    endpoint := fmt.Sprintf("%s/api/profile/v2/account/%s", BaseURL, accountID)
 
    req, err := http.NewRequest("GET", endpoint, nil)
@@ -30,7 +30,7 @@ func (c *Client) GetProfiles(accountID, accessToken string) ([]*Profile, error) 
    req.Header.Set("Accept", "application/json, text/plain, */*")
    req.Header.Set("Origin", "https://www.crave.ca")
 
-   resp, err := c.HTTPClient.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
