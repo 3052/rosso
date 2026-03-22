@@ -1,27 +1,41 @@
 package crave
 
 import (
-   "io"
+   "encoding/json"
    "net/http"
    "net/url"
    "strings"
 )
 
-func zero(username, password string) (*http.Response, error) {
-   var data = url.Values{
-      "username":[]string{username},
-      "password":[]string{password},
-      "grant_type":[]string{"password"},
+type zero struct {
+   RefreshToken string `json:"refresh_token"`
+   AccessToken string `json:"access_token"`
+}
+
+func fetch_zero(username, password string) (*zero, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password": {password},
+      "username": {username},
    }.Encode()
-   var req http.Request
-   req.Header = http.Header{}
-   req.Method = "POST"
-   req.URL = &url.URL{}
-   req.URL.Host = "account.bellmedia.ca"
-   req.URL.Path = "/api/login/v2.1"
-   req.URL.Scheme = "https"
-   req.Body = io.NopCloser(strings.NewReader(data))
-   req.Header.Add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8")
-   req.Header.Add("Authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
-   return http.DefaultClient.Do(&req)
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &zero{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
 }

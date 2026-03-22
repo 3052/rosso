@@ -1,22 +1,11 @@
 package crave
 
 import (
-   "os"
+   "fmt"
    "os/exec"
    "strings"
    "testing"
 )
-
-func run(name string, arg ...string) (string, error) {
-   var data strings.Builder
-   command := exec.Command(name, arg...)
-   command.Stdout = &data
-   err := command.Run()
-   if err != nil {
-      return "", err
-   }
-   return data.String(), nil
-}
 
 func TestZero(t *testing.T) {
    username, err := run("credential", "-h=crave.ca", "-k=username")
@@ -27,12 +16,20 @@ func TestZero(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   resp, err := zero(username, password)
+   zero_data, err := fetch_zero(username, password)
    if err != nil {
       t.Fatal(err)
    }
-   err = resp.Write(os.Stdout)
+   fmt.Printf("%+v\n", zero_data)
+}
+
+func run(name string, arg ...string) (string, error) {
+   var data strings.Builder
+   command := exec.Command(name, arg...)
+   command.Stdout = &data
+   err := command.Run()
    if err != nil {
-      t.Fatal(err)
+      return "", err
    }
+   return data.String(), nil
 }

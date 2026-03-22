@@ -11,6 +11,10 @@ import (
    "strings"
 )
 
+func BcJwt(header http.Header) string {
+   return header.Get("x-amcn-bc-jwt")
+}
+
 func join(data ...string) string {
    return strings.Join(data, "")
 }
@@ -161,10 +165,64 @@ type Dash struct {
    Url  *url.URL
 }
 
+func (m *Metadata) String() string {
+   var data strings.Builder
+   if m.EpisodeNumber >= 0 {
+      data.WriteString("episode = ")
+      data.WriteString(strconv.Itoa(m.EpisodeNumber))
+   }
+   if data.Len() >= 1 {
+      data.WriteByte('\n')
+   }
+   data.WriteString("title = ")
+   data.WriteString(m.Title)
+   data.WriteString("\nnid = ")
+   data.WriteString(strconv.Itoa(m.Nid))
+   return data.String()
+}
+
 type Metadata struct {
    EpisodeNumber int
    Nid           int
    Title         string
+}
+
+// Seasons extracts metadata exclusively from a Series
+func (s *Series) Seasons() ([]*Metadata, error) {
+   for _, child := range s.Children {
+      // Guard: Skip any root child that is not a tab_bar.
+      if child.Type != "tab_bar" {
+         continue
+      }
+      for _, tabItem := range child.Children {
+         // Guard: Skip any tab that isn't the "Seasons" tab.
+         if tabItem.Type != "tab_bar_item" || tabItem.Properties.Text == nil {
+            continue
+         }
+         if tabItem.Properties.Text.Title.Title != "Seasons" {
+            continue
+         }
+
+         // We've found the "Seasons" tab item. Now find the list inside it.
+         for _, seasonListContainer := range tabItem.Children {
+            if seasonListContainer.Type != "tab_bar" {
+               continue
+            }
+
+            // Success: We found the list. Extract and return.
+            seasonList := seasonListContainer.Children
+            extractedMetadata := make([]*Metadata, 0, len(seasonList))
+            for _, seasonNode := range seasonList {
+               if seasonNode.Properties.Metadata != nil {
+                  extractedMetadata = append(extractedMetadata, seasonNode.Properties.Metadata)
+               }
+            }
+            return extractedMetadata, nil
+         }
+      }
+   }
+   // If all loops complete without returning, the target was not found.
+   return nil, errors.New("could not find the seasons list within the manifest")
 }
 
 func (s *Source) Widevine(bcJwt string, data []byte) ([]byte, error) {
@@ -217,44 +275,6 @@ func GetDash(sources []Source) (*Source, error) {
 }
 
 ///
-
-// Seasons extracts metadata exclusively from a Series
-func (s *Series) Seasons() ([]*Metadata, error) {
-   for _, child := range s.Children {
-      // Guard: Skip any root child that is not a tab_bar.
-      if child.Type != "tab_bar" {
-         continue
-      }
-      for _, tabItem := range child.Children {
-         // Guard: Skip any tab that isn't the "Seasons" tab.
-         if tabItem.Type != "tab_bar_item" || tabItem.Properties.Text == nil {
-            continue
-         }
-         if tabItem.Properties.Text.Title.Title != "Seasons" {
-            continue
-         }
-
-         // We've found the "Seasons" tab item. Now find the list inside it.
-         for _, seasonListContainer := range tabItem.Children {
-            if seasonListContainer.Type != "tab_bar" {
-               continue
-            }
-
-            // Success: We found the list. Extract and return.
-            seasonList := seasonListContainer.Children
-            extractedMetadata := make([]*Metadata, 0, len(seasonList))
-            for _, seasonNode := range seasonList {
-               if seasonNode.Properties.Metadata != nil {
-                  extractedMetadata = append(extractedMetadata, seasonNode.Properties.Metadata)
-               }
-            }
-            return extractedMetadata, nil
-         }
-      }
-   }
-   // If all loops complete without returning, the target was not found.
-   return nil, errors.New("could not find the seasons list within the manifest")
-}
 
 func (c *Client) Series(id int) (*Series, error) {
    var req http.Request
@@ -369,24 +389,4 @@ type Season struct {
       Metadata *Metadata
    }
    Type string
-}
-
-func (m *Metadata) String() string {
-   var data strings.Builder
-   if m.EpisodeNumber >= 0 {
-      data.WriteString("episode = ")
-      data.WriteString(strconv.Itoa(m.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("title = ")
-   data.WriteString(m.Title)
-   data.WriteString("\nnid = ")
-   data.WriteString(strconv.Itoa(m.Nid))
-   return data.String()
-}
-
-func BcJwt(header http.Header) string {
-   return header.Get("x-amcn-bc-jwt")
 }
