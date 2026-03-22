@@ -4,10 +4,11 @@ import (
    "encoding/json"
    "fmt"
    "os"
+   "slices"
    "testing"
 )
 
-func TestProfiles(t *testing.T) {
+func TestLoginProfile(t *testing.T) {
    // 1. Client
    client := NewClient()
    // 2. authTokens
@@ -38,11 +39,14 @@ func TestProfiles(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   for _, profile_data := range profiles {
-      fmt.Printf("%+v\n", profile_data)
+   i := slices.IndexFunc(profiles, func(p *Profile) bool {
+      return p.HasPin == false
+   })
+   final_tokens, err := client.ProfileLogin(
+      sso_tokens.RefreshToken, profiles[i].ID, "",
+   )
+   if err != nil {
+      t.Fatal(err)
    }
-   //HasPin:true 
-   //HasPin:false 
-   //HasPin:false 
-   //HasPin:false 
+   fmt.Printf("%+v\n", final_tokens)
 }

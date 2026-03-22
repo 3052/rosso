@@ -17,7 +17,7 @@ type Profile struct {
 }
 
 // GetProfiles fetches the list of profiles associated with the account.
-func (c *Client) GetProfiles(accountID, accessToken string) ([]Profile, error) {
+func (c *Client) GetProfiles(accountID, accessToken string) ([]*Profile, error) {
    endpoint := fmt.Sprintf("%s/api/profile/v2/account/%s", BaseURL, accountID)
 
    req, err := http.NewRequest("GET", endpoint, nil)
@@ -41,7 +41,7 @@ func (c *Client) GetProfiles(accountID, accessToken string) ([]Profile, error) {
       return nil, fmt.Errorf("failed to fetch profiles with status %d: %s", resp.StatusCode, string(body))
    }
 
-   var profiles []Profile
+   var profiles []*Profile
    if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
       return nil, err
    }
