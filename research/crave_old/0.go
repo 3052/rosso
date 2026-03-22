@@ -7,20 +7,6 @@ import (
    "strings"
 )
 
-type account struct {
-   RefreshToken string `json:"refresh_token"`
-   AccessToken string `json:"access_token"`
-}
-
-func (a *account) String() string {
-   var data strings.Builder
-   data.WriteString("refresh token = ")
-   data.WriteString(a.RefreshToken)
-   data.WriteString("\naccess token = ")
-   data.WriteString(a.AccessToken)
-   return data.String()
-}
-
 func fetch_account(username, password string) (*account, error) {
    data := url.Values{
       "grant_type": {"password"},
@@ -47,4 +33,18 @@ func fetch_account(username, password string) (*account, error) {
       return nil, err
    }
    return result, nil
+}
+
+type account struct {
+   RefreshToken string `json:"refresh_token"`
+   AccessToken string `json:"access_token"`
+}
+
+func (a *account) String() string {
+   var data strings.Builder
+   data.WriteString("refresh token = ")
+   data.WriteString(a.RefreshToken)
+   data.WriteString("\naccess token = ")
+   data.WriteString(a.AccessToken)
+   return data.String()
 }

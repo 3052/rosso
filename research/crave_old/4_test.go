@@ -9,7 +9,7 @@ import (
    "testing"
 )
 
-func TestFive(t *testing.T) {
+func TestFour(t *testing.T) {
    username, err := run("credential", "-h=api.nordvpn.com", "-k=username")
    if err != nil {
       t.Fatal(err)
@@ -26,7 +26,7 @@ func TestFive(t *testing.T) {
    http.DefaultTransport = &http.Transport{
       Proxy: http.ProxyURL(&proxy),
    }
-   resp, err := five()
+   resp, err := four()
    if err != nil {
       t.Fatal(err)
    }
