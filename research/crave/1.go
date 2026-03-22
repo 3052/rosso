@@ -7,7 +7,7 @@ import (
    "strings"
 )
 
-func (z *zero) magic_link_token() (string, error) {
+func (a *account) magic_link_token() (string, error) {
    var req http.Request
    req.Method = "POST"
    req.URL = &url.URL{
@@ -16,7 +16,7 @@ func (z *zero) magic_link_token() (string, error) {
       Path: "/api/magic-link/v2.1/generate",
    }
    req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer " + z.AccessToken)
+   req.Header.Set("authorization", "Bearer " + a.AccessToken)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return "", err

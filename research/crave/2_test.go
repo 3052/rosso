@@ -2,6 +2,7 @@ package crave
 
 import (
    "encoding/json"
+   "fmt"
    "os"
    "testing"
 )
@@ -15,21 +16,18 @@ func TestTwo(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   var zero_data zero
-   err = json.Unmarshal(data, &zero_data)
+   account_data := &account{}
+   err = json.Unmarshal(data, account_data)
    if err != nil {
       t.Fatal(err)
    }
-   magic_link_token, err := zero_data.magic_link_token()
+   magic_link_token, err := account_data.magic_link_token()
    if err != nil {
       t.Fatal(err)
    }
-   resp, err := two(magic_link_token)
+   account_data, err = two(magic_link_token)
    if err != nil {
       t.Fatal(err)
    }
-   err = resp.Write(os.Stdout)
-   if err != nil {
-      t.Fatal(err)
-   }
+   fmt.Println(account_data)
 }

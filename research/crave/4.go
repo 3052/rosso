@@ -1,28 +1,24 @@
 package crave
 
 import (
-   "io"
    "net/http"
    "net/url"
-   "strings"
 )
 
-func Four() (*http.Response, error) {
+func five() (*http.Response, error) {
    var req http.Request
    req.Header = http.Header{}
-   req.Method = "POST"
    req.URL = &url.URL{}
-   req.URL.Host = "account.bellmedia.ca"
-   req.URL.Path = "/api/login/v2.2"
+   req.URL.Host = "stream.video.9c9media.com"
+   req.URL.Path = "/meta/content/938361/contentpackage/8143402/destination/1880/platform/1"
+   value := url.Values{}
+   value["format"] = []string{"mpd"}
+   req.Header.Add("Authorization", "Bearer " + five_bearer)
+   req.URL.RawQuery = value.Encode()
    req.URL.Scheme = "https"
-   req.Body = io.NopCloser(strings.NewReader(four_data))
-   req.Header.Add("Authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
-   req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
    return http.DefaultClient.Do(&req)
 }
 
-var four_data = url.Values{
-   "grant_type":[]string{"refresh_token"},
-   "refresh_token":[]string{"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2OTk2N2RhOWM5M2VlZjVkZjIwZjg3MTIiLCJ1c2VyX25hbWUiOiJjcmF2ZUB3b21lbi1hdC13b3JrLm9yZyIsImF0aSI6IjQwNTAwMWZhLWFiMWItNDQ4Zi1hMWQ3LWU4OTE1NWNkNzIxNCIsInNjb3BlIjoiYWNjb3VudDp3cml0ZSBkZWZhdWx0IG1hdHVyaXR5OmFkdWx0IiwiY29udGV4dCI6eyJwcm9maWxlX2lkIjoiNjk5NzBlZmE3MzE3NmQyYjJlNTNhNWEzIiwiYnJhbmRfaWRzIjpbIjFkNzJkOTkwY2I3NjVkZTdlNDIxMTExMSIsIjFkNzJkOTkwY2I3NjVkZTdlNDIxMTExNCIsIjFkNzJkOTkwY2I3NjVkZTdlNDIxMTExNSJdfSwiZXhwIjoxODA1NzQ0NDIxLCJpYXQiOjE3NzQxODc1MDAsInZlcnNpb24iOiJWMiIsImp0aSI6IjM0NGNmYmI2LWEyY2EtNGZlNC1iODUzLWZkMjA5YWNlMjVkNyIsImF1dGhvcml0aWVzIjpbIlJFR1VMQVJfVVNFUiJdLCJjbGllbnRfaWQiOiJjcmF2ZS13ZWIifQ.vSBGMMA4fzpTzs4DxcOAB9iTGVGxFAX7mZhIguwpKCcfwNWEPbI52EIXD8h8zJEL93P2ecGFyXuy_95GnryIGSC8aC3PEsLvfocRInUV2neHU9TdnKICkmQfd9Mxj4Mf4VsB2S-7t8IJ9rWXkycSyQ8tQA1uM68PzKiHZx422b_VHZ6j2o3X79U1ujagtHNYNm59P9WxchwtJR8e786kVbdenZyODRmqajzPvSWWgve6oDxBTCmzLwbllss-ty-FNmC_HSmcMBtMmSPzEO4zwhw-iFtk1YSbvfl32S_fVNcvOzHljzlq7axCjhmIKAZDxFPcmDITIQ79QmymTWP61g"},
-}.Encode()
+// "scope": "account:write default maturity:adult"
+const five_bearer = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiI2OTk2N2RhOWM5M2VlZjVkZjIwZjg3MTIiLCJzY29wZSI6ImFjY291bnQ6d3JpdGUgZGVmYXVsdCBtYXR1cml0eTphZHVsdCIsImlzcyI6Imh0dHBzOi8vYWNjb3VudC5iZWxsbWVkaWEuY2EiLCJjb250ZXh0Ijp7InByb2ZpbGVfaWQiOiI2OTk3MGVmYTczMTc2ZDJiMmU1M2E1YTMiLCJicmFuZF9pZHMiOlsiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTExIiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE0IiwiMWQ3MmQ5OTBjYjc2NWRlN2U0MjExMTE1Il19LCJleHAiOjE3NzQyMDE5MDIsImlhdCI6MTc3NDE4NzUwMiwidmVyc2lvbiI6IlYyIiwianRpIjoiOWFmNDA5ZjMtNTMzNC00OWQwLWI5NzYtYmUyNmZmOGZkMDg3IiwiYXV0aG9yaXRpZXMiOlsiUkVHVUxBUl9VU0VSIl0sImNsaWVudF9pZCI6ImNyYXZlLXdlYiJ9.ipnWI2we9vx6wKx3u8ZJuqDjZ46nr7c_vYqn6u28IOSvLfvEuWfWiE8C2UQxVzUzYZeSiQRw-vpbzgKE-KMR4ZfBSlU2f3AcvP6wcDkBGaXkMvfao-dIbbeUHDMjeX1seCE2LzJ0N73MZ4503NZ6heHmCphkZN3wtwsgo6ZnejWD5uT3JkN-rPGcJr_y17VMf87RfuI4OG4qJH5x4NPIDcfy8uF4xcXVU6nFi6clewEb5ivV5aYMXb78lZhyCBYlL2v_DDcJ5jTgfRyThvpYnPpB6G5898JJGE-LPJUJHb17q1_7u6ocWlDPEifvNG9-c0AyG1hgLVJl28Yr4IGGVg"
 

@@ -15,11 +15,11 @@ func TestZero(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   zero_data, err := fetch_zero(username, password)
+   account_data, err := fetch_account(username, password)
    if err != nil {
       t.Fatal(err)
    }
-   data, err := json.Marshal(zero_data)
+   data, err := json.Marshal(account_data)
    if err != nil {
       t.Fatal(err)
    }

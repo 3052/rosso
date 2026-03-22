@@ -7,28 +7,21 @@ import (
    "strings"
 )
 
-func (z *zero) String() string {
-   var data strings.Builder
-   data.WriteString("refresh token = ")
-   data.WriteString(z.RefreshToken)
-   data.WriteString("\naccess token = ")
-   data.WriteString(z.AccessToken)
-   return data.String()
-}
-
-//   "scope": [
-//     "account:write",
-//     "default",
-//     "offline_download:10",
-//     "password_token",
-//     "subscription:crave_total,cravep,cravetv,free,se"
-//   ]
-type zero struct {
+type account struct {
    RefreshToken string `json:"refresh_token"`
    AccessToken string `json:"access_token"`
 }
 
-func fetch_zero(username, password string) (*zero, error) {
+func (a *account) String() string {
+   var data strings.Builder
+   data.WriteString("refresh token = ")
+   data.WriteString(a.RefreshToken)
+   data.WriteString("\naccess token = ")
+   data.WriteString(a.AccessToken)
+   return data.String()
+}
+
+func fetch_account(username, password string) (*account, error) {
    data := url.Values{
       "grant_type": {"password"},
       "password": {password},
@@ -48,7 +41,7 @@ func fetch_zero(username, password string) (*zero, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   result := &zero{}
+   result := &account{}
    err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
