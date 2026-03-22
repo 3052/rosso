@@ -1,7 +1,8 @@
 package crave
 
 import (
-   "fmt"
+   "encoding/json"
+   "os"
    "testing"
 )
 
@@ -18,5 +19,16 @@ func TestZero(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   fmt.Println(zero_data)
+   data, err := json.Marshal(zero_data)
+   if err != nil {
+      t.Fatal(err)
+   }
+   cache, err := os.UserCacheDir()
+   if err != nil {
+      t.Fatal(err)
+   }
+   err = os.WriteFile(cache + "/rosso/crave.json", data, os.ModePerm)
+   if err != nil {
+      t.Fatal(err)
+   }
 }
