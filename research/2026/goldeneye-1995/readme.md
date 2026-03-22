@@ -1,55 +1,5 @@
 # goldeneye-1995
 
-## https://app.primevideo.com/detail?gti=amzn1.dv.gti.322871f2-d10c-48f7-873b-4a50da5b10aa
-
-country = CA
-name = Canada
-monetization = FLATRATE
-
-https://justwatch.com/ca/provider/amazon-prime-video
-
-12463 titles
-
-## https://movistarplay.cl/details/movie/19545487
-
-country = CL
-name = Chile
-monetization = FLATRATE
-
-https://justwatch.com/cl/proveedor/movistartv
-
-8300 titles
-
-## https://movistarplay.co/details/movie/19545487
-
-country = CO
-name = Colombia
-monetization = FLATRATE
-
-https://justwatch.com/co/proveedor/movistartv
-
-8126 titles
-
-## https://play.movistar.com.ar/details/movie/19545487
-
-country = AR
-name = Argentina
-monetization = FLATRATE
-
-https://justwatch.com/ar/proveedor/movistartv
-
-6819 titles
-
-## https://play.movistar.com.ec/details/movie/19545487
-
-country = EC
-name = Ecuador
-monetization = FLATRATE
-
-https://justwatch.com/ec/proveedor/movistartv
-
-5740 titles
-
 ## https://crave.ca/en/movie/goldeneye-38860
 
 country = CA
@@ -169,3 +119,45 @@ monetization = FLATRATE
 https://justwatch.com/br/provedor/oldflix
 
 861 titles
+
+---------------------------------------------------------------------------------
+
+## https://movistarplay.cl/details/movie/19545487
+
+country = CL
+name = Chile
+monetization = FLATRATE
+
+https://justwatch.com/cl/proveedor/movistartv
+
+8300 titles
+
+## https://movistarplay.co/details/movie/19545487
+
+country = CO
+name = Colombia
+monetization = FLATRATE
+
+https://justwatch.com/co/proveedor/movistartv
+
+8126 titles
+
+## https://play.movistar.com.ar/details/movie/19545487
+
+country = AR
+name = Argentina
+monetization = FLATRATE
+
+https://justwatch.com/ar/proveedor/movistartv
+
+6819 titles
+
+## https://play.movistar.com.ec/details/movie/19545487
+
+country = EC
+name = Ecuador
+monetization = FLATRATE
+
+https://justwatch.com/ec/proveedor/movistartv
+
+5740 titles
