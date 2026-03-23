@@ -89,7 +89,6 @@ func run(name string, arg ...string) (string, error) {
    }
    return data.String(), nil
 }
-
 func TestLoginPassword(t *testing.T) {
    username, err := run("credential", "-h=crave.ca", "-k=username")
    if err != nil {
