@@ -12,7 +12,7 @@ import (
    "testing"
 )
 
-func TestFour(t *testing.T) {
+func TestContent(t *testing.T) {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{
       DisableKeepAlives: true, // github.com/golang/go/issues/25793
@@ -69,7 +69,7 @@ func TestFour(t *testing.T) {
          return &proxy, nil
       },
    }
-   resp, err := final_tokens.four()
+   resp, err := final_tokens.content()
    if err != nil {
       t.Fatal(err)
    }
