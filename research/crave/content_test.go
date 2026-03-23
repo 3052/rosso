@@ -48,14 +48,25 @@ func TestContent(t *testing.T) {
          return &proxy, nil
       },
    }
-   publicMovieURL := "https://www.crave.ca/en/movie/goldeneye-38860"
+   publicURL := "https://www.crave.ca/en/movie/goldeneye-38860"
    // Magic happens here
-   manifestURL, err := final_tokens.GetManifestFromURL(publicMovieURL)
+   mediaId, err := extractMediaID(publicURL)
    if err != nil {
-      log.Fatalf("Error retrieving manifest: %v", err)
+      t.Fatal(err)
    }
-   fmt.Println("Success!")
-   fmt.Println("DASH Manifest URL:", manifestURL)
+   contentId, err := GetContentId(mediaId)
+   if err != nil {
+      t.Fatal(err)
+   }
+   pkgID, destID, err := GetPlaybackDetails(contentId)
+   if err != nil {
+      t.Fatal(err)
+   }
+   manifest_url, err := final_tokens.GetManifest(contentId, pkgID, destID)
+   if err != nil {
+      t.Fatal(err)
+   }
+   fmt.Println("DASH Manifest URL:", manifest_url)
 }
 
 func TestFinalTokens(t *testing.T) {

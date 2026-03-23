@@ -1,6 +1,8 @@
 package crave
 
 import (
+   "bytes"
+   "encoding/base64"
    "encoding/json"
    "fmt"
    "io"
@@ -9,6 +11,128 @@ import (
    "strings"
 )
 
+// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
+func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
+   targetURL := fmt.Sprintf(manifestURL, contentId, contentPackageId, destinationId)
+   req, _ := http.NewRequest(http.MethodGet, targetURL, nil)
+   // Append requested query parameters
+   q := req.URL.Query()
+   q.Add("format", "mpd")
+   req.Header.Set("Authorization", "Bearer "+ t.AccessToken)
+   req.URL.RawQuery = q.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if result.Playback == "" {
+      return "", fmt.Errorf("playback URL missing in manifest response")
+   }
+   return result.Playback, nil
+}
+
+// extractMediaID parses the trailing ID from a URL (e.g. .../movie/goldeneye-38860 -> 38860)
+func extractMediaID(rawURL string) (string, error) {
+   u, err := url.Parse(rawURL)
+   if err != nil {
+      return "", err
+   }
+   parts := strings.Split(strings.TrimSuffix(u.Path, "/"), "-")
+   if len(parts) == 0 {
+      return "", fmt.Errorf("invalid url format")
+   }
+   return parts[len(parts)-1], nil
+}
+
+const (
+   graphqlURL  = "https://rte-api.bellmedia.ca/graphql"
+   playbackURL = "https://playback.rte-api.bellmedia.ca/contents/%s"
+   manifestURL = "https://stream.video.9c9media.com/meta/content/%s/contentpackage/%d/destination/%d/platform/1"
+)
+
+const get_showpage = `
+query GetShowpage($sessionContext: SessionContext!, $ids: [String!]!) {
+   medias(sessionContext: $sessionContext, ids: $ids) {
+      firstContent {
+         id
+      }
+   }
+}
+`
+
+// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
+func GetContentId(mediaId string) (string, error) {
+   payload := map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "ids": []string{mediaId},
+         "sessionContext": map[string]string{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+   body, _ := json.Marshal(payload)
+   req, _ := http.NewRequest(http.MethodPost, graphqlURL, bytes.NewBuffer(body))
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
+   authData := map[string]string{"platform": "platform_web"}
+   authBytes, _ := json.Marshal(authData)
+   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
+   req.Header.Set("Authorization", "Bearer "+encodedAuth)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias[]struct {
+            FirstContent struct {
+               Id string `json:"id"`
+            } `json:"firstContent"`
+         } `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
+      return "", fmt.Errorf("content ID not found in GraphQL response")
+   }
+   return result.Data.Medias[0].FirstContent.Id, nil
+}
+
+// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
+func GetPlaybackDetails(contentId string) (int, int, error) {
+   targetURL := fmt.Sprintf(playbackURL, contentId)
+   req, _ := http.NewRequest(http.MethodGet, targetURL, nil)
+   req.Header.Set("x-playback-language", "EN")
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return 0, 0, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage struct {
+         Id            int `json:"id"`
+         DestinationID int `json:"destinationId"`
+      } `json:"contentPackage"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return 0, 0, err
+   }
+   if result.ContentPackage.Id == 0 {
+      return 0, 0, fmt.Errorf("invalid content package ID received")
+   }
+   return result.ContentPackage.Id, result.ContentPackage.DestinationID, nil
+}
 type TokenResponse struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
