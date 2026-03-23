@@ -2,49 +2,22 @@ package crave
 
 import (
    "bytes"
-   "encoding/base64"
    "encoding/json"
    "fmt"
    "io"
    "net/http"
-   "net/url"
    "strconv"
-   "strings"
-   "time"
 )
 
-// InitPlayback orchestrates the entire flow from a public URL to getting a playback session.
-func (c *Client) InitPlayback(publicURL string) (*PlaybackSession, error) {
-   mediaID, err := extractMediaID(publicURL)
-   if err != nil {
-      return nil, fmt.Errorf("failed to extract media ID: %w", err)
-   }
-
-   contentID, err := c.GetContentID(mediaID)
-   if err != nil {
-      return nil, fmt.Errorf("failed to get content ID: %w", err)
-   }
-
-   pkgID, destID, err := c.GetPlaybackDetails(contentID)
-   if err != nil {
-      return nil, fmt.Errorf("failed to get playback details: %w", err)
-   }
-
-   manifest, err := c.GetManifest(contentID, pkgID, destID)
-   if err != nil {
-      return nil, fmt.Errorf("failed to get manifest: %w", err)
-   }
-
-   return &PlaybackSession{
-      ContentID:        contentID,
-      ContentPackageID: pkgID,
-      DestinationID:    destID,
-      ManifestURL:      manifest,
-   }, nil
+// PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
+type PlaybackSession struct {
+   ContentID        string
+   ContentPackageID int
+   DestinationID    int
 }
 
 // GetWidevineLicense issues the DRM license request using the provided payload and the session details
-func (c *Client) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
+func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
    // The API expects the contentId as an integer
    contentIDInt, err := strconv.Atoi(session.ContentID)
    if err != nil {
@@ -59,7 +32,7 @@ func (c *Client) GetWidevineLicense(session *PlaybackSession, payload string) ([
          PlatformID:       1, // Hardcoded to 1 for Web
          DestinationID:    session.DestinationID,
          GL:               "0",
-         JWT:              c.jwtToken,
+         JWT: t.AccessToken,
       },
    }
 
@@ -77,7 +50,7 @@ func (c *Client) GetWidevineLicense(session *PlaybackSession, payload string) ([
    req.Header.Set("Origin", "https://www.crave.ca")
    req.Header.Set("Referer", "https://www.crave.ca/")
 
-   resp, err := c.httpClient.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
@@ -89,14 +62,6 @@ func (c *Client) GetWidevineLicense(session *PlaybackSession, payload string) ([
 
    // The response is usually a binary widevine license
    return io.ReadAll(resp.Body)
-}
-
-// PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
-type PlaybackSession struct {
-   ContentID        string
-   ContentPackageID int
-   DestinationID    int
-   ManifestURL      string
 }
 
 // WidevineRequest represents the JSON body needed for the DRM license request
