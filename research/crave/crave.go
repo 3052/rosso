@@ -9,6 +9,13 @@ import (
    "strings"
 )
 
+type TokenResponse struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountId    string `json:"account_id,omitempty"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
 type Profile struct {
    Id        string `json:"id"`
    AccountId string `json:"accountId"`
@@ -16,13 +23,6 @@ type Profile struct {
    HasPin    bool   `json:"hasPin"`
    Master    bool   `json:"master"`
    Maturity  string `json:"maturity"`
-}
-
-type TokenResponse struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id,omitempty"`
-   ExpiresIn    int    `json:"expires_in"`
 }
 
 const BaseURL = "https://account.bellmedia.ca"
