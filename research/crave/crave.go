@@ -11,6 +11,19 @@ import (
    "strings"
 )
 
+// https://www.crave.ca/en/movie/goldeneye-38860"
+func extractMediaId(url_data string) (string, error) {
+   url_parse, err := url.Parse(url_data)
+   if err != nil {
+      return "", err
+   }
+   parts := strings.Split(url_parse.Path, "-")
+   if len(parts) == 0 {
+      return "", fmt.Errorf("invalid url format")
+   }
+   return parts[len(parts)-1], nil
+}
+
 // GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
 func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
    targetURL := fmt.Sprintf(manifestURL, contentId, contentPackageId, destinationId)
@@ -35,19 +48,6 @@ func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinat
       return "", fmt.Errorf("playback URL missing in manifest response")
    }
    return result.Playback, nil
-}
-
-// extractMediaID parses the trailing ID from a URL (e.g. .../movie/goldeneye-38860 -> 38860)
-func extractMediaID(rawURL string) (string, error) {
-   u, err := url.Parse(rawURL)
-   if err != nil {
-      return "", err
-   }
-   parts := strings.Split(strings.TrimSuffix(u.Path, "/"), "-")
-   if len(parts) == 0 {
-      return "", fmt.Errorf("invalid url format")
-   }
-   return parts[len(parts)-1], nil
 }
 
 const (

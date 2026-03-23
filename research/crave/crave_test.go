@@ -50,9 +50,9 @@ func TestContent(t *testing.T) {
          return &proxy, nil
       },
    }
-   publicURL := "https://www.crave.ca/en/movie/goldeneye-38860"
+   publicUrl := "https://www.crave.ca/en/movie/goldeneye-38860"
    // Magic happens here
-   mediaId, err := extractMediaID(publicURL)
+   mediaId, err := extractMediaId(publicUrl)
    if err != nil {
       t.Fatal(err)
    }
