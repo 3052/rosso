@@ -12,24 +12,25 @@ Go packages for streaming API authentication, metadata, and DRM playback
 2. (us) hulu
 3. (us) hbo-max
 4. (us) peacock
-5. (us) the-roku-channel
-6. (us) amc-plus
-7. (us) kanopy
-8. (us) criterion-channel
-9. (us) nbc
-10. (us) mubi
-11. (us) pluto-tv
-12. (us) plex
-13. (us) tubi-tv
-14. (us) paramount-plus-premium
-15. (uk) rakuten-tv
-16. (uk) itvx
-17. (be) rtbf-auvio
-18. (ca) ctv
-19. (cz) canal-plus
-20. (fr) molotov-tv
-21. (nl) cinemember
-22. (se) draken-films
+5. (us) nbc
+6. (us) pluto-tv
+7. (us) tubi-tv
+8. (us) paramount-plus-premium
+9. (us) the-roku-channel
+10. (us) amc-plus
+11. (us) kanopy
+12. (us) criterion-channel
+13. (us) mubi
+14. (us) plex
+15. (ca) ctv
+16. (ca) crave
+17. (uk) itvx
+18. (uk) rakuten-tv
+19. (be) rtbf-auvio
+20. (cz) canal-plus
+21. (fr) molotov-tv
+22. (nl) cinemember
+23. (se) draken-films
 
 ## contact
 
