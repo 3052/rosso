@@ -28,7 +28,7 @@ func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload str
          ContentPackageId: session.ContentPackageId,
          PlatformId:       1, // Hardcoded to 1 for Web
          DestinationId:    session.DestinationId,
-         JWT: t.AccessToken,
+         JWT:              t.AccessToken,
       },
    })
    if err != nil {
@@ -78,7 +78,7 @@ type PlaybackContext struct {
    JWT              string `json:"jwt"`
 }
 
-const licenseURL  = "https://license.9c9media.com/widevine"
+const licenseURL = "https://license.9c9media.com/widevine"
 
 // PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
 type PlaybackSession struct {
@@ -86,6 +86,7 @@ type PlaybackSession struct {
    ContentPackageId int
    DestinationId    int
 }
+
 const (
    graphqlURL  = "https://rte-api.bellmedia.ca/graphql"
    playbackURL = "https://playback.rte-api.bellmedia.ca/contents/%s"
@@ -141,7 +142,7 @@ func GetContentId(mediaId string) (string, error) {
    defer resp.Body.Close()
    var result struct {
       Data struct {
-         Medias[]struct {
+         Medias []struct {
             FirstContent struct {
                Id string `json:"id"`
             } `json:"firstContent"`
@@ -164,7 +165,7 @@ func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinat
    // Append requested query parameters
    q := req.URL.Query()
    q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+ t.AccessToken)
+   req.Header.Set("Authorization", "Bearer "+t.AccessToken)
    req.URL.RawQuery = q.Encode()
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -210,6 +211,7 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
    }
    return result.ContentPackage.Id, result.ContentPackage.DestinationID, nil
 }
+
 type TokenResponse struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
