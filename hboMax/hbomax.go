@@ -38,6 +38,56 @@ func FetchLogin(st *http.Cookie) (*Login, error) {
    return result, nil
 }
 
+func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   join("default.beam-", market, ".prd.api.discomax.com"),
+      Path:   "/authentication/linkDevice/initiate",
+   }
+   req.Header = http.Header{}
+   req.Header.Set("x-device-info", device_info)
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+      Errors []Error
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result.Data.Attributes, nil
+}
+
+func (l *Login) PlayReady(editId string) (*Playback, error) {
+   return l.playback(editId, "playready")
+}
+
+type Login struct {
+   Data struct {
+      Attributes struct {
+         Token string
+      }
+   }
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
 const (
    api_host     = "default.prd.api.hbomax.com"
    disco_client = "!:!:beam:!"
@@ -333,8 +383,6 @@ func (v *Video) String() string {
    return data.String()
 }
 
-///
-
 type Video struct {
    Attributes *struct {
       SeasonNumber  int
@@ -366,8 +414,6 @@ func (v *Videos) FilterAndSort() {
       return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
    })
 }
-
-///
 
 // https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448
 // https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a
@@ -435,53 +481,4 @@ func FetchSt() (*http.Cookie, error) {
    }
    return nil, http.ErrNoCookie
 }
-func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   join("default.beam-", market, ".prd.api.discomax.com"),
-      Path:   "/authentication/linkDevice/initiate",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("x-device-info", device_info)
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-      Errors []Error
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result.Data.Attributes, nil
-}
 
-func (l *Login) PlayReady(editId string) (*Playback, error) {
-   return l.playback(editId, "playready")
-}
-
-type Login struct {
-   Data struct {
-      Attributes struct {
-         Token string
-      }
-   }
-}
-
-type Scheme struct {
-   LicenseUrl string
-}

@@ -1,19 +1,18 @@
 package crave
 
 import (
+   "41.neocities.org/drm/widevine"
+   "encoding/base64"
    "encoding/json"
    "fmt"
    "log"
    "net/http"
    "net/url"
    "os"
-   "os/exec"
-   "slices"
-   "strings"
    "testing"
 )
 
-func TestContent(t *testing.T) {
+func TestLicense(t *testing.T) {
    cache, err := os.UserCacheDir()
    if err != nil {
       t.Fatal(err)
@@ -60,7 +59,7 @@ func TestContent(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   pkgID, destID, err := GetPlaybackDetails(contentId)
+   pkgId, destId, err := GetPlaybackDetails(contentId)
    if err != nil {
       t.Fatal(err)
    }
@@ -72,52 +71,42 @@ func TestContent(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   private_key, err := ParsePrivateKey(pem_bytes)
+   private_key, err := widevine.DecodePrivateKey(pem_bytes)
    if err != nil {
       t.Fatal(err)
    }
    //23:06:49.012 WARN : PSSH(WV):
-   
-   
-   
-   
-   // CAESEJJ16PwoqrI1cAURGjhZbgIaCWJlbGxtZWRpYSITZmYtMDFmODdmOTEtMTQxODIxNw==
-   
-   
-   
-   key_id, err := hex.DecodeString(test.key_id)
+   data, err = base64.StdEncoding.DecodeString(
+      "CAESEJJ16PwoqrI1cAURGjhZbgIaCWJlbGxtZWRpYSITZmYtMDFmODdmOTEtMTQxODIxNw==",
+   )
    if err != nil {
       t.Fatal(err)
    }
    // 1. Create the PsshData struct
-   pssh := PsshData{
-      ContentId: []byte(test.content_id),
-      KeyIds:    [][]byte{key_id},
+   pssh, err := widevine.DecodePsshData(data)
+   if err != nil {
+      t.Fatal(err)
    }
    // 2. Build the License Request directly from the pssh struct
-   req_bytes, err := pssh.BuildLicenseRequest(client_id)
+   req_bytes, err := pssh.EncodeLicenseRequest(client_id)
    if err != nil {
       t.Fatal(err)
    }
    // 3. Sign the request
-   signed_bytes, err := BuildSignedMessage(req_bytes, private_key)
+   signed_bytes, err := widevine.EncodeSignedMessage(req_bytes, private_key)
    if err != nil {
       t.Fatalf("Failed to create signed request: %v", err)
    }
    // 4. Send to License Server
-   signed_bytes, err = post(test.license, signed_bytes)
+   payload := base64.StdEncoding.EncodeToString(signed_bytes)
+   session := PlaybackSession{
+      ContentId: contentId,
+      ContentPackageId: pkgId,
+      DestinationId: destId,
+   }
+   data, err = final_tokens.GetWidevineLicense(&session, payload)
    if err != nil {
       t.Fatal(err)
    }
-   // 5. Parse Response
-   keys, err := ParseLicenseResponse(signed_bytes, req_bytes, private_key)
-   if err != nil {
-      t.Fatal(err)
-   }
-   // 6. Verify Key
-   found_key, err := GetKey(keys, key_id)
-   if err != nil {
-      t.Fatal(err)
-   }
-   t.Logf("%x", found_key)
+   fmt.Printf("%q\n", data)
 }

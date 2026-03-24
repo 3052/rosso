@@ -11,15 +11,15 @@ import (
 
 // PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
 type PlaybackSession struct {
-   ContentID        string
-   ContentPackageID int
-   DestinationID    int
+   ContentId        string
+   ContentPackageId int
+   DestinationId    int
 }
 
 // GetWidevineLicense issues the DRM license request using the provided payload and the session details
 func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
    // The API expects the contentId as an integer
-   contentIDInt, err := strconv.Atoi(session.ContentID)
+   contentIdInt, err := strconv.Atoi(session.ContentId)
    if err != nil {
       return nil, fmt.Errorf("failed to parse content ID to int: %w", err)
    }
@@ -27,10 +27,10 @@ func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload str
    reqBody := WidevineRequest{
       Payload: payload,
       PlaybackContext: PlaybackContext{
-         ContentID:        contentIDInt,
-         ContentPackageID: session.ContentPackageID,
-         PlatformID:       1, // Hardcoded to 1 for Web
-         DestinationID:    session.DestinationID,
+         ContentId:        contentIdInt,
+         ContentPackageId: session.ContentPackageId,
+         PlatformId:       1, // Hardcoded to 1 for Web
+         DestinationId:    session.DestinationId,
          GL:               "0",
          JWT: t.AccessToken,
       },
@@ -71,10 +71,10 @@ type WidevineRequest struct {
 }
 
 type PlaybackContext struct {
-   ContentID        int    `json:"contentId"`
-   ContentPackageID int    `json:"contentpackageId"` // Note: lower-case 'p' as per their API
-   PlatformID       int    `json:"platformId"`
-   DestinationID    int    `json:"destinationId"`
+   ContentId        int    `json:"contentId"`
+   ContentPackageId int    `json:"contentpackageId"` // Note: lower-case 'p' as per their API
+   PlatformId       int    `json:"platformId"`
+   DestinationId    int    `json:"destinationId"`
    GL               string `json:"gl"`
    JWT              string `json:"jwt"`
 }
