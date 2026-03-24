@@ -11,32 +11,6 @@ import (
    "strings"
 )
 
-// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
-func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
-   targetURL := fmt.Sprintf(manifestURL, contentId, contentPackageId, destinationId)
-   req, _ := http.NewRequest(http.MethodGet, targetURL, nil)
-   // Append requested query parameters
-   q := req.URL.Query()
-   q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+ t.AccessToken)
-   req.URL.RawQuery = q.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Playback string `json:"playback"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
-   }
-   if result.Playback == "" {
-      return "", fmt.Errorf("playback URL missing in manifest response")
-   }
-   return result.Playback, nil
-}
-
 const (
    graphqlURL  = "https://rte-api.bellmedia.ca/graphql"
    playbackURL = "https://playback.rte-api.bellmedia.ca/contents/%s"
@@ -52,6 +26,19 @@ query GetShowpage($sessionContext: SessionContext!, $ids: [String!]!) {
    }
 }
 `
+
+// https://www.crave.ca/en/movie/goldeneye-38860"
+func extractMediaId(url_data string) (string, error) {
+   url_parse, err := url.Parse(url_data)
+   if err != nil {
+      return "", err
+   }
+   parts := strings.Split(url_parse.Path, "-")
+   if len(parts) == 0 {
+      return "", fmt.Errorf("invalid url format")
+   }
+   return parts[len(parts)-1], nil
+}
 
 // GetContentID queries the GraphQL API to translate a Media ID to a Content ID
 func GetContentId(mediaId string) (string, error) {
@@ -94,6 +81,34 @@ func GetContentId(mediaId string) (string, error) {
    }
    return result.Data.Medias[0].FirstContent.Id, nil
 }
+
+// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
+func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
+   targetURL := fmt.Sprintf(manifestURL, contentId, contentPackageId, destinationId)
+   req, _ := http.NewRequest(http.MethodGet, targetURL, nil)
+   // Append requested query parameters
+   q := req.URL.Query()
+   q.Add("format", "mpd")
+   req.Header.Set("Authorization", "Bearer "+ t.AccessToken)
+   req.URL.RawQuery = q.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if result.Playback == "" {
+      return "", fmt.Errorf("playback URL missing in manifest response")
+   }
+   return result.Playback, nil
+}
+
+///
 
 // GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
 func GetPlaybackDetails(contentId string) (int, int, error) {
@@ -222,16 +237,4 @@ func ProfileLogin(refreshToken, profileID string) (*TokenResponse, error) {
       return nil, err
    }
    return &tokenResp, nil
-}
-// https://www.crave.ca/en/movie/goldeneye-38860"
-func extractMediaId(url_data string) (string, error) {
-   url_parse, err := url.Parse(url_data)
-   if err != nil {
-      return "", err
-   }
-   parts := strings.Split(url_parse.Path, "-")
-   if len(parts) == 0 {
-      return "", fmt.Errorf("invalid url format")
-   }
-   return parts[len(parts)-1], nil
 }

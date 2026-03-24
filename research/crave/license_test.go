@@ -27,18 +27,11 @@ func TestLicense(t *testing.T) {
       t.Fatal(err)
    }
    log.SetFlags(log.Ltime)
-   username, err := run("credential", "-h=api.nordvpn.com", "-k=username")
+   publicUrl := "https://www.crave.ca/en/movie/goldeneye-38860"
+   // Magic happens here
+   mediaId, err := extractMediaId(publicUrl)
    if err != nil {
       t.Fatal(err)
-   }
-   password, err := run("credential", "-h=api.nordvpn.com")
-   if err != nil {
-      t.Fatal(err)
-   }
-   proxy := url.URL{
-      Scheme: "https",
-      User:   url.UserPassword(username, password),
-      Host:   "ca1103.nordvpn.com:89",
    }
    http.DefaultTransport = &http.Transport{
       Proxy: func(req *http.Request) (*url.URL, error) {
@@ -46,14 +39,8 @@ func TestLicense(t *testing.T) {
             req.Method = "GET"
          }
          log.Println(req.Method, req.URL)
-         return &proxy, nil
+         return http.ProxyFromEnvironment(req)
       },
-   }
-   publicUrl := "https://www.crave.ca/en/movie/goldeneye-38860"
-   // Magic happens here
-   mediaId, err := extractMediaId(publicUrl)
-   if err != nil {
-      t.Fatal(err)
    }
    contentId, err := GetContentId(mediaId)
    if err != nil {

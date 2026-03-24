@@ -70,7 +70,32 @@ func TestContent(t *testing.T) {
    }
    fmt.Println("DASH Manifest URL:", manifest_url)
 }
-
+func TestPasswordLogin(t *testing.T) {
+   username, err := run("credential", "-h=crave.ca", "-k=username")
+   if err != nil {
+      t.Fatal(err)
+   }
+   password, err := run("credential", "-h=crave.ca")
+   if err != nil {
+      t.Fatal(err)
+   }
+   auth_tokens, err := PasswordLogin(username, password)
+   if err != nil {
+      t.Fatal(err)
+   }
+   data, err := json.Marshal(auth_tokens)
+   if err != nil {
+      t.Fatal(err)
+   }
+   cache, err := os.UserCacheDir()
+   if err != nil {
+      t.Fatal(err)
+   }
+   err = os.WriteFile(cache+"/rosso/crave.json", data, os.ModePerm)
+   if err != nil {
+      t.Fatal(err)
+   }
+}
 func TestFinalTokens(t *testing.T) {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{
@@ -109,32 +134,6 @@ func TestFinalTokens(t *testing.T) {
       t.Fatal(err)
    }
    err = os.WriteFile(cache + "/rosso/crave-final.json", data, os.ModePerm)
-   if err != nil {
-      t.Fatal(err)
-   }
-}
-func TestPasswordLogin(t *testing.T) {
-   username, err := run("credential", "-h=crave.ca", "-k=username")
-   if err != nil {
-      t.Fatal(err)
-   }
-   password, err := run("credential", "-h=crave.ca")
-   if err != nil {
-      t.Fatal(err)
-   }
-   auth_tokens, err := PasswordLogin(username, password)
-   if err != nil {
-      t.Fatal(err)
-   }
-   data, err := json.Marshal(auth_tokens)
-   if err != nil {
-      t.Fatal(err)
-   }
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   err = os.WriteFile(cache+"/rosso/crave.json", data, os.ModePerm)
    if err != nil {
       t.Fatal(err)
    }
