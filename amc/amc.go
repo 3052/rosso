@@ -4,19 +4,103 @@ import (
    "bytes"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
-   "strconv"
-   "strings"
 )
 
-func BcJwt(header http.Header) string {
-   return header.Get("x-amcn-bc-jwt")
+func (m *Metadata) String() string {
+   var data []byte
+   if m.EpisodeNumber >= 0 {
+      data = fmt.Append(data, "episode = ", m.EpisodeNumber)
+   }
+   if data != nil {
+      data = append(data, '\n')
+   }
+   data = fmt.Appendln(data, "title =", m.Title)
+   data = fmt.Append(data, "nid = ", m.Nid)
+   return string(data)
 }
 
-func join(data ...string) string {
-   return strings.Join(data, "")
+func (c *Client) Season(id int) (*Season, error) {
+   var req http.Request
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "gw.cds.amcn.com",
+      Path: fmt.Sprint(
+         "/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/",
+         id,
+      ),
+   }
+
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "android")
+   req.Header.Set("x-amcn-tenant", "amcn")
+
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data Season
+   }
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+// Series replaces the generic Node for the SeriesDetail endpoint
+type Series struct {
+   Children   []Series
+   Properties struct {
+      Metadata *Metadata
+      Text     *struct {
+         Title struct {
+            Title string
+         }
+      }
+   }
+   Type string
+}
+
+// Episodes extracts metadata exclusively from a Season
+func (s *Season) Episodes() ([]*Metadata, error) {
+   for _, listNode := range s.Children {
+      if listNode.Type != "list" {
+         continue
+      }
+      var extractedMetadata []*Metadata
+      for _, cardNode := range listNode.Children {
+         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
+            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
+         }
+      }
+      return extractedMetadata, nil
+   }
+   return nil, errors.New("could not find episode list in the manifest")
+}
+
+// Season replaces the generic Node for the SeasonEpisodes endpoint.
+// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
+type Season struct {
+   Children   []Season
+   Properties struct {
+      Metadata *Metadata
+   }
+   Type string
+}
+func BcJwt(header http.Header) string {
+   return header.Get("x-amcn-bc-jwt")
 }
 
 func (c *Client) Refresh() error {
@@ -117,7 +201,7 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "gw.cds.amcn.com",
-      Path:   "/playback-id/api/v1/playback/" + strconv.Itoa(id),
+      Path: fmt.Sprint("/playback-id/api/v1/playback/", id),
    }
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
@@ -163,22 +247,6 @@ type Client struct {
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-func (m *Metadata) String() string {
-   var data strings.Builder
-   if m.EpisodeNumber >= 0 {
-      data.WriteString("episode = ")
-      data.WriteString(strconv.Itoa(m.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("title = ")
-   data.WriteString(m.Title)
-   data.WriteString("\nnid = ")
-   data.WriteString(strconv.Itoa(m.Nid))
-   return data.String()
 }
 
 type Metadata struct {
@@ -274,36 +342,29 @@ func GetDash(sources []Source) (*Source, error) {
    return nil, errors.New("DASH source not found")
 }
 
-///
-
 func (c *Client) Series(id int) (*Series, error) {
    var req http.Request
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "gw.cds.amcn.com",
-      Path: join(
-         "/content-compiler-cr/api/v1/content/amcn/amcplus/type",
-         "/series-detail/id/",
-         strconv.Itoa(id),
+      Path: fmt.Sprint(
+         "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
+         id,
       ),
    }
-
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
    req.Header.Set("x-amcn-network", "amcplus")
    req.Header.Set("x-amcn-platform", "android")
    req.Header.Set("x-amcn-tenant", "amcn")
-
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-
    if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
-
    var result struct {
       Data Series
    }
@@ -311,82 +372,4 @@ func (c *Client) Series(id int) (*Series, error) {
       return nil, err
    }
    return &result.Data, nil
-}
-
-func (c *Client) Season(id int) (*Season, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path: join(
-         "/content-compiler-cr/api/v1/content/amcn/amcplus/type",
-         "/season-episodes/id/",
-         strconv.Itoa(id),
-      ),
-   }
-
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "android")
-   req.Header.Set("x-amcn-tenant", "amcn")
-
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data Season
-   }
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-// Series replaces the generic Node for the SeriesDetail endpoint
-type Series struct {
-   Children   []Series
-   Properties struct {
-      Metadata *Metadata
-      Text     *struct {
-         Title struct {
-            Title string
-         }
-      }
-   }
-   Type string
-}
-
-// Episodes extracts metadata exclusively from a Season
-func (s *Season) Episodes() ([]*Metadata, error) {
-   for _, listNode := range s.Children {
-      if listNode.Type != "list" {
-         continue
-      }
-      var extractedMetadata []*Metadata
-      for _, cardNode := range listNode.Children {
-         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
-            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
-         }
-      }
-      return extractedMetadata, nil
-   }
-   return nil, errors.New("could not find episode list in the manifest")
-}
-
-// Season replaces the generic Node for the SeasonEpisodes endpoint.
-// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
-type Season struct {
-   Children   []Season
-   Properties struct {
-      Metadata *Metadata
-   }
-   Type string
 }
