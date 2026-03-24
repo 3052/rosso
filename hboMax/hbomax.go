@@ -4,6 +4,7 @@ import (
    "bytes"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
@@ -12,169 +13,22 @@ import (
    "strings"
 )
 
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func FetchLogin(st *http.Cookie) (*Login, error) {
+func (l Login) Movie(showData *Show) (*Videos, error) {
    var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   api_host, // Refactored
-      Path:   "/authentication/linkDevice/login",
-   }
-   req.Header = http.Header{}
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   join("default.beam-", market, ".prd.api.discomax.com"),
-      Path:   "/authentication/linkDevice/initiate",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("x-device-info", device_info)
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-      Errors []Error
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result.Data.Attributes, nil
-}
-
-func (l *Login) PlayReady(editId string) (*Playback, error) {
-   return l.playback(editId, "playready")
-}
-
-type Login struct {
-   Data struct {
-      Attributes struct {
-         Token string
-      }
-   }
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-const (
-   api_host     = "default.prd.api.hbomax.com"
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
-var Markets = []string{
-   "amer",
-   "apac",
-   "emea",
-   "latam",
-}
-
-// validVideoTypes acts as a set to hold the video types we want to keep.
-var validVideoTypes = []string{
-   "EPISODE",
-   "MOVIE",
-   "STANDALONE_EVENT",
-}
-
-func join(data ...string) string {
-   return strings.Join(data, "")
-}
-
-func isCategory(segment string) bool {
-   switch segment {
-   case "movies", "shows", "movie", "show":
-      return true
-   default:
-      return false
-   }
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   if e.Detail != "" {
-      data.WriteString("\ndetail = ")
-      data.WriteString(e.Detail)
-   } else {
-      data.WriteString("\nmessage = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-type Error struct {
-   Code    string
-   Detail  string // show was filtered by validator
-   Message string // Token is missing or not valid
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL = ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-func (l Login) Movie(show *ShowItem) (*Videos, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
    req.URL = &url.URL{
       Scheme: "https",
       Host:   api_host,
+      Path: fmt.Sprintf(
+         "/cms/routes/%v/%v",
+         strings.TrimSuffix(showData.Category, "s"), showData.Id,
+      ),
       RawQuery: url.Values{
          "include":          {"default"},
          "page[items.size]": {"1"},
       }.Encode(),
-      Path: join(
-         "/cms/routes/", strings.TrimSuffix(show.Category, "s"), "/", show.Id,
-      ),
    }
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -265,7 +119,7 @@ func (l *Login) playback(edit_id, drm string) (*Playback, error) {
    return &result, nil
 }
 
-func (l Login) Season(show *ShowItem, number int) (*Videos, error) {
+func (l Login) Season(showData *Show, number int) (*Videos, error) {
    var req http.Request
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
@@ -276,7 +130,7 @@ func (l Login) Season(show *ShowItem, number int) (*Videos, error) {
       RawQuery: url.Values{
          "include":          {"default"},
          "pf[seasonNumber]": {strconv.Itoa(number)},
-         "pf[show.id]":      {show.Id},
+         "pf[show.id]":      {showData.Id},
       }.Encode(),
    }
    resp, err := http.DefaultClient.Do(&req)
@@ -420,7 +274,7 @@ func (v *Videos) FilterAndSort() {
 // https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505
 // https://play.hbomax.com/movie/b7b66574-c6e3-4ed3-a266-6bc44180252e
 // https://play.hbomax.com/show/31cb4b84-951a-4daf-8925-746fcdcddcb8
-func ParseShow(inputUrl string) (*ShowItem, error) {
+func ParseShow(inputUrl string) (*Show, error) {
    parsedUrl, err := url.Parse(inputUrl)
    if err != nil {
       return nil, err
@@ -432,23 +286,23 @@ func ParseShow(inputUrl string) (*ShowItem, error) {
       return nil, errors.New("invalid url path")
    }
    // Create the instance
-   show := ShowItem{
+   showData := Show{
       Id: segments[count-1],
    }
    // Check immediate parent (e.g., /movie/id)
    if count >= 2 && isCategory(segments[count-2]) {
-      show.Category = segments[count-2]
-      return &show, nil
+      showData.Category = segments[count-2]
+      return &showData, nil
    }
    // Check grandparent (e.g., /movies/slug/id)
    if count >= 3 && isCategory(segments[count-3]) {
-      show.Category = segments[count-3]
-      return &show, nil
+      showData.Category = segments[count-3]
+      return &showData, nil
    }
    return nil, errors.New("category not found")
 }
 
-type ShowItem struct {
+type Show struct {
    Category string
    Id       string
 }
@@ -482,3 +336,146 @@ func FetchSt() (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func FetchLogin(st *http.Cookie) (*Login, error) {
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   api_host, // Refactored
+      Path:   "/authentication/linkDevice/login",
+   }
+   req.Header = http.Header{}
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Login{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host: fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+      Path:   "/authentication/linkDevice/initiate",
+   }
+   req.Header = http.Header{}
+   req.Header.Set("x-device-info", device_info)
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+      Errors []Error
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result.Data.Attributes, nil
+}
+
+func (l *Login) PlayReady(editId string) (*Playback, error) {
+   return l.playback(editId, "playready")
+}
+
+type Login struct {
+   Data struct {
+      Attributes struct {
+         Token string
+      }
+   }
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+const (
+   api_host     = "default.prd.api.hbomax.com"
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+var Markets = []string{
+   "amer",
+   "apac",
+   "emea",
+   "latam",
+}
+
+// validVideoTypes acts as a set to hold the video types we want to keep.
+var validVideoTypes = []string{
+   "EPISODE",
+   "MOVIE",
+   "STANDALONE_EVENT",
+}
+
+func isCategory(segment string) bool {
+   switch segment {
+   case "movies", "shows", "movie", "show":
+      return true
+   default:
+      return false
+   }
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   if e.Detail != "" {
+      data.WriteString("\ndetail = ")
+      data.WriteString(e.Detail)
+   } else {
+      data.WriteString("\nmessage = ")
+      data.WriteString(e.Message)
+   }
+   return data.String()
+}
+
+type Error struct {
+   Code    string
+   Detail  string // show was filtered by validator
+   Message string // Token is missing or not valid
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL = ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code = ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
