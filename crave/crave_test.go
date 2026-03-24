@@ -15,6 +15,59 @@ import (
    "testing"
 )
 
+func TestFinalTokens(t *testing.T) {
+   log.SetFlags(log.Ltime)
+   http.DefaultTransport = &http.Transport{
+      DisableKeepAlives: true, // github.com/golang/go/issues/25793
+      Proxy: func(req *http.Request) (*url.URL, error) {
+         log.Println(req.Method, req.URL)
+         return nil, nil
+      },
+   }
+   cache, err := os.UserCacheDir()
+   if err != nil {
+      t.Fatal(err)
+   }
+   data, err := os.ReadFile(cache + "/rosso/crave.json")
+   if err != nil {
+      t.Fatal(err)
+   }
+   var auth_tokens Account
+   err = json.Unmarshal(data, &auth_tokens)
+   if err != nil {
+      t.Fatal(err)
+   }
+   profiles, err := GetProfiles(auth_tokens.AccountId, auth_tokens.AccessToken)
+   if err != nil {
+      t.Fatal(err)
+   }
+   i := slices.IndexFunc(profiles, func(p *Profile) bool {
+      return p.HasPin == false
+   })
+   final_tokens, err := ProfileLogin(auth_tokens.RefreshToken, profiles[i].Id)
+   if err != nil {
+      t.Fatal(err)
+   }
+   data, err = json.Marshal(final_tokens)
+   if err != nil {
+      t.Fatal(err)
+   }
+   err = os.WriteFile(cache+"/rosso/crave-final.json", data, os.ModePerm)
+   if err != nil {
+      t.Fatal(err)
+   }
+}
+func run(name string, arg ...string) (string, error) {
+   var data strings.Builder
+   command := exec.Command(name, arg...)
+   command.Stdout = &data
+   err := command.Run()
+   if err != nil {
+      return "", err
+   }
+   return data.String(), nil
+}
+
 func TestLicense(t *testing.T) {
    cache, err := os.UserCacheDir()
    if err != nil {
@@ -24,7 +77,7 @@ func TestLicense(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   var final_tokens TokenResponse
+   var final_tokens Account
    err = json.Unmarshal(data, &final_tokens)
    if err != nil {
       t.Fatal(err)
@@ -109,7 +162,7 @@ func TestContent(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   var final_tokens TokenResponse
+   var final_tokens Account
    err = json.Unmarshal(data, &final_tokens)
    if err != nil {
       t.Fatal(err)
@@ -182,57 +235,4 @@ func TestPasswordLogin(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-}
-func TestFinalTokens(t *testing.T) {
-   log.SetFlags(log.Ltime)
-   http.DefaultTransport = &http.Transport{
-      DisableKeepAlives: true, // github.com/golang/go/issues/25793
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         log.Println(req.Method, req.URL)
-         return nil, nil
-      },
-   }
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   data, err := os.ReadFile(cache + "/rosso/crave.json")
-   if err != nil {
-      t.Fatal(err)
-   }
-   var auth_tokens TokenResponse
-   err = json.Unmarshal(data, &auth_tokens)
-   if err != nil {
-      t.Fatal(err)
-   }
-   profiles, err := GetProfiles(auth_tokens.AccountId, auth_tokens.AccessToken)
-   if err != nil {
-      t.Fatal(err)
-   }
-   i := slices.IndexFunc(profiles, func(p *Profile) bool {
-      return p.HasPin == false
-   })
-   final_tokens, err := ProfileLogin(auth_tokens.RefreshToken, profiles[i].Id)
-   if err != nil {
-      t.Fatal(err)
-   }
-   data, err = json.Marshal(final_tokens)
-   if err != nil {
-      t.Fatal(err)
-   }
-   err = os.WriteFile(cache+"/rosso/crave-final.json", data, os.ModePerm)
-   if err != nil {
-      t.Fatal(err)
-   }
-}
-
-func run(name string, arg ...string) (string, error) {
-   var data strings.Builder
-   command := exec.Command(name, arg...)
-   command.Stdout = &data
-   err := command.Run()
-   if err != nil {
-      return "", err
-   }
-   return data.String(), nil
 }

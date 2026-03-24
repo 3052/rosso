@@ -17,7 +17,69 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+// PasswordLogin performs the initial login to get the first set of tokens
+func PasswordLogin(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password": {password},
+      "username": {username},
+   }.Encode()
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host: "account.bellmedia.ca",
+      Path: "/api/login/v2.1",
+   }
+   req.Header = http.Header{}
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   req.Body = io.NopCloser(strings.NewReader(data))
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 ///
+
+// GetProfiles fetches the list of profiles associated with the account
+func GetProfiles(accountId, accessToken string) ([]*Profile, error) {
+   endpoint := fmt.Sprintf("%s/api/profile/v2/account/%s", baseUrl, accountId)
+   req, err := http.NewRequest("GET", endpoint, nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+      body, _ := io.ReadAll(resp.Body)
+      return nil, fmt.Errorf("failed to fetch profiles with status %d: %s", resp.StatusCode, string(body))
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
+const baseUrl = "https://account.bellmedia.ca"
+
+// Basic base64("crave-web:default")
+const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
 
 // GetContentID queries the GraphQL API to translate a Media ID to a Content ID
 func GetContentId(mediaId string) (string, error) {
@@ -64,13 +126,13 @@ func GetContentId(mediaId string) (string, error) {
 }
 
 // GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
-func (t *TokenResponse) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
+func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
    targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
    req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
    // Append requested query parameters
    q := req.URL.Query()
    q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+t.AccessToken)
+   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
    req.URL.RawQuery = q.Encode()
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -115,7 +177,7 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
    return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
 }
 
-type TokenResponse struct {
+type Account struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
    AccountId    string `json:"account_id,omitempty"`
@@ -131,63 +193,10 @@ type Profile struct {
    Maturity  string `json:"maturity"`
 }
 
-// PasswordLogin performs the initial login to get the first set of tokens.
-func PasswordLogin(username, password string) (*TokenResponse, error) {
-   endpoint := fmt.Sprintf("%s/api/login/v2.1", BaseUrl)
-   data := url.Values{}
-   data.Set("username", username)
-   data.Set("password", password)
-   data.Set("grant_type", "password")
-   req, err := http.NewRequest("POST", endpoint, strings.NewReader(data.Encode()))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("Authorization", BasicAuth)
-   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-      body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("password login failed with status %d: %s", resp.StatusCode, string(body))
-   }
-   var tokenResp TokenResponse
-   if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-      return nil, err
-   }
-   return &tokenResp, nil
-}
-
-// GetProfiles fetches the list of profiles associated with the account.
-func GetProfiles(accountId, accessToken string) ([]*Profile, error) {
-   endpoint := fmt.Sprintf("%s/api/profile/v2/account/%s", BaseUrl, accountId)
-   req, err := http.NewRequest("GET", endpoint, nil)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("Authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-      body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("failed to fetch profiles with status %d: %s", resp.StatusCode, string(body))
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
-}
-
 // ProfileLogin exchanges a refresh token for a fully authorized
 // profile-specific Bearer token
-func ProfileLogin(refreshToken, profileId string) (*TokenResponse, error) {
-   endpoint := fmt.Sprintf("%s/api/login/v2.2", BaseUrl)
+func ProfileLogin(refreshToken, profileId string) (*Account, error) {
+   endpoint := fmt.Sprintf("%s/api/login/v2.2", baseUrl)
    data := url.Values{}
    data.Set("grant_type", "refresh_token")
    data.Set("refresh_token", refreshToken)
@@ -207,26 +216,22 @@ func ProfileLogin(refreshToken, profileId string) (*TokenResponse, error) {
       body, _ := io.ReadAll(resp.Body)
       return nil, fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
    }
-   var tokenResp TokenResponse
-   if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+   var result Account
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-   return &tokenResp, nil
+   return &result, nil
 }
+
 const graphQlUrl  = "https://rte-api.bellmedia.ca/graphql"
 
 const playbackUrl = "https://playback.rte-api.bellmedia.ca/contents/%s"
 
 const manifestUrl = "https://stream.video.9c9media.com/meta/content/%s/contentpackage/%d/destination/%d/platform/1"
 
-const BaseUrl = "https://account.bellmedia.ca"
-
-// Basic base64("crave-web:default")
-const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
-
 // GetWidevineLicense issues the DRM license request using the provided payload
 // and the session details
-func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
+func (a *Account) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
    // The API expects the contentId as an integer
    contentIdInt, err := strconv.Atoi(session.ContentId)
    if err != nil {
@@ -239,7 +244,7 @@ func (t *TokenResponse) GetWidevineLicense(session *PlaybackSession, payload str
          ContentPackageId: session.ContentPackageId,
          PlatformId:       1, // Hardcoded to 1 for Web
          DestinationId:    session.DestinationId,
-         Jwt:              t.AccessToken,
+         Jwt:              a.AccessToken,
       },
    })
    if err != nil {
