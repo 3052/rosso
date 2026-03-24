@@ -8,7 +8,6 @@ import (
    "io"
    "net/http"
    "net/url"
-   "strings"
 )
 
 func FetchToken(username, password string) (*Token, error) {
@@ -65,10 +64,10 @@ func (m *MediaFile) Dash() (*Dash, error) {
 func (t *Token) Item(slug string) (*VideoItem, error) {
    var req http.Request
    req.URL = &url.URL{
-      Host:     "api.vhx.com",
-      Path:     join("/collections/", slug, "/items"),
-      RawQuery: "site_id=59054",
       Scheme:   "https",
+      Host:     "api.vhx.com",
+      Path: fmt.Sprintf("/collections/%v/items", slug),
+      RawQuery: "site_id=59054",
    }
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+t.AccessToken)
@@ -98,10 +97,6 @@ type VideoItem struct {
 }
 
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-func join(items ...string) string {
-   return strings.Join(items, "")
-}
 
 type Dash struct {
    Body []byte

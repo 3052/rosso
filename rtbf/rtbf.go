@@ -4,15 +4,11 @@ import (
    "bytes"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
-   "strings"
 )
-
-func join(data ...string) string {
-   return strings.Join(data, "")
-}
 
 func FetchAccount(id, password string) (*Account, error) {
    resp, err := http.PostForm(
@@ -86,8 +82,8 @@ func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "exposure.api.redbee.live",
-      Path: join(
-         "/v2/customer/RTBF/businessunit/Auvio/entitlement/", assetId, "/play",
+      Path: fmt.Sprintf(
+         "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
       ),
    }
    resp, err := http.DefaultClient.Do(&req)

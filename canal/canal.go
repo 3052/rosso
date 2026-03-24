@@ -80,10 +80,6 @@ func FetchTracking(urlData string) (string, error) {
    return before, nil
 }
 
-func join(items ...string) string {
-   return strings.Join(items, "")
-}
-
 func (p *Player) Dash() (*Dash, error) {
    resp, err := http.Get(p.Url)
    if err != nil {
@@ -114,7 +110,7 @@ func (s *Session) Player(tracking string) (*Player, error) {
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "tvapi-hlm2.solocoo.tv",
-      Path:   join("/v1/assets/", tracking, "/play"),
+      Path: fmt.Sprintf("/v1/assets/%v/play", tracking),
    }
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+s.Token)
@@ -150,12 +146,10 @@ func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
       Scheme: "https",
       Host:   "tvapi-hlm2.solocoo.tv",
       Path:   "/v1/assets",
-      RawQuery: join(
-         "limit=99&query=episodes,",
-         tracking,
-         ",season,",
-         strconv.Itoa(season),
-      ),
+      RawQuery: url.Values{
+         "limit": {"99"},
+         "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
+      }.Encode(),
    }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
