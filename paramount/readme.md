@@ -9,7 +9,7 @@ its in the HTML response body:
 ## How to get secret\_key?
 
 ~~~
-com\cbs\app\androiddata\retrofit\util\RetrofitUtil.java
+sources/com/cbs/app/androiddata/retrofit/util/RetrofitUtil.java
 SecretKeySpec secretKeySpec = new SecretKeySpec(b("302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"), "AES");
 ~~~
 
@@ -18,7 +18,7 @@ SecretKeySpec secretKeySpec = new SecretKeySpec(b("302a6a0d70a7e9b967f91d39fef3e
 us:
 
 ~~~
-sources\com\cbs\app\config\UsaMobileAppConfigProvider.java
+sources/com/cbs/app/config/UsaMobileAppConfigProvider.java
 ~~~
 
 - https://apkmirror.com/apk/cbs-interactive-inc/paramount
