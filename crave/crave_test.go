@@ -44,11 +44,11 @@ func TestFinalTokens(t *testing.T) {
    i := slices.IndexFunc(profiles, func(p *Profile) bool {
       return p.HasPin == false
    })
-   final_tokens, err := ProfileLogin(auth_tokens.RefreshToken, profiles[i].Id)
+   err = auth_tokens.ProfileLogin(profiles[i].Id)
    if err != nil {
       t.Fatal(err)
    }
-   data, err = json.Marshal(final_tokens)
+   data, err = json.Marshal(auth_tokens)
    if err != nil {
       t.Fatal(err)
    }
@@ -154,6 +154,7 @@ func TestLicense(t *testing.T) {
    }
    fmt.Printf("%q\n", data)
 }
+
 func TestContent(t *testing.T) {
    cache, err := os.UserCacheDir()
    if err != nil {
@@ -211,6 +212,7 @@ func TestContent(t *testing.T) {
    }
    fmt.Println("DASH Manifest URL:", manifest_url)
 }
+
 func TestPasswordLogin(t *testing.T) {
    username, err := run("credential", "-h=crave.ca", "-k=username")
    if err != nil {

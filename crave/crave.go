@@ -14,70 +14,10 @@ import (
    "strings"
 )
 
-//go:embed GetShowpage.gql
-var get_showpage string
-
-// PasswordLogin performs the initial login to get the first set of tokens
-func PasswordLogin(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.1",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   req.Body = io.NopCloser(strings.NewReader(data))
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
 type Account struct {
    AccessToken  string `json:"access_token"`
    AccountId    string `json:"account_id"`
    RefreshToken string `json:"refresh_token"`
-}
-
-func (a *Account) Profiles() ([]*Profile, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/profile/v2/account/" + a.AccountId,
-   }
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
 }
 
 type Profile struct {
@@ -86,50 +26,30 @@ type Profile struct {
    Id       string `json:"id"`
 }
 
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-///
-
 // ProfileLogin exchanges a refresh token for a fully authorized
 // profile-specific Bearer token
-func ProfileLogin(refreshToken, profileId string) (*Account, error) {
+func (a *Account) ProfileLogin(profileId string) error {
    endpoint := fmt.Sprintf("%s/api/login/v2.2", baseUrl)
    data := url.Values{}
    data.Set("grant_type", "refresh_token")
-   data.Set("refresh_token", refreshToken)
+   data.Set("refresh_token", a.RefreshToken)
    data.Set("profile_id", profileId)
    req, err := http.NewRequest("POST", endpoint, strings.NewReader(data.Encode()))
    if err != nil {
-      return nil, err
+      return err
    }
    req.Header.Set("Authorization", BasicAuth)
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
-      return nil, err
+      return err
    }
    defer resp.Body.Close()
    if resp.StatusCode < 200 || resp.StatusCode >= 300 {
       body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
+      return fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
    }
-   var result Account
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
+   return json.NewDecoder(resp.Body).Decode(a)
 }
 
 const graphQlUrl = "https://rte-api.bellmedia.ca/graphql"
@@ -322,4 +242,78 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
       return 0, 0, fmt.Errorf("invalid content package ID received")
    }
    return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
+}
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
+// PasswordLogin performs the initial login to get the first set of tokens
+func PasswordLogin(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.1",
+   }
+   req.Header = http.Header{}
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   req.Body = io.NopCloser(strings.NewReader(data))
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func (a *Account) Profiles() ([]*Profile, error) {
+   var req http.Request
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/profile/v2/account/" + a.AccountId,
+   }
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
 }
