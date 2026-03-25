@@ -10,6 +10,39 @@ import (
    "net/url"
 )
 
+type Item struct {
+   Links struct {
+      Files struct {
+         Href string // https://api.vhx.tv/videos/3460957/files
+      }
+   } `json:"_links"`
+}
+
+func (t *Token) Files(filesHref string) (Files, error) {
+   href, err := url.Parse(filesHref)
+   if err != nil {
+      return nil, err
+   }
+   var req http.Request
+   req.URL = href
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+t.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result Files
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 func FetchToken(username, password string) (*Token, error) {
    resp, err := http.PostForm("https://auth.vhx.com/v1/oauth/token", url.Values{
       "client_id":  {client_id},
@@ -48,8 +81,8 @@ func (t *Token) AsError() error {
    return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
 }
 
-func (m *MediaFile) Dash() (*Dash, error) {
-   resp, err := http.Get(m.Links.Source.Href)
+func (f *File) Dash() (*Dash, error) {
+   resp, err := http.Get(f.Links.Source.Href)
    if err != nil {
       return nil, err
    }
@@ -61,7 +94,7 @@ func (m *MediaFile) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-func (t *Token) Item(slug string) (*VideoItem, error) {
+func (t *Token) Item(slug string) (*Item, error) {
    var req http.Request
    req.URL = &url.URL{
       Scheme:   "https",
@@ -78,7 +111,7 @@ func (t *Token) Item(slug string) (*VideoItem, error) {
    defer resp.Body.Close()
    var result struct {
       Embedded struct {
-         Items []VideoItem
+         Items []Item
       } `json:"_embedded"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
@@ -88,14 +121,6 @@ func (t *Token) Item(slug string) (*VideoItem, error) {
    return &result.Embedded.Items[0], nil
 }
 
-type VideoItem struct {
-   Links struct {
-      Files struct {
-         Href string // https://api.vhx.tv/videos/3460957/files
-      }
-   } `json:"_links"`
-}
-
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
 type Dash struct {
@@ -103,7 +128,7 @@ type Dash struct {
    Url  *url.URL
 }
 
-type MediaFile struct {
+type File struct {
    DrmAuthorizationToken string `json:"drm_authorization_token"`
    Links                 struct {
       Source struct {
@@ -113,14 +138,14 @@ type MediaFile struct {
    Method string
 }
 
-func (m *MediaFile) Widevine(data []byte) ([]byte, error) {
+func (f *File) Widevine(data []byte) ([]byte, error) {
    var req http.Request
    req.Method = "POST"
    req.URL = &url.URL{
       Scheme:   "https",
       Host:     "drm.vhx.com",
       Path:     "/v2/widevine",
-      RawQuery: url.Values{"token": {m.DrmAuthorizationToken}}.Encode(),
+      RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
    }
    req.Header = http.Header{}
    req.Body = io.NopCloser(bytes.NewReader(data))
@@ -132,12 +157,12 @@ func (m *MediaFile) Widevine(data []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type MediaFiles []MediaFile
+type Files []File
 
-func (m MediaFiles) Dash() (*MediaFile, error) {
-   for _, file := range m {
-      if file.Method == "dash" {
-         return &file, nil
+func (f Files) Dash() (*File, error) {
+   for _, file_data := range f {
+      if file_data.Method == "dash" {
+         return &file_data, nil
       }
    }
    return nil, errors.New("DASH media file not found")
@@ -158,26 +183,4 @@ func (t *Token) Refresh() error {
       return err
    }
    return t.AsError()
-}
-
-func (t *Token) Files(item *VideoItem) (MediaFiles, error) {
-   req, err := http.NewRequest("", item.Links.Files.Href, nil)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result MediaFiles
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }

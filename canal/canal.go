@@ -282,8 +282,6 @@ func FetchTicket() (*Ticket, error) {
    return &result, nil
 }
 
-///
-
 type Dash struct {
    Body []byte
    Url  *url.URL

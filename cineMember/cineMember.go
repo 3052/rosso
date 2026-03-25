@@ -60,8 +60,8 @@ func FetchLogin(session *http.Cookie, email, password string) error {
 }
 
 // extracts the numeric ID and converts it to an integer
-func FetchId(url_data string) (int, error) {
-   resp, err := http.Get(url_data)
+func FetchId(urlData string) (int, error) {
+   resp, err := http.Get(urlData)
    if err != nil {
       return 0, err
    }

@@ -8,6 +8,20 @@ import (
    "path"
 )
 
+type client struct {
+   Dash      *criterion.Dash
+   File *criterion.File
+   Token     *criterion.Token
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   address string
+   //------------------------
+   dash_id string
+}
 func (c *client) do() error {
    err := cache.Setup("rosso/criterion.xml")
    if err != nil {
@@ -58,7 +72,7 @@ var cache maya.Cache
 
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.Widevine,
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.File.Widevine,
    )
 }
 
@@ -80,15 +94,15 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   files, err := c.Token.Files(item)
+   files, err := c.Token.Files(item.Links.Files.Href)
    if err != nil {
       return err
    }
-   c.MediaFile, err = files.Dash()
+   c.File, err = files.Dash()
    if err != nil {
       return err
    }
-   c.Dash, err = c.MediaFile.Dash()
+   c.Dash, err = c.File.Dash()
    if err != nil {
       return err
    }
@@ -97,19 +111,4 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-type client struct {
-   Dash      *criterion.Dash
-   MediaFile *criterion.MediaFile
-   Token     *criterion.Token
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   address string
-   //------------------------
-   dash_id string
 }

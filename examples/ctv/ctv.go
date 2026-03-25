@@ -7,6 +7,38 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   path, err := ctv.GetPath(c.address)
+   if err != nil {
+      return err
+   }
+   resolve, err := ctv.Resolve(path)
+   if err != nil {
+      return err
+   }
+   axis, err := resolve.AxisContent()
+   if err != nil {
+      return err
+   }
+   playback, err := axis.Playback()
+   if err != nil {
+      return err
+   }
+   manifest, err := axis.Manifest(playback)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = ctv.FetchDash(manifest)
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/ctv.xml")
    if err != nil {
@@ -57,36 +89,4 @@ type client struct {
 
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, ctv.Widevine)
-}
-
-func (c *client) do_address() error {
-   path, err := ctv.GetPath(c.address)
-   if err != nil {
-      return err
-   }
-   resolve, err := ctv.Resolve(path)
-   if err != nil {
-      return err
-   }
-   axis, err := resolve.AxisContent()
-   if err != nil {
-      return err
-   }
-   playback, err := axis.Playback()
-   if err != nil {
-      return err
-   }
-   manifest, err := axis.Manifest(playback)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = manifest.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
