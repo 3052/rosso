@@ -12,22 +12,74 @@ import (
    "strings"
 )
 
+type Plays struct {
+   Captions []struct {
+      Files []struct {
+         Url string
+      }
+   }
+   ErrorMsgLong string `json:"error_msg_long"`
+   Manifests    []Manifest
+}
+
+// good for 10 years
+type Login struct {
+   Jwt    string
+   UserId int
+}
+
+type Membership struct {
+   DomainId int
+}
+
+type Manifest struct {
+   DrmLicenseId string
+   ManifestType string
+   Url          string
+}
+
+func (l *Login) Widevine(licenseId string, data []byte) ([]byte, error) {
+   var req http.Request
+   req.Method = "POST"
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/licenses/widevine/" + licenseId,
+   }
+   req.Header = http.Header{}
+   req.Body = io.NopCloser(bytes.NewReader(data))
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   req.Header.Set("user-agent", user_agent)
+   req.Header.Set("x-version", x_version)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+const user_agent = "!"
+
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418
 // - https://kanopy.com/video/genius-party
 // - https://kanopy.com/en/video/genius-party
 // - https://kanopy.com/en/product/genius-party
 func ParseVideo(urlData string) (*Video, error) {
-   urlParse, err := url.Parse(urlData)
+   url_parse, err := url.Parse(urlData)
    if err != nil {
       return nil, err
    }
-   if !strings.Contains(urlParse.Host, "kanopy.com") {
+   if !strings.Contains(url_parse.Host, "kanopy.com") {
       return nil, errors.New("invalid domain")
    }
    // Get the directory of the path (removes the final identifier).
    // e.g., "/en/product/genius-party" -> "/en/product"
-   dir := path.Dir(urlParse.Path)
+   dir := path.Dir(url_parse.Path)
    // Check if the directory ends with "/video" OR "/product".
    // This supports:
    // - /video/{id}
@@ -37,7 +89,7 @@ func ParseVideo(urlData string) (*Video, error) {
       return nil, errors.New("invalid path structure")
    }
    v := &Video{}
-   identifier := path.Base(urlParse.Path)
+   identifier := path.Base(url_parse.Path)
    numericId, err := strconv.Atoi(identifier)
    if err != nil {
       v.Alias = identifier
@@ -82,13 +134,16 @@ func FetchLogin(email, password string) (*Login, error) {
    return result, nil
 }
 
-func (p *PlayManifest) Dash() (*Dash, error) {
-   req, err := http.NewRequest("", p.Url, nil)
+func (m *Manifest) Dash() (*Dash, error) {
+   url_parse, err := url.Parse(m.Url)
    if err != nil {
       return nil, err
    }
+   var req http.Request
+   req.URL = url_parse
+   req.Header = http.Header{}
    req.Header.Set("user-agent", "Mozilla")
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
@@ -98,11 +153,6 @@ func (p *PlayManifest) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Video struct {
-   Alias   string
-   VideoId int
 }
 
 const x_version = "!/!/!/!"
@@ -132,73 +182,9 @@ func (l *Login) Video(alias string) (*Video, error) {
    return &result.Video, nil
 }
 
-// good for 10 years
-type Login struct {
-   Jwt    string
-   UserId int
-}
-
-func (l *Login) Plays(member *Membership, videoId int) (*Plays, error) {
-   data, err := json.Marshal(map[string]int{
-      "domainId": member.DomainId,
-      "userId":   l.UserId,
-      "videoId":  videoId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://www.kanopy.com/kapi/plays", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-version", x_version)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Plays
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.ErrorMsgLong != "" {
-      return nil, errors.New(result.ErrorMsgLong)
-   }
-   return &result, nil
-}
-
-const user_agent = "!"
-
-type Membership struct {
-   DomainId int
-}
-
-func (l *Login) Widevine(manifest *PlayManifest, data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://www.kanopy.com", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.Path = "/kapi/licenses/widevine/" + manifest.DrmLicenseId
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-version", x_version)
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
+type Video struct {
+   Alias   string
+   VideoId int
 }
 
 type Dash struct {
@@ -236,27 +222,46 @@ func (l *Login) Membership() (*Membership, error) {
    return &result.List[0], nil
 }
 
-type Plays struct {
-   Captions []struct {
-      Files []struct {
-         Url string
-      }
-   }
-   ErrorMsgLong string `json:"error_msg_long"`
-   Manifests    []PlayManifest
-}
-
-type PlayManifest struct {
-   DrmLicenseId string
-   ManifestType string
-   Url          string
-}
-
-func (p *Plays) Dash() (*PlayManifest, error) {
-   for _, manifest := range p.Manifests {
-      if manifest.ManifestType == "dash" {
-         return &manifest, nil
+func (p *Plays) Dash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
       }
    }
    return nil, errors.New("dash manifest not found")
+}
+
+func (l *Login) Plays(domainId, videoId int) (*Plays, error) {
+   data, err := json.Marshal(map[string]int{
+      "domainId": domainId,
+      "userId":   l.UserId,
+      "videoId":  videoId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://www.kanopy.com/kapi/plays", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("user-agent", user_agent)
+   req.Header.Set("x-version", x_version)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Plays
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.ErrorMsgLong != "" {
+      return nil, errors.New(result.ErrorMsgLong)
+   }
+   return &result, nil
 }

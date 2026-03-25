@@ -8,6 +8,79 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   video, err := kanopy.ParseVideo(c.address)
+   if err != nil {
+      return err
+   }
+   if video.VideoId == 0 {
+      video, err = c.Login.Video(video.Alias)
+      if err != nil {
+         return err
+      }
+   }
+   membership, err := c.Login.Membership()
+   if err != nil {
+      return err
+   }
+   plays, err := c.Login.Plays(membership.DomainId, video.VideoId)
+   if err != nil {
+      return err
+   }
+   for _, caption := range plays.Captions {
+      for _, file := range caption.Files {
+         fmt.Println(file.Url)
+      }
+   }
+   c.Manifest, err = plays.Dash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.Manifest.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
+      func(data []byte) ([]byte, error) {
+         return c.Login.Widevine(c.Manifest.DrmLicenseId, data)
+      },
+   )
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Dash     *kanopy.Dash
+   Login    *kanopy.Login
+   Manifest *kanopy.Manifest
+   //-------------------------------
+   Job maya.Job
+   //-------------------------------
+   email    string
+   password string
+   //-------------------------------
+   address string
+   //-------------------------------
+   dash_id string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/kanopy.xml")
    if err != nil {
@@ -52,76 +125,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   video, err := kanopy.ParseVideo(c.address)
-   if err != nil {
-      return err
-   }
-   if video.VideoId == 0 {
-      video, err = c.Login.Video(video.Alias)
-      if err != nil {
-         return err
-      }
-   }
-   member, err := c.Login.Membership()
-   if err != nil {
-      return err
-   }
-   plays, err := c.Login.Plays(member, video.VideoId)
-   if err != nil {
-      return err
-   }
-   for _, caption := range plays.Captions {
-      for _, file := range caption.Files {
-         fmt.Println(file.Url)
-      }
-   }
-   c.PlayManifest, err = plays.Dash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.PlayManifest.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
-      func(data []byte) ([]byte, error) {
-         return c.Login.Widevine(c.PlayManifest, data)
-      },
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Dash         *kanopy.Dash
-   Login        *kanopy.Login
-   PlayManifest *kanopy.PlayManifest
-   //-------------------------------
-   Job maya.Job
-   //-------------------------------
-   email    string
-   password string
-   //-------------------------------
-   address string
-   //-------------------------------
-   dash_id string
 }

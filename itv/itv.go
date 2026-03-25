@@ -79,7 +79,7 @@ func (m *MediaFile) Dash() (*Dash, error) {
 //go:embed ProgrammePage.gql
 var programme_page string
 
-func LegacyId(urlData string) string {
+func ParseLegacyId(urlData string) string {
    // 1. Get the last part of the URL (e.g., "10a5356a0001B")
    base := path.Base(urlData)
    // 2. Split the string by the character 'a'

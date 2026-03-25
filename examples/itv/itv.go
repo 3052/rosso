@@ -59,7 +59,7 @@ func main() {
 var cache maya.Cache
 
 func (c *client) do_address() error {
-   titles, err := itv.Titles(itv.LegacyId(c.address))
+   titles, err := itv.Titles(itv.ParseLegacyId(c.address))
    if err != nil {
       return err
    }
