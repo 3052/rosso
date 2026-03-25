@@ -37,8 +37,8 @@ func main() {
 var cache maya.Cache
 
 type client struct {
-   CbsCom    *http.Cookie
-   Dash      *paramount.Dash
+   CbsCom *http.Cookie
+   Dash   *paramount.Dash
    //--------------------
    Job maya.Job
    //--------------------

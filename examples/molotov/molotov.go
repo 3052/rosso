@@ -76,11 +76,11 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   view, err := c.Login.ProgramView(media_id)
+   program, err := c.Login.Program(media_id)
    if err != nil {
       return err
    }
-   c.Asset, err = c.Login.Asset(view)
+   c.Asset, err = c.Login.Asset(program)
    if err != nil {
       return err
    }

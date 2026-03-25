@@ -110,7 +110,7 @@ func (s *Session) Player(tracking string) (*Player, error) {
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "tvapi-hlm2.solocoo.tv",
-      Path: fmt.Sprintf("/v1/assets/%v/play", tracking),
+      Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
    }
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+s.Token)

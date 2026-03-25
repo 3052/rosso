@@ -7,6 +7,7 @@ import (
    "encoding/hex"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
@@ -15,34 +16,13 @@ import (
    "time"
 )
 
-func (s Stream) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 func (m *Metadata) Stream() (*Stream, error) {
    var req http.Request
    req.Header = http.Header{}
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "lemonade.nbc.com",
-      Path: join(
-         "/v1/vod/", strconv.Itoa(m.MpxAccountId),
-         "/", strconv.Itoa(m.MpxGuid),
-      ),
+      Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
       RawQuery: url.Values{
          "platform":        {"web"},
          "programmingType": {m.ProgrammingType},
@@ -62,10 +42,6 @@ func (m *Metadata) Stream() (*Stream, error) {
       return nil, err
    }
    return result, nil
-}
-
-func join(data ...string) string {
-   return strings.Join(data, "")
 }
 
 const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
@@ -204,4 +180,21 @@ func buildAuthQuery(drmType string) string {
       "hash":   {hash},
       "time":   {timestamp},
    }.Encode()
+}
+func (s Stream) Dash() (*Dash, error) {
+   resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }

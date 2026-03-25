@@ -161,6 +161,7 @@ func FetchLogin(email, password string) (*Login, error) {
    }
    return result, nil
 }
+
 type Program struct {
    Actions struct {
       Play *struct { // FIXME check for nil

@@ -164,7 +164,7 @@ type Title struct {
    Title         string
 }
 
-func (p *Playlist) playReady(id string) error {
+func (p *Playlist) PlayReady(id string) error {
    data, err := json.Marshal(map[string]any{
       "client": map[string]string{
          "id": "browser",

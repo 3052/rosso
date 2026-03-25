@@ -1,12 +1,6 @@
 package itv
 
-import (
-   "net/http"
-   "net/url"
-   "os"
-   "os/exec"
-   "testing"
-)
+import "testing"
 
 var watch_tests = []struct {
    category string

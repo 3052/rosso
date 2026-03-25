@@ -367,7 +367,7 @@ func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
    req.Method = "POST"
    req.URL = &url.URL{
       Scheme: "https",
-      Host: fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+      Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
       Path:   "/authentication/linkDevice/initiate",
    }
    req.Header = http.Header{}
@@ -412,6 +412,7 @@ type Login struct {
 type Scheme struct {
    LicenseUrl string
 }
+
 const (
    api_host     = "default.prd.api.hbomax.com"
    disco_client = "!:!:beam:!"

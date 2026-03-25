@@ -15,8 +15,8 @@ import (
 func (a *AxisContent) Manifest(play *Playback) (Manifest, error) {
    var req http.Request
    req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "capi.9c9media.com",
+      Scheme: "https",
+      Host:   "capi.9c9media.com",
       Path: fmt.Sprint(
          "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
          "/platforms/desktop/playback/contents/", a.AxisId,
@@ -215,12 +215,13 @@ type AxisContent struct {
       DestinationCode string
    }
 }
+
 func (a *AxisContent) Playback() (*Playback, error) {
    var req http.Request
    req.Header = http.Header{}
    req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "capi.9c9media.com",
+      Scheme: "https",
+      Host:   "capi.9c9media.com",
       Path: fmt.Sprintf(
          "/destinations/%v/platforms/desktop/contents/%v",
          a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,

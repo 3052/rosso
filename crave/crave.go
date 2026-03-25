@@ -2,6 +2,7 @@ package crave
 
 import (
    "bytes"
+   _ "embed"
    "encoding/base64"
    "encoding/json"
    "errors"
@@ -11,7 +12,6 @@ import (
    "net/url"
    "strconv"
    "strings"
-   _ "embed"
 )
 
 //go:embed GetShowpage.gql
@@ -21,15 +21,15 @@ var get_showpage string
 func PasswordLogin(username, password string) (*Account, error) {
    data := url.Values{
       "grant_type": {"password"},
-      "password": {password},
-      "username": {username},
+      "password":   {password},
+      "username":   {username},
    }.Encode()
    var req http.Request
    req.Method = "POST"
    req.URL = &url.URL{
       Scheme: "https",
-      Host: "account.bellmedia.ca",
-      Path: "/api/login/v2.1",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.1",
    }
    req.Header = http.Header{}
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
@@ -223,7 +223,7 @@ func ProfileLogin(refreshToken, profileId string) (*Account, error) {
    return &result, nil
 }
 
-const graphQlUrl  = "https://rte-api.bellmedia.ca/graphql"
+const graphQlUrl = "https://rte-api.bellmedia.ca/graphql"
 
 const playbackUrl = "https://playback.rte-api.bellmedia.ca/contents/%s"
 

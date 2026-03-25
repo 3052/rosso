@@ -99,6 +99,7 @@ type Season struct {
    }
    Type string
 }
+
 func BcJwt(header http.Header) string {
    return header.Get("x-amcn-bc-jwt")
 }
@@ -201,7 +202,7 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "gw.cds.amcn.com",
-      Path: fmt.Sprint("/playback-id/api/v1/playback/", id),
+      Path:   fmt.Sprint("/playback-id/api/v1/playback/", id),
    }
    req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)

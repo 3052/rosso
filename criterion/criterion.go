@@ -66,7 +66,7 @@ func (t *Token) Item(slug string) (*VideoItem, error) {
    req.URL = &url.URL{
       Scheme:   "https",
       Host:     "api.vhx.com",
-      Path: fmt.Sprintf("/collections/%v/items", slug),
+      Path:     fmt.Sprintf("/collections/%v/items", slug),
       RawQuery: "site_id=59054",
    }
    req.Header = http.Header{}
