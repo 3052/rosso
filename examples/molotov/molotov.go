@@ -7,6 +7,51 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   url, err := molotov.ParseUrl(c.address)
+   if err != nil {
+      return err
+   }
+   err = c.Login.Refresh()
+   if err != nil {
+      return err
+   }
+   program, err := url.FetchProgram(c.Login.Auth.AccessToken)
+   if err != nil {
+      return err
+   }
+   c.Asset, err = program.Asset(c.Login.Auth.AccessToken)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.Asset.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Asset.Widevine,
+   )
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
 func (c *client) do() error {
    err := cache.Setup("rosso/molotov.xml")
    if err != nil {
@@ -67,47 +112,3 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
-func (c *client) do_address() error {
-   media_id, err := molotov.ParseMediaId(c.address)
-   if err != nil {
-      return err
-   }
-   err = c.Login.Refresh()
-   if err != nil {
-      return err
-   }
-   program, err := c.Login.Program(media_id)
-   if err != nil {
-      return err
-   }
-   c.Asset, err = c.Login.Asset(program)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.Asset.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Asset.Widevine,
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache

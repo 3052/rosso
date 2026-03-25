@@ -12,54 +12,87 @@ import (
    "strings"
 )
 
-func (l *Login) Asset(programData *Program) (*Asset, error) {
-   url_parse, err := url.Parse(programData.Actions.Play.Url)
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseUrl(data string) (*Url, error) {
+   var found bool
+   _, data, found = strings.Cut(data, "/p/")
+   if !found {
+      return nil, errors.New("url does not contain the /p/ marker")
+   }
+   data, _, _ = strings.Cut(data, "/")
+   program, channel, found := strings.Cut(data, "-")
+   if !found {
+      return nil, errors.New("invalid format: hyphen not found between IDs")
+   }
+   var (
+      url_data Url
+      err      error
+   )
+   if url_data.Program, err = strconv.Atoi(program); err != nil {
+      return nil, errors.New("program ID is not a valid integer")
+   }
+   if url_data.Channel, err = strconv.Atoi(channel); err != nil {
+      return nil, errors.New("channel ID is not a valid integer")
+   }
+   return &url_data, nil
+}
+
+func FetchLogin(email, password string) (*Login, error) {
+   data, err := json.Marshal(map[string]string{
+      "grant_type": "password",
+      "email":      email,
+      "password":   password,
+   })
    if err != nil {
       return nil, err
    }
-   query := url_parse.Query() // keep existing query string
-   query.Set("access_token", l.Auth.AccessToken)
-   url_parse.RawQuery = query.Encode()
-   var req http.Request
-   req.URL = url_parse
-   req.Header = http.Header{}
-   req.Header.Set("x-forwarded-for", "138.199.15.158")
-   req.Header.Set("x-molotov-agent", browser_app)
-   resp, err := http.DefaultClient.Do(&req)
+   req, err := http.NewRequest(
+      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   var result Asset
+   result := &Login{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func (a *Asset) Widevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-dt-auth-token", a.Drm.Token)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      License []byte
+   }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
-}
-
-func (a *AssetError) Error() string {
-   var data strings.Builder
-   data.WriteString("developer message = ")
-   data.WriteString(a.DeveloperMessage)
-   data.WriteString("\nuser message = ")
-   data.WriteString(a.UserMessage)
-   return data.String()
-}
-
-type AssetError struct {
-   DeveloperMessage string `json:"developer_message"`
-   UserMessage      string `json:"user_message"`
-}
-
-type Login struct {
-   Auth struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
+   return result.License, nil
 }
 
 const (
@@ -105,83 +138,47 @@ func (a *Asset) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-type MediaId struct {
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("developer message = ")
+   data.WriteString(e.DeveloperMessage)
+   data.WriteString("\nuser message = ")
+   data.WriteString(e.UserMessage)
+   return data.String()
+}
+
+type Error struct {
+   DeveloperMessage string `json:"developer_message"`
+   UserMessage      string `json:"user_message"`
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Error  *Error
+   Stream struct {
+      Url string // MPD
+   }
+}
+
+type Url struct {
    Program int
    Channel int
 }
 
-func ParseMediaId(urlData string) (*MediaId, error) {
-   _, remainder, found := strings.Cut(urlData, "/p/")
-   if !found {
-      return nil, errors.New("url does not contain the /p/ marker")
-   }
-   ids, _, _ := strings.Cut(remainder, "/")
-   program, channel, found := strings.Cut(ids, "-")
-   if !found {
-      return nil, errors.New("invalid format: hyphen not found between IDs")
-   }
-   m := &MediaId{}
-   var err error
-   // Assign directly to the struct fields
-   if m.Program, err = strconv.Atoi(program); err != nil {
-      return nil, errors.New("program ID is not a valid integer")
-   }
-   if m.Channel, err = strconv.Atoi(channel); err != nil {
-      return nil, errors.New("channel ID is not a valid integer")
-   }
-   return m, nil
-}
-
-func FetchLogin(email, password string) (*Login, error) {
-   data, err := json.Marshal(map[string]string{
-      "grant_type": "password",
-      "email":      email,
-      "password":   password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Program struct {
-   Actions struct {
-      Play *struct { // FIXME check for nil
-         Url string // fapi.molotov.tv/v2/me/assets
-      }
-   }
-}
-
-func (l *Login) Program(media *MediaId) (*Program, error) {
+func (u *Url) FetchProgram(accessToken string) (*Program, error) {
    var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("x-molotov-agent", customer_area)
    req.URL = &url.URL{
       Scheme: "https",
       Host:   "fapi.molotov.tv",
       Path: fmt.Sprintf(
-         "/v2/channels/%v/programs/%v/view", media.Channel, media.Program,
+         "/v2/channels/%v/programs/%v/view", u.Channel, u.Program,
       ),
-      RawQuery: url.Values{"access_token": {l.Auth.AccessToken}}.Encode(),
+      RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
    }
+   req.Header = http.Header{}
+   req.Header.Set("x-molotov-agent", customer_area)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -200,39 +197,46 @@ func (l *Login) Program(media *MediaId) (*Program, error) {
    return &result.Program, nil
 }
 
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Error  *AssetError
-   Stream struct {
-      Url string // MPD
+type Program struct {
+   Actions struct {
+      Play *struct {
+         Url string // fapi.molotov.tv/v2/me/assets
+      }
    }
 }
 
-func (a *Asset) Widevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(data),
-   )
+type Login struct {
+   Auth struct {
+      AccessToken  string `json:"access_token"`
+      RefreshToken string `json:"refresh_token"`
+   }
+}
+
+func (p Program) Asset(accessToken string) (*Asset, error) {
+   url_data, err := url.Parse(p.Actions.Play.Url)
    if err != nil {
       return nil, err
    }
-   req.Header.Set("x-dt-auth-token", a.Drm.Token)
-   resp, err := http.DefaultClient.Do(req)
+   query := url_data.Query() // keep existing query string
+   query.Set("access_token", accessToken)
+   url_data.RawQuery = query.Encode()
+   var req http.Request
+   req.URL = url_data
+   req.Header = http.Header{}
+   req.Header.Set("x-forwarded-for", "138.199.15.158")
+   req.Header.Set("x-molotov-agent", browser_app)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      License []byte
-   }
+   var result Asset
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return result.License, nil
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
 }
