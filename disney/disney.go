@@ -11,6 +11,20 @@ import (
    "strings"
 )
 
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name = ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type Profile struct {
+   Name string
+   Id   string
+}
+
 // Response: Device
 func RegisterDevice() (*Token, error) {
    data, err := json.Marshal(map[string]any{
@@ -200,20 +214,6 @@ type Page struct {
          Id string
       }
    }
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name = ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Profile struct {
-   Name string
-   Id   string
 }
 
 type RequestOtp struct {

@@ -50,24 +50,28 @@ func PasswordLogin(username, password string) (*Account, error) {
    return result, nil
 }
 
-///
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
 
-// GetProfiles fetches the list of profiles associated with the account
-func GetProfiles(accountId, accessToken string) ([]*Profile, error) {
-   endpoint := fmt.Sprintf("%s/api/profile/v2/account/%s", baseUrl, accountId)
-   req, err := http.NewRequest("GET", endpoint, nil)
-   if err != nil {
-      return nil, err
+func (a *Account) Profiles() ([]*Profile, error) {
+   var req http.Request
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/profile/v2/account/" + a.AccountId,
    }
-   req.Header.Set("Authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(req)
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-      body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("failed to fetch profiles with status %d: %s", resp.StatusCode, string(body))
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
    }
    var profiles []*Profile
    if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
@@ -76,122 +80,27 @@ func GetProfiles(accountId, accessToken string) ([]*Profile, error) {
    return profiles, nil
 }
 
-const baseUrl = "https://account.bellmedia.ca"
-
-// Basic base64("crave-web:default")
-const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
-
-// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
-func GetContentId(mediaId string) (string, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "ids": []string{mediaId},
-         "sessionContext": map[string]string{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   })
-   if err != nil {
-      return "", err
-   }
-   req, _ := http.NewRequest(http.MethodPost, graphQlUrl, bytes.NewBuffer(data))
-   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
-   authData := map[string]string{"platform": "platform_web"}
-   authBytes, _ := json.Marshal(authData)
-   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
-   req.Header.Set("Authorization", "Bearer "+encodedAuth)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []struct {
-            FirstContent struct {
-               Id string `json:"id"`
-            } `json:"firstContent"`
-         } `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
-   }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
-      return "", fmt.Errorf("content ID not found in GraphQL response")
-   }
-   return result.Data.Medias[0].FirstContent.Id, nil
-}
-
-// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
-func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
-   targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   // Append requested query parameters
-   q := req.URL.Query()
-   q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
-   req.URL.RawQuery = q.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Playback string `json:"playback"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
-   }
-   if result.Playback == "" {
-      return "", fmt.Errorf("playback URL missing in manifest response")
-   }
-   return result.Playback, nil
-}
-
-// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
-func GetPlaybackDetails(contentId string) (int, int, error) {
-   targetUrl := fmt.Sprintf(playbackUrl, contentId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   req.Header.Set("x-playback-language", "EN")
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return 0, 0, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage struct {
-         Id            int `json:"id"`
-         DestinationId int `json:"destinationId"`
-      } `json:"contentPackage"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return 0, 0, err
-   }
-   if result.ContentPackage.Id == 0 {
-      return 0, 0, fmt.Errorf("invalid content package ID received")
-   }
-   return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id,omitempty"`
-   ExpiresIn    int    `json:"expires_in"`
-}
-
 type Profile struct {
-   Id        string `json:"id"`
-   AccountId string `json:"accountId"`
-   Nickname  string `json:"nickname"`
-   HasPin    bool   `json:"hasPin"`
-   Master    bool   `json:"master"`
-   Maturity  string `json:"maturity"`
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
 }
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+///
 
 // ProfileLogin exchanges a refresh token for a fully authorized
 // profile-specific Bearer token
@@ -312,4 +221,105 @@ func extractMediaId(url_data string) (string, error) {
       return "", fmt.Errorf("invalid url format")
    }
    return parts[len(parts)-1], nil
+}
+
+const baseUrl = "https://account.bellmedia.ca"
+
+// Basic base64("crave-web:default")
+const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
+
+// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
+func GetContentId(mediaId string) (string, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "ids": []string{mediaId},
+         "sessionContext": map[string]string{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   })
+   if err != nil {
+      return "", err
+   }
+   req, _ := http.NewRequest(http.MethodPost, graphQlUrl, bytes.NewBuffer(data))
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
+   authData := map[string]string{"platform": "platform_web"}
+   authBytes, _ := json.Marshal(authData)
+   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
+   req.Header.Set("Authorization", "Bearer "+encodedAuth)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []struct {
+            FirstContent struct {
+               Id string `json:"id"`
+            } `json:"firstContent"`
+         } `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
+      return "", fmt.Errorf("content ID not found in GraphQL response")
+   }
+   return result.Data.Medias[0].FirstContent.Id, nil
+}
+
+// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
+func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
+   targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
+   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
+   // Append requested query parameters
+   q := req.URL.Query()
+   q.Add("format", "mpd")
+   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
+   req.URL.RawQuery = q.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if result.Playback == "" {
+      return "", fmt.Errorf("playback URL missing in manifest response")
+   }
+   return result.Playback, nil
+}
+
+// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
+func GetPlaybackDetails(contentId string) (int, int, error) {
+   targetUrl := fmt.Sprintf(playbackUrl, contentId)
+   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
+   req.Header.Set("x-playback-language", "EN")
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return 0, 0, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage struct {
+         Id            int `json:"id"`
+         DestinationId int `json:"destinationId"`
+      } `json:"contentPackage"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return 0, 0, err
+   }
+   if result.ContentPackage.Id == 0 {
+      return 0, 0, fmt.Errorf("invalid content package ID received")
+   }
+   return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
 }

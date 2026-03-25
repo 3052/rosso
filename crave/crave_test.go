@@ -37,7 +37,7 @@ func TestFinalTokens(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   profiles, err := GetProfiles(auth_tokens.AccountId, auth_tokens.AccessToken)
+   profiles, err := auth_tokens.Profiles()
    if err != nil {
       t.Fatal(err)
    }
@@ -57,6 +57,7 @@ func TestFinalTokens(t *testing.T) {
       t.Fatal(err)
    }
 }
+
 func run(name string, arg ...string) (string, error) {
    var data strings.Builder
    command := exec.Command(name, arg...)
