@@ -59,38 +59,3 @@ sources/com/cbs/app/config/DefaultAppSecretProvider.java
 20. paypal.com/myaccount/autopay
 21. paramount
 22. stop paying with paypal
-
-## android
-
-old:
-https://apkmirror.com/apk/viacomcbs-streaming/paramount-3
-
-intl:
-https://apkmirror.com/apk/viacomcbs-streaming/paramount-4
-
-android TV:
-https://apkmirror.com/apk/viacomcbs-streaming/paramount-2
-
-us:
-https://apkmirror.com/apk/viacomcbs-streaming/paramount
-
-APK lies, you need at least Android 12 (level 31)
-
-~~~
-adb install-multiple (Get-ChildItem *.apk)
-~~~
-
-then:
-
-~~~
-~/.android/avd/Pixel_XL.avd/emulator-user.ini
-~~~
-
-to:
-
-~~~
-window.x = 0
-window.y = 0
-~~~
-
-install system certificate
