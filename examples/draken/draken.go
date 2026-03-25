@@ -8,6 +8,30 @@ import (
    "path"
 )
 
+func (c *client) do_address() error {
+   viewer, err := draken.FetchViewer(path.Base(c.address))
+   if err != nil {
+      return err
+   }
+   entitlement, err := viewer.Entitlement(c.Login.Token)
+   if err != nil {
+      return err
+   }
+   c.Playback, err = viewer.Playback(c.Login.Token, entitlement.Token)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.Playback.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/draken.xml")
    if err != nil {
@@ -53,11 +77,10 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
-
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
       func(data []byte) ([]byte, error) {
-         return c.Login.Widevine(c.Playback, data)
+         return c.Playback.Widevine(c.Login.Token, data)
       },
    )
 }
@@ -86,28 +109,4 @@ type client struct {
    address string
    //-----------------------
    dash_id string
-}
-
-func (c *client) do_address() error {
-   movie, err := draken.FetchMovie(path.Base(c.address))
-   if err != nil {
-      return err
-   }
-   entitlement, err := c.Login.Entitlement(movie)
-   if err != nil {
-      return err
-   }
-   c.Playback, err = c.Login.Playback(movie, entitlement)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.Playback.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }

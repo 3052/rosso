@@ -9,9 +9,9 @@ import (
 )
 
 type client struct {
-   Dash      *criterion.Dash
-   File *criterion.File
-   Token     *criterion.Token
+   Dash  *criterion.Dash
+   File  *criterion.File
+   Token *criterion.Token
    //------------------------
    Job maya.Job
    //------------------------
@@ -22,6 +22,7 @@ type client struct {
    //------------------------
    dash_id string
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/criterion.xml")
    if err != nil {
