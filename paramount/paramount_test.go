@@ -9,15 +9,15 @@ var videos = []struct {
    subscription string
 }{
    {
-      justWatch:    "https://justwatch.com/us/tv-show/cia",
-      paramount:    "https://paramountplus.com/shows/video/8PO2sBBr6lFb7J4nklXuzNZRhUR_V9dd",
-      subscription: "FREE",
-   },
-   {
       justWatch:    "https://justwatch.com/us/movie/zodiac",
       resolution:   "2160p",
       paramount:    "https://paramountplus.com/movies/video/wjQ4RChi6BHHu4MVTncppVuCwu44uq2Q",
       subscription: "PAID",
+   },
+   {
+      justWatch:    "https://justwatch.com/us/tv-show/cia",
+      paramount:    "https://paramountplus.com/shows/video/8PO2sBBr6lFb7J4nklXuzNZRhUR_V9dd",
+      subscription: "FREE",
    },
    {
       justWatch:    "https://justwatch.com/us/tv-show/the-price-is-right",

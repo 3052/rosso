@@ -101,8 +101,6 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringVar(&c.Job.PlayReady, "p", "PlayReady")
    //-------------------------------------------------------------
-   threads := maya.IntVar(&c.Job.Threads, "t", "threads")
-   //-------------------------------------------------------------
    proxy := maya.StringVar(&c.Proxy, "x", "proxy")
    //-------------------------------------------------------------
    initiate := maya.BoolVar(new(bool), "i", "initiate")
@@ -122,9 +120,6 @@ func (c *client) do() error {
       return err
    }
    if set[playReady] {
-      return cache.Write(c)
-   }
-   if set[threads] {
       return cache.Write(c)
    }
    if set[proxy] {
@@ -149,7 +144,6 @@ func (c *client) do() error {
    }
    return maya.Usage([][]*flag.Flag{
       {playReady},
-      {threads},
       {proxy},
       {initiate, market},
       {login},
