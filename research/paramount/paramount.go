@@ -15,27 +15,32 @@ import (
    "slices"
 )
 
-// 1080p SL2000
-// 1440p SL2000 + cookie
-func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{}
-   req.URL.Scheme = "https"
-   req.URL.Host = "www.cbs.com"
-   req.URL.RawQuery = url.Values{
+// 576p L3
+func Widevine(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
+   var url_data url.URL
+   url_data.Scheme = "https"
+   url_data.Host = "www.cbs.com"
+   if cbsCom != nil {
+      url_data.Path = "/apps-api/v3.1/androidphone/irdeto-control/session-token.json"
+   } else {
+      url_data.Path = "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json"
+   }
+   url_data.RawQuery = url.Values{
       "at":        {at},
       "contentId": {contentId},
    }.Encode()
+   var req http.Request
+   req.URL = &url_data
+   req.Header = http.Header{}
    if cbsCom != nil {
       req.AddCookie(cbsCom)
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
-   } else {
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
    }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
    }
    defer resp.Body.Close()
    var result SessionToken
@@ -43,17 +48,44 @@ func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error)
    if err != nil {
       return nil, err
    }
-   if result.Errors != "" {
-      return nil, errors.New(result.Errors)
+   if result.StreamingUrl == "" {
+      return nil, errors.New("StreamingUrl")
    }
    return &result, nil
 }
 
 type SessionToken struct {
-   Errors    string
+   Message string
    LsSession string `json:"ls_session"`
-   StreamingUrl string
    Url       string
+   StreamingUrl string
+}
+
+func (s *SessionToken) Send(data []byte) ([]byte, error) {
+   url_data, err := url.Parse(s.Url)
+   if err != nil {
+      return nil, err
+   }
+   //url_data.Path = "/playready/rightsmanager.asmx"
+   var req http.Request
+   req.Method = "POST"
+   req.URL = url_data
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   req.Body = io.NopCloser(bytes.NewReader(data))
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(string(data))
+   }
+   return data, nil
 }
 
 func (s *SessionToken) Dash() (*Dash, error) {
@@ -67,26 +99,6 @@ func (s *SessionToken) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-func (s *SessionToken) Send(data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(string(data))
-   }
-   return data, nil
 }
 
 type Dash struct {

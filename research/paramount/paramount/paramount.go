@@ -21,7 +21,7 @@ func (c *client) do_paramount() error {
    if c.get_cookie {
       cbs_com = c.CbsCom
    }
-   session, err := paramount.PlayReady(at, c.ParamountId, cbs_com)
+   session, err := paramount.Widevine(at, c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
@@ -54,9 +54,6 @@ type client struct {
    //--------------------
    Proxy string
    //--------------------
-   username string
-   password string
-   //--------------------
    ParamountId string
    //--------------------
    dash_id    string
@@ -69,14 +66,9 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   playReady := maya.StringVar(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   threads := maya.IntVar(&c.Job.Threads, "t", "threads")
+   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
    //--------------------------------------------------------------
    proxy := maya.StringVar(&c.Proxy, "x", "proxy")
-   //--------------------------------------------------------------
-   username := maya.StringVar(&c.username, "U", "username")
-   password := maya.StringVar(&c.password, "P", "password")
    //--------------------------------------------------------------
    paramount_id := maya.StringVar(&c.ParamountId, "p", "paramount ID")
    get_cookie := maya.BoolVar(&c.get_cookie, "c", "get cookie")
@@ -87,10 +79,7 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   if set[playReady] {
-      return cache.Write(c)
-   }
-   if set[threads] {
+   if set[widevine] {
       return cache.Write(c)
    }
    if set[proxy] {
@@ -103,10 +92,8 @@ func (c *client) do() error {
       return with_cache(c.do_dash_id)
    }
    return maya.Usage([][]*flag.Flag{
-      {playReady},
-      {threads},
+      {widevine},
       {proxy},
-      {username, password},
       {paramount_id, get_cookie},
       {dash_id, get_cookie},
    })
@@ -121,11 +108,7 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   var cbs_com *http.Cookie
-   if c.get_cookie {
-      cbs_com = c.CbsCom
-   }
-   token, err := paramount.PlayReady(at, c.ParamountId, cbs_com)
+   token, err := paramount.Widevine(at, c.ParamountId, nil)
    if err != nil {
       return err
    }
