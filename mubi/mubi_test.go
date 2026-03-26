@@ -7,8 +7,8 @@ func Test(t *testing.T) {
 }
 
 var tests = []struct {
-   url       string
    locations []string
+   url       string
 }{
    {
       url: "https://mubi.com/films/passages-2022",

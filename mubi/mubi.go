@@ -2,6 +2,7 @@ package mubi
 
 import (
    "bytes"
+   "encoding/base64"
    "encoding/json"
    "errors"
    "fmt"
@@ -12,7 +13,84 @@ import (
    "strings"
 )
 
-func (f *Film) Fetch() error {
+// https://mubi.com/films/346537
+// https://mubi.com/en/films/346537
+// https://mubi.com/films/346537/player
+// https://mubi.com/en/films/346537/player
+// https://mubi.com/films/fallen-leaves-2023
+// https://mubi.com/en/films/fallen-leaves-2023
+// https://mubi.com/us/films/fallen-leaves-2023
+// https://mubi.com/en/us/films/fallen-leaves-2023
+func ParseFilm(data string) (*Film, error) {
+   url_data, err := url.Parse(data)
+   if err != nil {
+      return nil, err
+   }
+   if url_data.Host != "mubi.com" {
+      return nil, errors.New("not a valid mubi URL")
+   }
+   parts := strings.Split(url_data.Path, "/")
+   for i, part := range parts {
+      if part == "films" && i+1 < len(parts) {
+         film := &Film{}
+         identifier := parts[i+1]
+         film.Id, err = strconv.Atoi(identifier)
+         if err != nil {
+            film.Slug = identifier
+         }
+         return film, nil
+      }
+   }
+   return nil, errors.New("film identifier not found in URL")
+}
+
+type Session struct {
+   Token string
+   User  struct {
+      Id int
+   }
+}
+
+func (s *Session) Widevine(data []byte) ([]byte, error) {
+   // final slash is needed
+   req, err := http.NewRequest(
+      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+
+   data, err = json.Marshal(map[string]any{
+      "merchant":  "mubi",
+      "sessionId": s.Token,
+      "userId":    s.User.Id,
+   })
+   if err != nil {
+      return nil, err
+   }
+
+   req.Header.Set("dt-custom-data", base64.StdEncoding.EncodeToString(data))
+
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   // Check if the response is not a 200 OK
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected HTTP error %v", resp.StatusCode)
+   }
+   var result struct {
+      License []byte
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.License, nil
+}
+func (f *Film) FetchId() error {
    var req http.Request
    req.URL = &url.URL{
       Scheme: "https",
@@ -194,44 +272,7 @@ func (l *LinkCode) Session() (*Session, error) {
    return result, nil
 }
 
-type Session struct {
-   Token string
-   User  struct {
-      Id int
-   }
-}
 type Film struct {
    Id   int
    Slug string
-}
-
-// https://mubi.com/films/346537
-// https://mubi.com/en/films/346537
-// https://mubi.com/films/346537/player
-// https://mubi.com/en/films/346537/player
-// https://mubi.com/films/fallen-leaves-2023
-// https://mubi.com/en/films/fallen-leaves-2023
-// https://mubi.com/us/films/fallen-leaves-2023
-// https://mubi.com/en/us/films/fallen-leaves-2023
-func ParseFilm(data string) (*Film, error) {
-   url_data, err := url.Parse(data)
-   if err != nil {
-      return nil, err
-   }
-   if url_data.Host != "mubi.com" {
-      return nil, errors.New("not a valid mubi URL")
-   }
-   parts := strings.Split(url_data.Path, "/")
-   for i, part := range parts {
-      if part == "films" && i+1 < len(parts) {
-         film := &Film{}
-         identifier := parts[i+1]
-         film.Id, err = strconv.Atoi(identifier)
-         if err != nil {
-            film.Slug = identifier
-         }
-         return film, nil
-      }
-   }
-   return nil, errors.New("film identifier not found in URL")
 }
