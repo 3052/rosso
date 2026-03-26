@@ -8,6 +8,73 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/mubi.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   proxy := maya.StringVar(&c.Proxy, "x", "proxy")
+   //----------------------------------------------------------
+   code := maya.BoolVar(new(bool), "c", "link code")
+   //----------------------------------------------------------
+   session := maya.BoolVar(new(bool), "s", "session")
+   //----------------------------------------------------------
+   address := maya.StringVar(&c.address, "a", "address")
+   //----------------------------------------------------------
+   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
+   set := maya.Parse()
+   err = maya.SetProxy(c.Proxy, "*.dash")
+   if err != nil {
+      return err
+   }
+   switch {
+   case set[widevine]:
+      return cache.Write(c)
+   case set[proxy]:
+      return cache.Write(c)
+   case set[code]:
+      return c.do_code()
+   case set[session]:
+      return with_cache(c.do_session)
+   case set[address]:
+      return with_cache(c.do_address)
+   case set[dash_id]:
+      return with_cache(c.do_dash_id)
+   }
+   return maya.Usage([][]*flag.Flag{
+      {widevine},
+      {proxy},
+      {code},
+      {session},
+      {address},
+      {dash_id},
+   })
+}
+
+var cache maya.Cache
+
+func (c *client) do_code() error {
+   var err error
+   c.LinkCode, err = mubi.FetchLinkCode()
+   if err != nil {
+      return err
+   }
+   fmt.Println(c.LinkCode)
+   return cache.Write(c)
+}
+
+func (c *client) do_session() error {
+   var err error
+   c.Session, err = c.LinkCode.Session()
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_address() error {
    film, err := mubi.ParseFilm(c.address)
    if err != nil {
@@ -46,7 +113,6 @@ func (c *client) do_dash_id() error {
 
 func main() {
    log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.dash")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -60,65 +126,9 @@ type client struct {
    //--------------------
    Job maya.Job
    //--------------------
+   Proxy string
+   //--------------------
    address string
    //--------------------
    dash_id string
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/mubi.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   code := maya.BoolVar(new(bool), "c", "link code")
-   //----------------------------------------------------------
-   session := maya.BoolVar(new(bool), "s", "session")
-   //----------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
-   //----------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   switch {
-   case set[widevine]:
-      return cache.Write(c)
-   case set[code]:
-      return c.do_code()
-   case set[session]:
-      return with_cache(c.do_session)
-   case set[address]:
-      return with_cache(c.do_address)
-   case set[dash_id]:
-      return with_cache(c.do_dash_id)
-   }
-   return maya.Usage([][]*flag.Flag{
-      {widevine},
-      {code},
-      {session},
-      {address},
-      {dash_id},
-   })
-}
-
-var cache maya.Cache
-
-func (c *client) do_code() error {
-   var err error
-   c.LinkCode, err = mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(c.LinkCode)
-   return cache.Write(c)
-}
-
-func (c *client) do_session() error {
-   var err error
-   c.Session, err = c.LinkCode.Session()
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }

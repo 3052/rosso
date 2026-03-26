@@ -13,6 +13,29 @@ import (
    "strings"
 )
 
+type Film struct {
+   Id   int
+   Slug string
+}
+
+func (f *Film) FetchId() error {
+   var req http.Request
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "api.mubi.com",
+      Path:   "/v3/films/" + f.Slug,
+   }
+   req.Header = http.Header{}
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(f)
+}
+
 // https://mubi.com/films/346537
 // https://mubi.com/en/films/346537
 // https://mubi.com/films/346537/player
@@ -90,23 +113,8 @@ func (s *Session) Widevine(data []byte) ([]byte, error) {
    }
    return result.License, nil
 }
-func (f *Film) FetchId() error {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "api.mubi.com",
-      Path:   "/v3/films/" + f.Slug,
-   }
-   req.Header = http.Header{}
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(f)
-}
+
+///
 
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
@@ -270,9 +278,4 @@ func (l *LinkCode) Session() (*Session, error) {
       return nil, err
    }
    return result, nil
-}
-
-type Film struct {
-   Id   int
-   Slug string
 }
