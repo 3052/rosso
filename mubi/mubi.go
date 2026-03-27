@@ -13,6 +13,44 @@ import (
    "strings"
 )
 
+// "android" requires headers:
+// client-device-identifier
+// client-version
+const client = "web"
+
+var ClientCountry = "US"
+
+// https://mubi.com/films/346537
+// https://mubi.com/en/films/346537
+// https://mubi.com/films/346537/player
+// https://mubi.com/en/films/346537/player
+// https://mubi.com/films/fallen-leaves-2023
+// https://mubi.com/en/films/fallen-leaves-2023
+// https://mubi.com/us/films/fallen-leaves-2023
+// https://mubi.com/en/us/films/fallen-leaves-2023
+func ParseFilm(data string) (*Film, error) {
+   url_data, err := url.Parse(data)
+   if err != nil {
+      return nil, err
+   }
+   if url_data.Host != "mubi.com" {
+      return nil, errors.New("not a valid mubi URL")
+   }
+   parts := strings.Split(url_data.Path, "/")
+   for i, part := range parts {
+      if part == "films" && i+1 < len(parts) {
+         film_data := &Film{}
+         identifier := parts[i+1]
+         film_data.Id, err = strconv.Atoi(identifier)
+         if err != nil {
+            film_data.Slug = identifier
+         }
+         return film_data, nil
+      }
+   }
+   return nil, errors.New("film identifier not found in URL")
+}
+
 type Film struct {
    Id   int
    Slug string
@@ -34,37 +72,6 @@ func (f *Film) FetchId() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(f)
-}
-
-// https://mubi.com/films/346537
-// https://mubi.com/en/films/346537
-// https://mubi.com/films/346537/player
-// https://mubi.com/en/films/346537/player
-// https://mubi.com/films/fallen-leaves-2023
-// https://mubi.com/en/films/fallen-leaves-2023
-// https://mubi.com/us/films/fallen-leaves-2023
-// https://mubi.com/en/us/films/fallen-leaves-2023
-func ParseFilm(data string) (*Film, error) {
-   url_data, err := url.Parse(data)
-   if err != nil {
-      return nil, err
-   }
-   if url_data.Host != "mubi.com" {
-      return nil, errors.New("not a valid mubi URL")
-   }
-   parts := strings.Split(url_data.Path, "/")
-   for i, part := range parts {
-      if part == "films" && i+1 < len(parts) {
-         film := &Film{}
-         identifier := parts[i+1]
-         film.Id, err = strconv.Atoi(identifier)
-         if err != nil {
-            film.Slug = identifier
-         }
-         return film, nil
-      }
-   }
-   return nil, errors.New("film identifier not found in URL")
 }
 
 type Session struct {
@@ -230,13 +237,6 @@ type Dash struct {
    Body []byte
    Url  *url.URL
 }
-
-// "android" requires headers:
-// client-device-identifier
-// client-version
-const client = "web"
-
-var ClientCountry = "US"
 
 type LinkCode struct {
    AuthToken string `json:"auth_token"`

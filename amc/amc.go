@@ -197,37 +197,8 @@ func GetDash(sources []Source) (*Source, error) {
    return nil, errors.New("DASH source not found")
 }
 
-func (c *Client) Series(id int) (*Series, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path: fmt.Sprint(
-         "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
-         id,
-      ),
-   }
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "android")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data Series
-   }
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
+///
+
 
 func (m *Metadata) String() string {
    var data []byte
@@ -373,4 +344,35 @@ type Client struct {
       AccessToken  string `json:"access_token"`
       RefreshToken string `json:"refresh_token"`
    }
+}
+func (c *Client) Series(id int) (*Series, error) {
+   var req http.Request
+   req.URL = &url.URL{
+      Scheme: "https",
+      Host:   "gw.cds.amcn.com",
+      Path: fmt.Sprint(
+         "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
+         id,
+      ),
+   }
+   req.Header = http.Header{}
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "android")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data Series
+   }
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
 }
