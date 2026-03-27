@@ -10,82 +10,19 @@ import (
    "net/url"
 )
 
-func FetchAccount(id, password string) (*Account, error) {
-   resp, err := http.PostForm(
-      "https://login.auvio.rtbf.be/accounts.login", url.Values{
-         "APIKey":   {api_key},
-         "loginID":  {id},
-         "password": {password},
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Account
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.ErrorMessage != "" {
-      return nil, errors.New(result.ErrorMessage)
-   }
-   return &result, nil
-}
-
-func (f *FormatItem) Dash() (*Dash, error) {
-   resp, err := http.Get(f.MediaLocator)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Entitlement struct {
-   AssetId   string
-   Formats   []FormatItem
-   Message   string
-   PlayToken string
-}
-
-type FormatItem struct {
-   Format       string
-   MediaLocator string // MPD
-}
-
-// Dash finds the "DASH" format in the Entitlement's formats.
-// It returns the FormatItem if found, otherwise it returns an error.
-func (e *Entitlement) Dash() (*FormatItem, error) {
-   for _, format := range e.Formats {
-      if format.Format == "DASH" {
-         return &format, nil
-      }
-   }
-   return nil, errors.New("DASH format not found")
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   var req http.Request
-   req.Header = http.Header{}
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "exposure.api.redbee.live",
+         Path: fmt.Sprintf(
+            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
+         ),
+      },
+      Header: http.Header{},
+   }
    req.Header.Set("x-forwarded-for", "91.90.123.17")
    req.Header.Set("authorization", "Bearer "+s.SessionToken)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "exposure.api.redbee.live",
-      Path: fmt.Sprintf(
-         "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
-      ),
-   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -250,4 +187,67 @@ func (a *Account) Identity() (*Identity, error) {
       return nil, errors.New(result.ErrorMessage)
    }
    return &result, nil
+}
+func FetchAccount(id, password string) (*Account, error) {
+   resp, err := http.PostForm(
+      "https://login.auvio.rtbf.be/accounts.login", url.Values{
+         "APIKey":   {api_key},
+         "loginID":  {id},
+         "password": {password},
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Account
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.ErrorMessage != "" {
+      return nil, errors.New(result.ErrorMessage)
+   }
+   return &result, nil
+}
+
+func (f *FormatItem) Dash() (*Dash, error) {
+   resp, err := http.Get(f.MediaLocator)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Entitlement struct {
+   AssetId   string
+   Formats   []FormatItem
+   Message   string
+   PlayToken string
+}
+
+type FormatItem struct {
+   Format       string
+   MediaLocator string // MPD
+}
+
+// Dash finds the "DASH" format in the Entitlement's formats.
+// It returns the FormatItem if found, otherwise it returns an error.
+func (e *Entitlement) Dash() (*FormatItem, error) {
+   for _, format := range e.Formats {
+      if format.Format == "DASH" {
+         return &format, nil
+      }
+   }
+   return nil, errors.New("DASH format not found")
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }

@@ -11,23 +11,24 @@ import (
 )
 
 func FetchContent(id int) (*Content, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "uapi.adrise.tv",
-      Path:   "/cms/content",
-      RawQuery: url.Values{
-         "content_id":          {strconv.Itoa(id)},
-         "deviceId":            {"!"},
-         "limit_resolutions[]": {"h265_1080p"},
-         "platform":            {"web"},
-         "video_resources[]": {
-            "dash",
-            "dash_widevine",
-         },
-      }.Encode(),
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "uapi.adrise.tv",
+         Path:   "/cms/content",
+         RawQuery: url.Values{
+            "content_id":          {strconv.Itoa(id)},
+            "deviceId":            {"!"},
+            "limit_resolutions[]": {"h265_1080p"},
+            "platform":            {"web"},
+            "video_resources[]": {
+               "dash",
+               "dash_widevine",
+            },
+         }.Encode(),
+      },
+      Header: http.Header{},
    }
-   req.Header = http.Header{}
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
