@@ -11,29 +11,6 @@ import (
    "strings"
 )
 
-// It assumes Vod and Stitched.Paths always have at least one entry
-func (s *Series) GetMovieUrl() *url.URL {
-   // Directly access the required path based on the data guarantees
-   path := s.Vod[0].Stitched.Paths[0].Path
-   return s.buildStitcherUrl(path)
-}
-
-func FetchDash(urlData *url.URL) (*Dash, error) {
-   var req http.Request
-   req.URL = urlData
-   req.Header = http.Header{}
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
 // pluto.tv/on-demand/movies/64946365c5ae350013623630
 // pluto.tv/on-demand/movies/disobedience-ca-2018-1-1
 func FetchSeries(movieShow string) (*Series, error) {
@@ -51,13 +28,14 @@ func FetchSeries(movieShow string) (*Series, error) {
    } else {
       data.Set("seriesIDs", movieShow)
    }
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "boot.pluto.tv",
-      Path:     "/v4/start",
-      RawQuery: data.Encode(),
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "boot.pluto.tv",
+         Path:     "/v4/start",
+         RawQuery: data.Encode(),
+      },
+      Header: http.Header{},
    }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
@@ -182,4 +160,26 @@ type Stitched struct {
 type Series struct {
    SessionToken string
    Vod          []Vod
+}
+// It assumes Vod and Stitched.Paths always have at least one entry
+func (s *Series) GetMovieUrl() *url.URL {
+   // Directly access the required path based on the data guarantees
+   path := s.Vod[0].Stitched.Paths[0].Path
+   return s.buildStitcherUrl(path)
+}
+func FetchDash(urlData *url.URL) (*Dash, error) {
+   req := http.Request{
+      URL: urlData,
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }

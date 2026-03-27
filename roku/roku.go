@@ -10,45 +10,18 @@ import (
    "strings"
 )
 
-// input can be nil
-//
-// /api/v1/account/token
-func FetchToken(codeData *Code) (*Token, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "googletv.web.roku.com",
-      Path:   "/api/v1/account/token",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("user-agent", user_agent)
-   if codeData != nil {
-      req.Header.Set("x-roku-content-token", codeData.Token)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Token{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
 // /api/v1/account/activation/code
 func (t *Token) Code(activationData *Activation) (*Code, error) {
-   var req http.Request
-   req.Header = http.Header{}
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "googletv.web.roku.com",
+         Path:   "/api/v1/account/activation/" + activationData.Code,
+      },
+      Header: http.Header{},
+   }
    req.Header.Set("user-agent", user_agent)
    req.Header.Set("x-roku-content-token", t.AuthToken)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "googletv.web.roku.com",
-      Path:   "/api/v1/account/activation/" + activationData.Code,
-   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -187,6 +160,34 @@ func (t *Token) Activation() (*Activation, error) {
    }
    defer resp.Body.Close()
    result := &Activation{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+// input can be nil
+//
+// /api/v1/account/token
+func FetchToken(codeData *Code) (*Token, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "googletv.web.roku.com",
+         Path:   "/api/v1/account/token",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("user-agent", user_agent)
+   if codeData != nil {
+      req.Header.Set("x-roku-content-token", codeData.Token)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Token{}
    err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
