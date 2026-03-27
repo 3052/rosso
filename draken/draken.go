@@ -11,42 +11,16 @@ import (
    "strings"
 )
 
-func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
+func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
          Scheme: "https",
          Host:   "client-api.magine.com",
-         Path:   "/api/entitlement/v2/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
+         Path:   "/api/playback/v1/preflight/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
       },
       Header: http.Header{},
    }
-   setBaseHeaders(&req, loginToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
-}
-
-func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "client-api.magine.com",
-      Path:   "/api/playback/v1/preflight/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
-   }
-   req.Header = http.Header{}
    setBaseHeaders(&req, loginToken)
    setPlaybackHeaders(&req)
    req.Header.Set("magine-play-entitlementid", entitlementId)
@@ -230,4 +204,30 @@ type Viewer struct {
          Id string
       }
    }
+}
+func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "client-api.magine.com",
+         Path:   "/api/entitlement/v2/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
+      },
+      Header: http.Header{},
+   }
+   setBaseHeaders(&req, loginToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
 }
