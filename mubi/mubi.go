@@ -13,88 +13,15 @@ import (
    "strings"
 )
 
-// to get the MPD you have to call this or view video on the website. request
-// is hard geo blocked only the first time
-func (s *Session) Viewing(filmId int) error {
+func (s *Session) SecureUrl(filmId int) (*SecureUrl, error) {
    req := http.Request{
-      Method: "POST",
       URL: &url.URL{
          Scheme: "https",
          Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing", filmId),
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", filmId),
       },
       Header: http.Header{},
    }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      UserMessage string `json:"user_message"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   if result.UserMessage != "" {
-      return errors.New(result.UserMessage)
-   }
-   return nil
-}
-
-func FetchLinkCode() (*LinkCode, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "api.mubi.com",
-      Path:   "/v3/link_code",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &LinkCode{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func (s *SecureUrl) Dash() (*Dash, error) {
-   s.Url = strings.NewReplacer(
-      ".AVC1", "",
-      ".ex-eac3", "",
-      ".ex-vtt", "",
-   ).Replace(s.Url)
-   resp, err := http.Get(s.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (s *Session) SecureUrl(filmId int) (*SecureUrl, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "api.mubi.com",
-      Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", filmId),
-   }
-   req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+s.Token)
    req.Header.Set("client", client)
    req.Header.Set("client-country", ClientCountry)
@@ -305,4 +232,77 @@ func (s *Session) Widevine(data []byte) ([]byte, error) {
       return nil, err
    }
    return result.License, nil
+}
+// to get the MPD you have to call this or view video on the website. request
+// is hard geo blocked only the first time
+func (s *Session) Viewing(filmId int) error {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing", filmId),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      UserMessage string `json:"user_message"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   if result.UserMessage != "" {
+      return errors.New(result.UserMessage)
+   }
+   return nil
+}
+func FetchLinkCode() (*LinkCode, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   "/v3/link_code",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &LinkCode{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func (s *SecureUrl) Dash() (*Dash, error) {
+   s.Url = strings.NewReplacer(
+      ".AVC1", "",
+      ".ex-eac3", "",
+      ".ex-vtt", "",
+   ).Replace(s.Url)
+   resp, err := http.Get(s.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }

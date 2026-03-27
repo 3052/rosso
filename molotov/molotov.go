@@ -12,111 +12,19 @@ import (
    "strings"
 )
 
-// https://molotov.tv/fr_fr/p/15301-2328
-// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
-func ParseUrl(data string) (*Url, error) {
-   var found bool
-   _, data, found = strings.Cut(data, "/p/")
-   if !found {
-      return nil, errors.New("url does not contain the /p/ marker")
-   }
-   data, _, _ = strings.Cut(data, "/")
-   program, channel, found := strings.Cut(data, "-")
-   if !found {
-      return nil, errors.New("invalid format: hyphen not found between IDs")
-   }
-   var (
-      url_data Url
-      err      error
-   )
-   if url_data.Program, err = strconv.Atoi(program); err != nil {
-      return nil, errors.New("program ID is not a valid integer")
-   }
-   if url_data.Channel, err = strconv.Atoi(channel); err != nil {
-      return nil, errors.New("channel ID is not a valid integer")
-   }
-   return &url_data, nil
-}
-
-func FetchLogin(email, password string) (*Login, error) {
-   data, err := json.Marshal(map[string]string{
-      "grant_type": "password",
-      "email":      email,
-      "password":   password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func (a *Asset) Widevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-dt-auth-token", a.Drm.Token)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      License []byte
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.License, nil
-}
-
-const (
-   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
-   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
-)
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 // authorization server issues a new refresh token, in which case the
 // client MUST discard the old refresh token and replace it with the new
 // refresh token
 func (l *Login) Refresh() error {
-   var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("x-molotov-agent", customer_area)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "fapi.molotov.tv",
-      Path:   "/v3/auth/refresh/" + l.Auth.RefreshToken,
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + l.Auth.RefreshToken,
+      },
+      Header: http.Header{},
    }
+   req.Header.Set("x-molotov-agent", customer_area)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return err
@@ -239,4 +147,96 @@ func (p Program) Asset(accessToken string) (*Asset, error) {
       return nil, result.Error
    }
    return &result, nil
+}
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseUrl(data string) (*Url, error) {
+   var found bool
+   _, data, found = strings.Cut(data, "/p/")
+   if !found {
+      return nil, errors.New("url does not contain the /p/ marker")
+   }
+   data, _, _ = strings.Cut(data, "/")
+   program, channel, found := strings.Cut(data, "-")
+   if !found {
+      return nil, errors.New("invalid format: hyphen not found between IDs")
+   }
+   var (
+      url_data Url
+      err      error
+   )
+   if url_data.Program, err = strconv.Atoi(program); err != nil {
+      return nil, errors.New("program ID is not a valid integer")
+   }
+   if url_data.Channel, err = strconv.Atoi(channel); err != nil {
+      return nil, errors.New("channel ID is not a valid integer")
+   }
+   return &url_data, nil
+}
+
+func FetchLogin(email, password string) (*Login, error) {
+   data, err := json.Marshal(map[string]string{
+      "grant_type": "password",
+      "email":      email,
+      "password":   password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Login{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func (a *Asset) Widevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-dt-auth-token", a.Drm.Token)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      License []byte
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.License, nil
+}
+
+const (
+   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
+   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
+)
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }
