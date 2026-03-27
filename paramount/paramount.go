@@ -17,6 +17,105 @@ import (
    "strings"
 )
 
+func FetchItem(at, cid string, cbsCom *http.Cookie) (*Item, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "www.paramountplus.com",
+         Path:     fmt.Sprintf("/apps-api/v2.0/androidphone/video/cid/%v.json", cid),
+         RawQuery: url.Values{"at": {at}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbsCom != nil {
+      req.AddCookie(cbsCom)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      ItemList []Item
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   item := result.ItemList[0]
+   if item.StreamingUrl == "" {
+      return nil, fmt.Errorf(
+         "subscription level = %v, CBS_COM = %#v",
+         item.SubscriptionLevel, cbsCom,
+      )
+   }
+   return &item, nil
+}
+
+type Item struct {
+   StreamingUrl      string
+   SubscriptionLevel string
+}
+
+type SessionToken struct {
+   Errors    string
+   LsSession string `json:"ls_session"`
+   Url       string
+}
+func (s *SessionToken) Send(data []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+// 1080p SL2000
+// 1440p SL2000 + cookie
+func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host: "www.paramountplus.com",
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbsCom != nil {
+      req.AddCookie(cbsCom)
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
+   } else {
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SessionToken
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Errors != "" {
+      return nil, errors.New(result.Errors)
+   }
+   return &result, nil
+}
 // 576p L3
 func Widevine(at, contentId string) (*SessionToken, error) {
    req := http.Request{
@@ -70,19 +169,20 @@ func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
       "j_username": {username},
       "j_password": {password},
    }.Encode()
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "www.paramountplus.com",
-      Path:     "/apps-api/v2.0/androidphone/auth/login.json",
-      RawQuery: url.Values{"at": {at}}.Encode(),
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "www.paramountplus.com",
+         Path:     "/apps-api/v2.0/androidphone/auth/login.json",
+         RawQuery: url.Values{"at": {at}}.Encode(),
+      },
+      Header: http.Header{},
+      Body: io.NopCloser(strings.NewReader(data)),
    }
-   req.Header = http.Header{}
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
    // randomly fails if this is missing
    req.Header.Set("user-agent", "!")
-   req.Body = io.NopCloser(strings.NewReader(data))
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -183,103 +283,4 @@ func (i *Item) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func FetchItem(at, cid string, cbsCom *http.Cookie) (*Item, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "www.paramountplus.com",
-      Path:     fmt.Sprintf("/apps-api/v2.0/androidphone/video/cid/%v.json", cid),
-      RawQuery: url.Values{"at": {at}}.Encode(),
-   }
-   if cbsCom != nil {
-      req.AddCookie(cbsCom)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      ItemList []Item
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   item := result.ItemList[0]
-   if item.StreamingUrl == "" {
-      return nil, fmt.Errorf(
-         "subscription level = %v, CBS_COM = %#v",
-         item.SubscriptionLevel, cbsCom,
-      )
-   }
-   return &item, nil
-}
-
-type Item struct {
-   StreamingUrl      string
-   SubscriptionLevel string
-}
-
-type SessionToken struct {
-   Errors    string
-   LsSession string `json:"ls_session"`
-   Url       string
-}
-func (s *SessionToken) Send(data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-// 1080p SL2000
-// 1440p SL2000 + cookie
-func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host: "www.paramountplus.com",
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbsCom != nil {
-      req.AddCookie(cbsCom)
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
-   } else {
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SessionToken
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Errors != "" {
-      return nil, errors.New(result.Errors)
-   }
-   return &result, nil
 }
