@@ -17,6 +17,11 @@ import (
    "strings"
 )
 
+type Item struct {
+   StreamingUrl      string
+   SubscriptionLevel string
+}
+
 func FetchItem(at, cid string, cbsCom *http.Cookie) (*Item, error) {
    req := http.Request{
       URL: &url.URL{
@@ -35,9 +40,6 @@ func FetchItem(at, cid string, cbsCom *http.Cookie) (*Item, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
    var result struct {
       ItemList []Item
    }
@@ -45,19 +47,15 @@ func FetchItem(at, cid string, cbsCom *http.Cookie) (*Item, error) {
    if err != nil {
       return nil, err
    }
-   item := result.ItemList[0]
-   if item.StreamingUrl == "" {
-      return nil, fmt.Errorf(
-         "subscription level = %v, CBS_COM = %#v",
-         item.SubscriptionLevel, cbsCom,
-      )
+   // 1. Return an error if the slice is empty (prevents panic on index [0])
+   if len(result.ItemList) == 0 {
+      return nil, errors.New("API returned an empty item list")
    }
-   return &item, nil
-}
-
-type Item struct {
-   StreamingUrl      string
-   SubscriptionLevel string
+   // 2. Return an error if the StreamingUrl is empty
+   if result.ItemList[0].StreamingUrl == "" {
+      return nil, errors.New("streaming URL is empty")
+   }
+   return &result.ItemList[0], nil
 }
 
 type SessionToken struct {
@@ -65,6 +63,7 @@ type SessionToken struct {
    LsSession string `json:"ls_session"`
    Url       string
 }
+
 func (s *SessionToken) Send(data []byte) ([]byte, error) {
    req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
    if err != nil {

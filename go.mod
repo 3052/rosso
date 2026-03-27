@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	41.neocities.org/drm v1.9.2
-	41.neocities.org/maya v1.29.6
+	41.neocities.org/maya v1.29.8
 )
 
 require (
