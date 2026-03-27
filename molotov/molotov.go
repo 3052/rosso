@@ -12,125 +12,18 @@ import (
    "strings"
 )
 
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (l *Login) Refresh() error {
+func (p Program) Asset(accessToken string) (*Asset, error) {
    req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + l.Auth.RefreshToken,
-      },
       Header: http.Header{},
    }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(l)
-}
-
-func (a *Asset) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+   var err error
+   req.URL, err = url.Parse(p.Actions.Play.Url)
    if err != nil {
       return nil, err
    }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("developer message = ")
-   data.WriteString(e.DeveloperMessage)
-   data.WriteString("\nuser message = ")
-   data.WriteString(e.UserMessage)
-   return data.String()
-}
-
-type Error struct {
-   DeveloperMessage string `json:"developer_message"`
-   UserMessage      string `json:"user_message"`
-}
-
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Error  *Error
-   Stream struct {
-      Url string // MPD
-   }
-}
-
-type Url struct {
-   Program int
-   Channel int
-}
-
-func (u *Url) FetchProgram(accessToken string) (*Program, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "fapi.molotov.tv",
-      Path: fmt.Sprintf(
-         "/v2/channels/%v/programs/%v/view", u.Channel, u.Program,
-      ),
-      RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
-   }
-   req.Header = http.Header{}
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Program Program
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Program.Actions.Play == nil {
-      return nil, errors.New("program is not available for playback")
-   }
-   return &result.Program, nil
-}
-
-type Program struct {
-   Actions struct {
-      Play *struct {
-         Url string // fapi.molotov.tv/v2/me/assets
-      }
-   }
-}
-
-type Login struct {
-   Auth struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
-}
-
-func (p Program) Asset(accessToken string) (*Asset, error) {
-   url_data, err := url.Parse(p.Actions.Play.Url)
-   if err != nil {
-      return nil, err
-   }
-   query := url_data.Query() // keep existing query string
+   query := req.URL.Query() // keep existing query string
    query.Set("access_token", accessToken)
-   url_data.RawQuery = query.Encode()
-   var req http.Request
-   req.URL = url_data
-   req.Header = http.Header{}
+   req.URL.RawQuery = query.Encode()
    req.Header.Set("x-forwarded-for", "138.199.15.158")
    req.Header.Set("x-molotov-agent", browser_app)
    resp, err := http.DefaultClient.Do(&req)
@@ -239,4 +132,110 @@ const (
 type Dash struct {
    Body []byte
    Url  *url.URL
+}
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (l *Login) Refresh() error {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + l.Auth.RefreshToken,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(l)
+}
+
+func (a *Asset) Dash() (*Dash, error) {
+   resp, err := http.Get(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("developer message = ")
+   data.WriteString(e.DeveloperMessage)
+   data.WriteString("\nuser message = ")
+   data.WriteString(e.UserMessage)
+   return data.String()
+}
+
+type Error struct {
+   DeveloperMessage string `json:"developer_message"`
+   UserMessage      string `json:"user_message"`
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Error  *Error
+   Stream struct {
+      Url string // MPD
+   }
+}
+
+type Url struct {
+   Program int
+   Channel int
+}
+
+func (u *Url) FetchProgram(accessToken string) (*Program, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path: fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
+         RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Program Program
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Program.Actions.Play == nil {
+      return nil, errors.New("program is not available for playback")
+   }
+   return &result.Program, nil
+}
+
+type Program struct {
+   Actions struct {
+      Play *struct {
+         Url string // fapi.molotov.tv/v2/me/assets
+      }
+   }
+}
+
+type Login struct {
+   Auth struct {
+      AccessToken  string `json:"access_token"`
+      RefreshToken string `json:"refresh_token"`
+   }
 }
