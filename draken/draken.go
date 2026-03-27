@@ -11,76 +11,23 @@ import (
    "strings"
 )
 
-func FetchViewer(customId string) (*Viewer, error) {
-   data, err := json.Marshal(map[string]any{
-      "query":     get_custom_id_full_movie,
-      "variables": map[string]string{"customId": customId},
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/apiql/v2",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, "") // No login token for this request
-   // this value is important, with the wrong value you get random failures
-   req.Header.Set("x-forwarded-for", "95.192.0.0")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Viewer Viewer
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Data.Viewer.ViewableCustomId == nil {
-      return nil, errors.New("ViewableCustomId")
-   }
-   return &result.Data.Viewer, nil
-}
-
-func (p *Playback) Dash() (*Dash, error) {
-   resp, err := http.Get(p.Playlist)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
 func FetchLogin(identity, accessKey string) (*Login, error) {
-   data, err := json.Marshal(map[string]string{
+   body, err := json.Marshal(map[string]string{
       "accessKey": accessKey,
       "identity":  identity,
    })
    if err != nil {
       return nil, err
    }
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "client-api.magine.com",
-      Path:   "/api/login/v2/auth/email",
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/login/v2/auth/email",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
    }
-   req.Header = http.Header{}
-   setBaseHeaders(&req, "") // No login token for this request
-   req.Body = io.NopCloser(bytes.NewReader(data))
-   resp, err := http.DefaultClient.Do(&req)
+   setBaseHeaders(req, "") // No login token for this request
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
@@ -215,10 +162,10 @@ func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    return result, nil
 }
 
-func (p *Playback) Widevine(loginToken string, data []byte) ([]byte, error) {
+func (p *Playback) Widevine(loginToken string, body []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
-      bytes.NewReader(data),
+      bytes.NewReader(body),
    )
    if err != nil {
       return nil, err
@@ -233,4 +180,54 @@ func (p *Playback) Widevine(loginToken string, data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
+}
+func FetchViewer(customId string) (*Viewer, error) {
+   body, err := json.Marshal(map[string]any{
+      "query":     get_custom_id_full_movie,
+      "variables": map[string]string{"customId": customId},
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/apiql/v2",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   setBaseHeaders(req, "") // No login token for this request
+   // this value is important, with the wrong value you get random failures
+   req.Header.Set("x-forwarded-for", "95.192.0.0")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Viewer Viewer
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Data.Viewer.ViewableCustomId == nil {
+      return nil, errors.New("ViewableCustomId")
+   }
+   return &result.Data.Viewer, nil
+}
+
+func (p *Playback) Dash() (*Dash, error) {
+   resp, err := http.Get(p.Playlist)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
