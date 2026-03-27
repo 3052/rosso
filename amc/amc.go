@@ -10,145 +10,15 @@ import (
    "net/url"
 )
 
-func (c *Client) Season(id int) (*Season, error) {
+func (c *Client) Series(id int) (*Series, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
          Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+         Path: fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
       },
       Header: http.Header{},
    }
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "android")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data Season
-   }
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-// Series replaces the generic Node for the SeriesDetail endpoint
-type Series struct {
-   Children   []Series
-   Properties struct {
-      Metadata *Metadata
-      Text     *struct {
-         Title struct {
-            Title string
-         }
-      }
-   }
-   Type string
-}
-
-// Episodes extracts metadata exclusively from a Season
-func (s *Season) Episodes() ([]*Metadata, error) {
-   for _, listNode := range s.Children {
-      if listNode.Type != "list" {
-         continue
-      }
-      var extractedMetadata []*Metadata
-      for _, cardNode := range listNode.Children {
-         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
-            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
-         }
-      }
-      return extractedMetadata, nil
-   }
-   return nil, errors.New("could not find episode list in the manifest")
-}
-
-// Season replaces the generic Node for the SeasonEpisodes endpoint.
-// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
-type Season struct {
-   Children   []Season
-   Properties struct {
-      Metadata *Metadata
-   }
-   Type string
-}
-
-func BcJwt(header http.Header) string {
-   return header.Get("x-amcn-bc-jwt")
-}
-
-func (c *Client) Refresh() error {
-   var req http.Request
-   req.Method = "POST"
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+c.Data.RefreshToken)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path:   "/auth-orchestration-id/api/v1/refresh",
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(c)
-}
-
-func Unauth() (*Client, error) {
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path:   "/auth-orchestration-id/api/v1/unauth",
-   }
-   req.Header = http.Header{}
-   req.Header.Set("x-amcn-device-id", "-")
-   req.Header.Set("x-amcn-language", "en")
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "web")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Client{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Client struct {
-   Data struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
-}
-func (c *Client) Series(id int) (*Series, error) {
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path: fmt.Sprint(
-         "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
-         id,
-      ),
-   }
-   req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
    req.Header.Set("x-amcn-network", "amcplus")
    req.Header.Set("x-amcn-platform", "android")
@@ -368,4 +238,132 @@ func (m *Metadata) String() string {
    data = fmt.Appendln(data, "title =", m.Title)
    data = fmt.Append(data, "nid = ", m.Nid)
    return string(data)
+}
+func (c *Client) Season(id int) (*Season, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path: fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "android")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data Season
+   }
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+// Series replaces the generic Node for the SeriesDetail endpoint
+type Series struct {
+   Children   []Series
+   Properties struct {
+      Metadata *Metadata
+      Text     *struct {
+         Title struct {
+            Title string
+         }
+      }
+   }
+   Type string
+}
+
+// Episodes extracts metadata exclusively from a Season
+func (s *Season) Episodes() ([]*Metadata, error) {
+   for _, listNode := range s.Children {
+      if listNode.Type != "list" {
+         continue
+      }
+      var extractedMetadata []*Metadata
+      for _, cardNode := range listNode.Children {
+         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
+            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
+         }
+      }
+      return extractedMetadata, nil
+   }
+   return nil, errors.New("could not find episode list in the manifest")
+}
+
+// Season replaces the generic Node for the SeasonEpisodes endpoint.
+// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
+type Season struct {
+   Children   []Season
+   Properties struct {
+      Metadata *Metadata
+   }
+   Type string
+}
+
+func BcJwt(header http.Header) string {
+   return header.Get("x-amcn-bc-jwt")
+}
+func (c *Client) Refresh() error {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+c.Data.RefreshToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(c)
+}
+func Unauth() (*Client, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/unauth",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-amcn-device-id", "-")
+   req.Header.Set("x-amcn-language", "en")
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "web")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Client{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Client struct {
+   Data struct {
+      AccessToken  string `json:"access_token"`
+      RefreshToken string `json:"refresh_token"`
+   }
 }
