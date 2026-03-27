@@ -17,16 +17,17 @@ import (
 )
 
 func (m *Metadata) Stream() (*Stream, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "lemonade.nbc.com",
-      Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
-      RawQuery: url.Values{
-         "platform":        {"web"},
-         "programmingType": {m.ProgrammingType},
-      }.Encode(),
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "lemonade.nbc.com",
+         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
+         RawQuery: url.Values{
+            "platform":        {"web"},
+            "programmingType": {m.ProgrammingType},
+         }.Encode(),
+      },
+      Header: http.Header{},
    }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
