@@ -11,6 +11,9 @@ var tests = []struct {
    url       string
 }{
    {
+      url: "https://mubi.com/series/twin-peaks",
+   },
+   {
       url: "https://mubi.com/films/passages-2022",
       locations: []string{
          "AT", "BE", "BR", "CA", "CL", "CO", "DE", "GB", "IE", "IT", "MX", "NL",
