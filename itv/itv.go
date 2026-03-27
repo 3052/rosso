@@ -14,109 +14,6 @@ import (
    "strings"
 )
 
-func FetchPlaylist(urlData string) (*Playlist, error) {
-   data, err := json.Marshal(map[string]any{
-      "client": map[string]string{
-         "id": "browser",
-      },
-      "variantAvailability": map[string]any{
-         "drm": map[string]string{
-            "maxSupported": "L3",
-            "system":       "widevine",
-         },
-         "featureset": []string{ // need all these to get 720p
-            "hd",
-            "mpeg-dash",
-            "single-track",
-            "widevine",
-         },
-         "platformTag": "ctv", // 1080p
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest("POST", urlData, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("accept", "application/vnd.itv.vod.playlist.v4+json")
-   req.Header.Set("user-agent", "!")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playlist
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
-}
-
-func (m *MediaFile) Dash() (*Dash, error) {
-   var err error
-   http.DefaultClient.Jar, err = cookiejar.New(nil)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.Get(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-//go:embed ProgrammePage.gql
-var programme_page string
-
-func ParseLegacyId(urlData string) string {
-   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
-   base := path.Base(urlData)
-   // 2. Split the string by the character 'a'
-   parts := strings.Split(base, "a")
-   // 3. Join them back together with '/'
-   return strings.Join(parts, "/")
-}
-
-func (p *Playlist) FullHd() (*MediaFile, error) {
-   for _, file := range p.Playlist.Video.MediaFiles {
-      if file.Resolution == "1080" {
-         return &file, nil
-      }
-   }
-   return nil, errors.New("full hd (1080p) media file not found")
-}
-
-type Playlist struct {
-   Error    string
-   Playlist struct {
-      Video struct {
-         MediaFiles []MediaFile
-      }
-   }
-}
-
-type MediaFile struct {
-   Href          string
-   KeyServiceUrl string
-   Resolution    string
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 func Titles(legacyId string) ([]Title, error) {
    var data strings.Builder
    err := json.NewEncoder(&data).Encode(map[string]string{
@@ -125,17 +22,18 @@ func Titles(legacyId string) ([]Title, error) {
    if err != nil {
       return nil, err
    }
-   var req http.Request
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "content-inventory.prd.oasvc.itv.com",
-      Path:   "/discovery",
-      RawQuery: url.Values{
-         "query":     {graphql_compact(programme_page)},
-         "variables": {data.String()},
-      }.Encode(),
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "content-inventory.prd.oasvc.itv.com",
+         Path:   "/discovery",
+         RawQuery: url.Values{
+            "query":     {graphql_compact(programme_page)},
+            "variables": {data.String()},
+         }.Encode(),
+      },
+      Header: http.Header{},
    }
-   req.Header = http.Header{}
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -239,4 +137,106 @@ func (t *Title) String() string {
 
 func graphql_compact(data string) string {
    return strings.Join(strings.Fields(data), " ")
+}
+func FetchPlaylist(urlData string) (*Playlist, error) {
+   data, err := json.Marshal(map[string]any{
+      "client": map[string]string{
+         "id": "browser",
+      },
+      "variantAvailability": map[string]any{
+         "drm": map[string]string{
+            "maxSupported": "L3",
+            "system":       "widevine",
+         },
+         "featureset": []string{ // need all these to get 720p
+            "hd",
+            "mpeg-dash",
+            "single-track",
+            "widevine",
+         },
+         "platformTag": "ctv", // 1080p
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest("POST", urlData, bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("accept", "application/vnd.itv.vod.playlist.v4+json")
+   req.Header.Set("user-agent", "!")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playlist
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result, nil
+}
+
+func (m *MediaFile) Dash() (*Dash, error) {
+   var err error
+   http.DefaultClient.Jar, err = cookiejar.New(nil)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.Get(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+//go:embed ProgrammePage.gql
+var programme_page string
+
+func ParseLegacyId(urlData string) string {
+   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
+   base := path.Base(urlData)
+   // 2. Split the string by the character 'a'
+   parts := strings.Split(base, "a")
+   // 3. Join them back together with '/'
+   return strings.Join(parts, "/")
+}
+
+func (p *Playlist) FullHd() (*MediaFile, error) {
+   for _, file := range p.Playlist.Video.MediaFiles {
+      if file.Resolution == "1080" {
+         return &file, nil
+      }
+   }
+   return nil, errors.New("full hd (1080p) media file not found")
+}
+
+type Playlist struct {
+   Error    string
+   Playlist struct {
+      Video struct {
+         MediaFiles []MediaFile
+      }
+   }
+}
+
+type MediaFile struct {
+   Href          string
+   KeyServiceUrl string
+   Resolution    string
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }

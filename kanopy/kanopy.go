@@ -12,77 +12,19 @@ import (
    "strings"
 )
 
-func (m *Manifest) Dash() (*Dash, error) {
+func (l *Login) Membership() (*Membership, error) {
    req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "www.kanopy.com",
+         Path:     "/kapi/memberships",
+         RawQuery: "userId=" + strconv.Itoa(l.UserId),
+      },
       Header: http.Header{},
    }
-   var err error
-   req.URL, err = url.Parse(m.Url)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("user-agent", "Mozilla")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-const x_version = "!/!/!/!"
-
-func (l *Login) Video(alias string) (*Video, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/videos/alias/" + alias,
-   }
-   req.Header.Set("x-version", x_version)
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Video Video
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Video, nil
-}
-
-type Video struct {
-   Alias   string
-   VideoId int
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (l *Login) Membership() (*Membership, error) {
-   var req http.Request
-   req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+l.Jwt)
    req.Header.Set("user-agent", user_agent)
    req.Header.Set("x-version", x_version)
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "www.kanopy.com",
-      Path:     "/kapi/memberships",
-      RawQuery: "userId=" + strconv.Itoa(l.UserId),
-   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -261,4 +203,62 @@ func FetchLogin(email, password string) (*Login, error) {
       return nil, err
    }
    return result, nil
+}
+func (m *Manifest) Dash() (*Dash, error) {
+   req := http.Request{
+      Header: http.Header{},
+   }
+   var err error
+   req.URL, err = url.Parse(m.Url)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("user-agent", "Mozilla")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+const x_version = "!/!/!/!"
+func (l *Login) Video(alias string) (*Video, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.kanopy.com",
+         Path:   "/kapi/videos/alias/" + alias,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-version", x_version)
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Video Video
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Video, nil
+}
+
+type Video struct {
+   Alias   string
+   VideoId int
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }
