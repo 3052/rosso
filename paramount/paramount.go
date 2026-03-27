@@ -17,80 +17,23 @@ import (
    "strings"
 )
 
-func (s *SessionToken) Send(data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-// 1080p SL2000
-// 1440p SL2000 + cookie
-func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{}
-   req.URL.Scheme = "https"
-   req.URL.Host = "www.paramountplus.com"
-   req.URL.RawQuery = url.Values{
-      "at":        {at},
-      "contentId": {contentId},
-   }.Encode()
-   if cbsCom != nil {
-      req.AddCookie(cbsCom)
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
-   } else {
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SessionToken
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Errors != "" {
-      return nil, errors.New(result.Errors)
-   }
-   return &result, nil
-}
-
 // 576p L3
 func Widevine(at, contentId string) (*SessionToken, error) {
-   var req http.Request
-   req.URL = &url.URL{}
-   req.URL.Scheme = "https"
-   req.URL.Host = "www.paramountplus.com"
-   req.URL.Path = "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json"
-   req.URL.RawQuery = url.Values{
-      "at":        {at},
-      "contentId": {contentId},
-   }.Encode()
-   req.Header = http.Header{}
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host: "www.paramountplus.com",
+         Path: "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json",
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var data strings.Builder
-      err = resp.Write(&data)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(data.String())
    }
    defer resp.Body.Close()
    var result SessionToken
@@ -288,4 +231,55 @@ type SessionToken struct {
    Errors    string
    LsSession string `json:"ls_session"`
    Url       string
+}
+func (s *SessionToken) Send(data []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+// 1080p SL2000
+// 1440p SL2000 + cookie
+func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host: "www.paramountplus.com",
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbsCom != nil {
+      req.AddCookie(cbsCom)
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
+   } else {
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SessionToken
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Errors != "" {
+      return nil, errors.New(result.Errors)
+   }
+   return &result, nil
 }

@@ -10,55 +10,19 @@ import (
    "strings"
 )
 
-func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
+func (u User) Media(item *ItemMetadata, forwardedFor string) (*ItemMetadata, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host:   "discover.provider.plex.tv",
-         Path:   "/library/metadata/matches",
-         RawQuery: url.Values{
-            "url":          {rawUrl},
-            "x-plex-token": {u.AuthToken},
-         }.Encode(),
+         Host:   "vod.provider.plex.tv",
+         Path:   "/library/metadata/" + item.RatingKey,
       },
       Header: http.Header{},
    }
    req.Header.Set("accept", "application/json")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Error struct {
-         Message string
-      }
-      MediaContainer struct {
-         Metadata []ItemMetadata
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error.Message != "" {
-      return nil, errors.New(result.Error.Message)
-   }
-   return &result.MediaContainer.Metadata[0], nil
-}
-
-func (u User) Media(item *ItemMetadata, forwardedFor string) (*ItemMetadata, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("accept", "application/json")
    req.Header.Set("x-plex-token", u.AuthToken)
    if forwardedFor != "" {
       req.Header.Set("X-Forwarded-For", forwardedFor)
-   }
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "vod.provider.plex.tv",
-      Path:   "/library/metadata/" + item.RatingKey,
    }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
@@ -198,4 +162,40 @@ func (u User) Widevine(part *MediaPart, data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
+}
+func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "discover.provider.plex.tv",
+         Path:   "/library/metadata/matches",
+         RawQuery: url.Values{
+            "url":          {rawUrl},
+            "x-plex-token": {u.AuthToken},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("accept", "application/json")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Error struct {
+         Message string
+      }
+      MediaContainer struct {
+         Metadata []ItemMetadata
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error.Message != "" {
+      return nil, errors.New(result.Error.Message)
+   }
+   return &result.MediaContainer.Metadata[0], nil
 }
