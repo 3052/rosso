@@ -10,63 +10,15 @@ import (
    "net/url"
 )
 
-func (t *Token) Item(slug string) (*Item, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []Item
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Embedded.Items[0], nil
-}
-
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href string // MPD
-      }
-   } `json:"_links"`
-   Method string
-}
-
 func (f *File) Widevine(data []byte) ([]byte, error) {
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     "drm.vhx.com",
-      Path:     "/v2/widevine",
-      RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
+   req, err := http.NewRequest(
+      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
    }
-   req.Header = http.Header{}
-   req.Body = io.NopCloser(bytes.NewReader(data))
-   resp, err := http.DefaultClient.Do(&req)
+   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
@@ -183,4 +135,48 @@ func (f *File) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+func (t *Token) Item(slug string) (*Item, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "api.vhx.com",
+         Path:     fmt.Sprintf("/collections/%v/items", slug),
+         RawQuery: "site_id=59054",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+t.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Embedded struct {
+         Items []Item
+      } `json:"_embedded"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Embedded.Items[0], nil
+}
+
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href string // MPD
+      }
+   } `json:"_links"`
+   Method string
 }
