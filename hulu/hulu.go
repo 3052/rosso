@@ -10,6 +10,87 @@ import (
    "path"
 )
 
+func (d *Device) DeepLink(id string) (*DeepLink, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "discover.hulu.com",
+         Path:   "/content/v5/deeplink/playback",
+         RawQuery: url.Values{
+            "id":        {id},
+            "namespace": {"entity"},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+d.Data.UserToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result DeepLink
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func (p *Playlist) PlayReady(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.DashPrServer, "", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return data, nil
+}
+
+func (p *Playlist) Dash() (*Dash, error) {
+   resp, err := http.Get(p.StreamUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+func ParseId(urlData string) string {
+   part := path.Base(urlData)
+   len_part := len(part)
+   const len_uuid = 36
+   if len_part > len_uuid {
+      if part[len_part-len_uuid-1] == '-' {
+         return part[len_part-len_uuid:]
+      }
+   }
+   return part
+}
 type DeepLink struct {
    EabId   string `json:"eab_id"`
    Message string
@@ -235,85 +316,4 @@ type Playlist struct {
    WvServer     string `json:"wv_server"`
    Message      string
    StreamUrl    string `json:"stream_url"` // MPD
-}
-
-func (d *Device) DeepLink(id string) (*DeepLink, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+d.Data.UserToken)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "discover.hulu.com",
-      Path:   "/content/v5/deeplink/playback",
-      RawQuery: url.Values{
-         "id":        {id},
-         "namespace": {"entity"},
-      }.Encode(),
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result DeepLink
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-func (p *Playlist) PlayReady(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.DashPrServer, "", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return data, nil
-}
-
-func (p *Playlist) Dash() (*Dash, error) {
-   resp, err := http.Get(p.StreamUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-func ParseId(urlData string) string {
-   part := path.Base(urlData)
-   len_part := len(part)
-   const len_uuid = 36
-   if len_part > len_uuid {
-      if part[len_part-len_uuid-1] == '-' {
-         return part[len_part-len_uuid:]
-      }
-   }
-   return part
 }

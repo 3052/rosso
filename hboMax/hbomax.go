@@ -13,175 +13,18 @@ import (
    "strings"
 )
 
-func (l Login) Season(showId string, number int) (*Page, error) {
-   var req http.Request
-   req.Header = http.Header{}
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   api_host,
-      Path:   "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: url.Values{
-         "include":          {"default"},
-         "pf[seasonNumber]": {strconv.Itoa(number)},
-         "pf[show.id]":      {showId},
-      }.Encode(),
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Page{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func isCategory(segment string) bool {
-   switch segment {
-   case "movies", "shows", "movie", "show":
-      return true
-   default:
-      return false
-   }
-}
-
-// https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448
-// https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a
-// https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505
-// https://play.hbomax.com/movie/b7b66574-c6e3-4ed3-a266-6bc44180252e
-// https://play.hbomax.com/show/31cb4b84-951a-4daf-8925-746fcdcddcb8
-func ParseShowId(urlData string) (string, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   path := strings.TrimPrefix(url_parse.Path, "/")
-   segments := strings.Split(path, "/")
-   count := len(segments)
-   if count < 2 {
-      return "", errors.New("invalid url path")
-   }
-   // Extract the ID which is always the last segment
-   id := segments[count-1]
-   // Check immediate parent (e.g., /movie/id)
-   if count >= 2 && isCategory(segments[count-2]) {
-      return id, nil
-   }
-   // Check grandparent (e.g., /movies/slug/id)
-   if count >= 3 && isCategory(segments[count-3]) {
-      return id, nil
-   }
-   return "", errors.New("category not found")
-}
-
-func (l *Login) Widevine(editId string) (*Playback, error) {
-   return l.playback(editId, "widevine")
-}
-
-// 1080p SL2000
-// 1440p SL3000
-func (p *Playback) PlayReady(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) Dash() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (i *Included) String() string {
-   var data strings.Builder
-   if i.Attributes.SeasonNumber >= 1 {
-      data.WriteString("season number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.SeasonNumber))
-   }
-   if i.Attributes.EpisodeNumber >= 1 {
-      data.WriteString("\nepisode number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("name = ")
-   data.WriteString(i.Attributes.Name)
-   data.WriteString("\nvideo type = ")
-   data.WriteString(i.Attributes.VideoType)
-   data.WriteString("\nedit id = ")
-   data.WriteString(i.Relationships.Edit.Data.Id)
-   return data.String()
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-func (p *Page) FilterAndSort() {
-   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
-   })
-   slices.SortFunc(p.Included, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-}
-
 func FetchSt() (*http.Cookie, error) {
-   var req http.Request
-   req.Header = http.Header{}
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     api_host, // Refactored
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      Header: http.Header{},
+   }
    req.Header.Set("x-device-info", device_info)
    req.Header.Set("x-disco-client", disco_client)
-   req.URL = &url.URL{
-      Scheme:   "https",
-      Host:     api_host, // Refactored
-      Path:     "/token",
-      RawQuery: "realm=bolt",
-   }
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -467,4 +310,162 @@ func (l Login) Movie(showId string) (*Page, error) {
       return nil, &result.Errors[0]
    }
    return &result, nil
+}
+func (l Login) Season(showId string, number int) (*Page, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   api_host,
+         Path:   "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+         RawQuery: url.Values{
+            "include":          {"default"},
+            "pf[seasonNumber]": {strconv.Itoa(number)},
+            "pf[show.id]":      {showId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Page{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func isCategory(segment string) bool {
+   switch segment {
+   case "movies", "shows", "movie", "show":
+      return true
+   default:
+      return false
+   }
+}
+
+// https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448
+// https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a
+// https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505
+// https://play.hbomax.com/movie/b7b66574-c6e3-4ed3-a266-6bc44180252e
+// https://play.hbomax.com/show/31cb4b84-951a-4daf-8925-746fcdcddcb8
+func ParseShowId(urlData string) (string, error) {
+   url_parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   path := strings.TrimPrefix(url_parse.Path, "/")
+   segments := strings.Split(path, "/")
+   count := len(segments)
+   if count < 2 {
+      return "", errors.New("invalid url path")
+   }
+   // Extract the ID which is always the last segment
+   id := segments[count-1]
+   // Check immediate parent (e.g., /movie/id)
+   if count >= 2 && isCategory(segments[count-2]) {
+      return id, nil
+   }
+   // Check grandparent (e.g., /movies/slug/id)
+   if count >= 3 && isCategory(segments[count-3]) {
+      return id, nil
+   }
+   return "", errors.New("category not found")
+}
+
+func (l *Login) Widevine(editId string) (*Playback, error) {
+   return l.playback(editId, "widevine")
+}
+
+// 1080p SL2000
+// 1440p SL3000
+func (p *Playback) PlayReady(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) Dash() (*Dash, error) {
+   resp, err := http.Get(
+      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (i *Included) String() string {
+   var data strings.Builder
+   if i.Attributes.SeasonNumber >= 1 {
+      data.WriteString("season number = ")
+      data.WriteString(strconv.Itoa(i.Attributes.SeasonNumber))
+   }
+   if i.Attributes.EpisodeNumber >= 1 {
+      data.WriteString("\nepisode number = ")
+      data.WriteString(strconv.Itoa(i.Attributes.EpisodeNumber))
+   }
+   if data.Len() >= 1 {
+      data.WriteByte('\n')
+   }
+   data.WriteString("name = ")
+   data.WriteString(i.Attributes.Name)
+   data.WriteString("\nvideo type = ")
+   data.WriteString(i.Attributes.VideoType)
+   data.WriteString("\nedit id = ")
+   data.WriteString(i.Relationships.Edit.Data.Id)
+   return data.String()
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+
+func (p *Page) FilterAndSort() {
+   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
+      if i.Attributes == nil {
+         return true // Remove videos with nil attributes.
+      }
+      // We return 'true' to delete if the video's type is NOT in our slice.
+      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
+   })
+   slices.SortFunc(p.Included, func(a, b *Included) int {
+      if a.Attributes == nil || b.Attributes == nil {
+         return 0 // Consider them equal if attributes are missing.
+      }
+      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
+   })
 }
