@@ -12,12 +12,67 @@ import (
    "strings"
 )
 
-// "android" requires headers:
-// client-device-identifier
-// client-version
-const client = "web"
+func (f *Film) String() string {
+   var data []byte
+   data = fmt.Appendln(data, "title =", f.Title)
+   data = fmt.Append(data, "id = ", f.Id)
+   return string(data)
+}
 
-var ClientCountry = "US"
+type Film struct {
+   Title string
+   Id   int
+}
+
+func FetchEpisodes(slug string, season int) ([]Film, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host: "api.mubi.com",
+         Path: fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Episodes []Film
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Episodes, nil
+}
+
+func FetchFilm(slug string) (*Film, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   "/v3/films/" + slug,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Film{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
 
 type Session struct {
    Token string
@@ -67,13 +122,13 @@ func (s *Session) Widevine(body []byte) ([]byte, error) {
 
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
-func (s *Session) Viewing(filmId int64) error {
+func (s *Session) Viewing(id int) error {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
          Scheme: "https",
          Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing", filmId),
+         Path:   fmt.Sprintf("/v3/films/%v/viewing", id),
       },
       Header: http.Header{},
    }
@@ -140,12 +195,12 @@ func (s *SecureUrl) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-func (s *Session) SecureUrl(filmId int64) (*SecureUrl, error) {
+func (s *Session) SecureUrl(id int) (*SecureUrl, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
          Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", filmId),
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
       },
       Header: http.Header{},
    }
@@ -224,3 +279,9 @@ func (l *LinkCode) Session() (*Session, error) {
    }
    return result, nil
 }
+// "android" requires headers:
+// client-device-identifier
+// client-version
+const client = "web"
+
+var ClientCountry = "US"
