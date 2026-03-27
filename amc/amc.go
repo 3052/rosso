@@ -10,40 +10,6 @@ import (
    "net/url"
 )
 
-func (c *Client) Login(email, password string) error {
-   data, err := json.Marshal(map[string]string{
-      "email":    email,
-      "password": password,
-   })
-   if err != nil {
-      return err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://gw.cds.amcn.com", bytes.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.URL.Path = "/auth-orchestration-id/api/v1/login"
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("x-amcn-device-ad-id", "-")
-   req.Header.Set("x-amcn-device-id", "-")
-   req.Header.Set("x-amcn-language", "en")
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "web")
-   req.Header.Set("x-amcn-service-group-id", "10")
-   req.Header.Set("x-amcn-service-id", "amcplus")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(c)
-}
-
 func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    data, err := json.Marshal(map[string]any{
       "adtags": map[string]any{
@@ -58,14 +24,14 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    if err != nil {
       return nil, nil, err
    }
-   var req http.Request
-   req.Method = "POST"
-   req.URL = &url.URL{
-      Scheme: "https",
-      Host:   "gw.cds.amcn.com",
-      Path:   fmt.Sprint("/playback-id/api/v1/playback/", id),
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprint("https://gw.cds.amcn.com/playback-id/api/v1/playback/", id),
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, nil, err
    }
-   req.Header = http.Header{}
    req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
    req.Header.Set("content-type", "application/json")
    req.Header.Set("x-amcn-device-ad-id", "-")
@@ -75,8 +41,7 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    req.Header.Set("x-amcn-service-id", "amcplus")
    req.Header.Set("x-amcn-tenant", "amcn")
    req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
-   req.Body = io.NopCloser(bytes.NewReader(data))
-   resp, err := http.DefaultClient.Do(&req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, nil, err
    }
@@ -375,4 +340,37 @@ func (c *Client) Series(id int) (*Series, error) {
       return nil, err
    }
    return &result.Data, nil
+}
+func (c *Client) Login(email, password string) error {
+   data, err := json.Marshal(map[string]string{
+      "email":    email,
+      "password": password,
+   })
+   if err != nil {
+      return err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://gw.cds.amcn.com", bytes.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.URL.Path = "/auth-orchestration-id/api/v1/login"
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("x-amcn-device-ad-id", "-")
+   req.Header.Set("x-amcn-device-id", "-")
+   req.Header.Set("x-amcn-language", "en")
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "web")
+   req.Header.Set("x-amcn-service-group-id", "10")
+   req.Header.Set("x-amcn-service-id", "amcplus")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(c)
 }
