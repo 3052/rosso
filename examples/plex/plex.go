@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/plex"
-   "flag"
    "log"
 )
 
@@ -13,22 +12,25 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
-   xff := maya.StringVar(&c.xff, "x", "x-forwarded-for")
+   address := maya.StringFlag(&c.address, "a", "address")
+   xff := maya.StringFlag(&c.xff, "x", "x-forwarded-for")
    //----------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
    switch {
-   case set[widevine]:
+   case widevine.IsSet:
       return cache.Write(c)
-   case set[address]:
+   case address.IsSet:
       return c.do_address()
-   case set[dash_id]:
+   case dash_id.IsSet:
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
+   return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {address, xff},
       {dash_id},
@@ -53,11 +55,11 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.MediaPart, err = metadata.Dash()
+   c.Part, err = metadata.Dash()
    if err != nil {
       return err
    }
-   c.Dash, err = c.User.Dash(c.MediaPart, c.xff)
+   c.Dash, err = c.User.Dash(c.Part, c.xff)
    if err != nil {
       return err
    }
@@ -82,14 +84,14 @@ var cache maya.Cache
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
       func(data []byte) ([]byte, error) {
-         return c.User.Widevine(c.MediaPart, data)
+         return c.User.Widevine(c.Part, data)
       },
    )
 }
 
 type client struct {
    Dash      *plex.Dash
-   MediaPart *plex.MediaPart
+   Part *plex.Part
    User      *plex.User
    //------------------
    Job maya.Job

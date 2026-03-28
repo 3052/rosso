@@ -68,18 +68,18 @@ func GetPath(rawUrl string) (string, error) {
 
 type ItemMetadata struct {
    Media []struct {
-      Part     []MediaPart
+      Part     []Part
       Protocol string
    }
    RatingKey string
 }
 
-type MediaPart struct {
+type Part struct {
    Key     string
    License string
 }
 
-func (i *ItemMetadata) Dash() (*MediaPart, error) {
+func (i *ItemMetadata) Dash() (*Part, error) {
    for _, rosso := range i.Media {
       if rosso.Protocol == "dash" {
          // Success: Return the part and a nil error.
@@ -91,6 +91,7 @@ func (i *ItemMetadata) Dash() (*MediaPart, error) {
    // Failure: No "dash" protocol was found.
    return nil, errors.New("DASH media part not found")
 }
+
 func FetchUser() (*User, error) {
    req := http.Request{
       Method: "POST",
@@ -116,12 +117,13 @@ func FetchUser() (*User, error) {
    }
    return result, nil
 }
-func (u User) Dash(part *MediaPart, forwardedFor string) (*Dash, error) {
+
+func (u User) Dash(partData *Part, forwardedFor string) (*Dash, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme:   "https",
          Host:     "vod.provider.plex.tv",
-         Path:     part.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
+         Path:     partData.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
          RawQuery: url.Values{"x-plex-token": {u.AuthToken}}.Encode(),
       },
       Header: http.Header{},
@@ -145,8 +147,8 @@ type User struct {
    AuthToken string
 }
 
-func (u User) Widevine(part *MediaPart, data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", part.License, bytes.NewReader(data))
+func (u User) Widevine(partData *Part, data []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", partData.License, bytes.NewReader(data))
    if err != nil {
       return nil, err
    }
