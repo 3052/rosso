@@ -10,6 +10,41 @@ import (
    "net/url"
 )
 
+func Unauth() (*Client, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/unauth",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-amcn-device-id", "-")
+   req.Header.Set("x-amcn-language", "en")
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "web")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Client{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Client struct {
+   Data struct {
+      AccessToken  string `json:"access_token"`
+      RefreshToken string `json:"refresh_token"`
+   }
+}
+
 func (c *Client) Series(id int) (*Series, error) {
    req := http.Request{
       URL: &url.URL{
@@ -39,6 +74,7 @@ func (c *Client) Series(id int) (*Series, error) {
    }
    return &result.Data, nil
 }
+
 func (c *Client) Login(email, password string) error {
    data, err := json.Marshal(map[string]string{
       "email":    email,
@@ -72,6 +108,7 @@ func (c *Client) Login(email, password string) error {
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(c)
 }
+
 func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    data, err := json.Marshal(map[string]any{
       "adtags": map[string]any{
@@ -129,6 +166,19 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
 type Dash struct {
    Body []byte
    Url  *url.URL
+}
+
+func (m *Metadata) String() string {
+   var data []byte
+   if m.EpisodeNumber >= 0 {
+      data = fmt.Append(data, "episode = ", m.EpisodeNumber)
+   }
+   if data != nil {
+      data = append(data, '\n')
+   }
+   data = fmt.Appendln(data, "title =", m.Title)
+   data = fmt.Append(data, "nid = ", m.Nid)
+   return string(data)
 }
 
 type Metadata struct {
@@ -226,19 +276,6 @@ func GetDash(sources []Source) (*Source, error) {
 
 ///
 
-
-func (m *Metadata) String() string {
-   var data []byte
-   if m.EpisodeNumber >= 0 {
-      data = fmt.Append(data, "episode = ", m.EpisodeNumber)
-   }
-   if data != nil {
-      data = append(data, '\n')
-   }
-   data = fmt.Appendln(data, "title =", m.Title)
-   data = fmt.Append(data, "nid = ", m.Nid)
-   return string(data)
-}
 func (c *Client) Season(id int) (*Season, error) {
    req := http.Request{
       URL: &url.URL{
@@ -332,38 +369,4 @@ func (c *Client) Refresh() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(c)
-}
-func Unauth() (*Client, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/unauth",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-amcn-device-id", "-")
-   req.Header.Set("x-amcn-language", "en")
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "web")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Client{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Client struct {
-   Data struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
 }

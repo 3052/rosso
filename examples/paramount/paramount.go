@@ -5,78 +5,9 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/paramount"
-   "flag"
    "log"
    "net/http"
 )
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/paramount.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringVar(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   proxy := maya.StringVar(&c.Proxy, "x", "proxy")
-   //--------------------------------------------------------------
-   username := maya.StringVar(&c.username, "U", "username")
-   password := maya.StringVar(&c.password, "P", "password")
-   //--------------------------------------------------------------
-   paramount_id := maya.StringVar(&c.ParamountId, "p", "paramount ID")
-   get_cookie := maya.BoolVar(&c.get_cookie, "c", "get cookie")
-   //--------------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   err = maya.SetProxy(c.Proxy, "*.m4s,*.mp4")
-   if err != nil {
-      return err
-   }
-   if set[playReady] {
-      return cache.Write(c)
-   }
-   if set[proxy] {
-      return cache.Write(c)
-   }
-   if set[username] {
-      if set[password] {
-         return with_cache(c.do_username_password)
-      }
-   }
-   if set[paramount_id] {
-      return with_cache(c.do_paramount)
-   }
-   if set[dash_id] {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.Usage([][]*flag.Flag{
-      {playReady},
-      {proxy},
-      {username, password},
-      {paramount_id, get_cookie},
-      {dash_id, get_cookie},
-   })
-}
-
-func (c *client) do_dash_id() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.get_cookie {
-      cbs_com = c.CbsCom
-   }
-   token, err := paramount.PlayReady(at, c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, token.Send)
-}
 
 func (c *client) do_paramount() error {
    app_secret, err := paramount.FetchAppSecret()
@@ -105,6 +36,76 @@ func (c *client) do_paramount() error {
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
+
+type client struct {
+   CbsCom *http.Cookie
+   Dash   *paramount.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   Proxy string
+   //--------------------
+   username string
+   password string
+   //--------------------
+   ParamountId string
+   get_cookie bool
+   //--------------------
+   dash_id    string
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/paramount.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+   //--------------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //--------------------------------------------------------------
+   username := maya.StringFlag(&c.username, "U", "username")
+   password := maya.StringFlag(&c.password, "P", "password")
+   //--------------------------------------------------------------
+   paramount_id := maya.StringFlag(&c.ParamountId, "p", "paramount ID")
+   get_cookie := maya.BoolFlag("c", "get cookie")
+   //--------------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy, "*.m4s,*.mp4")
+   if err != nil {
+      return err
+   }
+   c.get_cookie = get_cookie.IsSet
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return with_cache(c.do_username_password)
+      }
+   }
+   if paramount_id.IsSet {
+      return with_cache(c.do_paramount)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {proxy},
+      {username, password},
+      {paramount_id, get_cookie},
+      {dash_id, get_cookie},
+   })
+}
+
 func (c *client) do_username_password() error {
    app_secret, err := paramount.FetchAppSecret()
    if err != nil {
@@ -131,19 +132,22 @@ func main() {
 
 var cache maya.Cache
 
-type client struct {
-   CbsCom *http.Cookie
-   Dash   *paramount.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   Proxy string
-   //--------------------
-   username string
-   password string
-   //--------------------
-   ParamountId string
-   //--------------------
-   dash_id    string
-   get_cookie bool
+func (c *client) do_dash_id() error {
+   app_secret, err := paramount.FetchAppSecret()
+   if err != nil {
+      return err
+   }
+   at, err := paramount.GetAt(app_secret)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.get_cookie {
+      cbs_com = c.CbsCom
+   }
+   token, err := paramount.PlayReady(at, c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, token.Send)
 }
