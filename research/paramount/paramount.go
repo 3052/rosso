@@ -55,9 +55,9 @@ func Widevine(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) 
 }
 
 type SessionToken struct {
-   Message string
-   LsSession string `json:"ls_session"`
-   Url       string
+   Message      string
+   LsSession    string `json:"ls_session"`
+   Url          string
    StreamingUrl string
 }
 
