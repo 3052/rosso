@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/pluto"
-   "flag"
    "fmt"
    "log"
    "path"
@@ -15,35 +14,54 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   movie := maya.StringVar(&c.movie, "m", "movie URL")
+   movie := maya.StringFlag(&c.movie, "m", "movie URL")
    //----------------------------------------------------------
-   show := maya.StringVar(&c.show, "s", "show URL")
+   show := maya.StringFlag(&c.show, "s", "show URL")
    //----------------------------------------------------------
-   episode := maya.StringVar(&c.episode, "e", "episode ID")
+   episode := maya.StringFlag(&c.episode, "e", "episode ID")
    //----------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
    switch {
-   case set[widevine]:
+   case widevine.IsSet:
       return cache.Write(c)
-   case set[movie]:
+   case movie.IsSet:
       return c.do_movie()
-   case set[show]:
+   case show.IsSet:
       return c.do_show()
-   case set[episode]:
+   case episode.IsSet:
       return with_cache(c.do_episode)
-   case set[dash_id]:
+   case dash_id.IsSet:
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
-      {widevine},
-      {movie},
-      {show},
-      {episode},
-      {dash_id},
-   })
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      movie,
+      show,
+      episode,
+      dash_id,
+   }})
+}
+
+func (c *client) do_episode() error {
+   url, err := c.Series.GetEpisodeUrl(c.episode)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = pluto.FetchDash(url)
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
 func (c *client) do_dash_id() error {
@@ -100,20 +118,4 @@ type client struct {
    episode string
    //------------------
    dash_id string
-}
-
-func (c *client) do_episode() error {
-   url, err := c.Series.GetEpisodeUrl(c.episode)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = pluto.FetchDash(url)
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }

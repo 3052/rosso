@@ -3,53 +3,33 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/roku"
-   "flag"
    "fmt"
    "log"
 )
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/roku.xml")
+func (c *client) do_roku_id() error {
+   var code *roku.Code
+   if c.get_code.IsSet {
+      code = c.Code
+   }
+   var err error
+   c.Token, err = roku.FetchToken(code)
    if err != nil {
       return err
    }
-   with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   token := maya.BoolVar(new(bool), "t", "token")
-   //----------------------------------------------------------
-   set_code := maya.BoolVar(new(bool), "s", "set code")
-   //----------------------------------------------------------
-   roku_id := maya.StringVar(&c.roku_id, "r", "Roku ID")
-   get_code := maya.BoolVar(&c.get_code, "g", "get code")
-   //----------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   if set[widevine] {
-      return cache.Write(c)
+   c.Playback, err = c.Token.Playback(c.roku_id)
+   if err != nil {
+      return err
    }
-   if set[token] {
-      return c.do_token()
+   c.Dash, err = c.Playback.Dash()
+   if err != nil {
+      return err
    }
-   if set[set_code] {
-      return with_cache(c.do_set_code)
+   err = cache.Write(c)
+   if err != nil {
+      return err
    }
-   if set[roku_id] {
-      if set[get_code] {
-         return with_cache(c.do_roku_id)
-      }
-      return c.do_roku_id()
-   }
-   if set[dash_id] {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.Usage([][]*flag.Flag{
-      {widevine},
-      {token},
-      {set_code},
-      {roku_id, get_code},
-      {dash_id},
-   })
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
 func (c *client) do_dash_id() error {
@@ -92,31 +72,6 @@ func main() {
    }
 }
 
-func (c *client) do_roku_id() error {
-   var code *roku.Code
-   if c.get_code {
-      code = c.Code
-   }
-   var err error
-   c.Token, err = roku.FetchToken(code)
-   if err != nil {
-      return err
-   }
-   c.Playback, err = c.Token.Playback(c.roku_id)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.Playback.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
 type client struct {
    Activation *roku.Activation
    Code       *roku.Code
@@ -127,7 +82,54 @@ type client struct {
    Job maya.Job
    //--------------------
    roku_id  string
-   get_code bool
+   get_code *maya.Flag
    //--------------------
    dash_id string
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/roku.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   token := maya.BoolFlag("t", "token")
+   //----------------------------------------------------------
+   set_code := maya.BoolFlag("s", "set code")
+   //----------------------------------------------------------
+   roku_id := maya.StringFlag(&c.roku_id, "r", "Roku ID")
+   c.get_code = maya.BoolFlag("g", "get code")
+   //----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if token.IsSet {
+      return c.do_token()
+   }
+   if set_code.IsSet {
+      return with_cache(c.do_set_code)
+   }
+   if roku_id.IsSet {
+      if c.get_code.IsSet {
+         return with_cache(c.do_roku_id)
+      }
+      return c.do_roku_id()
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {token},
+      {set_code},
+      {roku_id, c.get_code},
+      {dash_id},
+   })
 }

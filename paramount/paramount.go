@@ -137,6 +137,7 @@ func (i *Item) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+
 type Item struct {
    StreamingUrl      string
    SubscriptionLevel string
@@ -236,6 +237,7 @@ func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error)
    }
    return &result, nil
 }
+
 // 576p L3
 func Widevine(at, contentId string) (*SessionToken, error) {
    req := http.Request{

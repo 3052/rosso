@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/tubi"
-   "flag"
    "log"
 )
 
@@ -13,34 +12,28 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   proxy := maya.StringVar(&c.Proxy, "x", "proxy")
-   //----------------------------------------------------------
-   tubi_id := maya.IntVar(&c.tubi_id, "t", "Tubi ID")
+   tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
    //------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   err = maya.SetProxy(c.Proxy, "*.mp4")
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
    if err != nil {
       return err
    }
    switch {
-   case set[widevine]:
+   case widevine.IsSet:
       return cache.Write(c)
-   case set[proxy]:
-      return cache.Write(c)
-   case set[tubi_id]:
+   case tubi_id.IsSet:
       return c.do_tubi()
-   case set[dash_id]:
+   case dash_id.IsSet:
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
-      {widevine},
-      {proxy},
-      {tubi_id},
-      {dash_id},
-   })
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      tubi_id,
+      dash_id,
+   }})
 }
 
 func (c *client) do_tubi() error {
@@ -70,6 +63,7 @@ var cache maya.Cache
 
 func main() {
    log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.mp4")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -81,8 +75,6 @@ type client struct {
    VideoResource *tubi.VideoResource
    //-------------------------------
    Job maya.Job
-   //-------------------------------
-   Proxy string
    //-------------------------------
    tubi_id int
    //-------------------------------
