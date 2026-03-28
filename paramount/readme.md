@@ -33,29 +33,53 @@ sources/com/cbs/app/config/DefaultAppSecretProvider.java
 - https://apkmirror.com/apk/viacomcbs-streaming/paramount-android-tv
 - https://play.google.com/store/apps/details?id=com.cbs.ca
 
-## paypal.com US
+## paramount-4
 
-1. about:config
-2. general.useragent.override
-3. string
-4. add
-5. Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0
-6. paramountplus.com
-7. get started
-8. paramount+ premium
-   - continue
-9. full name
-10. email
-   - mail.tm
-11. password
-12. zip code
-13. birthdate
-14. gender
-15. agree & continue
-16. paypal
-17. continue to paypal
-18. agree and continue
-19. subscribe
-20. paypal.com/myaccount/autopay
-21. paramount
-22. stop paying with paypal
+international
+
+https://apkmirror.com/apk/viacomcbs-streaming/paramount-4
+
+## paramount-3
+
+old
+
+https://apkmirror.com/apk/viacomcbs-streaming/paramount-3
+
+## paramount-2
+
+android TV
+
+https://apkmirror.com/apk/viacomcbs-streaming/paramount-2
+
+## paramount
+
+US
+
+https://apkmirror.com/apk/viacomcbs-streaming/paramount
+
+APK lies, you need at least Android 12 (level 31)
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+then:
+
+~~~
+~/.android/avd/Pixel_XL.avd/emulator-user.ini
+~~~
+
+to:
+
+~~~
+window.x = 0
+window.y = 0
+~~~
+
+install system certificate
+
+## cbs
+
+https://apkmirror.com/apk/cbs-interactive-inc/cbs
+
+Create Android 7 device. Install system certificate
