@@ -3,11 +3,78 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/hboMax"
-   "flag"
    "fmt"
    "log"
    "net/http"
 )
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/hboMax.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
+   //-------------------------------------------------------------
+   initiate := maya.BoolFlag("i", "initiate")
+   market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
+   //-------------------------------------------------------------
+   login := maya.BoolFlag("l", "login")
+   //-------------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   season := maya.IntFlag(&c.season, "s", "season")
+   //-------------------------------------------------------------
+   edit := maya.StringFlag(&c.edit, "e", "edit ID")
+   //-------------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if initiate.IsSet {
+      if market.IsSet {
+         return c.do_initiate()
+      }
+   }
+   if login.IsSet {
+      return with_cache(c.do_login)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if edit.IsSet {
+      return with_cache(c.do_edit)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {initiate, market},
+      {login},
+      {address, season},
+      {edit},
+      {dash_id},
+   })
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
+   )
+}
+
+func (c *client) do_login() error {
+   var err error
+   c.Login, err = hboMax.FetchLogin(c.St)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
 
 func (c *client) do_address() error {
    show_id, err := hboMax.ParseShowId(c.address)
@@ -74,8 +141,6 @@ type client struct {
    //-------------------
    Job maya.Job
    //-------------------
-   Proxy string
-   //-------------------
    market string
    //-------------------
    address string
@@ -88,82 +153,9 @@ type client struct {
 
 func main() {
    log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.mp4")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-func (c *client) do() error {
-   err := cache.Setup("rosso/hboMax.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringVar(&c.Job.PlayReady, "p", "PlayReady")
-   //-------------------------------------------------------------
-   proxy := maya.StringVar(&c.Proxy, "x", "proxy")
-   //-------------------------------------------------------------
-   initiate := maya.BoolVar(new(bool), "i", "initiate")
-   market := maya.StringVar(&c.market, "m", fmt.Sprint(hboMax.Markets))
-   //-------------------------------------------------------------
-   login := maya.BoolVar(new(bool), "l", "login")
-   //-------------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
-   season := maya.IntVar(&c.season, "s", "season")
-   //-------------------------------------------------------------
-   edit := maya.StringVar(&c.edit, "e", "edit ID")
-   //-------------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   err = maya.SetProxy(c.Proxy, "*.mp4")
-   if err != nil {
-      return err
-   }
-   if set[playReady] {
-      return cache.Write(c)
-   }
-   if set[proxy] {
-      return cache.Write(c)
-   }
-   if set[initiate] {
-      if set[market] {
-         return c.do_initiate()
-      }
-   }
-   if set[login] {
-      return with_cache(c.do_login)
-   }
-   if set[address] {
-      return with_cache(c.do_address)
-   }
-   if set[edit] {
-      return with_cache(c.do_edit)
-   }
-   if set[dash_id] {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.Usage([][]*flag.Flag{
-      {playReady},
-      {proxy},
-      {initiate, market},
-      {login},
-      {address, season},
-      {edit},
-      {dash_id},
-   })
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
-   )
-}
-
-func (c *client) do_login() error {
-   var err error
-   c.Login, err = hboMax.FetchLogin(c.St)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }
