@@ -3,55 +3,12 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/canal"
-   "flag"
    "fmt"
    "log"
    "net/http"
    "os"
    "path"
 )
-
-func (c *client) do_subtitles() error {
-   for _, subtitles := range c.Player.Subtitles {
-      err := get(subtitles.Url)
-      if err != nil {
-         return err
-      }
-   }
-   return nil
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Player.Widevine,
-   )
-}
-
-func get(address string) error {
-   resp, err := http.Get(address)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.dash")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
 
 func (c *client) do() error {
    err := cache.Setup("rosso/canal.xml")
@@ -60,49 +17,52 @@ func (c *client) do() error {
    }
    with_cache := cache.Read(c)
    //----------------------------------------------------------
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   email := maya.StringVar(&c.email, "e", "email")
-   password := maya.StringVar(&c.password, "p", "password")
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
    //------------------------------------------------------
-   refresh := maya.BoolVar(new(bool), "r", "refresh")
+   refresh := maya.BoolFlag("r", "refresh")
    //---------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
+   address := maya.StringFlag(&c.address, "a", "address")
    //------------------------------------------------------
-   tracking := maya.StringVar(&c.tracking, "t", "tracking")
-   season := maya.IntVar(&c.season, "s", "season")
+   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
+   season := maya.IntFlag(&c.season, "s", "season")
    //----------------------------------------------------
-   subtitles := maya.BoolVar(new(bool), "S", "subtitles")
+   subtitles := maya.BoolFlag("S", "subtitles")
    //----------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   if set[widevine] {
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
       return cache.Write(c)
    }
-   if set[email] {
-      if set[password] {
+   if email.IsSet {
+      if password.IsSet {
          return c.do_email_password()
       }
    }
-   if set[refresh] {
+   if refresh.IsSet {
       return with_cache(c.do_refresh)
    }
-   if set[address] {
+   if address.IsSet {
       return with_cache(c.do_address)
    }
-   if set[tracking] {
-      if set[season] {
+   if tracking.IsSet {
+      if season.IsSet {
          return with_cache(c.do_tracking_season)
       }
       return with_cache(c.do_tracking)
    }
-   if set[subtitles] {
+   if subtitles.IsSet {
       return with_cache(c.do_subtitles)
    }
-   if set[dash_id] {
+   if dash_id.IsSet {
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
+   return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
       {refresh},
@@ -178,20 +138,62 @@ func (c *client) do_tracking_season() error {
    return nil
 }
 
+func (c *client) do_subtitles() error {
+   for _, subtitles := range c.Player.Subtitles {
+      err := get(subtitles.Url)
+      if err != nil {
+         return err
+      }
+   }
+   return nil
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Player.Widevine,
+   )
+}
+
+func get(address string) error {
+   resp, err := http.Get(address)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.dash")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
 type client struct {
    Dash    *canal.Dash
    Player  *canal.Player
    Session *canal.Session
-   ////////////////////////////
+   //--------------------
    Job maya.Job
-   //////////////////////
+   //--------------------
    email    string
    password string
-   /////////////////////
+   //--------------------
    address string
-   //////////////////
+   //--------------------
    tracking string
    season   int
-   ///////////////////////
+   //--------------------
    dash_id string
 }
