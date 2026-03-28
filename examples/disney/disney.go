@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/disney"
-   "flag"
    "fmt"
    "log"
 )
@@ -14,69 +13,61 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   playReady := maya.StringVar(&c.Job.PlayReady, "PR", "PlayReady")
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
    //--------------------------------------------------------------
-   email := maya.StringVar(&c.Email, "e", "email")
+   email := maya.StringFlag(&c.Email, "e", "email")
    //--------------------------------------------------------------
-   passcode := maya.StringVar(&c.passcode, "p", "passcode")
+   passcode := maya.StringFlag(&c.passcode, "p", "passcode")
    //--------------------------------------------------------------
-   profile := maya.StringVar(&c.profile, "P", "profile ID")
+   profile := maya.StringFlag(&c.profile, "P", "profile ID")
    //--------------------------------------------------------------
-   refresh := maya.BoolVar(new(bool), "r", "refresh")
+   refresh := maya.BoolFlag("r", "refresh")
    //--------------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
+   address := maya.StringFlag(&c.address, "a", "address")
    //--------------------------------------------------------------
-   season := maya.StringVar(&c.season, "s", "season ID")
+   season := maya.StringFlag(&c.season, "s", "season ID")
    //--------------------------------------------------------------
-   media := maya.StringVar(&c.media, "m", "media ID")
+   media := maya.StringFlag(&c.media, "m", "media ID")
    //--------------------------------------------------------------
-   hls_id := maya.IntVar(&c.hls_id, "h", "HLS ID")
-   set := maya.Parse()
+   hls_id := maya.IntFlag(&c.hls_id, "h", "HLS ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
    switch {
-   case set[playReady]:
+   case playReady.IsSet:
       return cache.Write(c)
-   case set[email]:
+   case email.IsSet:
       return c.do_email()
-   case set[passcode]:
+   case passcode.IsSet:
       return with_cache(c.do_passcode)
-   case set[profile]:
+   case profile.IsSet:
       return with_cache(c.do_profile_id)
-   case set[refresh]:
+   case refresh.IsSet:
       return with_cache(c.do_refresh)
-   case set[address]:
+   case address.IsSet:
       return with_cache(c.do_address)
-   case set[season]:
+   case season.IsSet:
       return with_cache(c.do_season_id)
-   case set[media]:
+   case media.IsSet:
       return with_cache(c.do_media_id)
-   case set[hls_id]:
+   case hls_id.IsSet:
       return with_cache(c.do_hls_id)
    }
-   return maya.Usage([][]*flag.Flag{
-      {playReady},
-      {email},
-      {passcode},
-      {profile},
-      {refresh},
-      {address},
-      {season},
-      {media},
-      {hls_id},
-   })
+   return maya.PrintFlags([][]*maya.Flag{{
+      playReady,
+      email,
+      passcode,
+      profile,
+      refresh,
+      address,
+      season,
+      media,
+      hls_id,
+   }})
 }
 
-func (c *client) do_hls_id() error {
-   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.PlayReady)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.mp4,*.mp4a")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
+var cache maya.Cache
 
 type client struct {
    Hls   *disney.Hls
@@ -131,8 +122,6 @@ func (c *client) do_passcode() error {
    return cache.Write(c)
 }
 
-var cache maya.Cache
-
 func (c *client) do_profile_id() error {
    err := c.Token.SwitchProfile(c.profile)
    if err != nil {
@@ -185,4 +174,17 @@ func (c *client) do_refresh() error {
       return err
    }
    return cache.Write(c)
+}
+
+func (c *client) do_hls_id() error {
+   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.PlayReady)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.mp4,*.mp4a")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }

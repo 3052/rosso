@@ -1,7 +1,7 @@
 package crave
 
 import (
-   "41.neocities.org/drm/widevine"
+   "41.neocities.org/diana/widevine"
    "encoding/base64"
    "encoding/json"
    "fmt"
