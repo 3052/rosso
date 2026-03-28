@@ -222,6 +222,7 @@ func (p *Player) Widevine(data []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 const device_serial = "!!!!"
 
 // Global variables for authentication

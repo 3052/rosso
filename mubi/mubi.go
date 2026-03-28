@@ -21,15 +21,15 @@ func (f *Film) String() string {
 
 type Film struct {
    Title string
-   Id   int
+   Id    int
 }
 
 func FetchEpisodes(slug string, season int) ([]Film, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host: "api.mubi.com",
-         Path: fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
       },
       Header: http.Header{},
    }
@@ -279,6 +279,7 @@ func (l *LinkCode) Session() (*Session, error) {
    }
    return result, nil
 }
+
 // "android" requires headers:
 // client-device-identifier
 // client-version

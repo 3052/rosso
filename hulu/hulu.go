@@ -91,6 +91,7 @@ func ParseId(urlData string) string {
    }
    return part
 }
+
 type DeepLink struct {
    EabId   string `json:"eab_id"`
    Message string

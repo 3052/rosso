@@ -50,7 +50,7 @@ func (c *Client) Series(id int) (*Series, error) {
       URL: &url.URL{
          Scheme: "https",
          Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
       },
       Header: http.Header{},
    }
@@ -281,7 +281,7 @@ func (c *Client) Season(id int) (*Season, error) {
       URL: &url.URL{
          Scheme: "https",
          Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
       },
       Header: http.Header{},
    }

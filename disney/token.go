@@ -119,6 +119,7 @@ func (t *Token) SwitchProfile(profileId string) error {
    *t = result.Extensions.Sdk.Token
    return nil
 }
+
 // expires: 4 hours
 // request: Account
 func RefreshToken(refresh *Token) error {
@@ -414,6 +415,7 @@ func (t *Token) Widevine(body []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 // request: Account
 func (t *Token) Season(id string) (*Season, error) {
    if err := t.assert("Account"); err != nil {

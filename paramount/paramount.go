@@ -208,7 +208,7 @@ func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error)
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host: "www.paramountplus.com",
+         Host:   "www.paramountplus.com",
          RawQuery: url.Values{
             "at":        {at},
             "contentId": {contentId},
@@ -243,8 +243,8 @@ func Widevine(at, contentId string) (*SessionToken, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host: "www.paramountplus.com",
-         Path: "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json",
+         Host:   "www.paramountplus.com",
+         Path:   "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json",
          RawQuery: url.Values{
             "at":        {at},
             "contentId": {contentId},

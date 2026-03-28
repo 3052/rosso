@@ -86,6 +86,7 @@ func (l *Login) Plays(domainId, videoId int) (*Plays, error) {
    }
    return &result, nil
 }
+
 type Plays struct {
    Captions []struct {
       Files []struct {
@@ -111,9 +112,10 @@ type Manifest struct {
    ManifestType string
    Url          string
 }
+
 func (l *Login) Widevine(licenseId string, data []byte) ([]byte, error) {
    req, err := http.NewRequest(
-      "POST", "https://www.kanopy.com/kapi/licenses/widevine/" + licenseId,
+      "POST", "https://www.kanopy.com/kapi/licenses/widevine/"+licenseId,
       bytes.NewReader(data),
    )
    if err != nil {
@@ -227,6 +229,7 @@ func (m *Manifest) Dash() (*Dash, error) {
 }
 
 const x_version = "!/!/!/!"
+
 func (l *Login) Video(alias string) (*Video, error) {
    req := http.Request{
       URL: &url.URL{

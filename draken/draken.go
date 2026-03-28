@@ -205,6 +205,7 @@ type Viewer struct {
       }
    }
 }
+
 func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
    req := http.Request{
       Method: "POST",

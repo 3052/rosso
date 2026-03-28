@@ -161,6 +161,7 @@ type Series struct {
    SessionToken string
    Vod          []Vod
 }
+
 // It assumes Vod and Stitched.Paths always have at least one entry
 func (s *Series) GetMovieUrl() *url.URL {
    // Directly access the required path based on the data guarantees
@@ -169,7 +170,7 @@ func (s *Series) GetMovieUrl() *url.URL {
 }
 func FetchDash(urlData *url.URL) (*Dash, error) {
    req := http.Request{
-      URL: urlData,
+      URL:    urlData,
       Header: http.Header{},
    }
    resp, err := http.DefaultClient.Do(&req)

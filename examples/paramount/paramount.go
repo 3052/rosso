@@ -67,9 +67,9 @@ type client struct {
    password string
    //--------------------
    ParamountId string
-   cookie *maya.Flag
+   cookie      *maya.Flag
    //--------------------
-   dash_id    string
+   dash_id string
 }
 
 func (c *client) do() error {

@@ -53,6 +53,7 @@ func (t *Token) Refresh() error {
    }
    return t.AsError()
 }
+
 type Item struct {
    Links struct {
       Files struct {
@@ -60,6 +61,7 @@ type Item struct {
       }
    } `json:"_links"`
 }
+
 func (t *Token) Files(filesHref string) (Files, error) {
    req := http.Request{
       Header: http.Header{},

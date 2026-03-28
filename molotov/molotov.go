@@ -41,6 +41,7 @@ func (p Program) Asset(accessToken string) (*Asset, error) {
    }
    return &result, nil
 }
+
 // https://molotov.tv/fr_fr/p/15301-2328
 // https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
 func ParseUrl(data string) (*Url, error) {
@@ -133,6 +134,7 @@ type Dash struct {
    Body []byte
    Url  *url.URL
 }
+
 // authorization server issues a new refresh token, in which case the
 // client MUST discard the old refresh token and replace it with the new
 // refresh token
@@ -199,9 +201,9 @@ type Url struct {
 func (u *Url) FetchProgram(accessToken string) (*Program, error) {
    req := http.Request{
       URL: &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path: fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
+         Scheme:   "https",
+         Host:     "fapi.molotov.tv",
+         Path:     fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
          RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
       },
       Header: http.Header{},

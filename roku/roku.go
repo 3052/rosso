@@ -166,6 +166,7 @@ func (t *Token) Activation() (*Activation, error) {
    }
    return result, nil
 }
+
 // input can be nil
 //
 // /api/v1/account/token

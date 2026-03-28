@@ -79,7 +79,7 @@ type client struct {
    Proxy string
    //--------------------
    address string
-   season int
+   season  int
    //--------------------
    mubi_id int
    //--------------------

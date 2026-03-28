@@ -3,25 +3,9 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/criterion"
-   "flag"
    "log"
    "path"
 )
-
-type client struct {
-   Dash  *criterion.Dash
-   File  *criterion.File
-   Token *criterion.Token
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   address string
-   //------------------------
-   dash_id string
-}
 
 func (c *client) do() error {
    err := cache.Setup("rosso/criterion.xml")
@@ -29,30 +13,33 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   email := maya.StringVar(&c.email, "e", "email")
-   password := maya.StringVar(&c.password, "p", "password")
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
    //------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
+   address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   if set[widevine] {
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
       return cache.Write(c)
    }
-   if set[email] {
-      if set[password] {
+   if email.IsSet {
+      if password.IsSet {
          return c.do_email_password()
       }
    }
-   if set[address] {
+   if address.IsSet {
       return with_cache(c.do_address)
    }
-   if set[dash_id] {
+   if dash_id.IsSet {
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
+   return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
       {address},
@@ -112,4 +99,19 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+type client struct {
+   Dash  *criterion.Dash
+   File  *criterion.File
+   Token *criterion.Token
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   address string
+   //------------------------
+   dash_id string
 }

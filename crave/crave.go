@@ -52,6 +52,7 @@ func (p *Profile) String() string {
    data.WriteString(p.Id)
    return data.String()
 }
+
 type Account struct {
    AccessToken  string `json:"access_token"`
    AccountId    string `json:"account_id"`
@@ -284,6 +285,7 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
 
 //go:embed GetShowpage.gql
 var get_showpage string
+
 // PasswordLogin performs the initial login to get the first set of tokens
 func PasswordLogin(username, password string) (*Account, error) {
    data := url.Values{

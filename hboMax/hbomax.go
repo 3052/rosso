@@ -92,6 +92,7 @@ type Login struct {
       }
    }
 }
+
 func (l Login) Movie(showId string) (*Page, error) {
    req := http.Request{
       URL: &url.URL{
@@ -303,6 +304,7 @@ func FetchSt() (*http.Cookie, error) {
    }
    return nil, http.ErrNoCookie
 }
+
 // you must
 // /authentication/linkDevice/initiate
 // first or this will always fail
