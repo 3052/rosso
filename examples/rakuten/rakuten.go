@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/rakuten"
-   "flag"
    "fmt"
    "log"
 )
@@ -14,30 +13,33 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringVar(&c.Job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
+   address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
-   season := maya.StringVar(&c.season, "s", "season ID")
+   season := maya.StringFlag(&c.season, "s", "season ID")
    //----------------------------------------------------------
-   language := maya.StringVar(&c.Language, "A", "audio language")
-   episode := maya.StringVar(&c.Episode, "e", "episode ID")
+   language := maya.StringFlag(&c.Language, "A", "audio language")
+   episode := maya.StringFlag(&c.Episode, "e", "episode ID")
    //----------------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
    switch {
-   case set[widevine]:
+   case widevine.IsSet:
       return cache.Write(c)
-   case set[address]:
+   case address.IsSet:
       return c.do_address()
-   case set[season]:
+   case season.IsSet:
       return with_cache(c.do_season)
-   case set[language]:
+   case language.IsSet:
       return with_cache(c.do_language)
-   case set[dash_id]:
+   case dash_id.IsSet:
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
+   return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {address},
       {season},
@@ -45,6 +47,7 @@ func (c *client) do() error {
       {dash_id},
    })
 }
+
 func (c *client) do_address() error {
    var err error
    c.Content, err = rakuten.ParseContent(c.address)
@@ -99,6 +102,7 @@ func (c *client) do_language() error {
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
+
 func (c *client) do_dash_id() error {
    stream, err := c.Content.Stream(
       c.Episode, c.Language, rakuten.Widevine, rakuten.Hd,
