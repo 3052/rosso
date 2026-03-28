@@ -3,7 +3,6 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/cineMember"
-   "flag"
    "log"
    "net/http"
 )
@@ -14,25 +13,28 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   email := maya.StringVar(&c.email, "e", "email")
-   password := maya.StringVar(&c.password, "p", "password")
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
    //------------------------------------------------------
-   address := maya.StringVar(&c.address, "a", "address")
+   address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringVar(&c.dash_id, "d", "DASH ID")
-   set := maya.Parse()
-   if set[email] {
-      if set[password] {
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if email.IsSet {
+      if password.IsSet {
          return c.do_email_password()
       }
    }
-   if set[address] {
+   if address.IsSet {
       return with_cache(c.do_address)
    }
-   if set[dash_id] {
+   if dash_id.IsSet {
       return with_cache(c.do_dash_id)
    }
-   return maya.Usage([][]*flag.Flag{
+   return maya.PrintFlags([][]*maya.Flag{
       {email, password},
       {address},
       {dash_id},

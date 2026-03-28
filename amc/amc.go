@@ -10,6 +10,29 @@ import (
    "net/url"
 )
 
+func BcJwt(header http.Header) string {
+   return header.Get("x-amcn-bc-jwt")
+}
+
+func (c *Client) Refresh() error {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+c.Data.RefreshToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(c)
+}
+
 func Unauth() (*Client, error) {
    req := http.Request{
       Method: "POST",
@@ -187,6 +210,33 @@ type Metadata struct {
    Title         string
 }
 
+// Episodes extracts metadata exclusively from a Season
+func (s *Season) Episodes() ([]*Metadata, error) {
+   for _, listNode := range s.Children {
+      if listNode.Type != "list" {
+         continue
+      }
+      var extractedMetadata []*Metadata
+      for _, cardNode := range listNode.Children {
+         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
+            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
+         }
+      }
+      return extractedMetadata, nil
+   }
+   return nil, errors.New("could not find episode list in the manifest")
+}
+
+// Season replaces the generic Node for the SeasonEpisodes endpoint.
+// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
+type Season struct {
+   Children   []Season
+   Properties struct {
+      Metadata *Metadata
+   }
+   Type string
+}
+
 // Seasons extracts metadata exclusively from a Series
 func (s *Series) Seasons() ([]*Metadata, error) {
    for _, child := range s.Children {
@@ -320,53 +370,4 @@ type Series struct {
       }
    }
    Type string
-}
-
-// Episodes extracts metadata exclusively from a Season
-func (s *Season) Episodes() ([]*Metadata, error) {
-   for _, listNode := range s.Children {
-      if listNode.Type != "list" {
-         continue
-      }
-      var extractedMetadata []*Metadata
-      for _, cardNode := range listNode.Children {
-         if cardNode.Type == "card" && cardNode.Properties.Metadata != nil {
-            extractedMetadata = append(extractedMetadata, cardNode.Properties.Metadata)
-         }
-      }
-      return extractedMetadata, nil
-   }
-   return nil, errors.New("could not find episode list in the manifest")
-}
-
-// Season replaces the generic Node for the SeasonEpisodes endpoint.
-// It lacks the heavy 'Text' property wrapper to optimize JSON unmarshaling.
-type Season struct {
-   Children   []Season
-   Properties struct {
-      Metadata *Metadata
-   }
-   Type string
-}
-
-func BcJwt(header http.Header) string {
-   return header.Get("x-amcn-bc-jwt")
-}
-func (c *Client) Refresh() error {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+c.Data.RefreshToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(c)
 }
