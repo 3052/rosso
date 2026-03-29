@@ -15,6 +15,23 @@ import (
    "strings"
 )
 
+func (s *SessionToken) Send(body []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func (s *SessionToken) Dash() (*Dash, error) {
    resp, err := http.Get(s.StreamingUrl)
    if err != nil {

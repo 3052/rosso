@@ -12,49 +12,33 @@ import (
 
 type SessionToken struct {
    Errors       string
+   LsSession    string `json:"ls_session"`
    StreamingUrl string // MPD
    Url          string
-   LsSession    string `json:"ls_session"`
 }
 
-// 1. do we always need to check streamingUrl ?
+// do we always need to check streamingUrl? no
 
-// 2. can androidphone ls_session be used with PlayReady ?
+// can androidphone ls_session be used with PlayReady? no
 
-// 3. can xboxone ls_session be used with Widevine ?
+// can we hard code the license URL? yes but its pointless because `url` must
+// match `ls_session`
 
-// 4. can we hard code the license URL ?
+// do we actually need xboxone? yes for PlayReady
 
-// 5. do we actually need xboxone ?
+// should we cache session token? no because we need `androidphone` for MPD and
+// `xboxone` for PlayReady
 
-// https://cbsi.live.ott.irdeto.com/playready/rightsmanager.asmx?
-// AccountId=cbsi&
-// ContentId=wjQ4RChi6BHHu4MVTncppVuCwu44uq2Q&
-// CrmId=cbsi&
-// SubContentType=Default
-func (s *SessionToken) Send(body []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
+// what is `xboxone` MPD? 1080p
 
-// - androidphone
-//    - 2160p
-//    - Widevine
-// - xboxone
-//    - 1080p
-//    - PlayReady
+// what is `androidphone` MPD? 2160p
+
+//-------------------------------------------------------------------------------
+
+// what is the SL2000 max?
+
+// what is the L3 max?
+
 func FetchSessionToken(at, contentId string, cbsCookie *http.Cookie) (*SessionToken, error) {
    endpoint := "anonymous-session-token.json"
    if cbsCookie != nil {
@@ -63,7 +47,7 @@ func FetchSessionToken(at, contentId string, cbsCookie *http.Cookie) (*SessionTo
    url_data := &url.URL{
       Scheme: "https",
       Host:   "www.paramountplus.com",
-      Path:   fmt.Sprintf("/apps-api/v3.1/androidphone/irdeto-control/%s", endpoint),
+      Path:   fmt.Sprintf("/apps-api/v3.1/xboxone/irdeto-control/%s", endpoint),
    }
    query := url_data.Query()
    query.Set("at", at)
@@ -89,7 +73,6 @@ func FetchSessionToken(at, contentId string, cbsCookie *http.Cookie) (*SessionTo
    if result.Errors != "" {
       return nil, errors.New(result.Errors)
    }
-   // I DONT THINK THIS IS AN ERROR IF WE JUST NEED ls_session
    if result.StreamingUrl == "" {
       return nil, errors.New("streaming URL is empty")
    }
