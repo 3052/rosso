@@ -8,6 +8,7 @@ import (
    "io"
    "net/http"
    "net/url"
+   "strings"
 )
 
 func BcJwt(header http.Header) string {
@@ -186,28 +187,43 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    return result.Data.PlaybackJsonData.Sources, resp.Header, nil
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 func (m *Metadata) String() string {
-   var data []byte
+   data := &strings.Builder{}
    if m.EpisodeNumber >= 0 {
-      data = fmt.Append(data, "episode = ", m.EpisodeNumber)
+      data.WriteString("episode = ")
+      fmt.Fprintln(data, m.EpisodeNumber)
    }
-   if data != nil {
-      data = append(data, '\n')
-   }
-   data = fmt.Appendln(data, "title =", m.Title)
-   data = fmt.Append(data, "nid = ", m.Nid)
-   return string(data)
+   data.WriteString("title = ")
+   data.WriteString(m.Title)
+   data.WriteString("\nnid = ")
+   fmt.Fprint(data, m.Nid)
+   return data.String()
 }
 
 type Metadata struct {
    EpisodeNumber int
    Nid           int
    Title         string
+}
+
+type Series struct {
+   Children   []Series
+   Properties struct {
+      Metadata *Metadata
+      Text     *struct {
+         Title struct {
+            Title string
+         }
+      }
+   }
+   Type string
+}
+
+///
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }
 
 // Episodes extracts metadata exclusively from a Season
@@ -324,8 +340,6 @@ func GetDash(sources []Source) (*Source, error) {
    return nil, errors.New("DASH source not found")
 }
 
-///
-
 func (c *Client) Season(id int) (*Season, error) {
    req := http.Request{
       URL: &url.URL{
@@ -356,18 +370,4 @@ func (c *Client) Season(id int) (*Season, error) {
       return nil, err
    }
    return &result.Data, nil
-}
-
-// Series replaces the generic Node for the SeriesDetail endpoint
-type Series struct {
-   Children   []Series
-   Properties struct {
-      Metadata *Metadata
-      Text     *struct {
-         Title struct {
-            Title string
-         }
-      }
-   }
-   Type string
 }

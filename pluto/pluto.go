@@ -4,12 +4,35 @@ import (
    "bytes"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
-   "strconv"
    "strings"
 )
+
+func (v *Vod) String() string {
+   data := &strings.Builder{}
+   var lines bool
+   for _, season := range v.Seasons {
+      for _, episode := range season.Episodes {
+         if lines {
+            data.WriteString("\n\n")
+         } else {
+            lines = true
+         }
+         data.WriteString("season = ")
+         fmt.Fprint(data, season.Number)
+         data.WriteString("\nepisode = ")
+         fmt.Fprint(data, episode.Number)
+         data.WriteString("\nname = ")
+         data.WriteString(episode.Name)
+         data.WriteString("\nid = ")
+         data.WriteString(episode.Id)
+      }
+   }
+   return data.String()
+}
 
 // pluto.tv/on-demand/movies/64946365c5ae350013623630
 // pluto.tv/on-demand/movies/disobedience-ca-2018-1-1
@@ -63,10 +86,10 @@ type Vod struct {
       Episodes []struct {
          Id       string `json:"_id"`
          Name     string
-         Number   int64
+         Number   int
          Stitched Stitched
       }
-      Number int64
+      Number int
    }
    Slug     string
    Stitched *Stitched
@@ -124,31 +147,6 @@ func (s *Series) buildStitcherUrl(path string) *url.URL {
    values.Set("jwt", s.SessionToken)
    stitcher.RawQuery = values.Encode()
    return stitcher
-}
-
-func (v *Vod) String() string {
-   var (
-      data  []byte
-      lines bool
-   )
-   for _, season := range v.Seasons {
-      for _, episode := range season.Episodes {
-         if lines {
-            data = append(data, "\n\n"...)
-         } else {
-            lines = true
-         }
-         data = append(data, "season = "...)
-         data = strconv.AppendInt(data, season.Number, 10)
-         data = append(data, "\nepisode = "...)
-         data = strconv.AppendInt(data, episode.Number, 10)
-         data = append(data, "\nname = "...)
-         data = append(data, episode.Name...)
-         data = append(data, "\nid = "...)
-         data = append(data, episode.Id...)
-      }
-   }
-   return string(data)
 }
 
 type Stitched struct {

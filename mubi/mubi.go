@@ -13,10 +13,12 @@ import (
 )
 
 func (f *Film) String() string {
-   var data []byte
-   data = fmt.Appendln(data, "title =", f.Title)
-   data = fmt.Append(data, "id = ", f.Id)
-   return string(data)
+   data := &strings.Builder{}
+   data.WriteString("title = ")
+   data.WriteString(f.Title)
+   data.WriteString("\nid = ")
+   fmt.Fprint(data, f.Id)
+   return data.String()
 }
 
 type Film struct {
