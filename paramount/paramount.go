@@ -1,3 +1,9 @@
+// - what is `androidphone` MPD? 2160p
+// - what is `xboxone` MPD? 1080p
+// - what is the L3 cookie max? 576p
+// - what is the L3 no cookie max? 576p
+// - what is the SL2000 cookie max? 2160p
+// - what is the SL2000 no cookie max? 1080p
 package paramount
 
 import (
@@ -17,135 +23,7 @@ import (
    "strings"
 )
 
-// do we always need to check streamingUrl? no
-
-// can androidphone ls_session be used with PlayReady? no
-
-// can we hard code the license URL? yes but its pointless because `url` must
-// match `ls_session`
-
-// do we actually need xboxone? yes for PlayReady
-
-// should we cache session token? no because we need `androidphone` for MPD and
-// `xboxone` for PlayReady
-
-// what is `xboxone` MPD? 1080p
-
-// what is `androidphone` MPD? 2160p
-
-// what is the SL2000 no cookie max? 1080p
-
-// what is the SL2000 cookie max? 2160p
-
-//-------------------------------------------------------------------------------
-
-// what is the L3 no cookie max?
-
-// what is the L3 cookie max?
-
-type SessionToken struct {
-   Errors       string `json:"errors"`
-   LsSession    string `json:"ls_session"`
-   StreamingUrl string `json:"streamingUrl"` // MPD
-   Url          string `json:"url"`          // License Server
-}
-
-func GetSessionToken(at, contentId string, cbsCookie *http.Cookie, requireMPD bool) (*SessionToken, error) {
-   platform := "xboxone"
-   if requireMPD {
-      platform = "androidphone"
-   }
-
-   endpoint := "anonymous-session-token.json"
-   if cbsCookie != nil {
-      endpoint = "session-token.json"
-   }
-
-   u := &url.URL{
-      Scheme: "https",
-      Host:   "www.paramountplus.com",
-      Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-   }
-
-   q := u.Query()
-   q.Set("at", at)
-   q.Set("contentId", contentId)
-   u.RawQuery = q.Encode()
-
-   req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-   if err != nil {
-      return nil, err
-   }
-
-   if cbsCookie != nil {
-      req.AddCookie(cbsCookie)
-   }
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var token SessionToken
-   if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-      return nil, err
-   }
-
-   if requireMPD && token.StreamingUrl == "" {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-
-   return &token, nil
-}
-func (s *SessionToken) Send(body []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (s *SessionToken) Dash() (*Dash, error) {
-   resp, err := http.Get(s.StreamingUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
-
-var AppSecrets = []struct {
-   Version       string
-   Us            string
-   International string
-}{
-   {
-      Version:       "16.4.1",
-      Us:            "7cd07f93a6e44cf7",
-      International: "68b4475a49bed95a",
-   },
-   {
-      Version:       "16.0.0",
-      Us:            "9fc14cb03691c342",
-      International: "6c68178445de8138",
-   },
-}
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
@@ -253,4 +131,111 @@ func FetchAppSecret() (string, error) {
 type Dash struct {
    Body []byte
    Url  *url.URL
+}
+
+type Token struct {
+   Errors       string `json:"errors"`
+   LsSession    string `json:"ls_session"`
+   StreamingUrl string `json:"streamingUrl"` // MPD
+   Url          string `json:"url"`          // License Server
+}
+
+func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.paramountplus.com",
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at": {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Token
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+func FetchStreamingUrl(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   result, err := fetchToken("androidphone", at, contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
+}
+
+func FetchWidevine(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   return fetchToken("androidphone", at, contentId, cbsCom)
+}
+
+func FetchPlayReady(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   return fetchToken("xboxone", at, contentId, cbsCom)
+}
+
+func (t *Token) Send(body []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", t.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+t.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (t *Token) Dash() (*Dash, error) {
+   resp, err := http.Get(t.StreamingUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+///
+
+var AppSecrets = []struct {
+   Version       string
+   Us            string
+   International string
+}{
+   {
+      Version:       "16.4.1",
+      Us:            "7cd07f93a6e44cf7",
+      International: "68b4475a49bed95a",
+   },
+   {
+      Version:       "16.0.0",
+      Us:            "9fc14cb03691c342",
+      International: "6c68178445de8138",
+   },
 }

@@ -22,7 +22,7 @@ func (c *client) do_dash_id() error {
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
-   token, err := paramount.GetSessionToken(at, c.ParamountId, cbs_com, false)
+   token, err := paramount.FetchPlayReady(at, c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
@@ -126,7 +126,7 @@ func (c *client) do_paramount() error {
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
-   token, err := paramount.GetSessionToken(at, c.ParamountId, cbs_com, true)
+   token, err := paramount.FetchStreamingUrl(at, c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
