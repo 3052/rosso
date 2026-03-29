@@ -243,21 +243,6 @@ type Metadata struct {
    Title         string
 }
 
-type Series struct {
-   Children   []Series
-   Properties struct {
-      Metadata *Metadata
-      Text     *struct {
-         Title struct {
-            Title string
-         }
-      }
-   }
-   Type string
-}
-
-///
-
 // Episodes extracts metadata exclusively from a Season
 func (s *Season) Episodes() ([]*Metadata, error) {
    for _, listNode := range s.Children {
@@ -284,6 +269,30 @@ type Season struct {
    }
    Type string
 }
+
+type Series struct {
+   Children   []Series
+   Properties struct {
+      Metadata *Metadata
+      Text     *struct {
+         Title struct {
+            Title string
+         }
+      }
+   }
+   Type string
+}
+
+func GetDash(sources []Source) (*Source, error) {
+   for _, source_data := range sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, errors.New("DASH source not found")
+}
+
+///
 
 // Seasons extracts metadata exclusively from a Series
 func (s *Series) Seasons() ([]*Metadata, error) {
@@ -361,13 +370,4 @@ func (s *Source) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func GetDash(sources []Source) (*Source, error) {
-   for _, source_data := range sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, errors.New("DASH source not found")
 }
