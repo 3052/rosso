@@ -9,6 +9,26 @@ import (
    "net/http"
 )
 
+func (c *client) do_dash_id() error {
+   app_secret, err := paramount.FetchAppSecret()
+   if err != nil {
+      return err
+   }
+   at, err := paramount.GetAt(app_secret)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   token, err := paramount.GetSessionToken(at, c.ParamountId, cbs_com, false)
+   if err != nil {
+      return err
+   }
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, token.Send)
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/paramount.xml")
    if err != nil {
@@ -46,42 +66,8 @@ func (c *client) do() error {
       {playReady},
       {username, password},
       {paramount_id, c.cookie},
-      {dash_id},
+      {dash_id, c.cookie},
    })
-}
-
-func (c *client) do_paramount() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   c.SessionToken, err = paramount.FetchSessionToken(at, c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.SessionToken.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.SessionToken.Send,
-   )
 }
 
 func (c *client) do_username_password() error {
@@ -114,15 +100,43 @@ var cache maya.Cache
 type client struct {
    CbsCom *http.Cookie
    Dash   *paramount.Dash
-   SessionToken *paramount.SessionToken
    //--------------------
    Job maya.Job
    //--------------------
    username string
    password string
    //--------------------
+   cookie *maya.Flag
+   //--------------------
    ParamountId string
-   cookie      *maya.Flag
    //--------------------
    dash_id string
+}
+
+func (c *client) do_paramount() error {
+   app_secret, err := paramount.FetchAppSecret()
+   if err != nil {
+      return err
+   }
+   at, err := paramount.GetAt(app_secret)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   token, err := paramount.GetSessionToken(at, c.ParamountId, cbs_com, true)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = token.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }

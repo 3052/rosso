@@ -1,6 +1,7 @@
 package paramount
 
 import (
+   "bytes"
    "crypto/aes"
    "crypto/cipher"
    "encoding/base64"
@@ -8,6 +9,7 @@ import (
    "encoding/hex"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/url"
@@ -15,6 +17,87 @@ import (
    "strings"
 )
 
+// do we always need to check streamingUrl? no
+
+// can androidphone ls_session be used with PlayReady? no
+
+// can we hard code the license URL? yes but its pointless because `url` must
+// match `ls_session`
+
+// do we actually need xboxone? yes for PlayReady
+
+// should we cache session token? no because we need `androidphone` for MPD and
+// `xboxone` for PlayReady
+
+// what is `xboxone` MPD? 1080p
+
+// what is `androidphone` MPD? 2160p
+
+// what is the SL2000 no cookie max? 1080p
+
+// what is the SL2000 cookie max? 2160p
+
+//-------------------------------------------------------------------------------
+
+// what is the L3 no cookie max?
+
+// what is the L3 cookie max?
+
+type SessionToken struct {
+   Errors       string `json:"errors"`
+   LsSession    string `json:"ls_session"`
+   StreamingUrl string `json:"streamingUrl"` // MPD
+   Url          string `json:"url"`          // License Server
+}
+
+func GetSessionToken(at, contentId string, cbsCookie *http.Cookie, requireMPD bool) (*SessionToken, error) {
+   platform := "xboxone"
+   if requireMPD {
+      platform = "androidphone"
+   }
+
+   endpoint := "anonymous-session-token.json"
+   if cbsCookie != nil {
+      endpoint = "session-token.json"
+   }
+
+   u := &url.URL{
+      Scheme: "https",
+      Host:   "www.paramountplus.com",
+      Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+   }
+
+   q := u.Query()
+   q.Set("at", at)
+   q.Set("contentId", contentId)
+   u.RawQuery = q.Encode()
+
+   req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   if cbsCookie != nil {
+      req.AddCookie(cbsCookie)
+   }
+
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var token SessionToken
+   if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+      return nil, err
+   }
+
+   if requireMPD && token.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+
+   return &token, nil
+}
 func (s *SessionToken) Send(body []byte) ([]byte, error) {
    req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
    if err != nil {
