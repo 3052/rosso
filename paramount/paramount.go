@@ -23,6 +23,38 @@ import (
    "strings"
 )
 
+func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.paramountplus.com",
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Token
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
 func GetAt(appSecret string) (string, error) {
    // 1. Decode hex secret key
    key, err := hex.DecodeString(secret_key)
@@ -155,38 +187,6 @@ type Token struct {
    LsSession    string `json:"ls_session"`
    StreamingUrl string `json:"streamingUrl"` // MPD
    Url          string `json:"url"`          // License Server
-}
-
-func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
-   endpoint := "anonymous-session-token.json"
-   if cbs_com != nil {
-      endpoint = "session-token.json"
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "www.paramountplus.com",
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbs_com != nil {
-      req.AddCookie(cbs_com)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Token
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
 }
 
 func FetchStreamingUrl(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
