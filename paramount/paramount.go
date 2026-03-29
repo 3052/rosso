@@ -23,6 +23,23 @@ import (
    "strings"
 )
 
+var AppSecrets = []struct {
+   Version       string
+   Us            string
+   International string
+}{
+   {
+      Version:       "16.4.1",
+      Us:            "7cd07f93a6e44cf7",
+      International: "68b4475a49bed95a",
+   },
+   {
+      Version:       "16.0.0",
+      Us:            "9fc14cb03691c342",
+      International: "6c68178445de8138",
+   },
+}
+
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
@@ -151,7 +168,7 @@ func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, e
          Host:   "www.paramountplus.com",
          Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
          RawQuery: url.Values{
-            "at": {at},
+            "at":        {at},
             "contentId": {contentId},
          }.Encode(),
       },
@@ -219,23 +236,4 @@ func (t *Token) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-///
-
-var AppSecrets = []struct {
-   Version       string
-   Us            string
-   International string
-}{
-   {
-      Version:       "16.4.1",
-      Us:            "7cd07f93a6e44cf7",
-      International: "68b4475a49bed95a",
-   },
-   {
-      Version:       "16.0.0",
-      Us:            "9fc14cb03691c342",
-      International: "6c68178445de8138",
-   },
 }
