@@ -23,6 +23,35 @@ import (
    "strings"
 )
 
+func GetAt(appSecret string) (string, error) {
+   // 1. Decode hex secret key
+   key, err := hex.DecodeString(secret_key)
+   if err != nil {
+      return "", err
+   }
+   // 2. Create aes cipher with key
+   block, err := aes.NewCipher(key)
+   if err != nil {
+      return "", err
+   }
+   // 3 & 4. Create payload: "|" + appSecret
+   data := []byte{'|'}
+   data = append(data, appSecret...)
+   // 5. Apply PKCS7 Padding (Separate Function)
+   data = pkcs7_pad(data, aes.BlockSize)
+   // Prepare Empty IV (16 bytes of zeros)
+   var iv [aes.BlockSize]byte
+   // 6. CBC encrypt with empty IV
+   // We encrypt 'data' in place
+   cipher.NewCBCEncrypter(block, iv[:]).CryptBlocks(data, data)
+   // 8. Create Header for block size (uint16)
+   size := binary.BigEndian.AppendUint16(nil, aes.BlockSize)
+   // 7 & 8. Combine [Size] + [IV] + [Encrypted Data]
+   data = slices.Concat(size, iv[:], data)
+   // 9. Return result base64 encoded
+   return base64.StdEncoding.EncodeToString(data), nil
+}
+
 var AppSecrets = []struct {
    Version       string
    Us            string
@@ -85,35 +114,6 @@ func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
       }
    }
    return nil, http.ErrNoCookie
-}
-
-func GetAt(appSecret string) (string, error) {
-   // 1. Decode hex secret key
-   key, err := hex.DecodeString(secret_key)
-   if err != nil {
-      return "", err
-   }
-   // 2. Create aes cipher with key
-   block, err := aes.NewCipher(key)
-   if err != nil {
-      return "", err
-   }
-   // 3 & 4. Create payload: "|" + appSecret
-   data := []byte{'|'}
-   data = append(data, appSecret...)
-   // 5. Apply PKCS7 Padding (Separate Function)
-   data = pkcs7_pad(data, aes.BlockSize)
-   // Prepare Empty IV (16 bytes of zeros)
-   var iv [aes.BlockSize]byte
-   // 6. CBC encrypt with empty IV
-   // We encrypt 'data' in place
-   cipher.NewCBCEncrypter(block, iv[:]).CryptBlocks(data, data)
-   // 8. Create Header for block size (uint16)
-   size := binary.BigEndian.AppendUint16(nil, aes.BlockSize)
-   // 7 & 8. Combine [Size] + [IV] + [Encrypted Data]
-   data = slices.Concat(size, iv[:], data)
-   // 9. Return result base64 encoded
-   return base64.StdEncoding.EncodeToString(data), nil
 }
 
 func pkcs7_pad(data []byte, blockSize int) []byte {
