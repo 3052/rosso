@@ -16,6 +16,14 @@ import (
    "time"
 )
 
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
 func get_client(url_data *url.URL, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
    // 1. base64 raw URL decode secret key
@@ -75,6 +83,63 @@ func FetchTracking(urlData string) (string, error) {
 type Dash struct {
    Body []byte
    Url  *url.URL
+}
+
+type Episode struct {
+   Desc   string
+   Id     string
+   Params struct {
+      SeriesEpisode int
+   }
+   Title string
+}
+
+func (e *Episode) String() string {
+   var data strings.Builder
+   data.WriteString("episode = ")
+   data.WriteString(strconv.Itoa(e.Params.SeriesEpisode))
+   data.WriteString("\ntitle = ")
+   data.WriteString(e.Title)
+   data.WriteString("\ndesc = ")
+   data.WriteString(e.Desc)
+   data.WriteString("\ntracking = ")
+   data.WriteString(e.Id)
+   return data.String()
+}
+
+type Login struct {
+   Label    string
+   Message  string
+   SsoToken string // this last one day
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label = ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage = ")
+   data.WriteString(l.Message)
+   return data.String()
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl string
+   }
+   Message   string
+   Subtitles []struct {
+      Url string
+   }
+   Url string // MPD
+}
+
+func (p *Player) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }
 
 func (p *Player) Dash() (*Dash, error) {
@@ -278,70 +343,3 @@ func FetchTicket() (*Ticket, error) {
    }
    return &result, nil
 }
-
-///
-
-type Episode struct {
-   Desc   string
-   Id     string
-   Params struct {
-      SeriesEpisode int
-   }
-   Title string
-}
-
-func (e *Episode) String() string {
-   var data strings.Builder
-   data.WriteString("episode = ")
-   data.WriteString(strconv.Itoa(e.Params.SeriesEpisode))
-   data.WriteString("\ntitle = ")
-   data.WriteString(e.Title)
-   data.WriteString("\ndesc = ")
-   data.WriteString(e.Desc)
-   data.WriteString("\ntracking = ")
-   data.WriteString(e.Id)
-   return data.String()
-}
-
-type Login struct {
-   Label    string
-   Message  string
-   SsoToken string // this last one day
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label = ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage = ")
-   data.WriteString(l.Message)
-   return data.String()
-}
-
-type Player struct {
-   Drm struct {
-      LicenseUrl string
-   }
-   Message   string
-   Subtitles []struct {
-      Url string
-   }
-   Url string // MPD
-}
-
-func (p *Player) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)

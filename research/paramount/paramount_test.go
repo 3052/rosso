@@ -5,17 +5,12 @@ import (
    "io"
    "net/http"
    "net/url"
-   "os"
    "testing"
    "time"
 )
 
 func TestCbs(t *testing.T) {
-   data, err := os.ReadFile("base.apk")
-   if err != nil {
-      t.Fatal(err)
-   }
-   results, err := ExtractDexHexBytes(data)
+   results, err := ExtractDexHexBytes("base.apk")
    if err != nil {
       t.Fatal(err)
    }
@@ -31,11 +26,7 @@ func TestCbs(t *testing.T) {
 }
 
 func TestParamount(t *testing.T) {
-   data, err := os.ReadFile("base.apk")
-   if err != nil {
-      t.Fatal(err)
-   }
-   results, err := ExtractDexHexBytes(data)
+   results, err := ExtractDexHexBytes("base.apk")
    if err != nil {
       t.Fatal(err)
    }
