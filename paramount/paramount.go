@@ -16,6 +16,72 @@ import (
    "strings"
 )
 
+// 576p L3
+func Widevine(at, contentId string) (*SessionToken, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.paramountplus.com",
+         Path:   "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json",
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SessionToken
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+// 1080p SL2000
+// 1440p SL2000 + cookie
+func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.paramountplus.com",
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbsCom != nil {
+      req.AddCookie(cbsCom)
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
+   } else {
+      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SessionToken
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Errors != "" {
+      return nil, errors.New(result.Errors)
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streaming URL is empty")
+   }
+   return &result, nil
+}
+
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
 
 var AppSecrets = []struct {
@@ -159,34 +225,6 @@ func (s *SessionToken) Send(body []byte) ([]byte, error) {
    }
    return io.ReadAll(resp.Body)
 }
-
-// 576p L3
-func Widevine(at, contentId string) (*SessionToken, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "www.paramountplus.com",
-         Path:   "/apps-api/v3.1/androidphone/irdeto-control/anonymous-session-token.json",
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SessionToken
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
 func (s *SessionToken) Dash() (*Dash, error) {
    resp, err := http.Get(s.StreamingUrl)
    if err != nil {
@@ -205,43 +243,4 @@ type SessionToken struct {
    LsSession    string `json:"ls_session"`
    Url          string
    StreamingUrl string
-}
-
-// 1080p SL2000
-// 1440p SL2000 + cookie
-func PlayReady(at, contentId string, cbsCom *http.Cookie) (*SessionToken, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "www.paramountplus.com",
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbsCom != nil {
-      req.AddCookie(cbsCom)
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/session-token.json"
-   } else {
-      req.URL.Path = "/apps-api/v3.1/xboxone/irdeto-control/anonymous-session-token.json"
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SessionToken
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Errors != "" {
-      return nil, errors.New(result.Errors)
-   }
-   if result.StreamingUrl == "" {
-      return nil, errors.New("streaming URL is empty")
-   }
-   return &result, nil
 }
