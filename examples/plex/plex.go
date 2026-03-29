@@ -90,9 +90,9 @@ func (c *client) do_dash_id() error {
 }
 
 type client struct {
-   Dash      *plex.Dash
+   Dash *plex.Dash
    Part *plex.Part
-   User      *plex.User
+   User *plex.User
    //------------------
    Job maya.Job
    //------------------

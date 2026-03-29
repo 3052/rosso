@@ -47,6 +47,7 @@ func (c *client) do_username_password() error {
 
 func main() {
    log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s,*.mp4")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -60,8 +61,6 @@ type client struct {
    Dash   *paramount.Dash
    //--------------------
    Job maya.Job
-   //--------------------
-   Proxy string
    //--------------------
    username string
    password string
@@ -80,8 +79,6 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
    //--------------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
-   //--------------------------------------------------------------
    username := maya.StringFlag(&c.username, "U", "username")
    password := maya.StringFlag(&c.password, "P", "password")
    //--------------------------------------------------------------
@@ -93,14 +90,7 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   err = maya.SetProxy(c.Proxy, "*.m4s,*.mp4")
-   if err != nil {
-      return err
-   }
    if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if proxy.IsSet {
       return cache.Write(c)
    }
    if username.IsSet {
@@ -116,7 +106,6 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
-      {proxy},
       {username, password},
       {paramount_id, c.cookie},
       {dash_id, c.cookie},
@@ -136,11 +125,11 @@ func (c *client) do_paramount() error {
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
-   item, err := paramount.FetchItem(at, c.ParamountId, cbs_com)
+   token, err := paramount.PlayReady(at, c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
-   c.Dash, err = item.Dash()
+   c.Dash, err = token.Dash()
    if err != nil {
       return err
    }
