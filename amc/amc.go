@@ -15,6 +15,38 @@ func BcJwt(header http.Header) string {
    return header.Get("x-amcn-bc-jwt")
 }
 
+func (c *Client) Season(id int) (*Season, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "android")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data Season
+   }
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
 func (c *Client) Refresh() error {
    req := http.Request{
       Method: "POST",
@@ -187,6 +219,11 @@ func (c *Client) Playback(id int) ([]Source, http.Header, error) {
    return result.Data.PlaybackJsonData.Sources, resp.Header, nil
 }
 
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
 func (m *Metadata) String() string {
    data := &strings.Builder{}
    if m.EpisodeNumber >= 0 {
@@ -220,11 +257,6 @@ type Series struct {
 }
 
 ///
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
 
 // Episodes extracts metadata exclusively from a Season
 func (s *Season) Episodes() ([]*Metadata, error) {
@@ -338,36 +370,4 @@ func GetDash(sources []Source) (*Source, error) {
       }
    }
    return nil, errors.New("DASH source not found")
-}
-
-func (c *Client) Season(id int) (*Season, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "android")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data Season
-   }
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
 }
