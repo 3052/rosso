@@ -16,6 +16,124 @@ import (
    "time"
 )
 
+func get_client(url_data *url.URL, body []byte) (string, error) {
+   encoding := base64.RawURLEncoding
+   // 1. base64 raw URL decode secret key
+   decoded_key, err := encoding.DecodeString(secret_key)
+   if err != nil {
+      return "", err
+   }
+   // Prepare timestamp as string immediately
+   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+   body_checksum := sha256.Sum256(body)
+   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
+   // 2. hmac.New(sha256.New, secret key)
+   hash := hmac.New(sha256.New, decoded_key)
+   // 3, 4, 5. Write components to the hasher
+   io.WriteString(hash, url_data.String())
+   io.WriteString(hash, encoded_body_hash)
+   io.WriteString(hash, timestamp)
+   // 6. base64 raw URL encode the hmac sum
+   signature := encoding.EncodeToString(hash.Sum(nil))
+   // Construct final result string using strings.Builder
+   var data strings.Builder
+   data.WriteString("Client key=")
+   data.WriteString(client_key)
+   data.WriteString(",time=")
+   data.WriteString(timestamp)
+   data.WriteString(",sig=")
+   data.WriteString(signature)
+   return data.String(), nil
+}
+
+func FetchTracking(urlData string) (string, error) {
+   resp, err := http.Get(urlData)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return "", errors.New(resp.Status)
+   }
+   var data strings.Builder
+   _, err = io.Copy(&data, resp.Body)
+   if err != nil {
+      return "", err
+   }
+   const start_key = `data-algolia-convert-tracking="`
+   _, after, found := strings.Cut(data.String(), start_key)
+   if !found {
+      return "", fmt.Errorf("attribute key %q not found", start_key)
+   }
+   before, _, found := strings.Cut(after, `"`)
+   if !found {
+      return "", errors.New("could not find closing quote for the attribute")
+   }
+   return before, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (p *Player) Dash() (*Dash, error) {
+   resp, err := http.Get(p.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   data, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
+}
+
 func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
    req := http.Request{
       URL: &url.URL{
@@ -161,10 +279,7 @@ func FetchTicket() (*Ticket, error) {
    return &result, nil
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
+///
 
 type Episode struct {
    Desc   string
@@ -230,115 +345,3 @@ const (
    client_key = "web.NhFyz4KsZ54"
    secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
 )
-
-func get_client(url_data *url.URL, body []byte) (string, error) {
-   encoding := base64.RawURLEncoding
-   // 1. base64 raw URL decode secret key
-   decoded_key, err := encoding.DecodeString(secret_key)
-   if err != nil {
-      return "", err
-   }
-   // Prepare timestamp as string immediately
-   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-   body_checksum := sha256.Sum256(body)
-   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
-   // 2. hmac.New(sha256.New, secret key)
-   hash := hmac.New(sha256.New, decoded_key)
-   // 3, 4, 5. Write components to the hasher
-   io.WriteString(hash, url_data.String())
-   io.WriteString(hash, encoded_body_hash)
-   io.WriteString(hash, timestamp)
-   // 6. base64 raw URL encode the hmac sum
-   signature := encoding.EncodeToString(hash.Sum(nil))
-   // Construct final result string using strings.Builder
-   var data strings.Builder
-   data.WriteString("Client key=")
-   data.WriteString(client_key)
-   data.WriteString(",time=")
-   data.WriteString(timestamp)
-   data.WriteString(",sig=")
-   data.WriteString(signature)
-   return data.String(), nil
-}
-
-func FetchTracking(urlData string) (string, error) {
-   resp, err := http.Get(urlData)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return "", errors.New(resp.Status)
-   }
-   var data strings.Builder
-   _, err = io.Copy(&data, resp.Body)
-   if err != nil {
-      return "", err
-   }
-   const start_key = `data-algolia-convert-tracking="`
-   _, after, found := strings.Cut(data.String(), start_key)
-   if !found {
-      return "", fmt.Errorf("attribute key %q not found", start_key)
-   }
-   before, _, found := strings.Cut(after, `"`)
-   if !found {
-      return "", errors.New("could not find closing quote for the attribute")
-   }
-   return before, nil
-}
-
-func (p *Player) Dash() (*Dash, error) {
-   resp, err := http.Get(p.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-func (s *Session) Player(tracking string) (*Player, error) {
-   data, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
