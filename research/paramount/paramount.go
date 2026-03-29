@@ -1,40 +1,65 @@
 package paramount
 
 import (
-   "archive/zip"
    "crypto/aes"
    "crypto/cipher"
    "encoding/base64"
    "encoding/binary"
    "encoding/hex"
-   "io"
-   "regexp"
+   "encoding/json"
+   "errors"
+   "net/http"
+   "net/url"
    "slices"
    "strings"
 )
 
-// ExtractDexHexBytes returns a set (map) of unique 16-character hex strings
-// found in .dex files
-func ExtractDexHexBytes(name string) (map[string]struct{}, error) {
-   results := make(map[string]struct{})
-   reader, err := zip.OpenReader(name)
+// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
+// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
+func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
+   body := url.Values{
+      "j_username": {username},
+      "j_password": {password},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST",
+      "https://www.paramountplus.com/apps-api/v2.0/androidphone/auth/login.json",
+      strings.NewReader(body),
+   )
    if err != nil {
       return nil, err
    }
-   for _, f := range reader.File {
-      if strings.HasSuffix(f.Name, ".dex") {
-         content, err := readZipFile(f)
-         if err != nil {
-            return nil, err
-         }
-         matches := hexPattern.FindAllSubmatch(content, -1)
-         for _, match := range matches {
-            results[string(match[1])] = struct{}{}
-         }
+   req.URL.RawQuery = url.Values{"at": {at}}.Encode()
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   // randomly fails if this is missing
+   req.Header.Set("user-agent", "!")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Message string
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "CBS_COM" {
+         return cookie, nil
       }
    }
-   return results, nil
+   return nil, http.ErrNoCookie
 }
+
+///
 
 var Apps = []struct {
    url        string
@@ -60,17 +85,6 @@ var Apps = []struct {
       version:    "Paramount+ 16.8.0",
       app_secret: "1c5d27627d71b420",
    },
-}
-
-var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)
-
-func readZipFile(f *zip.File) ([]byte, error) {
-   rc, err := f.Open()
-   if err != nil {
-      return nil, err
-   }
-   defer rc.Close()
-   return io.ReadAll(rc)
 }
 
 func pkcs7_pad(data []byte, blockSize int) []byte {

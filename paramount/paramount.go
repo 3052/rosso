@@ -23,86 +23,6 @@ import (
    "strings"
 )
 
-func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
-   endpoint := "anonymous-session-token.json"
-   if cbs_com != nil {
-      endpoint = "session-token.json"
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "www.paramountplus.com",
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbs_com != nil {
-      req.AddCookie(cbs_com)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Token
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func GetAt(appSecret string) (string, error) {
-   // 1. Decode hex secret key
-   key, err := hex.DecodeString(secret_key)
-   if err != nil {
-      return "", err
-   }
-   // 2. Create aes cipher with key
-   block, err := aes.NewCipher(key)
-   if err != nil {
-      return "", err
-   }
-   // 3 & 4. Create payload: "|" + appSecret
-   data := []byte{'|'}
-   data = append(data, appSecret...)
-   // 5. Apply PKCS7 Padding (Separate Function)
-   data = pkcs7_pad(data, aes.BlockSize)
-   // Prepare Empty IV (16 bytes of zeros)
-   var iv [aes.BlockSize]byte
-   // 6. CBC encrypt with empty IV
-   // We encrypt 'data' in place
-   cipher.NewCBCEncrypter(block, iv[:]).CryptBlocks(data, data)
-   // 8. Create Header for block size (uint16)
-   size := binary.BigEndian.AppendUint16(nil, aes.BlockSize)
-   // 7 & 8. Combine [Size] + [IV] + [Encrypted Data]
-   data = slices.Concat(size, iv[:], data)
-   // 9. Return result base64 encoded
-   return base64.StdEncoding.EncodeToString(data), nil
-}
-
-var AppSecrets = []struct {
-   Version       string
-   Us            string
-   International string
-}{
-   {
-      Version:       "16.4.1",
-      Us:            "7cd07f93a6e44cf7",
-      International: "68b4475a49bed95a",
-   },
-   {
-      Version:       "16.0.0",
-      Us:            "9fc14cb03691c342",
-      International: "6c68178445de8138",
-   },
-}
-
-const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
-
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
@@ -147,6 +67,8 @@ func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
    }
    return nil, http.ErrNoCookie
 }
+
+///
 
 func pkcs7_pad(data []byte, blockSize int) []byte {
    // Calculate the number of padding bytes needed.
@@ -237,3 +159,82 @@ func (t *Token) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "www.paramountplus.com",
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Token
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+func GetAt(appSecret string) (string, error) {
+   // 1. Decode hex secret key
+   key, err := hex.DecodeString(secret_key)
+   if err != nil {
+      return "", err
+   }
+   // 2. Create aes cipher with key
+   block, err := aes.NewCipher(key)
+   if err != nil {
+      return "", err
+   }
+   // 3 & 4. Create payload: "|" + appSecret
+   data := []byte{'|'}
+   data = append(data, appSecret...)
+   // 5. Apply PKCS7 Padding (Separate Function)
+   data = pkcs7_pad(data, aes.BlockSize)
+   // Prepare Empty IV (16 bytes of zeros)
+   var iv [aes.BlockSize]byte
+   // 6. CBC encrypt with empty IV
+   // We encrypt 'data' in place
+   cipher.NewCBCEncrypter(block, iv[:]).CryptBlocks(data, data)
+   // 8. Create Header for block size (uint16)
+   size := binary.BigEndian.AppendUint16(nil, aes.BlockSize)
+   // 7 & 8. Combine [Size] + [IV] + [Encrypted Data]
+   data = slices.Concat(size, iv[:], data)
+   // 9. Return result base64 encoded
+   return base64.StdEncoding.EncodeToString(data), nil
+}
+
+var AppSecrets = []struct {
+   Version       string
+   Us            string
+   International string
+}{
+   {
+      Version:       "16.4.1",
+      Us:            "7cd07f93a6e44cf7",
+      International: "68b4475a49bed95a",
+   },
+   {
+      Version:       "16.0.0",
+      Us:            "9fc14cb03691c342",
+      International: "6c68178445de8138",
+   },
+}
+
+const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
