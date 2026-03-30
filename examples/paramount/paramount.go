@@ -9,6 +9,78 @@ import (
    "net/http"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s,*.mp4")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   CbsCom *http.Cookie
+   Dash   *paramount.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   cookie *maya.Flag
+   //--------------------
+   ParamountId string
+   //--------------------
+   dash_id string
+}
+
+///
+
+func (c *client) do_username_password() error {
+   app_secret, err := paramount.FetchAppSecret()
+   if err != nil {
+      return err
+   }
+   at, err := paramount.GetAt(app_secret)
+   if err != nil {
+      return err
+   }
+   c.CbsCom, err = paramount.FetchCbsCom(at, c.username, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_paramount() error {
+   app_secret, err := paramount.FetchAppSecret()
+   if err != nil {
+      return err
+   }
+   at, err := paramount.GetAt(app_secret)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   token, err := paramount.FetchStreamingUrl(at, c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = token.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
 func (c *client) do_dash_id() error {
    app_secret, err := paramount.FetchAppSecret()
    if err != nil {
@@ -68,75 +140,4 @@ func (c *client) do() error {
       {paramount_id, c.cookie},
       {dash_id, c.cookie},
    })
-}
-
-func (c *client) do_username_password() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
-   if err != nil {
-      return err
-   }
-   c.CbsCom, err = paramount.FetchCbsCom(at, c.username, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s,*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   CbsCom *http.Cookie
-   Dash   *paramount.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   cookie *maya.Flag
-   //--------------------
-   ParamountId string
-   //--------------------
-   dash_id string
-}
-
-func (c *client) do_paramount() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   token, err := paramount.FetchStreamingUrl(at, c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = token.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }

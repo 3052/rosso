@@ -34,7 +34,7 @@ func TestContent(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   password, err := run("credential", "-h=api.nordvpn.com")
+   password, err := run("credential", "-h=api.nordvpn.com", "-k=password")
    if err != nil {
       t.Fatal(err)
    }
@@ -78,7 +78,7 @@ func TestPasswordLogin(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   password, err := run("credential", "-h=crave.ca")
+   password, err := run("credential", "-h=crave.ca", "-k=password")
    if err != nil {
       t.Fatal(err)
    }

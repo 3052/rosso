@@ -15,13 +15,6 @@ import (
    "strings"
 )
 
-type app struct {
-   host    string
-   id      string
-   secret  string
-   version string
-}
-
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *app) CbsCom(username, password string) (*http.Cookie, error) {
@@ -69,6 +62,15 @@ func (a *app) CbsCom(username, password string) (*http.Cookie, error) {
       }
    }
    return nil, http.ErrNoCookie
+}
+
+///
+
+type app struct {
+   host    string
+   id      string
+   secret  string
+   version string
 }
 
 func GetAt(appSecret string) (string, error) {
