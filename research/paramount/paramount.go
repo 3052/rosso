@@ -60,24 +60,6 @@ func (s *Session) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-var Apps = map[string]App{
-   "com.cbs.app": {
-      Host:    "www.paramountplus.com",
-      Secret:  "7081400bd4143bf3",
-      Version: "Paramount+ 16.8.0",
-   },
-   "com.cbs.ca": {
-      Host:    "www.paramountplus.com",
-      Secret:  "1c5d27627d71b420",
-      Version: "Paramount+ 16.8.0",
-   },
-   "com.cbs.tve": {
-      Host:    "www.cbs.com",
-      Secret:  "cef32931dc01412e",
-      Version: "CBS 15.6.0",
-   },
-}
-
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {
@@ -177,12 +159,6 @@ type Session struct {
    LsSession    string `json:"ls_session"`
    StreamingUrl string `json:"streamingUrl"` // MPD
    Url          string `json:"url"`          // License Server
-}
-
-type App struct {
-   Host    string
-   Secret  string
-   Version string
 }
 
 func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session, error) {

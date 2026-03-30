@@ -1,13 +1,38 @@
-// WE COULD CACHE THE APP SECRET BUT THEN TO CHANGE LOCATION YOU WOULD NEED TO
-// SET PROXY AND APP SECRET
 package main
 
 import (
    "41.neocities.org/maya"
-   "41.neocities.org/rosso/paramount"
+   "41.neocities.org/rosso/research/paramount"
    "log"
    "net/http"
 )
+
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s,*.mp4")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   CbsCom *http.Cookie
+   Dash   *paramount.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   cookie *maya.Flag
+   //--------------------
+   ParamountId string
+   //--------------------
+   dash_id string
+}
 
 func (c *client) do_dash_id() error {
    app_secret, err := paramount.FetchAppSecret()
@@ -27,33 +52,6 @@ func (c *client) do_dash_id() error {
       return err
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, token.Send)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s,*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   CbsCom *http.Cookie
-   Dash   *paramount.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   cookie *maya.Flag
-   //--------------------
-   ParamountId string
-   //--------------------
-   dash_id string
 }
 
 func (c *client) do_username_password() error {
