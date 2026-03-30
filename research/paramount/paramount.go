@@ -1,6 +1,7 @@
 package paramount
 
 import (
+   "bytes"
    "crypto/aes"
    "crypto/cipher"
    "encoding/base64"
@@ -9,11 +10,55 @@ import (
    "encoding/json"
    "errors"
    "fmt"
+   "io"
    "net/http"
    "net/url"
    "slices"
    "strings"
 )
+
+func (s *Session) Send(body []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, error) {
+   return a.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, error) {
+   return a.fetch_session("xboxone", contentId, cbsCom)
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (s *Session) Dash() (*Dash, error) {
+   resp, err := http.Get(s.StreamingUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
 
 var Apps = map[string]App{
    "com.cbs.app": {

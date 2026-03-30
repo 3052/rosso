@@ -23,6 +23,14 @@ import (
    "strings"
 )
 
+func FetchWidevine(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   return fetchToken("androidphone", at, contentId, cbsCom)
+}
+
+func FetchPlayReady(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   return fetchToken("xboxone", at, contentId, cbsCom)
+}
+
 func FetchAppSecret() (string, error) {
    resp, err := http.Head("https://www.paramountplus.com")
    if err != nil {
@@ -97,19 +105,6 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    return data
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func FetchWidevine(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
-   return fetchToken("androidphone", at, contentId, cbsCom)
-}
-
-func FetchPlayReady(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
-   return fetchToken("xboxone", at, contentId, cbsCom)
-}
-
 func (t *Token) Send(body []byte) ([]byte, error) {
    req, err := http.NewRequest("POST", t.Url, bytes.NewReader(body))
    if err != nil {
@@ -125,19 +120,6 @@ func (t *Token) Send(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-func (t *Token) Dash() (*Dash, error) {
-   resp, err := http.Get(t.StreamingUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
 type Token struct {
@@ -237,3 +219,21 @@ var AppSecrets = []struct {
 }
 
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (t *Token) Dash() (*Dash, error) {
+   resp, err := http.Get(t.StreamingUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
