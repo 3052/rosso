@@ -23,6 +23,23 @@ import (
    "strings"
 )
 
+///
+
+func FetchAppSecret() (string, error) {
+   resp, err := http.Head("https://www.paramountplus.com")
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   switch resp.Header.Get("x-real-server") {
+   case "us_www_web_prod_vip1":
+      return AppSecrets[0].Us, nil
+   case "international_www_web_prod_vip1":
+      return AppSecrets[0].International, nil
+   }
+   return "", errors.New("unexpected or missing server header value")
+}
+
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
@@ -68,8 +85,6 @@ func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
-///
-
 func pkcs7_pad(data []byte, blockSize int) []byte {
    // Calculate the number of padding bytes needed.
    // If data is already a multiple of blockSize, this results in a full block
@@ -82,21 +97,6 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
       data = append(data, padByte)
    }
    return data
-}
-
-func FetchAppSecret() (string, error) {
-   resp, err := http.Head("https://www.paramountplus.com")
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   switch resp.Header.Get("x-real-server") {
-   case "us_www_web_prod_vip1":
-      return AppSecrets[0].Us, nil
-   case "international_www_web_prod_vip1":
-      return AppSecrets[0].International, nil
-   }
-   return "", errors.New("unexpected or missing server header value")
 }
 
 type Dash struct {

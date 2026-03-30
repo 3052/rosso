@@ -3,10 +3,30 @@ package paramount
 import (
    "fmt"
    "os/exec"
-   "slices"
    "strings"
    "testing"
 )
+
+func TestCookie(t *testing.T) {
+   username, err := run("credential", "-h=paramountplus.com", "-k=username")
+   if err != nil {
+      t.Fatal(err)
+   }
+   password, err := run("credential", "-h=paramountplus.com", "-k=password")
+   if err != nil {
+      t.Fatal(err)
+   }
+   const id = "com.cbs.app"
+   app_data, ok := Apps[id]
+   if !ok {
+      t.Fatal(id)
+   }
+   cookie, err := app_data.CbsCom(username, password)
+   if err != nil {
+      t.Fatal(err)
+   }
+   t.Log(cookie)
+}
 
 func run(name string, arg ...string) (string, error) {
    var data strings.Builder
@@ -18,23 +38,4 @@ func run(name string, arg ...string) (string, error) {
       return "", err
    }
    return data.String(), nil
-}
-
-func TestCookie(t *testing.T) {
-   username, err := run("credential", "-h=paramountplus.com", "-k=username")
-   if err != nil {
-      t.Fatal(err)
-   }
-   password, err := run("credential", "-h=paramountplus.com", "-k=password")
-   if err != nil {
-      t.Fatal(err)
-   }
-   i := slices.IndexFunc(Apps, func(a *app) bool {
-      return a.id == "com.cbs.app"
-   })
-   cookie, err := Apps[i].CbsCom(username, password)
-   if err != nil {
-      t.Fatal(err)
-   }
-   t.Log(cookie)
 }

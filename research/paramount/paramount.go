@@ -15,9 +15,33 @@ import (
    "strings"
 )
 
+var Apps = map[string]App{
+   "com.cbs.app": {
+      host:    "www.paramountplus.com",
+      secret:  "7081400bd4143bf3",
+      version: "Paramount+ 16.8.0",
+   },
+   "com.cbs.ca": {
+      host:    "www.paramountplus.com",
+      secret:  "1c5d27627d71b420",
+      version: "Paramount+ 16.8.0",
+   },
+   "com.cbs.tve": {
+      host:    "www.cbs.com",
+      secret:  "cef32931dc01412e",
+      version: "CBS 15.6.0",
+   },
+}
+
+type App struct {
+   host    string
+   secret  string
+   version string
+}
+
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func (a *app) CbsCom(username, password string) (*http.Cookie, error) {
+func (a *App) CbsCom(username, password string) (*http.Cookie, error) {
    at, err := GetAt(a.secret)
    if err != nil {
       return nil, err
@@ -64,15 +88,6 @@ func (a *app) CbsCom(username, password string) (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
-///
-
-type app struct {
-   host    string
-   id      string
-   secret  string
-   version string
-}
-
 func GetAt(appSecret string) (string, error) {
    // 1. Decode hex secret key
    key, err := hex.DecodeString(secret_key)
@@ -103,26 +118,6 @@ func GetAt(appSecret string) (string, error) {
 }
 
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
-var Apps = []*app{
-   {
-      host:    "www.paramountplus.com",
-      id:      "com.cbs.app",
-      secret:  "7081400bd4143bf3",
-      version: "Paramount+ 16.8.0",
-   },
-   {
-      host:    "www.paramountplus.com",
-      id:      "com.cbs.ca",
-      secret:  "1c5d27627d71b420",
-      version: "Paramount+ 16.8.0",
-   },
-   {
-      host:    "www.cbs.com",
-      id:      "com.cbs.tve",
-      secret:  "cef32931dc01412e",
-      version: "CBS 15.6.0",
-   },
-}
 
 func pkcs7_pad(data []byte, blockSize int) []byte {
    // Calculate the number of padding bytes needed.
@@ -137,4 +132,3 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    }
    return data
 }
-
