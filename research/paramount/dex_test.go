@@ -9,23 +9,7 @@ import (
    "time"
 )
 
-func TestCbs(t *testing.T) {
-   results, err := ExtractDexHexBytes("base.apk")
-   if err != nil {
-      t.Fatal(err)
-   }
-   var sleep bool
-   for result := range results {
-      if sleep {
-         time.Sleep(time.Second)
-      } else {
-         sleep = true
-      }
-      t.Log(brands("www.cbs.com", result), result)
-   }
-}
-
-func TestParamount(t *testing.T) {
+func TestDexParamount(t *testing.T) {
    results, err := ExtractDexHexBytes("base.apk")
    if err != nil {
       t.Fatal(err)
@@ -38,6 +22,22 @@ func TestParamount(t *testing.T) {
          sleep = true
       }
       t.Log(brands("www.paramountplus.com", result), result)
+   }
+}
+
+func TestDexCbs(t *testing.T) {
+   results, err := ExtractDexHexBytes("base.apk")
+   if err != nil {
+      t.Fatal(err)
+   }
+   var sleep bool
+   for result := range results {
+      if sleep {
+         time.Sleep(time.Second)
+      } else {
+         sleep = true
+      }
+      t.Log(brands("www.cbs.com", result), result)
    }
 }
 

@@ -8,22 +8,34 @@ import (
    "encoding/hex"
    "encoding/json"
    "errors"
+   "fmt"
    "net/http"
    "net/url"
    "slices"
    "strings"
 )
 
+type app struct {
+   host    string
+   id      string
+   secret  string
+   version string
+}
+
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
+func (a *app) CbsCom(username, password string) (*http.Cookie, error) {
+   at, err := GetAt(a.secret)
+   if err != nil {
+      return nil, err
+   }
    body := url.Values{
       "j_username": {username},
       "j_password": {password},
    }.Encode()
    req, err := http.NewRequest(
       "POST",
-      "https://www.paramountplus.com/apps-api/v2.0/androidphone/auth/login.json",
+      fmt.Sprintf("https://%v/apps-api/v2.0/androidphone/auth/login.json", a.host),
       strings.NewReader(body),
    )
    if err != nil {
@@ -59,48 +71,6 @@ func FetchCbsCom(at, username, password string) (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
-///
-
-var Apps = []struct {
-   url        string
-   id         string
-   version    string
-   app_secret string
-}{
-   {
-      url:        "https://apkmirror.com/apk/viacomcbs-streaming/paramount",
-      id:         "com.cbs.app",
-      version:    "Paramount+ 16.8.0",
-      app_secret: "7081400bd4143bf3",
-   },
-   {
-      url:        "https://apkmirror.com/apk/cbs-interactive-inc/cbs",
-      id:         "com.cbs.tve",
-      version:    "CBS 15.6.0",
-      app_secret: "cef32931dc01412e",
-   },
-   {
-      url:        "https://apkmirror.com/apk/viacomcbs-streaming/paramount-4",
-      id:         "com.cbs.ca",
-      version:    "Paramount+ 16.8.0",
-      app_secret: "1c5d27627d71b420",
-   },
-}
-
-func pkcs7_pad(data []byte, blockSize int) []byte {
-   // Calculate the number of padding bytes needed.
-   // If data is already a multiple of blockSize, this results in a full block
-   // of padding.
-   paddingLen := blockSize - (len(data) % blockSize)
-   // Create a padding byte (the value is the length of the padding)
-   padByte := byte(paddingLen)
-   // Append the padding byte 'paddingLen' times
-   for i := 0; i < paddingLen; i++ {
-      data = append(data, padByte)
-   }
-   return data
-}
-
 func GetAt(appSecret string) (string, error) {
    // 1. Decode hex secret key
    key, err := hex.DecodeString(secret_key)
@@ -131,3 +101,38 @@ func GetAt(appSecret string) (string, error) {
 }
 
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
+var Apps = []*app{
+   {
+      host:    "www.paramountplus.com",
+      id:      "com.cbs.app",
+      secret:  "7081400bd4143bf3",
+      version: "Paramount+ 16.8.0",
+   },
+   {
+      host:    "www.paramountplus.com",
+      id:      "com.cbs.ca",
+      secret:  "1c5d27627d71b420",
+      version: "Paramount+ 16.8.0",
+   },
+   {
+      host:    "www.cbs.com",
+      id:      "com.cbs.tve",
+      secret:  "cef32931dc01412e",
+      version: "CBS 15.6.0",
+   },
+}
+
+func pkcs7_pad(data []byte, blockSize int) []byte {
+   // Calculate the number of padding bytes needed.
+   // If data is already a multiple of blockSize, this results in a full block
+   // of padding.
+   paddingLen := blockSize - (len(data) % blockSize)
+   // Create a padding byte (the value is the length of the padding)
+   padByte := byte(paddingLen)
+   // Append the padding byte 'paddingLen' times
+   for i := 0; i < paddingLen; i++ {
+      data = append(data, padByte)
+   }
+   return data
+}
+
