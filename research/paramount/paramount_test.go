@@ -7,6 +7,10 @@ import (
    "testing"
 )
 
+func TestVideos(t *testing.T) {
+   t.Log(videos)
+}
+
 var videos = []struct {
    justWatch  string
    paramount  string
@@ -33,17 +37,13 @@ var videos = []struct {
    },
 }
 
-func Test(t *testing.T) {
-   t.Log(videos)
-}
-
 func TestStreamingUrl(t *testing.T) {
    const id = "com.cbs.tve"
    app_data, ok := Apps[id]
    if !ok {
       t.Fatal(id)
    }
-   token_data, err := app_data.StreamingUrl(
+   token_data, err := app_data.FetchStreamingUrl(
       "uuwl_4UT4MrVsGwmKFA_FE95RXPmbOMl", nil,
    )
    if err != nil {
@@ -66,7 +66,7 @@ func TestCookie(t *testing.T) {
    if !ok {
       t.Fatal(id)
    }
-   cookie, err := app_data.CbsCom(username, password)
+   cookie, err := app_data.FetchCbsCom(username, password)
    if err != nil {
       t.Fatal(err)
    }

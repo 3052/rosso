@@ -35,7 +35,7 @@ var Apps = map[string]App{
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func (a *App) CbsCom(username, password string) (*http.Cookie, error) {
+func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {
    at, err := GetAt(a.Secret)
    if err != nil {
       return nil, err
@@ -127,7 +127,7 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    return data
 }
 
-type Token struct {
+type Session struct {
    Errors       string `json:"errors"`
    LsSession    string `json:"ls_session"`
    StreamingUrl string `json:"streamingUrl"` // MPD
@@ -140,8 +140,8 @@ type App struct {
    Version string
 }
 
-func (a *App) StreamingUrl(contentId string, cbsCom *http.Cookie) (*Token, error) {
-   result, err := a.token("androidphone", contentId, cbsCom)
+func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session, error) {
+   result, err := a.fetch_session("androidphone", contentId, cbsCom)
    if err != nil {
       return nil, err
    }
@@ -151,7 +151,7 @@ func (a *App) StreamingUrl(contentId string, cbsCom *http.Cookie) (*Token, error
    return result, nil
 }
 
-func (a *App) token(platform, contentId string, cbs_com *http.Cookie) (*Token, error) {
+func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
    at, err := GetAt(a.Secret)
    if err != nil {
       return nil, err
@@ -180,7 +180,7 @@ func (a *App) token(platform, contentId string, cbs_com *http.Cookie) (*Token, e
       return nil, err
    }
    defer resp.Body.Close()
-   var result Token
+   var result Session
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
