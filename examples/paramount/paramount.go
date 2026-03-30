@@ -1,20 +1,15 @@
-// WE COULD CACHE THE APP SECRET BUT THEN TO CHANGE LOCATION YOU WOULD NEED TO
-// SET PROXY AND APP SECRET
 package main
 
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/paramount"
+   "fmt"
    "log"
    "net/http"
 )
 
 func (c *client) do_dash_id() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
+   app, err := paramount.GetApp(c.App)
    if err != nil {
       return err
    }
@@ -22,12 +17,14 @@ func (c *client) do_dash_id() error {
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
-   token, err := paramount.FetchPlayReady(at, c.ParamountId, cbs_com)
+   session, err := app.FetchPlayReady(c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, token.Send)
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, session.Send)
 }
+
+var cache maya.Cache
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -38,13 +35,13 @@ func main() {
    }
 }
 
-var cache maya.Cache
-
 type client struct {
    CbsCom *http.Cookie
    Dash   *paramount.Dash
    //--------------------
    Job maya.Job
+   //--------------------
+   App string
    //--------------------
    username string
    password string
@@ -57,15 +54,11 @@ type client struct {
 }
 
 func (c *client) do_username_password() error {
-   app_secret, err := paramount.FetchAppSecret()
+   app, err := paramount.GetApp(c.App)
    if err != nil {
       return err
    }
-   at, err := paramount.GetAt(app_secret)
-   if err != nil {
-      return err
-   }
-   c.CbsCom, err = paramount.FetchCbsCom(at, c.username, c.password)
+   c.CbsCom, err = app.FetchCbsCom(c.username, c.password)
    if err != nil {
       return err
    }
@@ -79,6 +72,8 @@ func (c *client) do() error {
    }
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+   //--------------------------------------------------------------
+   app := maya.StringFlag(&c.App, "a", fmt.Sprint(paramount.GetAppKeys()))
    //--------------------------------------------------------------
    username := maya.StringFlag(&c.username, "U", "username")
    password := maya.StringFlag(&c.password, "P", "password")
@@ -94,6 +89,9 @@ func (c *client) do() error {
    if playReady.IsSet {
       return cache.Write(c)
    }
+   if app.IsSet {
+      return cache.Write(c)
+   }
    if username.IsSet {
       if password.IsSet {
          return with_cache(c.do_username_password)
@@ -107,6 +105,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
+      {app},
       {username, password},
       {paramount_id, c.cookie},
       {dash_id, c.cookie},
@@ -114,11 +113,7 @@ func (c *client) do() error {
 }
 
 func (c *client) do_paramount() error {
-   app_secret, err := paramount.FetchAppSecret()
-   if err != nil {
-      return err
-   }
-   at, err := paramount.GetAt(app_secret)
+   app, err := paramount.GetApp(c.App)
    if err != nil {
       return err
    }
@@ -126,11 +121,11 @@ func (c *client) do_paramount() error {
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
-   token, err := paramount.FetchStreamingUrl(at, c.ParamountId, cbs_com)
+   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
    if err != nil {
       return err
    }
-   c.Dash, err = token.Dash()
+   c.Dash, err = session.Dash()
    if err != nil {
       return err
    }

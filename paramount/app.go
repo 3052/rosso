@@ -1,6 +1,10 @@
 package paramount
 
-import "fmt"
+import (
+   "fmt"
+   "maps"
+   "slices"
+)
 
 type App struct {
    Host    string
@@ -26,10 +30,14 @@ var apps = map[string]App{
    },
 }
 
-func GetApp(id string) (*App, error) {
-   app, exists := apps[id]
+func GetApp(key string) (*App, error) {
+   app, exists := apps[key]
    if !exists {
-      return nil, fmt.Errorf("app not found: %s", id)
+      return nil, fmt.Errorf("app not found: %s", key)
    }
    return &app, nil
+}
+
+func GetAppKeys() []string {
+   return slices.Sorted(maps.Keys(apps))
 }
