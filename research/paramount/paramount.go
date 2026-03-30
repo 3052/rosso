@@ -17,32 +17,26 @@ import (
 
 var Apps = map[string]App{
    "com.cbs.app": {
-      host:    "www.paramountplus.com",
-      secret:  "7081400bd4143bf3",
-      version: "Paramount+ 16.8.0",
+      Host:    "www.paramountplus.com",
+      Secret:  "7081400bd4143bf3",
+      Version: "Paramount+ 16.8.0",
    },
    "com.cbs.ca": {
-      host:    "www.paramountplus.com",
-      secret:  "1c5d27627d71b420",
-      version: "Paramount+ 16.8.0",
+      Host:    "www.paramountplus.com",
+      Secret:  "1c5d27627d71b420",
+      Version: "Paramount+ 16.8.0",
    },
    "com.cbs.tve": {
-      host:    "www.cbs.com",
-      secret:  "cef32931dc01412e",
-      version: "CBS 15.6.0",
+      Host:    "www.cbs.com",
+      Secret:  "cef32931dc01412e",
+      Version: "CBS 15.6.0",
    },
-}
-
-type App struct {
-   host    string
-   secret  string
-   version string
 }
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *App) CbsCom(username, password string) (*http.Cookie, error) {
-   at, err := GetAt(a.secret)
+   at, err := GetAt(a.Secret)
    if err != nil {
       return nil, err
    }
@@ -52,7 +46,7 @@ func (a *App) CbsCom(username, password string) (*http.Cookie, error) {
    }.Encode()
    req, err := http.NewRequest(
       "POST",
-      fmt.Sprintf("https://%v/apps-api/v2.0/androidphone/auth/login.json", a.host),
+      fmt.Sprintf("https://%v/apps-api/v2.0/androidphone/auth/login.json", a.Host),
       strings.NewReader(body),
    )
    if err != nil {
@@ -131,4 +125,64 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
       data = append(data, padByte)
    }
    return data
+}
+
+type Token struct {
+   Errors       string `json:"errors"`
+   LsSession    string `json:"ls_session"`
+   StreamingUrl string `json:"streamingUrl"` // MPD
+   Url          string `json:"url"`          // License Server
+}
+
+type App struct {
+   Host    string
+   Secret  string
+   Version string
+}
+
+func (a *App) StreamingUrl(contentId string, cbsCom *http.Cookie) (*Token, error) {
+   result, err := a.token("androidphone", contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
+}
+
+func (a *App) token(platform, contentId string, cbs_com *http.Cookie) (*Token, error) {
+   at, err := GetAt(a.Secret)
+   if err != nil {
+      return nil, err
+   }
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   a.Host,
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Token
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
 }

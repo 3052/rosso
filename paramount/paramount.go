@@ -23,8 +23,6 @@ import (
    "strings"
 )
 
-///
-
 func FetchAppSecret() (string, error) {
    resp, err := http.Head("https://www.paramountplus.com")
    if err != nil {
@@ -104,24 +102,6 @@ type Dash struct {
    Url  *url.URL
 }
 
-type Token struct {
-   Errors       string `json:"errors"`
-   LsSession    string `json:"ls_session"`
-   StreamingUrl string `json:"streamingUrl"` // MPD
-   Url          string `json:"url"`          // License Server
-}
-
-func FetchStreamingUrl(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
-   result, err := fetchToken("androidphone", at, contentId, cbsCom)
-   if err != nil {
-      return nil, err
-   }
-   if result.StreamingUrl == "" {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-   return result, nil
-}
-
 func FetchWidevine(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
    return fetchToken("androidphone", at, contentId, cbsCom)
 }
@@ -159,6 +139,25 @@ func (t *Token) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+
+type Token struct {
+   Errors       string `json:"errors"`
+   LsSession    string `json:"ls_session"`
+   StreamingUrl string `json:"streamingUrl"` // MPD
+   Url          string `json:"url"`          // License Server
+}
+
+func FetchStreamingUrl(at, contentId string, cbsCom *http.Cookie) (*Token, error) {
+   result, err := fetchToken("androidphone", at, contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
+}
+
 func fetchToken(platform, at, contentId string, cbs_com *http.Cookie) (*Token, error) {
    endpoint := "anonymous-session-token.json"
    if cbs_com != nil {
