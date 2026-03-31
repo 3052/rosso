@@ -58,6 +58,7 @@ func (p *Playback) Widevine(loginToken string, body []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 func FetchViewer(customId string) (*Viewer, error) {
    body, err := json.Marshal(map[string]any{
       "query":     get_custom_id_full_movie,
@@ -108,6 +109,7 @@ func (p *Playback) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+
 func FetchLogin(identity, accessKey string) (*Login, error) {
    body, err := json.Marshal(map[string]string{
       "accessKey": accessKey,

@@ -40,6 +40,7 @@ func main() {
       log.Fatal(err)
    }
 }
+
 func (c *client) do_dash_id() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {

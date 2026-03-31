@@ -99,6 +99,7 @@ func TestPasswordLogin(t *testing.T) {
       t.Fatal(err)
    }
 }
+
 func TestFinalTokens(t *testing.T) {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{

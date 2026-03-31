@@ -138,6 +138,7 @@ func (f *File) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+
 func (t *Token) Item(slug string) (*Item, error) {
    req := http.Request{
       URL: &url.URL{

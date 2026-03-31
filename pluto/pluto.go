@@ -166,6 +166,7 @@ func (s *Series) GetMovieUrl() *url.URL {
    path := s.Vod[0].Stitched.Paths[0].Path
    return s.buildStitcherUrl(path)
 }
+
 func FetchDash(urlData *url.URL) (*Dash, error) {
    req := http.Request{
       URL:    urlData,

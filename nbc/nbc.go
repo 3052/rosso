@@ -160,6 +160,7 @@ query page(
     }
   }
 }
+
 `
 
 type Metadata struct {
@@ -182,6 +183,7 @@ func buildAuthQuery(drmType string) string {
       "time":   {timestamp},
    }.Encode()
 }
+
 func (s Stream) Dash() (*Dash, error) {
    resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
    if err != nil {

@@ -138,6 +138,7 @@ func (t *Title) String() string {
 func graphql_compact(data string) string {
    return strings.Join(strings.Fields(data), " ")
 }
+
 func FetchPlaylist(urlData string) (*Playlist, error) {
    data, err := json.Marshal(map[string]any{
       "client": map[string]string{

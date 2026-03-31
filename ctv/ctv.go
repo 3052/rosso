@@ -42,6 +42,7 @@ func (a *AxisContent) Manifest(play *Playback) (string, error) {
    }
    return data.String(), nil
 }
+
 func FetchDash(manifest string) (*Dash, error) {
    resp, err := http.Get(strings.Replace(manifest, "/best/", "/ultimate/", 1))
    if err != nil {
@@ -136,6 +137,7 @@ func Widevine(data []byte) ([]byte, error) {
    }
    return io.ReadAll(resp.Body)
 }
+
 func (a *AxisContent) Playback() (*Playback, error) {
    req := http.Request{
       URL: &url.URL{

@@ -64,6 +64,7 @@ func (v *VideoResource) Widevine(data []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 func (v *VideoResource) Dash() (*Dash, error) {
    resp, err := http.Get(v.Manifest.Url)
    if err != nil {

@@ -206,6 +206,7 @@ func FetchLogin(email, password string) (*Login, error) {
    }
    return result, nil
 }
+
 func (m *Manifest) Dash() (*Dash, error) {
    req := http.Request{
       Header: http.Header{},

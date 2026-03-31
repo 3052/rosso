@@ -165,6 +165,7 @@ func (u User) Widevine(partData *Part, data []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
    req := http.Request{
       URL: &url.URL{

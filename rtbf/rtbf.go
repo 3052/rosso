@@ -188,6 +188,7 @@ func (a *Account) Identity() (*Identity, error) {
    }
    return &result, nil
 }
+
 func FetchAccount(id, password string) (*Account, error) {
    resp, err := http.PostForm(
       "https://login.auvio.rtbf.be/accounts.login", url.Values{

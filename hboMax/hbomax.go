@@ -122,6 +122,7 @@ func (l Login) Movie(showId string) (*Page, error) {
    }
    return &result, nil
 }
+
 func (l Login) Season(showId string, number int) (*Page, error) {
    req := http.Request{
       URL: &url.URL{
@@ -280,6 +281,7 @@ func (p *Page) FilterAndSort() {
       return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
    })
 }
+
 func FetchSt() (*http.Cookie, error) {
    req := http.Request{
       URL: &url.URL{
@@ -331,6 +333,7 @@ func FetchLogin(st *http.Cookie) (*Login, error) {
    }
    return result, nil
 }
+
 func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
    req := http.Request{
       Method: "POST",
