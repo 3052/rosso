@@ -51,6 +51,79 @@ func PasswordLogin(username, password string) (*Account, error) {
    return result, nil
 }
 
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+// ProfileLogin exchanges a refresh token for a fully authorized
+// profile-specific Bearer token
+func (a *Account) ProfileLogin(profileId string) error {
+   data := url.Values{
+      "grant_type":    {"refresh_token"},
+      "profile_id":    {profileId},
+      "refresh_token": {a.RefreshToken},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.2",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("profile login failed with: %v", resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
 ///
 
 var Language = "EN"
@@ -154,79 +227,6 @@ func (a *Account) GetManifest(contentId string, contentPackageId, destinationId 
    return result.Playback, nil
 }
 
-// ProfileLogin exchanges a refresh token for a fully authorized
-// profile-specific Bearer token
-func (a *Account) ProfileLogin(profileId string) error {
-   endpoint := fmt.Sprintf("%s/api/login/v2.2", baseUrl)
-   data := url.Values{}
-   data.Set("grant_type", "refresh_token")
-   data.Set("refresh_token", a.RefreshToken)
-   data.Set("profile_id", profileId)
-   req, err := http.NewRequest("POST", endpoint, strings.NewReader(data.Encode()))
-   if err != nil {
-      return err
-   }
-   req.Header.Set("Authorization", BasicAuth)
-   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-      body, _ := io.ReadAll(resp.Body)
-      return fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
-}
-
-func (a *Account) Profiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
-}
-
-///
-
 const graphQlUrl = "https://rte-api.bellmedia.ca/graphql"
 
 const playbackUrl = "https://playback.rte-api.bellmedia.ca/contents/%s"
@@ -317,8 +317,3 @@ func extractMediaId(url_data string) (string, error) {
    }
    return parts[len(parts)-1], nil
 }
-
-const baseUrl = "https://account.bellmedia.ca"
-
-// Basic base64("crave-web:default")
-const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
