@@ -14,6 +14,78 @@ import (
    "strings"
 )
 
+// WidevineRequest represents the JSON body needed for the DRM license request
+type WidevineRequest struct {
+   Payload         string          `json:"payload"`
+   PlaybackContext PlaybackContext `json:"playbackContext"`
+}
+
+type PlaybackContext struct {
+   ContentId        int    `json:"contentId"`
+   ContentPackageId int    `json:"contentpackageId"` // Note: lower-case 'p' as per their API
+   DestinationId    int    `json:"destinationId"`
+   Jwt              string `json:"jwt"`
+   PlatformId       int    `json:"platformId"`
+}
+
+// PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
+type PlaybackSession struct {
+   ContentId        string
+   ContentPackageId int
+   DestinationId    int
+}
+
+// GetWidevineLicense issues the DRM license request using the provided payload
+// and the session details
+func (a *Account) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
+   // The API expects the contentId as an integer
+   contentIdInt, err := strconv.Atoi(session.ContentId)
+   if err != nil {
+      return nil, fmt.Errorf("failed to parse content ID to int: %w", err)
+   }
+   data, err := json.Marshal(WidevineRequest{
+      Payload: payload,
+      PlaybackContext: PlaybackContext{
+         ContentId:        contentIdInt,
+         ContentPackageId: session.ContentPackageId,
+         PlatformId:       1, // Hardcoded to 1 for Web
+         DestinationId:    session.DestinationId,
+         Jwt:              a.AccessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      http.MethodPost, "https://license.9c9media.com/widevine",
+      bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   // The response is usually a binary widevine license
+   return data, nil
+}
+
 // PasswordLogin performs the initial login to get the first set of tokens
 func PasswordLogin(username, password string) (*Account, error) {
    data := url.Values{
@@ -252,78 +324,4 @@ func (c *ContentPackage) FetchManifest(contentId, accessToken string) (*Manifest
       return nil, errors.New("playback URL missing in manifest response")
    }
    return &result, nil
-}
-
-///
-
-// GetWidevineLicense issues the DRM license request using the provided payload
-// and the session details
-func (a *Account) GetWidevineLicense(session *PlaybackSession, payload string) ([]byte, error) {
-   // The API expects the contentId as an integer
-   contentIdInt, err := strconv.Atoi(session.ContentId)
-   if err != nil {
-      return nil, fmt.Errorf("failed to parse content ID to int: %w", err)
-   }
-   data, err := json.Marshal(WidevineRequest{
-      Payload: payload,
-      PlaybackContext: PlaybackContext{
-         ContentId:        contentIdInt,
-         ContentPackageId: session.ContentPackageId,
-         PlatformId:       1, // Hardcoded to 1 for Web
-         DestinationId:    session.DestinationId,
-         Jwt:              a.AccessToken,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      http.MethodPost, "https://license.9c9media.com/widevine",
-      bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
-}
-
-// WidevineRequest represents the JSON body needed for the DRM license request
-type WidevineRequest struct {
-   Payload         string          `json:"payload"`
-   PlaybackContext PlaybackContext `json:"playbackContext"`
-}
-
-type PlaybackContext struct {
-   ContentId        int    `json:"contentId"`
-   ContentPackageId int    `json:"contentpackageId"` // Note: lower-case 'p' as per their API
-   PlatformId       int    `json:"platformId"`
-   DestinationId    int    `json:"destinationId"`
-   Jwt              string `json:"jwt"`
-}
-
-// PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
-type PlaybackSession struct {
-   ContentId        string
-   ContentPackageId int
-   DestinationId    int
 }
