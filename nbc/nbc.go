@@ -14,7 +14,11 @@ import (
    "strconv"
    "strings"
    "time"
+   _ "embed"
 )
+
+//go:embed page.gql
+var query_page string
 
 func (m *Metadata) Stream() (*Stream, error) {
    req := http.Request{
@@ -135,33 +139,6 @@ func FetchMetadata(name string) (*Metadata, error) {
    }
    return &result.Data.Page.Metadata, nil
 }
-
-const query_page = `
-query page(
-   $app: NBCUBrands!
-   $name: String!
-   $platform: SupportedPlatforms!
-   $type: PageType!
-   $userId: String!
-) {
-  page(
-    app: $app
-    name: $name
-    platform: $platform
-    type: $type
-    userId: $userId
-  ) {
-    metadata {
-      ...on VideoPageMetaData {
-        mpxAccountId
-        mpxGuid
-        programmingType
-      }
-    }
-  }
-}
-
-`
 
 type Metadata struct {
    MpxAccountId    int `json:",string"`

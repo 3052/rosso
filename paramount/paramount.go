@@ -18,6 +18,52 @@ import (
    "strings"
 )
 
+// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
+// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
+func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {
+   at, err := get_at(a.Secret)
+   if err != nil {
+      return nil, err
+   }
+   body := url.Values{
+      "j_username": {username},
+      "j_password": {password},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprintf("https://%v/apps-api/v2.0/androidphone/auth/login.json", a.Host),
+      strings.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.RawQuery = url.Values{"at": {at}}.Encode()
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   // randomly fails if this is missing
+   req.Header.Set("user-agent", "!")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Message string
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "CBS_COM" {
+         return cookie, nil
+      }
+   }
+   return nil, http.ErrNoCookie
+}
+
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
 
 var apps = map[string]App{
@@ -144,55 +190,6 @@ func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, er
 
 func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, error) {
    return a.fetch_session("xboxone", contentId, cbsCom)
-}
-
-// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
-// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {
-   at, err := get_at(a.Secret)
-   if err != nil {
-      return nil, err
-   }
-   body := url.Values{
-      "j_username": {username},
-      "j_password": {password},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST",
-      fmt.Sprintf("https://%v/apps-api/v2.0/androidphone/auth/login.json", a.Host),
-      strings.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.RawQuery = url.Values{"at": {at}}.Encode()
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   // randomly fails if this is missing
-   req.Header.Set("user-agent", "!")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Message string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "CBS_COM" {
-         return cookie, nil
-      }
-   }
-   return nil, http.ErrNoCookie
 }
 
 func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session, error) {

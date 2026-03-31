@@ -8,6 +8,15 @@ import (
    "net/http"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s,*.mp4")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_paramount() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
@@ -30,15 +39,6 @@ func (c *client) do_paramount() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s,*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 func (c *client) do_dash_id() error {

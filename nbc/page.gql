@@ -1,0 +1,23 @@
+query page(
+   $app: NBCUBrands!
+   $name: String!
+   $platform: SupportedPlatforms!
+   $type: PageType!
+   $userId: String!
+) {
+  page(
+    app: $app
+    name: $name
+    platform: $platform
+    type: $type
+    userId: $userId
+  ) {
+    metadata {
+      ...on VideoPageMetaData {
+        mpxAccountId
+        mpxGuid
+        programmingType
+      }
+    }
+  }
+}

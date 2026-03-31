@@ -17,6 +17,50 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
+func GetContentId(mediaId string) (string, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "ids": []string{mediaId},
+         "sessionContext": map[string]string{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   })
+   if err != nil {
+      return "", err
+   }
+   req, _ := http.NewRequest(http.MethodPost, graphQlUrl, bytes.NewBuffer(data))
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
+   authData := map[string]string{"platform": "platform_web"}
+   authBytes, _ := json.Marshal(authData)
+   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
+   req.Header.Set("Authorization", "Bearer "+encodedAuth)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []struct {
+            FirstContent struct {
+               Id string `json:"id"`
+            } `json:"firstContent"`
+         } `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
+      return "", fmt.Errorf("content ID not found in GraphQL response")
+   }
+   return result.Data.Medias[0].FirstContent.Id, nil
+}
+
 // GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
 func GetPlaybackDetails(contentId string) (int, int, error) {
    targetUrl := fmt.Sprintf(playbackUrl, contentId)
@@ -274,47 +318,3 @@ const baseUrl = "https://account.bellmedia.ca"
 
 // Basic base64("crave-web:default")
 const BasicAuth = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
-
-// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
-func GetContentId(mediaId string) (string, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "ids": []string{mediaId},
-         "sessionContext": map[string]string{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   })
-   if err != nil {
-      return "", err
-   }
-   req, _ := http.NewRequest(http.MethodPost, graphQlUrl, bytes.NewBuffer(data))
-   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
-   authData := map[string]string{"platform": "platform_web"}
-   authBytes, _ := json.Marshal(authData)
-   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
-   req.Header.Set("Authorization", "Bearer "+encodedAuth)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []struct {
-            FirstContent struct {
-               Id string `json:"id"`
-            } `json:"firstContent"`
-         } `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
-   }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
-      return "", fmt.Errorf("content ID not found in GraphQL response")
-   }
-   return result.Data.Medias[0].FirstContent.Id, nil
-}
