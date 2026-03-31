@@ -14,6 +14,47 @@ import (
    "strings"
 )
 
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+// PasswordLogin performs the initial login to get the first set of tokens
+func PasswordLogin(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+///
+
+var Language = "EN"
+
 //go:embed GetShowpage.gql
 var get_showpage string
 
@@ -24,7 +65,7 @@ func GetContentId(mediaId string) (string, error) {
       "variables": map[string]any{
          "ids": []string{mediaId},
          "sessionContext": map[string]string{
-            "userLanguage": "EN",
+            "userLanguage": Language,
             "userMaturity": "ADULT",
          },
       },
@@ -65,7 +106,7 @@ func GetContentId(mediaId string) (string, error) {
 func GetPlaybackDetails(contentId string) (int, int, error) {
    targetUrl := fmt.Sprintf(playbackUrl, contentId)
    req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   req.Header.Set("x-playback-language", "EN")
+   req.Header.Set("x-playback-language", Language)
    req.Header.Set("x-client-platform", "platform_jasper_web")
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -137,43 +178,6 @@ func (a *Account) ProfileLogin(profileId string) error {
       return fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
    }
    return json.NewDecoder(resp.Body).Decode(a)
-}
-
-// PasswordLogin performs the initial login to get the first set of tokens
-func PasswordLogin(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
 }
 
 func (a *Account) Profiles() ([]*Profile, error) {

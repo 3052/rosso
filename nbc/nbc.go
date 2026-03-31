@@ -4,6 +4,7 @@ import (
    "bytes"
    "crypto/hmac"
    "crypto/sha256"
+   _ "embed"
    "encoding/hex"
    "encoding/json"
    "errors"
@@ -14,7 +15,6 @@ import (
    "strconv"
    "strings"
    "time"
-   _ "embed"
 )
 
 //go:embed page.gql
