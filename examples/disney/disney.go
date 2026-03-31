@@ -7,6 +7,15 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "*.mp4,*.mp4a")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/disney.xml")
    if err != nil {
@@ -178,13 +187,4 @@ func (c *client) do_refresh() error {
 
 func (c *client) do_hls_id() error {
    return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.PlayReady)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.mp4,*.mp4a")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }

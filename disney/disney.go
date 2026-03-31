@@ -11,6 +11,64 @@ import (
    "strings"
 )
 
+type Page struct {
+   Actions []struct {
+      InternalTitle string // movie
+   }
+   Containers []struct {
+      Seasons []struct { // series
+         Visuals struct {
+            Name string
+         }
+         Id string
+      }
+   }
+   Visuals struct {
+      Restriction struct {
+         Message string
+      }
+   }
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   if e.Code != "" {
+      data.WriteString("code = ")
+      data.WriteString(e.Code)
+   }
+   if e.Description != "" {
+      if data.Len() >= 1 {
+         data.WriteByte('\n')
+      }
+      data.WriteString("description = ")
+      data.WriteString(e.Description)
+   }
+   if e.Extensions != nil {
+      if data.Len() >= 1 {
+         data.WriteByte('\n')
+      }
+      data.WriteString("extensions = ")
+      data.WriteString(e.Extensions.Code)
+   }
+   if e.Message != "" {
+      if data.Len() >= 1 {
+         data.WriteByte('\n')
+      }
+      data.WriteString("message = ")
+      data.WriteString(e.Message)
+   }
+   return data.String()
+}
+
+type Error struct {
+   Code        string
+   Description string
+   Extensions  *struct {
+      Code string
+   }
+   Message string
+}
+
 func (p *Profile) String() string {
    var data strings.Builder
    data.WriteString("name = ")
@@ -125,45 +183,6 @@ type AuthenticateWithOtp struct {
    ActionGrant string
 }
 
-func (e *Error) Error() string {
-   var data strings.Builder
-   if e.Code != "" {
-      data.WriteString("code = ")
-      data.WriteString(e.Code)
-   }
-   if e.Description != "" {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("description = ")
-      data.WriteString(e.Description)
-   }
-   if e.Extensions != nil {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("extensions = ")
-      data.WriteString(e.Extensions.Code)
-   }
-   if e.Message != "" {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("message = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-type Error struct {
-   Code        string
-   Description string
-   Extensions  *struct {
-      Code string
-   }
-   Message string
-}
-
 type Hls struct {
    Body []byte
    Url  *url.URL
@@ -200,20 +219,6 @@ func (p *Page) String() string {
       data.WriteString(p.Actions[0].InternalTitle)
    }
    return data.String()
-}
-
-type Page struct {
-   Actions []struct {
-      InternalTitle string // movie
-   }
-   Containers []struct {
-      Seasons []struct { // series
-         Visuals struct {
-            Name string
-         }
-         Id string
-      }
-   }
 }
 
 type RequestOtp struct {
