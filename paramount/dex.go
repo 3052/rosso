@@ -7,6 +7,8 @@ import (
    "strings"
 )
 
+var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)
+
 // ExtractDexHexBytes returns a set (map) of unique 16-character hex strings
 // found in .dex files
 func ExtractDexHexBytes(name string) (map[string]struct{}, error) {
@@ -29,8 +31,6 @@ func ExtractDexHexBytes(name string) (map[string]struct{}, error) {
    }
    return results, nil
 }
-
-var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)
 
 func readZipFile(f *zip.File) ([]byte, error) {
    rc, err := f.Open()
