@@ -18,6 +18,36 @@ import (
    "strings"
 )
 
+func (s *Session) FetchDash() (*Dash, error) {
+   resp, err := http.Get(s.StreamingUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (s *Session) Fetch(body []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 var apps = map[string]App{
    "com.cbs.app": {
       Host:    "www.paramountplus.com",
@@ -100,23 +130,6 @@ func GetAppKeys() []string {
    return slices.Sorted(maps.Keys(apps))
 }
 
-func (s *Session) Send(body []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
 func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, error) {
    return a.fetch_session("androidphone", contentId, cbsCom)
 }
@@ -128,19 +141,6 @@ func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, e
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-func (s *Session) Dash() (*Dash, error) {
-   resp, err := http.Get(s.StreamingUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN

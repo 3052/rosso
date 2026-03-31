@@ -8,6 +8,30 @@ import (
    "net/http"
 )
 
+func (c *client) do_paramount() error {
+   app, err := paramount.GetApp(c.App)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = session.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4s,*.mp4")
@@ -16,7 +40,6 @@ func main() {
       log.Fatal(err)
    }
 }
-
 func (c *client) do_dash_id() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
@@ -30,7 +53,7 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, session.Send)
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, session.Fetch)
 }
 
 var cache maya.Cache
@@ -110,28 +133,4 @@ func (c *client) do() error {
       {paramount_id, c.cookie},
       {dash_id, c.cookie},
    })
-}
-
-func (c *client) do_paramount() error {
-   app, err := paramount.GetApp(c.App)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = session.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }

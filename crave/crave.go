@@ -14,6 +14,61 @@ import (
    "strings"
 )
 
+//go:embed GetShowpage.gql
+var get_showpage string
+
+// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
+func GetPlaybackDetails(contentId string) (int, int, error) {
+   targetUrl := fmt.Sprintf(playbackUrl, contentId)
+   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
+   req.Header.Set("x-playback-language", "EN")
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return 0, 0, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage struct {
+         Id            int `json:"id"`
+         DestinationId int `json:"destinationId"`
+      } `json:"contentPackage"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return 0, 0, err
+   }
+   if result.ContentPackage.Id == 0 {
+      return 0, 0, fmt.Errorf("invalid content package ID received")
+   }
+   return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
+}
+
+// ProfileLogin exchanges a refresh token for a fully authorized
+// profile-specific Bearer token
+func (a *Account) ProfileLogin(profileId string) error {
+   endpoint := fmt.Sprintf("%s/api/login/v2.2", baseUrl)
+   data := url.Values{}
+   data.Set("grant_type", "refresh_token")
+   data.Set("refresh_token", a.RefreshToken)
+   data.Set("profile_id", profileId)
+   req, err := http.NewRequest("POST", endpoint, strings.NewReader(data.Encode()))
+   if err != nil {
+      return err
+   }
+   req.Header.Set("Authorization", BasicAuth)
+   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+      body, _ := io.ReadAll(resp.Body)
+      return fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
 // PasswordLogin performs the initial login to get the first set of tokens
 func PasswordLogin(username, password string) (*Account, error) {
    data := url.Values{
@@ -90,39 +145,13 @@ func (p *Profile) String() string {
    return data.String()
 }
 
-///
-
 type Profile struct {
    Nickname string `json:"nickname"`
    HasPin   bool   `json:"hasPin"`
    Id       string `json:"id"`
 }
 
-// ProfileLogin exchanges a refresh token for a fully authorized
-// profile-specific Bearer token
-func (a *Account) ProfileLogin(profileId string) error {
-   endpoint := fmt.Sprintf("%s/api/login/v2.2", baseUrl)
-   data := url.Values{}
-   data.Set("grant_type", "refresh_token")
-   data.Set("refresh_token", a.RefreshToken)
-   data.Set("profile_id", profileId)
-   req, err := http.NewRequest("POST", endpoint, strings.NewReader(data.Encode()))
-   if err != nil {
-      return err
-   }
-   req.Header.Set("Authorization", BasicAuth)
-   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-      body, _ := io.ReadAll(resp.Body)
-      return fmt.Errorf("profile login failed with status %d: %s", resp.StatusCode, string(body))
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
-}
+///
 
 const graphQlUrl = "https://rte-api.bellmedia.ca/graphql"
 
@@ -289,32 +318,3 @@ func (a *Account) GetManifest(contentId string, contentPackageId, destinationId 
    }
    return result.Playback, nil
 }
-
-// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
-func GetPlaybackDetails(contentId string) (int, int, error) {
-   targetUrl := fmt.Sprintf(playbackUrl, contentId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   req.Header.Set("x-playback-language", "EN")
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return 0, 0, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage struct {
-         Id            int `json:"id"`
-         DestinationId int `json:"destinationId"`
-      } `json:"contentPackage"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return 0, 0, err
-   }
-   if result.ContentPackage.Id == 0 {
-      return 0, 0, fmt.Errorf("invalid content package ID received")
-   }
-   return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
-}
-
-//go:embed GetShowpage.gql
-var get_showpage string
