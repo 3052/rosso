@@ -18,6 +18,24 @@ import (
    "strings"
 )
 
+var apps = map[string]App{
+   "com.cbs.app": {
+      Host:    "www.paramountplus.com",
+      Version: "Paramount+ 16.8.0",
+      Secret:  "7081400bd4143bf3",
+   },
+   "com.cbs.ca": {
+      Host:    "www.paramountplus.com",
+      Version: "Paramount+ 16.8.0",
+      Secret:  "1c5d27627d71b420",
+   },
+   "com.cbs.tve": {
+      Host:    "www.cbs.com",
+      Version: "CBS 15.6.0",
+      Secret:  "cef32931dc01412e",
+   },
+}
+
 func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
    at, err := GetAt(a.Secret)
    if err != nil {
@@ -68,24 +86,6 @@ type App struct {
    Host    string
    Version string
    Secret  string
-}
-
-var apps = map[string]App{
-   "com.cbs.app": {
-      Host:    "www.paramountplus.com",
-      Version: "Paramount+ 16.8.0",
-      Secret:  "7081400bd4143bf3",
-   },
-   "com.cbs.ca": {
-      Host:    "www.paramountplus.com",
-      Version: "Paramount+ 16.8.0",
-      Secret:  "1c5d27627d71b420",
-   },
-   "com.cbs.tve": {
-      Host:    "www.cbs.com",
-      Version: "CBS 15.6.0",
-      Secret:  "cef32931dc01412e",
-   },
 }
 
 func GetApp(key string) (*App, error) {

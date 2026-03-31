@@ -31,8 +31,9 @@ var videos = []struct {
       cookie:     true,
    },
    {
-      justWatch: "https://justwatch.com/us/tv-show/60-minutes",
-      paramount: "https://cbs.com/shows/video/uuwl_4UT4MrVsGwmKFA_FE95RXPmbOMl",
-      cookie:    false,
+      justWatch:  "https://justwatch.com/us/tv-show/60-minutes",
+      paramount:  "https://cbs.com/shows/video/uuwl_4UT4MrVsGwmKFA_FE95RXPmbOMl",
+      resolution: "1080p",
+      cookie:     false,
    },
 }

@@ -14,6 +14,43 @@ import (
    "strings"
 )
 
+// PasswordLogin performs the initial login to get the first set of tokens
+func PasswordLogin(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
 func (a *Account) Profiles() ([]*Profile, error) {
    req := http.Request{
       URL: &url.URL{
@@ -53,11 +90,7 @@ func (p *Profile) String() string {
    return data.String()
 }
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
+///
 
 type Profile struct {
    Nickname string `json:"nickname"`
@@ -285,34 +318,3 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
 
 //go:embed GetShowpage.gql
 var get_showpage string
-
-// PasswordLogin performs the initial login to get the first set of tokens
-func PasswordLogin(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
