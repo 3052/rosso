@@ -8,6 +8,15 @@ import (
    "net/http"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4s,*.mp4")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_dash_id() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
@@ -25,15 +34,6 @@ func (c *client) do_dash_id() error {
 }
 
 var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s,*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
 
 type client struct {
    CbsCom *http.Cookie

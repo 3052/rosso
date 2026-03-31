@@ -11,11 +11,94 @@ import (
    "errors"
    "fmt"
    "io"
+   "maps"
    "net/http"
    "net/url"
    "slices"
    "strings"
 )
+
+func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
+   at, err := GetAt(a.Secret)
+   if err != nil {
+      return nil, err
+   }
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   a.Host,
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Session struct {
+   LsSession    string `json:"ls_session"`
+   StreamingUrl string // MPD
+   Url          string // License Server
+   Message      string
+}
+
+type App struct {
+   Host    string
+   Version string
+   Secret  string
+}
+
+var apps = map[string]App{
+   "com.cbs.app": {
+      Host:    "www.paramountplus.com",
+      Version: "Paramount+ 16.8.0",
+      Secret:  "7081400bd4143bf3",
+   },
+   "com.cbs.ca": {
+      Host:    "www.paramountplus.com",
+      Version: "Paramount+ 16.8.0",
+      Secret:  "1c5d27627d71b420",
+   },
+   "com.cbs.tve": {
+      Host:    "www.cbs.com",
+      Version: "CBS 15.6.0",
+      Secret:  "cef32931dc01412e",
+   },
+}
+
+func GetApp(key string) (*App, error) {
+   app, exists := apps[key]
+   if !exists {
+      return nil, fmt.Errorf("app not found: %s", key)
+   }
+   return &app, nil
+}
+
+func GetAppKeys() []string {
+   return slices.Sorted(maps.Keys(apps))
+}
 
 func (s *Session) Send(body []byte) ([]byte, error) {
    req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
@@ -154,13 +237,6 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    return data
 }
 
-type Session struct {
-   Errors       string `json:"errors"`
-   LsSession    string `json:"ls_session"`
-   StreamingUrl string `json:"streamingUrl"` // MPD
-   Url          string `json:"url"`          // License Server
-}
-
 func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session, error) {
    result, err := a.fetch_session("androidphone", contentId, cbsCom)
    if err != nil {
@@ -170,40 +246,4 @@ func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session
       return nil, errors.New("streamingUrl (MPD) is missing")
    }
    return result, nil
-}
-
-func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
-   at, err := GetAt(a.Secret)
-   if err != nil {
-      return nil, err
-   }
-   endpoint := "anonymous-session-token.json"
-   if cbs_com != nil {
-      endpoint = "session-token.json"
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   a.Host,
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbs_com != nil {
-      req.AddCookie(cbs_com)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
 }
