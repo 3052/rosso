@@ -38,6 +38,10 @@ var apps = map[string]App{
    },
 }
 
+func GetAppKeys() []string {
+   return slices.Sorted(maps.Keys(apps))
+}
+
 func get_at(appSecret string) (string, error) {
    // 1. Decode hex secret key
    key, err := hex.DecodeString(secret_key)
@@ -79,6 +83,67 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
       data = append(data, padByte)
    }
    return data
+}
+
+func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
+   at, err := get_at(a.Secret)
+   if err != nil {
+      return nil, err
+   }
+   endpoint := "anonymous-session-token.json"
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   a.Host,
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if cbs_com != nil {
+      req.AddCookie(cbs_com)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type App struct {
+   Host    string
+   Version string
+   Secret  string
+}
+
+func GetApp(key string) (*App, error) {
+   app, exists := apps[key]
+   if !exists {
+      return nil, fmt.Errorf("app not found: %s", key)
+   }
+   return &app, nil
+}
+
+func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, error) {
+   return a.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, error) {
+   return a.fetch_session("xboxone", contentId, cbsCom)
 }
 
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
@@ -141,6 +206,18 @@ func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session
    return result, nil
 }
 
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Session struct {
+   LsSession    string `json:"ls_session"`
+   Message      string
+   StreamingUrl string // MPD
+   Url          string // License Server
+}
+
 func (s *Session) FetchDash() (*Dash, error) {
    resp, err := http.Get(s.StreamingUrl)
    if err != nil {
@@ -169,83 +246,4 @@ func (s *Session) Fetch(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-///
-
-func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
-   at, err := get_at(a.Secret)
-   if err != nil {
-      return nil, err
-   }
-   endpoint := "anonymous-session-token.json"
-   if cbs_com != nil {
-      endpoint = "session-token.json"
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   a.Host,
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbs_com != nil {
-      req.AddCookie(cbs_com)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-type Session struct {
-   LsSession    string `json:"ls_session"`
-   StreamingUrl string // MPD
-   Url          string // License Server
-   Message      string
-}
-
-type App struct {
-   Host    string
-   Version string
-   Secret  string
-}
-
-func GetApp(key string) (*App, error) {
-   app, exists := apps[key]
-   if !exists {
-      return nil, fmt.Errorf("app not found: %s", key)
-   }
-   return &app, nil
-}
-
-func GetAppKeys() []string {
-   return slices.Sorted(maps.Keys(apps))
-}
-
-func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, error) {
-   return a.fetch_session("androidphone", contentId, cbsCom)
-}
-
-func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, error) {
-   return a.fetch_session("xboxone", contentId, cbsCom)
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }

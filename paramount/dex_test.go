@@ -42,7 +42,7 @@ func TestDexCbs(t *testing.T) {
 }
 
 func brands(host, app_secret string) error {
-   at, err := GetAt(app_secret)
+   at, err := get_at(app_secret)
    if err != nil {
       return err
    }

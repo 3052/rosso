@@ -43,6 +43,32 @@ func GetPlaybackDetails(contentId string) (int, int, error) {
    return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
 }
 
+// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
+func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
+   targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
+   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
+   // Append requested query parameters
+   q := req.URL.Query()
+   q.Add("format", "mpd")
+   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
+   req.URL.RawQuery = q.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if result.Playback == "" {
+      return "", fmt.Errorf("playback URL missing in manifest response")
+   }
+   return result.Playback, nil
+}
+
 // ProfileLogin exchanges a refresh token for a fully authorized
 // profile-specific Bearer token
 func (a *Account) ProfileLogin(profileId string) error {
@@ -291,30 +317,4 @@ func GetContentId(mediaId string) (string, error) {
       return "", fmt.Errorf("content ID not found in GraphQL response")
    }
    return result.Data.Medias[0].FirstContent.Id, nil
-}
-
-// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
-func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
-   targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   // Append requested query parameters
-   q := req.URL.Query()
-   q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
-   req.URL.RawQuery = q.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Playback string `json:"playback"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
-   }
-   if result.Playback == "" {
-      return "", fmt.Errorf("playback URL missing in manifest response")
-   }
-   return result.Playback, nil
 }
