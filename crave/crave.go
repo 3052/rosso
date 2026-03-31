@@ -14,12 +14,6 @@ import (
    "strings"
 )
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
 // PasswordLogin performs the initial login to get the first set of tokens
 func PasswordLogin(username, password string) (*Account, error) {
    data := url.Values{
@@ -124,114 +118,143 @@ func (a *Account) ProfileLogin(profileId string) error {
    return json.NewDecoder(resp.Body).Decode(a)
 }
 
-///
+// https://crave.ca/movie/goldeneye-38860
+func ParseMediaId(urlData string) (int, error) {
+   var found bool
+   _, urlData, found = strings.Cut(urlData, "-")
+   if !found {
+      return 0, strconv.ErrSyntax
+   }
+   return strconv.Atoi(urlData)
+}
 
 var Language = "EN"
 
 //go:embed GetShowpage.gql
 var get_showpage string
 
-// GetContentID queries the GraphQL API to translate a Media ID to a Content ID
-func GetContentId(mediaId string) (string, error) {
-   data, err := json.Marshal(map[string]any{
+func FetchMedia(id int) (*Media, error) {
+   body, err := json.Marshal(map[string]any{
       "query": get_showpage,
       "variables": map[string]any{
-         "ids": []string{mediaId},
          "sessionContext": map[string]string{
             "userLanguage": Language,
             "userMaturity": "ADULT",
          },
+         "ids": []string{strconv.Itoa(id)},
       },
    })
    if err != nil {
-      return "", err
+      return nil, err
    }
-   req, _ := http.NewRequest(http.MethodPost, graphQlUrl, bytes.NewBuffer(data))
-   // The GraphQL endpoint uses a base64 encoded JSON string that includes the access token
-   authData := map[string]string{"platform": "platform_web"}
-   authBytes, _ := json.Marshal(authData)
-   encodedAuth := base64.StdEncoding.EncodeToString(authBytes)
-   req.Header.Set("Authorization", "Bearer "+encodedAuth)
+   req, err := http.NewRequest(
+      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the
+   // access token
+   bearer := base64.StdEncoding.EncodeToString(
+      []byte(`{ "platform": "platform_web" }`),
+   )
+   req.Header.Set("Authorization", "Bearer "+bearer)
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
    var result struct {
       Data struct {
-         Medias []struct {
-            FirstContent struct {
-               Id string `json:"id"`
-            } `json:"firstContent"`
-         } `json:"medias"`
-      } `json:"data"`
+         Medias []Media
+      }
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
+      return nil, err
    }
    if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
-      return "", fmt.Errorf("content ID not found in GraphQL response")
+      return nil, errors.New("content ID not found in GraphQL response")
    }
-   return result.Data.Medias[0].FirstContent.Id, nil
+   return &result.Data.Medias[0], nil
 }
 
-// GetPlaybackDetails retrieves the ContentPackage ID and Destination ID
-func GetPlaybackDetails(contentId string) (int, int, error) {
-   targetUrl := fmt.Sprintf(playbackUrl, contentId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
+func (m Media) FetchContentPackage() (*ContentPackage, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   "/contents/" + m.FirstContent.Id,
+      },
+      Header: http.Header{},
+   }
    req.Header.Set("x-playback-language", Language)
    req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
-      return 0, 0, err
+      return nil, err
    }
    defer resp.Body.Close()
    var result struct {
-      ContentPackage struct {
-         Id            int `json:"id"`
-         DestinationId int `json:"destinationId"`
-      } `json:"contentPackage"`
+      ContentPackage ContentPackage
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return 0, 0, err
+      return nil, err
    }
-   if result.ContentPackage.Id == 0 {
-      return 0, 0, fmt.Errorf("invalid content package ID received")
-   }
-   return result.ContentPackage.Id, result.ContentPackage.DestinationId, nil
+   return &result.ContentPackage, nil
 }
 
-// GetManifest retrieves the .mpd playback manifest URL from the 9c9media metadata API
-func (a *Account) GetManifest(contentId string, contentPackageId, destinationId int) (string, error) {
-   targetUrl := fmt.Sprintf(manifestUrl, contentId, contentPackageId, destinationId)
-   req, _ := http.NewRequest(http.MethodGet, targetUrl, nil)
-   // Append requested query parameters
-   q := req.URL.Query()
-   q.Add("format", "mpd")
-   req.Header.Set("Authorization", "Bearer "+a.AccessToken)
-   req.URL.RawQuery = q.Encode()
-   resp, err := http.DefaultClient.Do(req)
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type Media struct {
+   FirstContent struct {
+      Id string
+   }
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
+type Manifest struct {
+   Playback string
+}
+
+func (c *ContentPackage) FetchManifest(contentId, accessToken string) (*Manifest, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
+            contentId, c.Id, c.DestinationId,
+         ),
+         // Append requested query parameters
+         RawQuery: "format=mpd",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
-   var result struct {
-      Playback string `json:"playback"`
-   }
+   var result Manifest
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
+      return nil, err
    }
    if result.Playback == "" {
-      return "", fmt.Errorf("playback URL missing in manifest response")
+      return nil, errors.New("playback URL missing in manifest response")
    }
-   return result.Playback, nil
+   return &result, nil
 }
 
-const graphQlUrl = "https://rte-api.bellmedia.ca/graphql"
-
-const playbackUrl = "https://playback.rte-api.bellmedia.ca/contents/%s"
-
-const manifestUrl = "https://stream.video.9c9media.com/meta/content/%s/contentpackage/%d/destination/%d/platform/1"
+///
 
 // GetWidevineLicense issues the DRM license request using the provided payload
 // and the session details
@@ -303,17 +326,4 @@ type PlaybackSession struct {
    ContentId        string
    ContentPackageId int
    DestinationId    int
-}
-
-// https://www.crave.ca/en/movie/goldeneye-38860"
-func extractMediaId(url_data string) (string, error) {
-   url_parse, err := url.Parse(url_data)
-   if err != nil {
-      return "", err
-   }
-   parts := strings.Split(url_parse.Path, "-")
-   if len(parts) == 0 {
-      return "", fmt.Errorf("invalid url format")
-   }
-   return parts[len(parts)-1], nil
 }
