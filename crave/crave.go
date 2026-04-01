@@ -14,6 +14,102 @@ import (
    "strings"
 )
 
+// L3 max 720p
+func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   data, err := json.Marshal(map[string]any{
+      "payload": payload,
+      "playbackContext": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       1,    // Hardcoded to 1 for Web
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   // The response is usually a binary widevine license
+   return data, nil
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
+func (m *Manifest) FetchDash() (*Dash, error) {
+   resp, err := http.Get(m.Playback)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
 func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
    req := http.Request{
       URL: &url.URL{
@@ -229,100 +325,4 @@ func (a *Account) Login(profileId string) error {
       return fmt.Errorf("profile login failed with: %v", resp.Status)
    }
    return json.NewDecoder(resp.Body).Decode(a)
-}
-
-func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       1,    // Hardcoded to 1 for Web
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
-}
-
-func (m *Manifest) FetchDash() (*Dash, error) {
-   resp, err := http.Get(m.Playback)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (a *Account) FetchProfiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
 }

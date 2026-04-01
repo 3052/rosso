@@ -7,6 +7,16 @@ import (
    "log"
 )
 
+func main() {
+   // MP4 need proxy so just use VPN
+   maya.SetProxy("", "*.m4v")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_profile() error {
    err := c.Account.Login(c.profile)
    if err != nil {
@@ -23,16 +33,6 @@ func (c *client) do_profile() error {
       fmt.Println(&sub)
    }
    return cache.Write(c)
-}
-
-func main() {
-   // MP4 need proxy so just use VPN
-   maya.SetProxy("", "*.m4v")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 func (c *client) do() error {
