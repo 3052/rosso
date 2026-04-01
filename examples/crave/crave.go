@@ -7,21 +7,30 @@ import (
    "log"
 )
 
+func (c *client) do_dash_id() error {
+   fetch := func(data []byte) ([]byte, error) {
+      return c.ContentPackage.FetchWidevine(
+         c.Media.FirstContent.Id, c.Account.AccessToken, data,
+      )
+   }
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, fetch)
+}
+
 func (c *client) do_address() error {
    media_id, err := crave.ParseMediaId(c.address)
    if err != nil {
       return err
    }
-   media, err := crave.FetchMedia(media_id)
+   c.Media, err = crave.FetchMedia(media_id)
    if err != nil {
       return err
    }
-   content, err := media.FetchContentPackage()
+   c.ContentPackage, err = c.Media.FetchContentPackage()
    if err != nil {
       return err
    }
-   manifest, err := content.FetchManifest(
-      media.FirstContent.Id, c.Account.AccessToken,
+   manifest, err := c.ContentPackage.FetchManifest(
+      c.Media.FirstContent.Id, c.Account.AccessToken,
    )
    if err != nil {
       return err
@@ -38,8 +47,10 @@ func (c *client) do_address() error {
 }
 
 type client struct {
-   Account *crave.Account
-   Dash    *crave.Dash
+   Account        *crave.Account
+   ContentPackage *crave.ContentPackage
+   Dash           *crave.Dash
+   Media          *crave.Media
    //--------------------
    Job maya.Job
    //--------------------
@@ -49,6 +60,8 @@ type client struct {
    profile string
    //--------------------
    address string
+   //--------------------
+   dash_id string
 }
 
 func (c *client) do_profile() error {
@@ -57,46 +70,6 @@ func (c *client) do_profile() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return with_cache(c.do_profile)
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {username, password},
-      {profile},
-      {address},
-   })
 }
 
 var cache maya.Cache
@@ -127,4 +100,50 @@ func (c *client) do_username_password() error {
       fmt.Println(profile)
    }
    return nil
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/crave.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //-----------------------------------------------------------
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-----------------------------------------------------------
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   //-----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //-----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return with_cache(c.do_profile)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {username, password},
+      {profile},
+      {address},
+      {dash_id},
+   })
 }

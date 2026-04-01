@@ -6,6 +6,12 @@ import (
    "log"
 )
 
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
+   )
+}
+
 func (c *client) do_address() error {
    err := c.Device.TokenRefresh()
    if err != nil {
@@ -103,10 +109,4 @@ func (c *client) do() error {
       {address},
       {dash_id},
    })
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
-   )
 }
