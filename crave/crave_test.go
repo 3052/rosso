@@ -15,6 +15,8 @@ import (
    "testing"
 )
 
+const public_url = "https://crave.ca/movie/goldeneye-38860"
+
 func TestPasswordLogin(t *testing.T) {
    username, err := run("credential", "-h=crave.ca", "-k=username")
    if err != nil {
@@ -85,8 +87,6 @@ func TestFinalTokens(t *testing.T) {
       t.Fatal(err)
    }
 }
-
-const public_url = "https://crave.ca/movie/goldeneye-38860"
 
 func run(name string, arg ...string) (string, error) {
    var data strings.Builder

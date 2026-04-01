@@ -14,6 +14,85 @@ import (
    "strings"
 )
 
+func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
+            contentId, c.Id, c.DestinationId,
+         ),
+         // Append requested query parameters
+         RawQuery: "format=mpd",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
+func (m *Manifest) FetchDash() (*Dash, error) {
+   resp, err := http.Get(m.Playback)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (m Media) FetchContentPackage() (*ContentPackage, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-playback-language", Language)
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.ContentPackage, nil
+}
+
 func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
    data, err := json.Marshal(map[string]any{
       "payload": payload,
@@ -234,81 +313,4 @@ func FetchMedia(id int) (*Media, error) {
       return nil, errors.New("content ID not found in GraphQL response")
    }
    return &result.Data.Medias[0], nil
-}
-
-type Manifest struct {
-   Playback string
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (m Manifest) FetchDash() (*Dash, error) {
-   resp, err := http.Get(m.Playback)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
-            contentId, c.Id, c.DestinationId,
-         ),
-         // Append requested query parameters
-         RawQuery: "format=mpd",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Manifest
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Playback == "" {
-      return nil, errors.New("playback URL missing in manifest response")
-   }
-   return &result, nil
-}
-
-func (m Media) FetchContentPackage() (*ContentPackage, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-playback-language", Language)
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.ContentPackage, nil
 }

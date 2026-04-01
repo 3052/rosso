@@ -7,6 +7,34 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_username_password() error {
+   var err error
+   c.Account, err = crave.Login(c.username, c.password)
+   if err != nil {
+      return err
+   }
+   profiles, err := c.Account.FetchProfiles()
+   if err != nil {
+      return err
+   }
+   for i, profile := range profiles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(profile)
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_dash_id() error {
    fetch := func(data []byte) ([]byte, error) {
       return c.ContentPackage.FetchWidevine(
@@ -73,34 +101,6 @@ func (c *client) do_profile() error {
 }
 
 var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_username_password() error {
-   var err error
-   c.Account, err = crave.Login(c.username, c.password)
-   if err != nil {
-      return err
-   }
-   profiles, err := c.Account.FetchProfiles()
-   if err != nil {
-      return err
-   }
-   for i, profile := range profiles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(profile)
-   }
-   return nil
-}
 
 func (c *client) do() error {
    err := cache.Setup("rosso/crave.xml")
