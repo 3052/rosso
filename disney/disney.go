@@ -11,25 +11,6 @@ import (
    "strings"
 )
 
-type Page struct {
-   Actions []struct {
-      InternalTitle string // movie
-   }
-   Containers []struct {
-      Seasons []struct { // series
-         Visuals struct {
-            Name string
-         }
-         Id string
-      }
-   }
-   Visuals struct {
-      Restriction struct {
-         Message string
-      }
-   }
-}
-
 func (e *Error) Error() string {
    var data strings.Builder
    if e.Code != "" {
@@ -68,6 +49,27 @@ type Error struct {
    }
    Message string
 }
+
+type Page struct {
+   Actions []struct {
+      InternalTitle string // movie
+   }
+   Containers []struct {
+      Seasons []struct { // series
+         Visuals struct {
+            Name string
+         }
+         Id string
+      }
+   }
+   Visuals struct {
+      Restriction struct {
+         Message string
+      }
+   }
+}
+
+///
 
 func (p *Profile) String() string {
    var data strings.Builder
