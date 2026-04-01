@@ -14,48 +14,45 @@ import (
    "strings"
 )
 
-// L3 max 720p
-func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       1,    // Hardcoded to 1 for Web
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
+func (s *Subscription) String() string {
+   var data strings.Builder
+   data.WriteString("display name = ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date = ")
+   data.WriteString(s.ExpirationDate)
+   return data.String()
+}
+
+type Subscription struct {
+   Experience struct {
+      DisplayName string
+   }
+   ExpirationDate string
+}
+
+func (a *Account) FetchSubscriptions() ([]Subscription, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/subscription/v5",
       },
-   })
-   if err != nil {
-      return nil, err
+      Header: http.Header{},
    }
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
+   var result struct {
+      Subscriptions []Subscription
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
+   return result.Subscriptions, nil
 }
 
 type ContentPackage struct {
@@ -110,6 +107,7 @@ func (a *Account) FetchProfiles() ([]*Profile, error) {
    }
    return profiles, nil
 }
+
 func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
    req := http.Request{
       URL: &url.URL{
@@ -325,4 +323,8 @@ func (a *Account) Login(profileId string) error {
       return fmt.Errorf("profile login failed with: %v", resp.Status)
    }
    return json.NewDecoder(resp.Body).Decode(a)
+}
+
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
 }
