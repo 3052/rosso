@@ -136,6 +136,7 @@ func TestContent(t *testing.T) {
          return &proxy, nil
       },
    }
+   //////////////////////////////////////////////////
    // Magic happens here
    media_id, err := ParseMediaId(public_url)
    if err != nil {

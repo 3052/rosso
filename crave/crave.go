@@ -115,18 +115,7 @@ func (a *Account) FetchProfiles() ([]*Profile, error) {
    return profiles, nil
 }
 
-///
-
-// https://crave.ca/movie/goldeneye-38860
-func ParseMediaId(urlData string) (int, error) {
-   var found bool
-   _, urlData, found = strings.Cut(urlData, "-")
-   if !found {
-      return 0, strconv.ErrSyntax
-   }
-   return strconv.Atoi(urlData)
-}
-
+// 699710369328da351ac33c63
 func (a *Account) Login(profileId string) error {
    data := url.Values{
       "grant_type":    {"refresh_token"},
@@ -152,6 +141,63 @@ func (a *Account) Login(profileId string) error {
    }
    return json.NewDecoder(resp.Body).Decode(a)
 }
+
+// https://crave.ca/movie/goldeneye-38860
+func ParseMediaId(urlData string) (int, error) {
+   var found bool
+   _, urlData, found = strings.Cut(urlData, "-")
+   if !found {
+      return 0, strconv.ErrSyntax
+   }
+   return strconv.Atoi(urlData)
+}
+
+func FetchMedia(id int) (*Media, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "sessionContext": map[string]string{
+            "userLanguage": Language,
+            "userMaturity": "ADULT",
+         },
+         "ids": []string{strconv.Itoa(id)},
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the
+   // access token
+   bearer := base64.StdEncoding.EncodeToString(
+      []byte(`{ "platform": "platform_web" }`),
+   )
+   req.Header.Set("Authorization", "Bearer "+bearer)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []Media
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
+      return nil, errors.New("content ID not found in GraphQL response")
+   }
+   return &result.Data.Medias[0], nil
+}
+
+///
 
 func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
    data, err := json.Marshal(map[string]any{
@@ -249,49 +295,4 @@ func (m Media) FetchContentPackage() (*ContentPackage, error) {
       return nil, err
    }
    return &result.ContentPackage, nil
-}
-
-func FetchMedia(id int) (*Media, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "sessionContext": map[string]string{
-            "userLanguage": Language,
-            "userMaturity": "ADULT",
-         },
-         "ids": []string{strconv.Itoa(id)},
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // The GraphQL endpoint uses a base64 encoded JSON string that includes the
-   // access token
-   bearer := base64.StdEncoding.EncodeToString(
-      []byte(`{ "platform": "platform_web" }`),
-   )
-   req.Header.Set("Authorization", "Bearer "+bearer)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []Media
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
-      return nil, errors.New("content ID not found in GraphQL response")
-   }
-   return &result.Data.Medias[0], nil
 }
