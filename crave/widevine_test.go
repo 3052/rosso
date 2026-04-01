@@ -84,13 +84,9 @@ func TestLicense(t *testing.T) {
       t.Fatalf("Failed to create signed request: %v", err)
    }
    // 4. Send to License Server
-   payload := base64.StdEncoding.EncodeToString(signed_data)
-   session := PlaybackSession{
-      ContentId:        media_data.FirstContent.Id,
-      ContentPackageId: content.Id,
-      DestinationId:    content.DestinationId,
-   }
-   data, err = final_tokens.GetWidevineLicense(&session, payload)
+   data, err = content.FetchWidevine(
+      media_data.FirstContent.Id, final_tokens.AccessToken, signed_data,
+   )
    if err != nil {
       t.Fatal(err)
    }

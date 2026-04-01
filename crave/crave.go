@@ -7,52 +7,99 @@ import (
    "encoding/json"
    "errors"
    "fmt"
+   "io"
    "net/http"
    "net/url"
    "strconv"
    "strings"
 )
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-type Media struct {
-   FirstContent struct {
-      Id string
+func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   data, err := json.Marshal(map[string]any{
+      "payload": payload,
+      "playbackContent": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       1,    // Hardcoded to 1 for Web
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
    }
+   req, err := http.NewRequest(
+      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   // The response is usually a binary widevine license
+   return data, nil
 }
 
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
-type Manifest struct {
-   Playback string
-}
-
-// WidevineRequest represents the JSON body needed for the DRM license request
-type WidevineRequest struct {
-   Payload         string          `json:"payload"`
-   PlaybackContext PlaybackContext `json:"playbackContext"`
-}
-
-type PlaybackContext struct {
-   ContentId        int    `json:"contentId"`
-   ContentPackageId int    `json:"contentpackageId"` // Note: lower-case 'p' as per their API
-   DestinationId    int    `json:"destinationId"`
-   Jwt              string `json:"jwt"`
-   PlatformId       int    `json:"platformId"`
-}
-
-// PlaybackSession holds the necessary IDs to make subsequent requests (like licensing)
-type PlaybackSession struct {
-   ContentId        string
-   ContentPackageId int
-   DestinationId    int
+func FetchMedia(id int) (*Media, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "sessionContext": map[string]string{
+            "userLanguage": Language,
+            "userMaturity": "ADULT",
+         },
+         "ids": []string{strconv.Itoa(id)},
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // The GraphQL endpoint uses a base64 encoded JSON string that includes the
+   // access token
+   bearer := base64.StdEncoding.EncodeToString(
+      []byte(`{ "platform": "platform_web" }`),
+   )
+   req.Header.Set("Authorization", "Bearer "+bearer)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []Media
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
+      return nil, errors.New("content ID not found in GraphQL response")
+   }
+   return &result.Data.Medias[0], nil
 }
 
 // PasswordLogin performs the initial login to get the first set of tokens
@@ -109,12 +156,6 @@ func (a *Account) FetchProfiles() ([]*Profile, error) {
       return nil, err
    }
    return profiles, nil
-}
-
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
 }
 
 func (p *Profile) String() string {
@@ -174,57 +215,12 @@ var Language = "EN"
 //go:embed GetShowpage.gql
 var get_showpage string
 
-func FetchMedia(id int) (*Media, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "sessionContext": map[string]string{
-            "userLanguage": Language,
-            "userMaturity": "ADULT",
-         },
-         "ids": []string{strconv.Itoa(id)},
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // The GraphQL endpoint uses a base64 encoded JSON string that includes the
-   // access token
-   bearer := base64.StdEncoding.EncodeToString(
-      []byte(`{ "platform": "platform_web" }`),
-   )
-   req.Header.Set("Authorization", "Bearer "+bearer)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []Media
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == "" {
-      return nil, errors.New("content ID not found in GraphQL response")
-   }
-   return &result.Data.Medias[0], nil
-}
-
 func (m Media) FetchContentPackage() (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
          Host:   "playback.rte-api.bellmedia.ca",
-         Path:   "/contents/" + m.FirstContent.Id,
+         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
       },
       Header: http.Header{},
    }
@@ -244,7 +240,7 @@ func (m Media) FetchContentPackage() (*ContentPackage, error) {
    return &result.ContentPackage, nil
 }
 
-func (c *ContentPackage) FetchManifest(contentId, accessToken string) (*Manifest, error) {
+func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
@@ -272,4 +268,31 @@ func (c *ContentPackage) FetchManifest(contentId, accessToken string) (*Manifest
       return nil, errors.New("playback URL missing in manifest response")
    }
    return &result, nil
+}
+
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
+type Manifest struct {
+   Playback string
+}
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
 }
