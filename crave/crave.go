@@ -14,53 +14,29 @@ import (
    "strings"
 )
 
-func FetchMedia(id int) (*Media, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "sessionContext": map[string]string{
-            "userLanguage": Language,
-            "userMaturity": "ADULT",
-         },
-         "ids": []string{strconv.Itoa(id)},
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
       },
-   })
-   if err != nil {
-      return nil, err
+      Header: http.Header{},
    }
-   req, err := http.NewRequest(
-      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   bearer := base64.StdEncoding.EncodeToString(
-      []byte(`{ "platform": "platform_web" }`),
-   )
-   req.Header.Set("Authorization", "Bearer "+bearer)
-   resp, err := http.DefaultClient.Do(req)
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []Media
-      }
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
    }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
       return nil, err
    }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
-      return nil, errors.New("content ID not found in GraphQL response")
-   }
-   return &result.Data.Medias[0], nil
-}
-
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
+   return profiles, nil
 }
 
 func (p *Profile) String() string {
@@ -72,9 +48,24 @@ func (p *Profile) String() string {
    } else {
       data.WriteString("\nhas pin = false")
    }
+   if p.Master {
+      data.WriteString("\nmaster = true")
+   } else {
+      data.WriteString("\nmaster = false")
+   }
+   data.WriteString("\nmaturity = ")
+   data.WriteString(p.Maturity)
    data.WriteString("\nid = ")
    data.WriteString(p.Id)
    return data.String()
+}
+
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Master   bool
+   Maturity string
+   Id       string `json:"id"`
 }
 
 func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
@@ -160,31 +151,6 @@ func Login(username, password string) (*Account, error) {
       return nil, err
    }
    return result, nil
-}
-
-func (a *Account) FetchProfiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
 }
 
 // 699710369328da351ac33c63
@@ -314,4 +280,47 @@ func (m Media) FetchContentPackage() (*ContentPackage, error) {
       return nil, err
    }
    return &result.ContentPackage, nil
+}
+
+func FetchMedia(id int) (*Media, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "sessionContext": map[string]string{
+            "userLanguage": Language,
+            "userMaturity": "ADULT",
+         },
+         "ids": []string{strconv.Itoa(id)},
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   bearer := base64.StdEncoding.EncodeToString(
+      []byte(`{ "platform": "platform_web" }`),
+   )
+   req.Header.Set("Authorization", "Bearer "+bearer)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []Media
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
+      return nil, errors.New("content ID not found in GraphQL response")
+   }
+   return &result.Data.Medias[0], nil
 }
