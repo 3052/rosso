@@ -16,8 +16,39 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   fmt.Println(media)
-   return nil
+   content, err := media.FetchContentPackage()
+   if err != nil {
+      return err
+   }
+   manifest, err := content.FetchManifest(
+      media.FirstContent.Id, c.Account.AccessToken,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = manifest.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+type client struct {
+   Account *crave.Account
+   Dash    *crave.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
 }
 
 func (c *client) do_profile() error {
@@ -66,19 +97,6 @@ func (c *client) do() error {
       {profile},
       {address},
    })
-}
-
-type client struct {
-   Account *crave.Account
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
 }
 
 var cache maya.Cache

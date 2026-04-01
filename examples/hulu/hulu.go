@@ -6,52 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/hulu.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "P", "PlayReady")
-   //-------------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {email, password},
-      {address},
-      {dash_id},
-   })
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
-   )
-}
-
 func (c *client) do_address() error {
    err := c.Device.TokenRefresh()
    if err != nil {
@@ -110,3 +64,49 @@ type client struct {
 }
 
 var cache maya.Cache
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/hulu.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "P", "PlayReady")
+   //-------------------------------------------------------------
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //---------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {email, password},
+      {address},
+      {dash_id},
+   })
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
+   )
+}
