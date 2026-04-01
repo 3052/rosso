@@ -8,12 +8,62 @@ import (
 )
 
 func main() {
+   // MP4 need proxy so just use VPN
    maya.SetProxy("", "*.m4v")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/crave.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //-----------------------------------------------------------
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-----------------------------------------------------------
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   //-----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //-----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return with_cache(c.do_profile)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {username, password},
+      {profile},
+      {address},
+      {dash_id},
+   })
 }
 
 func (c *client) do_username_password() error {
@@ -74,6 +124,16 @@ func (c *client) do_address() error {
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
+func (c *client) do_profile() error {
+   err := c.Account.Login(c.profile)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache
+
 type client struct {
    Account        *crave.Account
    ContentPackage *crave.ContentPackage
@@ -90,60 +150,4 @@ type client struct {
    address string
    //--------------------
    dash_id string
-}
-
-func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //-----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return with_cache(c.do_profile)
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {username, password},
-      {profile},
-      {address},
-      {dash_id},
-   })
 }
