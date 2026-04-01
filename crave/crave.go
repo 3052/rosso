@@ -14,8 +14,7 @@ import (
    "strings"
 )
 
-// PasswordLogin performs the initial login to get the first set of tokens
-func PasswordLogin(username, password string) (*Account, error) {
+func Login(username, password string) (*Account, error) {
    data := url.Values{
       "grant_type": {"password"},
       "password":   {password},
@@ -51,13 +50,39 @@ type Account struct {
    RefreshToken string `json:"refresh_token"`
 }
 
+func (a *Account) Login(profileId string) error {
+   data := url.Values{
+      "grant_type":    {"refresh_token"},
+      "profile_id":    {profileId},
+      "refresh_token": {a.RefreshToken},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.2",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("profile login failed with: %v", resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
 type ContentPackage struct {
    Id            int
    DestinationId int
 }
 
 func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   value := map[string]any{
+   data, err := json.Marshal(map[string]any{
       "payload": payload,
       "playbackContext": map[string]any{
          "contentId":        contentId,
@@ -66,8 +91,7 @@ func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payloa
          "destinationId":    c.DestinationId,
          "jwt":              accessToken,
       },
-   }
-   data, err := json.MarshalIndent(value, "", " ")
+   })
    if err != nil {
       return nil, err
    }
@@ -99,6 +123,69 @@ func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payloa
    // The response is usually a binary widevine license
    return data, nil
 }
+
+func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
+            contentId, c.Id, c.DestinationId,
+         ),
+         // Append requested query parameters
+         RawQuery: "format=mpd",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Manifest
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Playback == "" {
+      return nil, errors.New("playback URL missing in manifest response")
+   }
+   return &result, nil
+}
+
+func (m Media) FetchContentPackage() (*ContentPackage, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-playback-language", Language)
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.ContentPackage, nil
+}
+
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
+}
+
+///
 
 type Manifest struct {
    Playback string
@@ -155,14 +242,6 @@ func FetchMedia(id int) (*Media, error) {
    return &result.Data.Medias[0], nil
 }
 
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
-}
-
-///
-
 func (a *Account) FetchProfiles() ([]*Profile, error) {
    req := http.Request{
       URL: &url.URL{
@@ -202,34 +281,6 @@ func (p *Profile) String() string {
    return data.String()
 }
 
-// ProfileLogin exchanges a refresh token for a fully authorized
-// profile-specific Bearer token
-func (a *Account) ProfileLogin(profileId string) error {
-   data := url.Values{
-      "grant_type":    {"refresh_token"},
-      "profile_id":    {profileId},
-      "refresh_token": {a.RefreshToken},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.2",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return fmt.Errorf("profile login failed with: %v", resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
-}
-
 // https://crave.ca/movie/goldeneye-38860
 func ParseMediaId(urlData string) (int, error) {
    var found bool
@@ -244,58 +295,3 @@ var Language = "EN"
 
 //go:embed GetShowpage.gql
 var get_showpage string
-
-func (m Media) FetchContentPackage() (*ContentPackage, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-playback-language", Language)
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.ContentPackage, nil
-}
-
-func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
-            contentId, c.Id, c.DestinationId,
-         ),
-         // Append requested query parameters
-         RawQuery: "format=mpd",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Manifest
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Playback == "" {
-      return nil, errors.New("playback URL missing in manifest response")
-   }
-   return &result, nil
-}

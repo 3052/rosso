@@ -15,33 +15,6 @@ import (
    "testing"
 )
 
-func TestPasswordLogin(t *testing.T) {
-   username, err := run("credential", "-h=crave.ca", "-k=username")
-   if err != nil {
-      t.Fatal(err)
-   }
-   password, err := run("credential", "-h=crave.ca", "-k=password")
-   if err != nil {
-      t.Fatal(err)
-   }
-   auth_tokens, err := PasswordLogin(username, password)
-   if err != nil {
-      t.Fatal(err)
-   }
-   data, err := json.Marshal(auth_tokens)
-   if err != nil {
-      t.Fatal(err)
-   }
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   err = os.WriteFile(cache+"/rosso/crave.json", data, os.ModePerm)
-   if err != nil {
-      t.Fatal(err)
-   }
-}
-
 func TestFinalTokens(t *testing.T) {
    log.SetFlags(log.Ltime)
    http.DefaultTransport = &http.Transport{
@@ -71,7 +44,7 @@ func TestFinalTokens(t *testing.T) {
    i := slices.IndexFunc(profiles, func(p *Profile) bool {
       return p.HasPin == false
    })
-   err = auth_tokens.ProfileLogin(profiles[i].Id)
+   err = auth_tokens.Login(profiles[i].Id)
    if err != nil {
       t.Fatal(err)
    }
@@ -238,4 +211,31 @@ func TestLicense(t *testing.T) {
       t.Fatal(err)
    }
    fmt.Printf("%q\n", data)
+}
+
+func TestPasswordLogin(t *testing.T) {
+   username, err := run("credential", "-h=crave.ca", "-k=username")
+   if err != nil {
+      t.Fatal(err)
+   }
+   password, err := run("credential", "-h=crave.ca", "-k=password")
+   if err != nil {
+      t.Fatal(err)
+   }
+   auth_tokens, err := Login(username, password)
+   if err != nil {
+      t.Fatal(err)
+   }
+   data, err := json.Marshal(auth_tokens)
+   if err != nil {
+      t.Fatal(err)
+   }
+   cache, err := os.UserCacheDir()
+   if err != nil {
+      t.Fatal(err)
+   }
+   err = os.WriteFile(cache+"/rosso/crave.json", data, os.ModePerm)
+   if err != nil {
+      t.Fatal(err)
+   }
 }
