@@ -117,6 +117,54 @@ func (a *Account) Login(profileId string) error {
    return json.NewDecoder(resp.Body).Decode(a)
 }
 
+func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   data, err := json.Marshal(map[string]any{
+      "payload": payload,
+      "playbackContext": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       1,    // Hardcoded to 1 for Web
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   // The response is usually a binary widevine license
+   return data, nil
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
 type Dash struct {
    Body []byte
    Url  *url.URL
@@ -171,6 +219,37 @@ func (m *Manifest) FetchDash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+}
+
+func (m Media) FetchContentPackage() (*ContentPackage, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-playback-language", Language)
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.ContentPackage, nil
+}
+
 func FetchMedia(id int) (*Media, error) {
    body, err := json.Marshal(map[string]any{
       "query": get_showpage,
@@ -216,6 +295,12 @@ func FetchMedia(id int) (*Media, error) {
    return &result.Data.Medias[0], nil
 }
 
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
+}
+
 func (p *Profile) String() string {
    var data strings.Builder
    data.WriteString("nickname = ")
@@ -228,91 +313,4 @@ func (p *Profile) String() string {
    data.WriteString("\nid = ")
    data.WriteString(p.Id)
    return data.String()
-}
-
-///
-
-func (m Media) FetchContentPackage() (*ContentPackage, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   "/contents/" + strconv.Itoa(m.FirstContent.Id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-playback-language", Language)
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.ContentPackage, nil
-}
-
-func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       1,    // Hardcoded to 1 for Web
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
-}
-
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
 }
