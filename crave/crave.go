@@ -14,6 +14,52 @@ import (
    "strings"
 )
 
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
+}
+
+type Manifest struct {
+   Playback string
+}
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+var Language = "EN"
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
 func Login(username, password string) (*Account, error) {
    data := url.Values{
       "grant_type": {"password"},
@@ -44,10 +90,41 @@ func Login(username, password string) (*Account, error) {
    return result, nil
 }
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
+///
+
+// https://crave.ca/movie/goldeneye-38860
+func ParseMediaId(urlData string) (int, error) {
+   var found bool
+   _, urlData, found = strings.Cut(urlData, "-")
+   if !found {
+      return 0, strconv.ErrSyntax
+   }
+   return strconv.Atoi(urlData)
 }
 
 func (a *Account) Login(profileId string) error {
@@ -74,11 +151,6 @@ func (a *Account) Login(profileId string) error {
       return fmt.Errorf("profile login failed with: %v", resp.Status)
    }
    return json.NewDecoder(resp.Body).Decode(a)
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
 }
 
 func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
@@ -179,24 +251,6 @@ func (m Media) FetchContentPackage() (*ContentPackage, error) {
    return &result.ContentPackage, nil
 }
 
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
-}
-
-///
-
-type Manifest struct {
-   Playback string
-}
-
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
-}
-
 func FetchMedia(id int) (*Media, error) {
    body, err := json.Marshal(map[string]any{
       "query": get_showpage,
@@ -241,57 +295,3 @@ func FetchMedia(id int) (*Media, error) {
    }
    return &result.Data.Medias[0], nil
 }
-
-func (a *Account) FetchProfiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-// https://crave.ca/movie/goldeneye-38860
-func ParseMediaId(urlData string) (int, error) {
-   var found bool
-   _, urlData, found = strings.Cut(urlData, "-")
-   if !found {
-      return 0, strconv.ErrSyntax
-   }
-   return strconv.Atoi(urlData)
-}
-
-var Language = "EN"
-
-//go:embed GetShowpage.gql
-var get_showpage string

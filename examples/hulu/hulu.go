@@ -76,8 +76,6 @@ func (c *client) do_address() error {
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
-var cache maya.Cache
-
 func main() {
    log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.mp4,*.mp4a")
@@ -110,3 +108,5 @@ type client struct {
    //--------------------
    dash_id string
 }
+
+var cache maya.Cache
