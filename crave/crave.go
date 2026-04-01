@@ -14,6 +14,11 @@ import (
    "strings"
 )
 
+var Language = "EN"
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
 // https://crave.ca/movie/goldeneye-38860
 func ParseMediaId(urlData string) (int, error) {
    var found bool
@@ -22,6 +27,12 @@ func ParseMediaId(urlData string) (int, error) {
       return 0, strconv.ErrSyntax
    }
    return strconv.Atoi(urlData)
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
 }
 
 func Login(username, password string) (*Account, error) {
@@ -205,6 +216,20 @@ func FetchMedia(id int) (*Media, error) {
    return &result.Data.Medias[0], nil
 }
 
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
 ///
 
 func (m Media) FetchContentPackage() (*ContentPackage, error) {
@@ -291,28 +316,3 @@ type Media struct {
       Id int `json:"id,string"`
    }
 }
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-var Language = "EN"
-
-//go:embed GetShowpage.gql
-var get_showpage string
