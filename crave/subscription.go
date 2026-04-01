@@ -27,12 +27,12 @@ func (a *Account) FetchSubscriptions() ([]Subscription, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
-         Host: "account.bellmedia.ca",
-         Path: "/api/subscription/v5",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/subscription/v5",
       },
       Header: http.Header{},
    }
-   req.Header.Set("authorization", "Bearer " + a.AccessToken)
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err

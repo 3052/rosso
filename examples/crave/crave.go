@@ -7,6 +7,24 @@ import (
    "log"
 )
 
+func (c *client) do_profile() error {
+   err := c.Account.Login(c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := c.Account.FetchSubscriptions()
+   if err != nil {
+      return err
+   }
+   for i, sub := range subs {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&sub)
+   }
+   return cache.Write(c)
+}
+
 func main() {
    // MP4 need proxy so just use VPN
    maya.SetProxy("", "*.m4v")
@@ -122,14 +140,6 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }
 
 var cache maya.Cache
