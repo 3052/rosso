@@ -27,6 +27,7 @@ func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Mani
             "filter": {"ff"}, // 1080p
             "format": {"mpd"},
             "hd":     {"true"}, // 1080p
+            "mcv":    {"true"}, // H.264 + HEVC
             "uhd":    {"true"}, // HEVC
          }.Encode(),
       },
