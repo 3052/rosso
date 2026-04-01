@@ -120,8 +120,6 @@ func (t *Token) Refresh() error {
    return t.AsError()
 }
 
-///
-
 func (t *Token) Files(filesHref string) (Files, error) {
    req := http.Request{
       Header: http.Header{},

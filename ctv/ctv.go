@@ -12,6 +12,45 @@ import (
    "strings"
 )
 
+//go:embed resolvePath.gql
+var query_resolve_path string
+
+//go:embed axisContent.gql
+var query_axis_content string
+
+type AxisContent struct {
+   AxisId                int
+   AxisPlaybackLanguages []struct {
+      DestinationCode string
+   }
+}
+
+func (a *AxisContent) Playback() (*Playback, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "capi.9c9media.com",
+         Path: fmt.Sprintf(
+            "/destinations/%v/platforms/desktop/contents/%v",
+            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
+         ),
+         RawQuery: "$include=[ContentPackages]",
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Playback{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 func (a *AxisContent) Manifest(play *Playback) (string, error) {
    req := http.Request{
       URL: &url.URL{
@@ -43,6 +82,11 @@ func (a *AxisContent) Manifest(play *Playback) (string, error) {
    return data.String(), nil
 }
 
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
 func FetchDash(manifest string) (*Dash, error) {
    resp, err := http.Get(strings.Replace(manifest, "/best/", "/ultimate/", 1))
    if err != nil {
@@ -54,6 +98,66 @@ func FetchDash(manifest string) (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Playback struct {
+   ContentPackages []struct {
+      Id int
+   }
+}
+
+func Resolve(path string) (*ResolvedPath, error) {
+   data, err := json.Marshal(map[string]any{
+      "query": query_resolve_path,
+      "variables": map[string]string{
+         "path": path,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://www.ctv.ca/space-graphql/apq/graphql",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // you need this for the first request, then can omit
+   req.Header.Set("graphql-client-platform", "entpay_web")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Data struct {
+         ResolvedPath *ResolvedPath
+      }
+   }
+   err = json.Unmarshal(data, &result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Data.ResolvedPath == nil {
+      return nil, errors.New(string(data))
+   }
+   return result.Data.ResolvedPath, nil
+}
+
+type ResolvedPath struct {
+   LastSegment struct {
+      Content struct {
+         FirstPlayableContent *struct {
+            Id string
+         }
+         Id string
+      }
+   }
 }
 
 func (r *ResolvedPath) get_id() string {
@@ -105,11 +209,7 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
    return &result.Data.AxisContent, nil
 }
 
-//go:embed resolvePath.gql
-var query_resolve_path string
-
-//go:embed axisContent.gql
-var query_axis_content string
+///
 
 // https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
 func GetPath(urlData string) (string, error) {
@@ -136,102 +236,4 @@ func Widevine(data []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-func (a *AxisContent) Playback() (*Playback, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprintf(
-            "/destinations/%v/platforms/desktop/contents/%v",
-            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
-         ),
-         RawQuery: "$include=[ContentPackages]",
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Playback{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func Resolve(path string) (*ResolvedPath, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": query_resolve_path,
-      "variables": map[string]string{
-         "path": path,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://www.ctv.ca/space-graphql/apq/graphql",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // you need this for the first request, then can omit
-   req.Header.Set("graphql-client-platform", "entpay_web")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         ResolvedPath *ResolvedPath
-      }
-   }
-   err = json.Unmarshal(data, &result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Data.ResolvedPath == nil {
-      return nil, errors.New(string(data))
-   }
-   return result.Data.ResolvedPath, nil
-}
-
-type Playback struct {
-   ContentPackages []struct {
-      Id int
-   }
-}
-
-type AxisContent struct {
-   AxisId                int
-   AxisPlaybackLanguages []struct {
-      DestinationCode string
-   }
-}
-
-type ResolvedPath struct {
-   LastSegment struct {
-      Content struct {
-         FirstPlayableContent *struct {
-            Id string
-         }
-         Id string
-      }
-   }
 }

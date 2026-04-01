@@ -24,9 +24,9 @@ func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Mani
             contentId, c.Id, c.DestinationId,
          ),
          RawQuery: url.Values{
-            "filter": {"fe"}, // 720p
+            "filter": {"ff"}, // 1080p
             "format": {"mpd"},
-            "hd":     {"true"}, // 720p
+            "hd":     {"true"}, // 1080p
          }.Encode(),
       },
       Header: http.Header{},
