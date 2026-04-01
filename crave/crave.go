@@ -14,6 +14,40 @@ import (
    "strings"
 )
 
+func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
+            contentId, c.Id, c.DestinationId,
+         ),
+         RawQuery: url.Values{
+            "filter": {"fe"}, // 720p
+            "format": {"mpd"},
+            "hd":     {"true"}, // 720p
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
 var Language = "EN"
 
 //go:embed GetShowpage.gql
@@ -168,37 +202,6 @@ type ContentPackage struct {
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Manifest, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/1",
-            contentId, c.Id, c.DestinationId,
-         ),
-         // Append requested query parameters
-         RawQuery: "format=mpd",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Manifest
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
 
 type Manifest struct {

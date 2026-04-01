@@ -10,6 +10,36 @@ import (
    "net/url"
 )
 
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (f *File) Dash() (*Dash, error) {
+   resp, err := http.Get(f.Links.Source.Href)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href string // MPD
+      }
+   } `json:"_links"`
+   Method string
+}
+
 func (f *File) Widevine(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
@@ -37,6 +67,42 @@ func (f Files) Dash() (*File, error) {
    return nil, errors.New("DASH media file not found")
 }
 
+type Item struct {
+   Links struct {
+      Files struct {
+         Href string // https://api.vhx.tv/videos/3460957/files
+      }
+   } `json:"_links"`
+}
+
+func (t *Token) Item(slug string) (*Item, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "api.vhx.com",
+         Path:     fmt.Sprintf("/collections/%v/items", slug),
+         RawQuery: "site_id=59054",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+t.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Embedded struct {
+         Items []Item
+      } `json:"_embedded"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Embedded.Items[0], nil
+}
+
 func (t *Token) Refresh() error {
    resp, err := http.PostForm("https://auth.vhx.com/v1/oauth/token", url.Values{
       "client_id":     {client_id},
@@ -54,13 +120,7 @@ func (t *Token) Refresh() error {
    return t.AsError()
 }
 
-type Item struct {
-   Links struct {
-      Files struct {
-         Href string // https://api.vhx.tv/videos/3460957/files
-      }
-   } `json:"_links"`
-}
+///
 
 func (t *Token) Files(filesHref string) (Files, error) {
    req := http.Request{
@@ -124,62 +184,4 @@ func (t *Token) AsError() error {
       return nil
    }
    return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
-}
-
-func (f *File) Dash() (*Dash, error) {
-   resp, err := http.Get(f.Links.Source.Href)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (t *Token) Item(slug string) (*Item, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []Item
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Embedded.Items[0], nil
-}
-
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href string // MPD
-      }
-   } `json:"_links"`
-   Method string
 }
