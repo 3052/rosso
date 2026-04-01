@@ -14,17 +14,60 @@ import (
    "strings"
 )
 
+// PasswordLogin performs the initial login to get the first set of tokens
+func PasswordLogin(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
 func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
+   value := map[string]any{
       "payload": payload,
-      "playbackContent": map[string]any{
+      "playbackContext": map[string]any{
          "contentId":        contentId,
          "contentpackageId": c.Id, // lower-case 'p' as per their API
          "platformId":       1,    // Hardcoded to 1 for Web
          "destinationId":    c.DestinationId,
          "jwt":              accessToken,
       },
-   })
+   }
+   data, err := json.MarshalIndent(value, "", " ")
    if err != nil {
       return nil, err
    }
@@ -55,6 +98,16 @@ func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payloa
    }
    // The response is usually a binary widevine license
    return data, nil
+}
+
+type Manifest struct {
+   Playback string
+}
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
 }
 
 func FetchMedia(id int) (*Media, error) {
@@ -102,36 +155,13 @@ func FetchMedia(id int) (*Media, error) {
    return &result.Data.Medias[0], nil
 }
 
-// PasswordLogin performs the initial login to get the first set of tokens
-func PasswordLogin(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
+type Profile struct {
+   Nickname string `json:"nickname"`
+   HasPin   bool   `json:"hasPin"`
+   Id       string `json:"id"`
 }
+
+///
 
 func (a *Account) FetchProfiles() ([]*Profile, error) {
    req := http.Request{
@@ -268,31 +298,4 @@ func (c *ContentPackage) FetchManifest(contentId int, accessToken string) (*Mani
       return nil, errors.New("playback URL missing in manifest response")
    }
    return &result, nil
-}
-
-type Profile struct {
-   Nickname string `json:"nickname"`
-   HasPin   bool   `json:"hasPin"`
-   Id       string `json:"id"`
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
-type Manifest struct {
-   Playback string
-}
-
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
 }
