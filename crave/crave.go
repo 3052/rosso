@@ -14,6 +14,150 @@ import (
    "strings"
 )
 
+// https://crave.ca/movie/anaconda-2025-59881
+// https://crave.ca/movie/goldeneye-38860
+func ParseMediaId(urlData string) (int, error) {
+   idx := strings.LastIndex(urlData, "-")
+   if idx == -1 {
+      return 0, strconv.ErrSyntax
+   }
+   return strconv.Atoi(urlData[idx+1:])
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+func Login(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+// 699710369328da351ac33c63
+func (a *Account) Login(profileId string) error {
+   data := url.Values{
+      "grant_type":    {"refresh_token"},
+      "profile_id":    {profileId},
+      "refresh_token": {a.RefreshToken},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.2",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("profile login failed with: %v", resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
+func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   data, err := json.Marshal(map[string]any{
+      "payload": payload,
+      "playbackContext": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       1,    // Hardcoded to 1 for Web
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   // The response is usually a binary widevine license
+   return data, nil
+}
+
+type ContentPackage struct {
+   Id            int
+   DestinationId int
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
+func (m *Manifest) FetchDash() (*Dash, error) {
+   resp, err := http.Get(m.Playback)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
 func (a *Account) FetchProfiles() ([]*Profile, error) {
    req := http.Request{
       URL: &url.URL{
@@ -176,153 +320,7 @@ type Profile struct {
    Id       string `json:"id"`
 }
 
-///
-
 var Language = "EN"
 
 //go:embed GetShowpage.gql
 var get_showpage string
-
-// https://crave.ca/movie/goldeneye-38860
-func ParseMediaId(urlData string) (int, error) {
-   var found bool
-   _, urlData, found = strings.Cut(urlData, "-")
-   if !found {
-      return 0, strconv.ErrSyntax
-   }
-   return strconv.Atoi(urlData)
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-func Login(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-// 699710369328da351ac33c63
-func (a *Account) Login(profileId string) error {
-   data := url.Values{
-      "grant_type":    {"refresh_token"},
-      "profile_id":    {profileId},
-      "refresh_token": {a.RefreshToken},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.2",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return fmt.Errorf("profile login failed with: %v", resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
-}
-
-func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       1,    // Hardcoded to 1 for Web
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
-}
-
-func (m *Manifest) FetchDash() (*Dash, error) {
-   resp, err := http.Get(m.Playback)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
