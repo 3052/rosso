@@ -12,24 +12,6 @@ import (
    "strings"
 )
 
-//go:embed resolvePath.gql
-var query_resolve_path string
-
-//go:embed axisContent.gql
-var query_axis_content string
-
-// https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
-func GetPath(urlData string) (string, error) {
-   urlParse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   if urlParse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return urlParse.Path, nil
-}
-
 func Widevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       "https://license.9c9media.ca/widevine", "application/x-protobuf",
@@ -234,4 +216,21 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
       return nil, errors.New(result.Errors[0].Message)
    }
    return &result.Data.AxisContent, nil
+}
+//go:embed resolvePath.gql
+var query_resolve_path string
+
+//go:embed axisContent.gql
+var query_axis_content string
+
+// https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
+func GetPath(urlData string) (string, error) {
+   urlParse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   if urlParse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return urlParse.Path, nil
 }
