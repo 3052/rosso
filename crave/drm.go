@@ -23,7 +23,7 @@ func (c *ContentPackage) FetchPlayReady(contentId int, accessToken string, paylo
       return nil, err
    }
    req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/widevine", bytes.NewBuffer(data),
+      "POST", "https://license.9c9media.com/playready", bytes.NewBuffer(data),
    )
    if err != nil {
       return nil, err
@@ -33,22 +33,7 @@ func (c *ContentPackage) FetchPlayReady(contentId int, accessToken string, paylo
       return nil, err
    }
    defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   // The response is usually a binary widevine license
-   return data, nil
+   return io.ReadAll(resp.Body)
 }
 
 // L3 max 720p
