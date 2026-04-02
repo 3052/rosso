@@ -7,6 +7,49 @@ import (
    "path"
 )
 
+func (c *client) do_address() error {
+   err := c.Token.Refresh()
+   if err != nil {
+      return err
+   }
+   item, err := c.Token.FetchItem(path.Base(c.address))
+   if err != nil {
+      return err
+   }
+   files, err := c.Token.FetchFiles(item.Links.Files.Href)
+   if err != nil {
+      return err
+   }
+   c.File, err = files.GetDash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.File.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+type client struct {
+   Dash  *criterion.Dash
+   File  *criterion.File
+   Token *criterion.Token
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   address string
+   //------------------------
+   dash_id string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/criterion.xml")
    if err != nil {
@@ -60,7 +103,7 @@ var cache maya.Cache
 
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.File.Widevine,
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.File.FetchWidevine,
    )
 }
 
@@ -71,47 +114,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   err := c.Token.Refresh()
-   if err != nil {
-      return err
-   }
-   item, err := c.Token.Item(path.Base(c.address))
-   if err != nil {
-      return err
-   }
-   files, err := c.Token.Files(item.Links.Files.Href)
-   if err != nil {
-      return err
-   }
-   c.File, err = files.Dash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.File.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-type client struct {
-   Dash  *criterion.Dash
-   File  *criterion.File
-   Token *criterion.Token
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   address string
-   //------------------------
-   dash_id string
 }

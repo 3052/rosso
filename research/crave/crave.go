@@ -130,6 +130,7 @@ type client struct {
    //--------------------
    dash_id string
 }
+
 func main() {
    // MP4 need proxy so just use VPN
    maya.SetProxy("", "*.m4v")
