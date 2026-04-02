@@ -33,7 +33,21 @@ func (c *ContentPackage) FetchPlayReady(contentId int, accessToken string, paylo
       return nil, err
    }
    defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return data, nil
 }
 
 // L3 max 720p
