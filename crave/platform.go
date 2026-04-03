@@ -59,13 +59,13 @@ func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platfo
       Header: http.Header{},
    }
    req.Header.Set("authorization", "Bearer "+accessToken)
-   
+
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   
+
    var result Manifest
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
@@ -74,7 +74,7 @@ func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platfo
    if result.Message != "" {
       return nil, errors.New(result.Message)
    }
-   
+
    return &result, nil
 }
 
@@ -92,20 +92,20 @@ func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload
    if err != nil {
       return nil, err
    }
-   
+
    req, err := http.NewRequest(
       "POST", "https://license.9c9media.com/"+path, bytes.NewBuffer(data),
    )
    if err != nil {
       return nil, err
    }
-   
+
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   
+
    data, err = io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
@@ -120,6 +120,6 @@ func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload
       }
       return nil, errors.New(result.Message)
    }
-   
+
    return data, nil
 }
