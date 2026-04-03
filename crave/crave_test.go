@@ -2,7 +2,6 @@ package crave
 
 import (
    "encoding/json"
-   "fmt"
    "log"
    "net/http"
    "net/url"
@@ -13,7 +12,9 @@ import (
    "testing"
 )
 
-const public_url = "https://crave.ca/movie/goldeneye-38860"
+func TestUrl(t *testing.T) {
+   t.Log("https://crave.ca/movie/goldeneye-38860")
+}
 
 func TestPasswordLogin(t *testing.T) {
    username, err := run("credential", "-h=crave.ca", "-k=username")
@@ -95,64 +96,4 @@ func run(name string, arg ...string) (string, error) {
       return "", err
    }
    return data.String(), nil
-}
-
-func TestContent(t *testing.T) {
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   data, err := os.ReadFile(cache + "/rosso/crave-final.json")
-   if err != nil {
-      t.Fatal(err)
-   }
-   var final_tokens Account
-   err = json.Unmarshal(data, &final_tokens)
-   if err != nil {
-      t.Fatal(err)
-   }
-   log.SetFlags(log.Ltime)
-   username, err := run("credential", "-h=api.nordvpn.com", "-k=username")
-   if err != nil {
-      t.Fatal(err)
-   }
-   password, err := run("credential", "-h=api.nordvpn.com", "-k=password")
-   if err != nil {
-      t.Fatal(err)
-   }
-   proxy := url.URL{
-      Scheme: "https",
-      User:   url.UserPassword(username, password),
-      Host:   "ca1103.nordvpn.com:89",
-   }
-   http.DefaultTransport = &http.Transport{
-      Proxy: func(req *http.Request) (*url.URL, error) {
-         if req.Method == "" {
-            req.Method = "GET"
-         }
-         log.Println(req.Method, req.URL)
-         return &proxy, nil
-      },
-   }
-   //////////////////////////////////////////////////
-   // Magic happens here
-   media_id, err := ParseMediaId(public_url)
-   if err != nil {
-      t.Fatal(err)
-   }
-   media_data, err := FetchMedia(media_id)
-   if err != nil {
-      t.Fatal(err)
-   }
-   content, err := media_data.FetchContentPackage()
-   if err != nil {
-      t.Fatal(err)
-   }
-   manifest_data, err := content.FetchManifest(
-      media_data.FirstContent.Id, final_tokens.AccessToken,
-   )
-   if err != nil {
-      t.Fatal(err)
-   }
-   fmt.Println("DASH Manifest URL:", manifest_data)
 }

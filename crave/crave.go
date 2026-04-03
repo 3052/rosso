@@ -195,10 +195,6 @@ func (a *Account) Login(profileId string) error {
    return json.NewDecoder(resp.Body).Decode(a)
 }
 
-func marshal(value any) ([]byte, error) {
-   return json.MarshalIndent(value, "", " ")
-}
-
 func (s *Subscription) String() string {
    var data strings.Builder
    data.WriteString("display name = ")
@@ -240,19 +236,9 @@ func (a *Account) FetchSubscriptions() ([]Subscription, error) {
    return result.Subscriptions, nil
 }
 
-type ContentPackage struct {
-   Id            int
-   DestinationId int
-}
-
 type Dash struct {
    Body []byte
    Url  *url.URL
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
 }
 
 func (m *Manifest) FetchDash() (*Dash, error) {
