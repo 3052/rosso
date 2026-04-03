@@ -99,6 +99,7 @@ func (c *client) do() error {
       {dash_id},
    })
 }
+
 func (c *client) do_dash_id() error {
    fetch := func(data []byte) ([]byte, error) {
       return c.ContentPackage.FetchPlayReady(

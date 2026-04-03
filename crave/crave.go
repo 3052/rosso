@@ -2,6 +2,7 @@ package crave
 
 import (
    "bytes"
+   _ "embed"
    "encoding/base64"
    "encoding/json"
    "errors"
@@ -11,7 +12,6 @@ import (
    "net/url"
    "strconv"
    "strings"
-   _ "embed"
 )
 
 // L3 max 720p
@@ -54,7 +54,6 @@ func (c *ContentPackage) FetchWidevine(contentId int, accessToken string, payloa
       }
       return nil, errors.New(result.Message)
    }
-   // The response is usually a binary widevine license
    return data, nil
 }
 
@@ -99,6 +98,7 @@ func (c *ContentPackage) FetchPlayReady(contentId int, accessToken string, paylo
    }
    return data, nil
 }
+
 func (s *Subscription) String() string {
    var data strings.Builder
    data.WriteString("display name = ")
