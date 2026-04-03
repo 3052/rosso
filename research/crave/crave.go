@@ -34,51 +34,6 @@ func (c *client) do_profile() error {
    }
    return cache.Write(c)
 }
-func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //-----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return with_cache(c.do_profile)
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {username, password},
-      {profile},
-      {address},
-      {dash_id},
-   })
-}
 
 func (c *client) do_username_password() error {
    var err error
@@ -99,9 +54,54 @@ func (c *client) do_username_password() error {
    return cache.Write(c)
 }
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/crave.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+   //-----------------------------------------------------------
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-----------------------------------------------------------
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   //-----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //-----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return with_cache(c.do_profile)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {username, password},
+      {profile},
+      {address},
+      {dash_id},
+   })
+}
 func (c *client) do_dash_id() error {
    fetch := func(data []byte) ([]byte, error) {
-      return c.ContentPackage.FetchWidevine(
+      return c.ContentPackage.FetchPlayReady(
          c.Media.FirstContent.Id, c.Account.AccessToken, data,
       )
    }

@@ -34,6 +34,7 @@ func (c *client) do_profile() error {
    }
    return cache.Write(c)
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/crave.xml")
    if err != nil {
