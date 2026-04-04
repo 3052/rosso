@@ -6,6 +6,12 @@ import (
    "log"
 )
 
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, ctv.FetchWidevine,
+   )
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/ctv.xml")
    if err != nil {
@@ -34,10 +40,6 @@ func (c *client) do() error {
       address,
       dash_id,
    }})
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, ctv.Widevine)
 }
 
 var cache maya.Cache

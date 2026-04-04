@@ -10,6 +10,54 @@ import (
    "net/url"
 )
 
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href string // MPD
+      }
+   } `json:"_links"`
+   Method string
+}
+
+func (f *File) FetchDash() (*Dash, error) {
+   resp, err := http.Get(f.Links.Source.Href)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (f *File) FetchWidevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Files []File
+
 func (f Files) GetDash() (*File, error) {
    for _, file_data := range f {
       if file_data.Method == "dash" {
@@ -119,27 +167,6 @@ func (t *Token) AsError() error {
    return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
 }
 
-///
-
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href string // MPD
-      }
-   } `json:"_links"`
-   Method string
-}
-
-type Files []File
-
 func (t *Token) Refresh() error {
    resp, err := http.PostForm("https://auth.vhx.com/v1/oauth/token", url.Values{
       "client_id":     {client_id},
@@ -155,33 +182,4 @@ func (t *Token) Refresh() error {
       return err
    }
    return t.AsError()
-}
-
-func (f *File) FetchDash() (*Dash, error) {
-   resp, err := http.Get(f.Links.Source.Href)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (f *File) FetchWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }

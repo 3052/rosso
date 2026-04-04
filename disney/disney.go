@@ -11,6 +11,31 @@ import (
    "strings"
 )
 
+// ZGlzbmV5JmJyb3dzZXImMS4wLjA
+// disney&browser&1.0.0
+const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
+
+//go:embed authenticateWithOtp.gql
+var mutation_authenticate_with_otp string
+
+//go:embed loginWithActionGrant.gql
+var mutation_login_with_action_grant string
+
+//go:embed registerDevice.gql
+var mutation_register_device string
+
+//go:embed login.gql
+var mutation_login string
+
+//go:embed requestOtp.gql
+var mutation_request_otp string
+
+//go:embed refreshToken.gql
+var mutation_refresh_token string
+
+//go:embed switchProfile.gql
+var mutation_switch_profile string
+
 func (e *Error) Error() string {
    var data strings.Builder
    if e.Code != "" {
@@ -234,31 +259,6 @@ func RegisterDevice() (*Token, error) {
 }
 
 ///
-
-// ZGlzbmV5JmJyb3dzZXImMS4wLjA
-// disney&browser&1.0.0
-const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
-
-//go:embed authenticateWithOtp.gql
-var mutation_authenticate_with_otp string
-
-//go:embed loginWithActionGrant.gql
-var mutation_login_with_action_grant string
-
-//go:embed registerDevice.gql
-var mutation_register_device string
-
-//go:embed login.gql
-var mutation_login string
-
-//go:embed requestOtp.gql
-var mutation_request_otp string
-
-//go:embed refreshToken.gql
-var mutation_refresh_token string
-
-//go:embed switchProfile.gql
-var mutation_switch_profile string
 
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d

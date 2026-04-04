@@ -6,31 +6,35 @@
 > - [Frankie Rose](//youtube.com/watch?v=12kWorQYKhI) (2012)
 > - [Paint it Black](//justwatch.com/us/movie/paint-it-black) (2016)
 
-Go packages for streaming API authentication, metadata, and DRM playback
+streaming API authentication, metadata, and DRM playback 
 
-1. (us) disney-plus
-2. (us) hulu
-3. (us) hbo-max
-4. (us) peacock
-5. (us) nbc
-6. (us) pluto-tv
-7. (us) tubi-tv
-8. (us) paramount-plus-premium
-9. (us) the-roku-channel
-10. (us) amc-plus
-11. (us) kanopy
-12. (us) criterion-channel
-13. (us) mubi
-14. (us) plex
-15. (ca) ctv
-16. (ca) crave
-17. (uk) itvx
-18. (uk) rakuten-tv
-19. (be) rtbf-auvio
-20. (cz) canal-plus
-21. (fr) molotov-tv
-22. (nl) cinemember
-23. (se) draken-films
+## Results (From Year 2020)
+
+| Titles | Country | Provider |
+|---|---|---|
+| 15750 | us | tubi-tv |
+| 7571 | us | plex |
+| 6903 | us | the-roku-channel |
+| 3308 | us | kanopy |
+| 2968 | uk | rakuten-tv |
+| 2004 | ca | crave |
+| 1815 | us | hulu |
+| 1667 | us | hbo-max |
+| 1321 | us | pluto-tv |
+| 874 | us | disney-plus |
+| 834 | us | peacock |
+| 673 | fr | molotov-tv |
+| 531 | us | paramount-plus-premium |
+| 497 | us | amc-plus |
+| 461 | cz | canal-plus |
+| 409 | uk | itvx |
+| 321 | be | rtbf-auvio |
+| 258 | nl | cinemember |
+| 240 | ca | ctv |
+| 204 | us | mubi |
+| 200 | se | draken-films |
+| 171 | us | criterion-channel |
+| 27 | us | nbc |
 
 ## contact
 
