@@ -127,6 +127,7 @@ func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload
 
    return data, nil
 }
+
 func marshal(value any) ([]byte, error) {
    return json.MarshalIndent(value, "", " ")
 }
@@ -256,18 +257,6 @@ type Profile struct {
    Master   bool
    Maturity string
    Id       string `json:"id"`
-}
-
-///
-
-// https://crave.ca/movie/anaconda-2025-59881
-// https://crave.ca/movie/goldeneye-38860
-func ParseMediaId(urlData string) (int, error) {
-   idx := strings.LastIndex(urlData, "-")
-   if idx == -1 {
-      return 0, strconv.ErrSyntax
-   }
-   return strconv.Atoi(urlData[idx+1:])
 }
 
 type Account struct {

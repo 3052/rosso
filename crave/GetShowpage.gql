@@ -3,5 +3,6 @@ query GetShowpage($sessionContext: SessionContext!, $ids: [String!]!) {
       firstContent {
          id
       }
+      id
    }
 }

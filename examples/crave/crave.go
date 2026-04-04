@@ -9,7 +9,7 @@ import (
 
 func main() {
    // MP4 need proxy so just use VPN
-   maya.SetProxy("", "*.m4v")
+   //maya.SetProxy("", "*.m4v")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

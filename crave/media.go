@@ -7,12 +7,27 @@ import (
    "errors"
    "net/http"
    "strconv"
+   "strings"
 )
+
+// https://crave.ca/movie/anaconda-2025-59881
+// https://crave.ca/play/anaconda-2025-3300246
+//
+// https://crave.ca/movie/goldeneye-38860
+// https://crave.ca/play/goldeneye-938361
+func ParseMediaId(urlData string) (int, error) {
+   idx := strings.LastIndex(urlData, "-")
+   if idx == -1 {
+      return 0, strconv.ErrSyntax
+   }
+   return strconv.Atoi(urlData[idx+1:])
+}
 
 type Media struct {
    FirstContent struct {
       Id int `json:"id,string"`
    }
+   Id int `json:"id,string"`
 }
 
 func FetchMedia(id int) (*Media, error) {
