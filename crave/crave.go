@@ -13,6 +13,128 @@ import (
    "strings"
 )
 
+var Language = "EN"
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
+}
+
+func (a *Account) FetchSubscriptions() ([]Subscription, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/subscription/v5",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Subscriptions []Subscription
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Subscriptions, nil
+}
+
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+func Login(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+// 699710369328da351ac33c63
+func (a *Account) Login(profileId string) error {
+   data := url.Values{
+      "grant_type":    {"refresh_token"},
+      "profile_id":    {profileId},
+      "refresh_token": {a.RefreshToken},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.2",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("profile login failed with: %v", resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
 // SL2000 max 2160p
 func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
    return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
@@ -214,125 +336,4 @@ type Subscription struct {
       DisplayName string
    }
    ExpirationDate string
-}
-var Language = "EN"
-
-//go:embed GetShowpage.gql
-var get_showpage string
-
-func marshal(value any) ([]byte, error) {
-   return json.MarshalIndent(value, "", " ")
-}
-
-func (a *Account) FetchSubscriptions() ([]Subscription, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/subscription/v5",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Subscriptions []Subscription
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Subscriptions, nil
-}
-
-func (a *Account) FetchProfiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-func Login(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-// 699710369328da351ac33c63
-func (a *Account) Login(profileId string) error {
-   data := url.Values{
-      "grant_type":    {"refresh_token"},
-      "profile_id":    {profileId},
-      "refresh_token": {a.RefreshToken},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.2",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return fmt.Errorf("profile login failed with: %v", resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
 }
