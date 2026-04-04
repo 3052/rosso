@@ -19,11 +19,6 @@ type Media struct {
    Id int `json:"id,string"`
 }
 
-/*
-https://crave.ca/movie/anaconda-2025-59881
-https://crave.ca/play/anaconda-2025-3300246
-https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
-*/
 func ParseMedia(rawUrl string) (*Media, error) {
    parsedUrl, err := url.Parse(rawUrl)
    if err != nil {

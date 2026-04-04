@@ -10,6 +10,15 @@ import (
    "net/url"
 )
 
+func (f Files) GetDash() (*File, error) {
+   for _, file_data := range f {
+      if file_data.Method == "dash" {
+         return &file_data, nil
+      }
+   }
+   return nil, errors.New("DASH media file not found")
+}
+
 type Item struct {
    Links struct {
       Files struct {
@@ -175,13 +184,4 @@ func (f *File) FetchWidevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-func (f Files) GetDash() (*File, error) {
-   for _, file_data := range f {
-      if file_data.Method == "dash" {
-         return &file_data, nil
-      }
-   }
-   return nil, errors.New("DASH media file not found")
 }
