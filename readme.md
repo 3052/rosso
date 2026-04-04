@@ -8,33 +8,33 @@
 
 streaming API authentication, metadata, and DRM playback 
 
-## Results (From Year 2020)
+## providers (2022 - 2026)
 
 | Titles | Country | Provider |
 |---|---|---|
-| 15750 | us | tubi-tv |
-| 7571 | us | plex |
-| 6903 | us | the-roku-channel |
-| 3308 | us | kanopy |
-| 2968 | uk | rakuten-tv |
-| 2004 | ca | crave |
-| 1815 | us | hulu |
-| 1667 | us | hbo-max |
-| 1321 | us | pluto-tv |
-| 874 | us | disney-plus |
-| 834 | us | peacock |
-| 673 | fr | molotov-tv |
-| 531 | us | paramount-plus-premium |
-| 497 | us | amc-plus |
-| 461 | cz | canal-plus |
-| 409 | uk | itvx |
-| 321 | be | rtbf-auvio |
-| 258 | nl | cinemember |
-| 240 | ca | ctv |
-| 204 | us | mubi |
-| 200 | se | draken-films |
-| 171 | us | criterion-channel |
-| 27 | us | nbc |
+| 10159 | us | tubi-tv |
+| 4908 | us | plex |
+| 4190 | us | the-roku-channel |
+| 2006 | uk | rakuten-tv |
+| 1974 | us | kanopy |
+| 1573 | ca | crave |
+| 1506 | us | hulu |
+| 1210 | us | hbo-max |
+| 635 | us | disney-plus |
+| 587 | us | peacock |
+| 545 | us | pluto-tv |
+| 438 | fr | molotov-tv |
+| 357 | us | paramount-plus-premium |
+| 346 | us | amc-plus |
+| 333 | cz | canal-plus |
+| 293 | uk | itvx |
+| 231 | be | rtbf-auvio |
+| 187 | ca | ctv |
+| 162 | us | mubi |
+| 148 | nl | cinemember |
+| 131 | us | criterion-channel |
+| 88 | se | draken-films |
+| 16 | us | nbc |
 
 ## contact
 
