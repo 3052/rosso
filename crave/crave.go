@@ -2,6 +2,7 @@ package crave
 
 import (
    "bytes"
+   _ "embed"
    "encoding/json"
    "errors"
    "fmt"
@@ -10,8 +11,70 @@ import (
    "net/url"
    "strconv"
    "strings"
-   _ "embed"
 )
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+func Login(username, password string) (*Account, error) {
+   data := url.Values{
+      "grant_type": {"password"},
+      "password":   {password},
+      "username":   {username},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.1",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
+   }
+   result := &Account{}
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+// 699710369328da351ac33c63
+func (a *Account) Login(profileId string) error {
+   data := url.Values{
+      "grant_type":    {"refresh_token"},
+      "profile_id":    {profileId},
+      "refresh_token": {a.RefreshToken},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://account.bellmedia.ca/api/login/v2.2",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.SetBasicAuth("crave-web", "default")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("profile login failed with: %v", resp.Status)
+   }
+   return json.NewDecoder(resp.Body).Decode(a)
+}
 
 // SL2000 max 1080p
 func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
@@ -259,68 +322,7 @@ type Profile struct {
    Id       string `json:"id"`
 }
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-func Login(username, password string) (*Account, error) {
-   data := url.Values{
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.1",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("password login failed with: %v", resp.Status)
-   }
-   result := &Account{}
-   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-// 699710369328da351ac33c63
-func (a *Account) Login(profileId string) error {
-   data := url.Values{
-      "grant_type":    {"refresh_token"},
-      "profile_id":    {profileId},
-      "refresh_token": {a.RefreshToken},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://account.bellmedia.ca/api/login/v2.2",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.SetBasicAuth("crave-web", "default")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return fmt.Errorf("profile login failed with: %v", resp.Status)
-   }
-   return json.NewDecoder(resp.Body).Decode(a)
-}
+///
 
 func (s *Subscription) String() string {
    var data strings.Builder

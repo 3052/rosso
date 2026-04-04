@@ -5,29 +5,58 @@ import (
    "encoding/base64"
    "encoding/json"
    "errors"
+   "fmt"
    "net/http"
+   "net/url"
    "strconv"
    "strings"
 )
-
-// https://crave.ca/movie/anaconda-2025-59881
-// https://crave.ca/play/anaconda-2025-3300246
-//
-// https://crave.ca/movie/goldeneye-38860
-// https://crave.ca/play/goldeneye-938361
-func ParseMediaId(urlData string) (int, error) {
-   idx := strings.LastIndex(urlData, "-")
-   if idx == -1 {
-      return 0, strconv.ErrSyntax
-   }
-   return strconv.Atoi(urlData[idx+1:])
-}
 
 type Media struct {
    FirstContent struct {
       Id int `json:"id,string"`
    }
    Id int `json:"id,string"`
+}
+
+/*
+https://crave.ca/movie/anaconda-2025-59881
+https://crave.ca/play/anaconda-2025-3300246
+
+https://crave.ca/movie/goldeneye-38860
+https://crave.ca/play/goldeneye-938361
+*/
+func ParseMedia(rawUrl string) (*Media, error) {
+   parsedUrl, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+   // Since the URL never ends in a slash, and url.Parse path starts with "/",
+   // splitting by "/" will result in ["", "type", "slug"]
+   pathParts := strings.Split(parsedUrl.Path, "/")
+   if len(pathParts) < 3 {
+      return nil, errors.New("invalid URL path")
+   }
+   urlType := pathParts[1]
+   slug := pathParts[2]
+   lastDashIdx := strings.LastIndex(slug, "-")
+   if lastDashIdx == -1 {
+      return nil, errors.New("invalid slug format, no ID found")
+   }
+   parsedID, err := strconv.Atoi(slug[lastDashIdx+1:])
+   if err != nil {
+      return nil, err
+   }
+   var m Media
+   switch urlType {
+   case "movie":
+      m.Id = parsedID
+   case "play":
+      m.FirstContent.Id = parsedID
+   default:
+      return nil, fmt.Errorf("unknown media type: %s", urlType)
+   }
+   return &m, nil
 }
 
 func FetchMedia(id int) (*Media, error) {
