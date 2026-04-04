@@ -8,33 +8,33 @@
 
 streaming API authentication, metadata, and DRM playback 
 
-## providers (2022 - 2026)
+## movies (2016 - 2026)
 
 | Titles | Country | Provider |
 |---|---|---|
-| 10159 | us | tubi-tv |
-| 4908 | us | plex |
-| 4190 | us | the-roku-channel |
-| 2006 | uk | rakuten-tv |
-| 1974 | us | kanopy |
-| 1573 | ca | crave |
-| 1506 | us | hulu |
-| 1210 | us | hbo-max |
-| 635 | us | disney-plus |
-| 587 | us | peacock |
-| 545 | us | pluto-tv |
-| 438 | fr | molotov-tv |
-| 357 | us | paramount-plus-premium |
-| 346 | us | amc-plus |
-| 333 | cz | canal-plus |
-| 293 | uk | itvx |
-| 231 | be | rtbf-auvio |
-| 187 | ca | ctv |
-| 162 | us | mubi |
-| 148 | nl | cinemember |
-| 131 | us | criterion-channel |
-| 88 | se | draken-films |
-| 16 | us | nbc |
+| 23580 | us | tubi-tv |
+| 11955 | us | plex |
+| 10398 | us | the-roku-channel |
+| 6243 | us | kanopy |
+| 5116 | uk | rakuten-tv |
+| 3204 | us | pluto-tv |
+| 1744 | ca | crave |
+| 1174 | fr | molotov-tv |
+| 974 | us | hulu |
+| 841 | us | hbo-max |
+| 624 | nl | cinemember |
+| 621 | us | disney-plus |
+| 600 | us | peacock |
+| 592 | us | amc-plus |
+| 492 | us | paramount-plus-premium |
+| 485 | se | draken-films |
+| 423 | be | rtbf-auvio |
+| 339 | cz | canal-plus |
+| 269 | us | mubi |
+| 248 | us | criterion-channel |
+| 217 | ca | ctv |
+| 131 | uk | itvx |
+| 0 | us | nbc |
 
 ## contact
 

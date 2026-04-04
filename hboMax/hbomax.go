@@ -13,6 +13,86 @@ import (
    "strings"
 )
 
+var Markets = []string{
+   "amer",
+   "apac",
+   "emea",
+   "latam",
+}
+
+// validVideoTypes acts as a set to hold the video types we want to keep.
+var validVideoTypes = []string{
+   "EPISODE",
+   "MOVIE",
+   "STANDALONE_EVENT",
+}
+
+func isCategory(segment string) bool {
+   switch segment {
+   case "movies", "shows", "movie", "show":
+      return true
+   default:
+      return false
+   }
+}
+
+// https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448
+// https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a
+// https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505
+// https://play.hbomax.com/movie/b7b66574-c6e3-4ed3-a266-6bc44180252e
+// https://play.hbomax.com/show/31cb4b84-951a-4daf-8925-746fcdcddcb8
+func ParseShowId(urlData string) (string, error) {
+   url_parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   path := strings.TrimPrefix(url_parse.Path, "/")
+   segments := strings.Split(path, "/")
+   count := len(segments)
+   if count < 2 {
+      return "", errors.New("invalid url path")
+   }
+   // Extract the ID which is always the last segment
+   id := segments[count-1]
+   // Check immediate parent (e.g., /movie/id)
+   if count >= 2 && isCategory(segments[count-2]) {
+      return id, nil
+   }
+   // Check grandparent (e.g., /movies/slug/id)
+   if count >= 3 && isCategory(segments[count-3]) {
+      return id, nil
+   }
+   return "", errors.New("category not found")
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   if e.Detail != "" {
+      data.WriteString("\ndetail = ")
+      data.WriteString(e.Detail)
+   } else {
+      data.WriteString("\nmessage = ")
+      data.WriteString(e.Message)
+   }
+   return data.String()
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL = ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code = ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
+
 func (l *Login) playback(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -151,43 +231,7 @@ func (l Login) Season(showId string, number int) (*Page, error) {
    return result, nil
 }
 
-func isCategory(segment string) bool {
-   switch segment {
-   case "movies", "shows", "movie", "show":
-      return true
-   default:
-      return false
-   }
-}
-
-// https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448
-// https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a
-// https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505
-// https://play.hbomax.com/movie/b7b66574-c6e3-4ed3-a266-6bc44180252e
-// https://play.hbomax.com/show/31cb4b84-951a-4daf-8925-746fcdcddcb8
-func ParseShowId(urlData string) (string, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   path := strings.TrimPrefix(url_parse.Path, "/")
-   segments := strings.Split(path, "/")
-   count := len(segments)
-   if count < 2 {
-      return "", errors.New("invalid url path")
-   }
-   // Extract the ID which is always the last segment
-   id := segments[count-1]
-   // Check immediate parent (e.g., /movie/id)
-   if count >= 2 && isCategory(segments[count-2]) {
-      return id, nil
-   }
-   // Check grandparent (e.g., /movies/slug/id)
-   if count >= 3 && isCategory(segments[count-3]) {
-      return id, nil
-   }
-   return "", errors.New("category not found")
-}
+///
 
 func (l *Login) Widevine(editId string) (*Playback, error) {
    return l.playback(editId, "widevine")
@@ -428,45 +472,3 @@ const (
    disco_client = "!:!:beam:!"
    device_info  = "!/!(!/!;!/!;!/!)"
 )
-
-var Markets = []string{
-   "amer",
-   "apac",
-   "emea",
-   "latam",
-}
-
-// validVideoTypes acts as a set to hold the video types we want to keep.
-var validVideoTypes = []string{
-   "EPISODE",
-   "MOVIE",
-   "STANDALONE_EVENT",
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   if e.Detail != "" {
-      data.WriteString("\ndetail = ")
-      data.WriteString(e.Detail)
-   } else {
-      data.WriteString("\nmessage = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL = ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
-}

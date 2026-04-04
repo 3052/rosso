@@ -197,8 +197,6 @@ func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    return result, nil
 }
 
-///
-
 func FetchViewer(customId string) (*Viewer, error) {
    body, err := json.Marshal(map[string]any{
       "query":     get_custom_id_full_movie,
