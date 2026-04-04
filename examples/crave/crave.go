@@ -7,56 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_address() error {
-   media_id, err := crave.ParseMediaId(c.address)
-   if err != nil {
-      return err
-   }
-   c.Media, err = crave.FetchMedia(media_id)
-   if err != nil {
-      return err
-   }
-   c.ContentPackage, err = c.Media.FetchContentPackage()
-   if err != nil {
-      return err
-   }
-   manifest, err := c.ContentPackage.ManifestPlayReady(
-      c.Media.FirstContent.Id, c.Account.AccessToken,
-   )
-   if err != nil {
-      return err
-   }
-   c.Dash, err = manifest.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-var cache maya.Cache
-
-type client struct {
-   Account        *crave.Account
-   ContentPackage *crave.ContentPackage
-   Dash           *crave.Dash
-   Media          *crave.Media
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
-   //--------------------
-   dash_id string
-}
-
 func main() {
    // MP4 need proxy so just use VPN
    maya.SetProxy("", "*.m4v")
@@ -157,4 +107,53 @@ func (c *client) do_dash_id() error {
       )
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, fetch)
+}
+func (c *client) do_address() error {
+   media_id, err := crave.ParseMediaId(c.address)
+   if err != nil {
+      return err
+   }
+   c.Media, err = crave.FetchMedia(media_id)
+   if err != nil {
+      return err
+   }
+   c.ContentPackage, err = c.Media.FetchContentPackage()
+   if err != nil {
+      return err
+   }
+   manifest, err := c.ContentPackage.ManifestPlayReady(
+      c.Media.FirstContent.Id, c.Account.AccessToken,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = manifest.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+var cache maya.Cache
+
+type client struct {
+   Account        *crave.Account
+   ContentPackage *crave.ContentPackage
+   Dash           *crave.Dash
+   Media          *crave.Media
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
+   //--------------------
+   dash_id string
 }
