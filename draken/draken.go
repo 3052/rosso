@@ -11,6 +11,77 @@ import (
    "strings"
 )
 
+// setBaseHeaders adds the common authentication and access tokens to a request.
+func setBaseHeaders(req *http.Request, loginToken string) {
+   req.Header.Set("magine-accesstoken", "22cc71a2-8b77-4819-95b0-8c90f4cf5663")
+   if loginToken != "" {
+      req.Header.Set("authorization", "Bearer "+loginToken)
+   }
+}
+
+type Playback struct {
+   Headers struct {
+      MaginePlayEntitlementId string `json:"Magine-Play-EntitlementId"`
+      MaginePlaySession       string `json:"Magine-Play-Session"`
+   }
+   Playlist string // MPD
+}
+
+func (p *Playback) Widevine(loginToken string, body []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   setBaseHeaders(req, loginToken)
+   setPlaybackHeaders(req)
+   req.Header.Set("magine-play-session", p.Headers.MaginePlaySession)
+   req.Header.Set("magine-play-entitlementId", p.Headers.MaginePlayEntitlementId)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Viewer struct {
+   ViewableCustomId *struct {
+      DefaultPlayable struct {
+         Id string
+      }
+   }
+}
+
+func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "client-api.magine.com",
+         Path:   "/api/entitlement/v2/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
+      },
+      Header: http.Header{},
+   }
+   setBaseHeaders(&req, loginToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
+}
+
 func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    req := http.Request{
       Method: "POST",
@@ -39,25 +110,7 @@ func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    return result, nil
 }
 
-func (p *Playback) Widevine(loginToken string, body []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, loginToken)
-   setPlaybackHeaders(req)
-   req.Header.Set("magine-play-session", p.Headers.MaginePlaySession)
-   req.Header.Set("magine-play-entitlementId", p.Headers.MaginePlayEntitlementId)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
+///
 
 func FetchViewer(customId string) (*Viewer, error) {
    body, err := json.Marshal(map[string]any{
@@ -182,55 +235,4 @@ type Entitlement struct {
 type Login struct {
    Message string
    Token   string
-}
-
-type Playback struct {
-   Headers struct {
-      MaginePlayEntitlementId string `json:"Magine-Play-EntitlementId"`
-      MaginePlaySession       string `json:"Magine-Play-Session"`
-   }
-   Playlist string // MPD
-}
-
-// setBaseHeaders adds the common authentication and access tokens to a request.
-func setBaseHeaders(req *http.Request, loginToken string) {
-   req.Header.Set("magine-accesstoken", "22cc71a2-8b77-4819-95b0-8c90f4cf5663")
-   if loginToken != "" {
-      req.Header.Set("authorization", "Bearer "+loginToken)
-   }
-}
-
-type Viewer struct {
-   ViewableCustomId *struct {
-      DefaultPlayable struct {
-         Id string
-      }
-   }
-}
-
-func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "client-api.magine.com",
-         Path:   "/api/entitlement/v2/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
-      },
-      Header: http.Header{},
-   }
-   setBaseHeaders(&req, loginToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
 }
