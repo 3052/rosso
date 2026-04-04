@@ -13,6 +13,65 @@ import (
    "strings"
 )
 
+var Language = "EN"
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
+}
+
+func (a *Account) FetchSubscriptions() ([]Subscription, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/subscription/v5",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Subscriptions []Subscription
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Subscriptions, nil
+}
+
+func (a *Account) FetchProfiles() ([]*Profile, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "account.bellmedia.ca",
+         Path:   "/api/profile/v2/account/" + a.AccountId,
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
+   }
+   var profiles []*Profile
+   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
+      return nil, err
+   }
+   return profiles, nil
+}
+
 type Account struct {
    AccessToken  string `json:"access_token"`
    AccountId    string `json:"account_id"`
@@ -92,11 +151,6 @@ func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*M
 
 func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
    return c.fetchManifest(contentId, accessToken, 48)
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
 }
 
 type ContentPackage struct {
@@ -191,65 +245,6 @@ func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload
    return data, nil
 }
 
-func marshal(value any) ([]byte, error) {
-   return json.MarshalIndent(value, "", " ")
-}
-
-var Language = "EN"
-
-//go:embed GetShowpage.gql
-var get_showpage string
-
-func (a *Account) FetchSubscriptions() ([]Subscription, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/subscription/v5",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Subscriptions []Subscription
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Subscriptions, nil
-}
-
-func (a *Account) FetchProfiles() ([]*Profile, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "account.bellmedia.ca",
-         Path:   "/api/profile/v2/account/" + a.AccountId,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+a.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("failed to fetch profiles with: %v", resp.Status)
-   }
-   var profiles []*Profile
-   if err := json.NewDecoder(resp.Body).Decode(&profiles); err != nil {
-      return nil, err
-   }
-   return profiles, nil
-}
-
 type Dash struct {
    Body []byte
    Url  *url.URL
@@ -268,7 +263,12 @@ func (m *Manifest) FetchDash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-func (m Media) FetchContentPackage() (*ContentPackage, error) {
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
+func (m *Media) FetchContentPackage() (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
@@ -321,8 +321,6 @@ type Profile struct {
    Maturity string
    Id       string `json:"id"`
 }
-
-///
 
 func (s *Subscription) String() string {
    var data strings.Builder

@@ -10,6 +10,42 @@ import (
    "net/url"
 )
 
+type Item struct {
+   Links struct {
+      Files struct {
+         Href string // https://api.vhx.tv/videos/3460957/files
+      }
+   } `json:"_links"`
+}
+
+func (t *Token) FetchItem(slug string) (*Item, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "api.vhx.com",
+         Path:     fmt.Sprintf("/collections/%v/items", slug),
+         RawQuery: "site_id=59054",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+t.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Embedded struct {
+         Items []Item
+      } `json:"_embedded"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Embedded.Items[0], nil
+}
+
 func (t *Token) FetchFiles(filesHref string) (Files, error) {
    req := http.Request{
       Header: http.Header{},
@@ -74,13 +110,7 @@ func (t *Token) AsError() error {
    return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
 }
 
-type Item struct {
-   Links struct {
-      Files struct {
-         Href string // https://api.vhx.tv/videos/3460957/files
-      }
-   } `json:"_links"`
-}
+///
 
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
@@ -154,32 +184,4 @@ func (f Files) GetDash() (*File, error) {
       }
    }
    return nil, errors.New("DASH media file not found")
-}
-
-func (t *Token) FetchItem(slug string) (*Item, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []Item
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Embedded.Items[0], nil
 }

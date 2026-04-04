@@ -22,41 +22,38 @@ type Media struct {
 /*
 https://crave.ca/movie/anaconda-2025-59881
 https://crave.ca/play/anaconda-2025-3300246
-
-https://crave.ca/movie/goldeneye-38860
-https://crave.ca/play/goldeneye-938361
+https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
 */
 func ParseMedia(rawUrl string) (*Media, error) {
    parsedUrl, err := url.Parse(rawUrl)
    if err != nil {
       return nil, err
    }
-   // Since the URL never ends in a slash, and url.Parse path starts with "/",
-   // splitting by "/" will result in ["", "type", "slug"]
    pathParts := strings.Split(parsedUrl.Path, "/")
    if len(pathParts) < 3 {
-      return nil, errors.New("invalid URL path")
+      return nil, fmt.Errorf("invalid url path structure")
    }
    urlType := pathParts[1]
-   slug := pathParts[2]
-   lastDashIdx := strings.LastIndex(slug, "-")
-   if lastDashIdx == -1 {
-      return nil, errors.New("invalid slug format, no ID found")
+   lastSegment := pathParts[len(pathParts)-1]
+   dashIndex := strings.LastIndex(lastSegment, "-")
+   if dashIndex == -1 {
+      return nil, fmt.Errorf("id not found in url")
    }
-   parsedID, err := strconv.Atoi(slug[lastDashIdx+1:])
+   idString := lastSegment[dashIndex+1:]
+   parsedId, err := strconv.Atoi(idString)
    if err != nil {
-      return nil, err
+      return nil, fmt.Errorf("failed to parse id: %v", err)
    }
-   var m Media
+   m := &Media{}
    switch urlType {
    case "movie":
-      m.Id = parsedID
+      m.Id = parsedId
    case "play":
-      m.FirstContent.Id = parsedID
+      m.FirstContent.Id = parsedId
    default:
       return nil, fmt.Errorf("unknown media type: %s", urlType)
    }
-   return &m, nil
+   return m, nil
 }
 
 func FetchMedia(id int) (*Media, error) {
