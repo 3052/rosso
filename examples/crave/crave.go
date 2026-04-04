@@ -20,7 +20,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := c.ContentPackage.ManifestWidevine(
+   manifest, err := c.ContentPackage.ManifestPlayReady(
       c.Media.FirstContent.Id, c.Account.AccessToken,
    )
    if err != nil {
@@ -91,7 +91,7 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
    //-----------------------------------------------------------
    username := maya.StringFlag(&c.username, "u", "username")
    password := maya.StringFlag(&c.password, "p", "password")
@@ -105,7 +105,7 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   if widevine.IsSet {
+   if playReady.IsSet {
       return cache.Write(c)
    }
    if username.IsSet {
@@ -123,7 +123,7 @@ func (c *client) do() error {
       return with_cache(c.do_dash_id)
    }
    return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
+      {playReady},
       {username, password},
       {profile},
       {address},
@@ -152,7 +152,7 @@ func (c *client) do_username_password() error {
 
 func (c *client) do_dash_id() error {
    fetch := func(data []byte) ([]byte, error) {
-      return c.ContentPackage.LicenseWidevine(
+      return c.ContentPackage.LicensePlayReady(
          c.Media.FirstContent.Id, c.Account.AccessToken, data,
       )
    }

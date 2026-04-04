@@ -10,14 +10,14 @@ import (
    "net/url"
 )
 
-type Manifest struct {
-   Message  string
-   Playback string
+// SL2000 max 1080p
+func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
 }
 
-type ContentPackage struct {
-   Id            int
-   DestinationId int
+// L3 max 720p
+func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
 }
 
 func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
@@ -28,13 +28,14 @@ func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*
    return c.fetchManifest(contentId, accessToken, 48)
 }
 
-// L3 max 720p
-func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
+type Manifest struct {
+   Message  string
+   Playback string
 }
 
-func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
+type ContentPackage struct {
+   Id            int
+   DestinationId int
 }
 
 // --- Private Helpers ---
