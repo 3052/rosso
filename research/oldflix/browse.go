@@ -8,6 +8,18 @@ import (
    "strings"
 )
 
+// GetOriginalTrack searches the available tracks for the one labeled
+// "Original"
+func (b *BrowsePlayResponse) GetOriginalTrack() (*Track, error) {
+   for _, track := range b.Movie.Tracks {
+      // Using EqualFold to safely match "Original", "original", etc.
+      if strings.EqualFold(track.Lang, "Original") {
+         return &track, nil
+      }
+   }
+   return nil, fmt.Errorf("track with language 'Original' not found")
+}
+
 type Track struct {
    ID   string `json:"id"`
    Lang string `json:"lang"`
@@ -22,7 +34,9 @@ type BrowsePlayResponse struct {
    } `json:"movie"`
 }
 
-// BrowsePlay retrieves internal streaming parameters required to unlock the M3U8 payload
+// https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
+// BrowsePlay retrieves internal streaming parameters required to unlock the
+// M3U8 payload
 func (c *Client) BrowsePlay(contentID string) (*BrowsePlayResponse, error) {
    data := url.Values{}
    data.Set("id", contentID)
