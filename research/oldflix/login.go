@@ -8,39 +8,34 @@ import (
    "strings"
 )
 
-type LoginResponse struct {
+const BaseUrl = "https://oldflix-api.azurewebsites.net"
+
+type Login struct {
    Token  string `json:"token"`
    Status int    `json:"status"`
 }
 
-// Login authenticates with the API and stores the JWT token in the Client
-func (c *Client) Login(username, password string) error {
+func FetchLogin(username, password string) (*Login, error) {
    data := url.Values{}
    data.Set("username", username)
    data.Set("password", password)
-
-   req, err := http.NewRequest("POST", BaseURL+"/api/token", strings.NewReader(data.Encode()))
+   req, err := http.NewRequest("POST", BaseUrl+"/api/token", strings.NewReader(data.Encode()))
    if err != nil {
-      return err
+      return nil, err
    }
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
    req.Header.Set("User-Agent", "okhttp/4.12.0")
-
-   resp, err := c.HTTPClient.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
-      return err
+      return nil, err
    }
    defer resp.Body.Close()
-
-   var loginResp LoginResponse
+   var loginResp Login
    if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
-      return fmt.Errorf("failed to decode login response: %w", err)
+      return nil, fmt.Errorf("failed to decode login response: %w", err)
    }
-
    if loginResp.Token == "" {
-      return fmt.Errorf("authentication failed, no token received")
+      return nil, fmt.Errorf("authentication failed, no token received")
    }
-
-   c.Token = loginResp.Token
-   return nil
+   return &loginResp, nil
 }

@@ -16,18 +16,16 @@ func TestLogin(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   client_data := NewClient()
-   err = client_data.Login(username, password)
+   login_data, err := FetchLogin(username, password)
    if err != nil {
       t.Fatal(err)
    }
-   t.Log(client_data.Token)
    cache, err := os.UserCacheDir()
    if err != nil {
       t.Fatal(err)
    }
    err = os.WriteFile(
-      cache + "/rosso/oldflix", []byte(client_data.Token), os.ModePerm,
+      cache + "/rosso/oldflix", []byte(login_data.Token), os.ModePerm,
    )
    if err != nil {
       t.Fatal(err)
