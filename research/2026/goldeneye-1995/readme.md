@@ -2,8 +2,6 @@
 
 | Titles | Country | Provider |
 |---|---|---|
-| 5732 | ec | movistartv |
-| 3371 | ph | amazon-prime-video |
 | 2475 | au | stan |
 | 2178 | id | amazon-prime-video |
 | 2113 | my | amazon-prime-video |
@@ -18,6 +16,12 @@
 | 341 | tw | amazon-prime-video |
 | 118 | dk | tv-2 |
 
+## https://play.stan.com.au/programs/331156
+
+country = AU
+name = Australia
+monetization = FLATRATE
+
 ## https://xn--lep-tma39c.tv/top_tv/film/zlate-oko-online
 
 country = CZ
@@ -28,18 +32,6 @@ monetization = FLATRATE
 
 country = PL
 name = Poland
-monetization = FLATRATE
-
-## https://app.primevideo.com/detail?gti=amzn1.dv.gti.322871f2-d10c-48f7-873b-4a50da5b10aa
-
-country = PH
-name = Philippines
-monetization = FLATRATE
-
-## https://play.stan.com.au/programs/331156
-
-country = AU
-name = Australia
 monetization = FLATRATE
 
 ## https://app.primevideo.com/detail?gti=amzn1.dv.gti.322871f2-d10c-48f7-873b-4a50da5b10aa
@@ -100,10 +92,4 @@ monetization = FLATRATE
 
 country = AR
 name = Argentina
-monetization = FLATRATE
-
-## https://play.movistar.com.ec/details/movie/19545487
-
-country = EC
-name = Ecuador
 monetization = FLATRATE
