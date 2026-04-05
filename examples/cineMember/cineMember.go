@@ -7,6 +7,20 @@ import (
    "net/http"
 )
 
+type client struct {
+   Dash    *cineMember.Dash
+   Session *http.Cookie
+   //---------------------
+   Job maya.Job
+   //-------------
+   email    string
+   password string
+   //-------------
+   address string
+   //------------
+   dash_id string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/cineMember.xml")
    if err != nil {
@@ -91,18 +105,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-type client struct {
-   Dash    *cineMember.Dash
-   Session *http.Cookie
-   //---------------------
-   Job maya.Job
-   //-------------
-   email    string
-   password string
-   //-------------
-   address string
-   //------------
-   dash_id string
 }

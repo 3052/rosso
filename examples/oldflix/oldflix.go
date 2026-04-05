@@ -7,17 +7,49 @@ import (
 )
 
 func (c *client) do() error {
+   err := cache.Setup("rosso/oldflix.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-------------------------------------------------------------
+   oldflix_id := maya.StringFlag(&c.oldflix_id, "o", "Oldflix ID")
+   //-------------------------------------------------------------
+   hls_id := maya.IntFlag(&c.hls_id, "h", "HLS ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if oldflix_id.IsSet {
+      return with_cache(c.do_oldflix_id)
+   }
+   if hls_id.IsSet {
+      return with_cache(c.do_hls_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {username, password},
+      {oldflix_id},
+      {hls_id},
+   })
+}
+
+func (c *client) do_hls_id() error {
    return nil
 }
 
-type client struct {
-   Hls *oldflix.Hls
-   //--------------
-   Job maya.Job
-   //--------------
-   oldflix string
-   //--------------
-   dash_id string
+func (c *client) do_oldflix_id() error {
+   return nil
+}
+
+func (c *client) do_username_password() error {
+   return nil
 }
 
 func main() {
@@ -28,3 +60,18 @@ func main() {
       log.Fatal(err)
    }
 }
+
+type client struct {
+   Hls *oldflix.Hls
+   //--------------
+   Job maya.Job
+   //--------------
+   username string
+   password string
+   //--------------
+   oldflix_id string
+   //--------------
+   hls_id int
+}
+
+var cache maya.Cache

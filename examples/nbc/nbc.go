@@ -25,6 +25,8 @@ func main() {
    }
 }
 
+var cache maya.Cache
+
 func (c *client) do() error {
    err := cache.Setup("rosso/nbc.xml")
    if err != nil {
@@ -58,8 +60,6 @@ func (c *client) do() error {
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, nbc.Widevine)
 }
-
-var cache maya.Cache
 
 func (c *client) do_address() error {
    name, err := nbc.GetName(c.address)
