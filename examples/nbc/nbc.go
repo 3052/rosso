@@ -6,6 +6,25 @@ import (
    "log"
 )
 
+type client struct {
+   Dash *nbc.Dash
+   //------------
+   Job maya.Job
+   //------------
+   address string
+   //------------
+   dash_id string
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.mp4")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/nbc.xml")
    if err != nil {
@@ -42,15 +61,6 @@ func (c *client) do_dash_id() error {
 
 var cache maya.Cache
 
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 func (c *client) do_address() error {
    name, err := nbc.GetName(c.address)
    if err != nil {
@@ -73,14 +83,4 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-type client struct {
-   Dash *nbc.Dash
-   //------------
-   Job maya.Job
-   //------------
-   address string
-   //------------
-   dash_id string
 }

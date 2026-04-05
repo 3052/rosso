@@ -17,13 +17,13 @@ func FetchContent(id int) (*Content, error) {
          Host:   "uapi.adrise.tv",
          Path:   "/cms/content",
          RawQuery: url.Values{
-            "content_id":          {strconv.Itoa(id)},
-            "deviceId":            {"!"},
+            "content_id": {strconv.Itoa(id)},
+            "deviceId":   {"!"},
             "limit_resolutions[]": {
                "h264_1080p",
                "h265_1080p",
             },
-            "platform":            {"web"},
+            "platform": {"web"},
             "video_resources[]": {
                "dash",
                "dash_widevine",

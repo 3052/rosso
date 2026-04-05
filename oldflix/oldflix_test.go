@@ -31,7 +31,7 @@ func TestWatch(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   t.Log(watch)
+   t.Logf("%+v\n", watch)
 }
 
 func TestLogin(t *testing.T) {
