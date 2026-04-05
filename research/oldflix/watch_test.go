@@ -14,17 +14,20 @@ func TestWatch(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   client_data := NewClient()
-   client_data.Token = string(data)
+   var login_data Login
+   login_data.Token = string(data)
    // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
-   browse, err := client_data.BrowsePlay("5d5d54a4d55dc050f8468513")
+   browse_data, err := login_data.FetchBrowse("5d5d54a4d55dc050f8468513")
    if err != nil {
       t.Fatal(err)
    }
-   
-   
-   
-   
-   
-   
+   original, err := browse_data.GetOriginal()
+   if err != nil {
+      t.Fatal(err)
+   }
+   watch, err := browse_data.Watch(original.Id, login_data.Token)
+   if err != nil {
+      t.Fatal(err)
+   }
+   t.Log(watch)
 }

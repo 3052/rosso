@@ -2,24 +2,43 @@ package oldflix
 
 import (
    "os"
+   "os/exec"
+   "strings"
    "testing"
 )
 
-func TestBrowse(t *testing.T) {
+func TestLogin(t *testing.T) {
+   username, err := run("credential", "-h=oldflix.com.br", "-k=username")
+   if err != nil {
+      t.Fatal(err)
+   }
+   password, err := run("credential", "-h=oldflix.com.br", "-k=password")
+   if err != nil {
+      t.Fatal(err)
+   }
+   login_data, err := FetchLogin(username, password)
+   if err != nil {
+      t.Fatal(err)
+   }
    cache, err := os.UserCacheDir()
    if err != nil {
       t.Fatal(err)
    }
-   data, err := os.ReadFile(cache + "/rosso/oldflix")
+   err = os.WriteFile(
+      cache + "/rosso/oldflix", []byte(login_data.Token), os.ModePerm,
+   )
    if err != nil {
       t.Fatal(err)
    }
-   client_data := NewClient()
-   client_data.Token = string(data)
-   // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
-   browse, err := client_data.BrowsePlay("5d5d54a4d55dc050f8468513")
+}
+
+func run(name string, arg ...string) (string, error) {
+   var data strings.Builder
+   command := exec.Command(name, arg...)
+   command.Stdout = &data
+   err := command.Run()
    if err != nil {
-      t.Fatal(err)
+      return "", err
    }
-   t.Logf("%+v", browse)
+   return data.String(), nil
 }

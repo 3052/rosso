@@ -2,12 +2,44 @@ package oldflix
 
 import (
    "encoding/json"
+   "errors"
    "fmt"
+   "io"
    "net/http"
    "net/url"
    "strings"
 )
 
+func FetchLogin(username, password string) (*Login, error) {
+   resp, err := http.PostForm(BaseUrl+"/api/token", url.Values{
+      "password": {password},
+      "username": {username},
+   })
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(string(data))
+   }
+   result := &Login{}
+   err = json.Unmarshal(data, result)
+   if err != nil {
+      return nil, fmt.Errorf("failed to decode login response: %w", err)
+   }
+   return result, nil
+}
+
+const BaseUrl = "https://oldflix-api.azurewebsites.net"
+
+type Login struct {
+   Status int
+   Token  string
+}
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
 func (l *Login) FetchBrowse(contentId string) (*Browse, error) {
    data := url.Values{"id": {contentId}}.Encode()
@@ -19,41 +51,41 @@ func (l *Login) FetchBrowse(contentId string) (*Browse, error) {
    }
    req.Header.Set("authorization", "Bearer " + l.Token)
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("user-agent", "okhttp/4.12.0")
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   var browseResp Browse
-   if err := json.NewDecoder(resp.Body).Decode(&browseResp); err != nil {
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   result := &Browse{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
       return nil, fmt.Errorf("failed to decode browse play response: %w", err)
    }
-   return &browseResp, nil
-}
-
-// GetOriginalTrack searches the available tracks for the one labeled
-// "Original"
-func (b *Browse) GetOriginalTrack() (*Track, error) {
-   for _, track_data := range b.Movie.Tracks {
-      // Using EqualFold to safely match "Original", "original", etc.
-      if strings.EqualFold(track_data.Lang, "Original") {
-         return &track_data, nil
-      }
-   }
-   return nil, fmt.Errorf("track with language 'Original' not found")
+   return result, nil
 }
 
 type Track struct {
-   Id   string `json:"id"`
-   Lang string `json:"lang"`
-   Lnk  string `json:"lnk"`
+   Id   string
+   Lang string
+   Lnk  string
 }
 
 type Browse struct {
-   Id    string `json:"id"`
+   Id    string
    Movie struct {
-      Id     string  `json:"id"`
-      Tracks []Track `json:"tracks"`
-   } `json:"movie"`
+      Id     string
+      Tracks []Track
+   }
+}
+
+func (b *Browse) GetOriginal() (*Track, error) {
+   for _, track_data := range b.Movie.Tracks {
+      if track_data.Lang == "Original" {
+         return &track_data, nil
+      }
+   }
+   return nil, errors.New("track with language 'Original' not found")
 }
