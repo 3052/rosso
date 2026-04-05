@@ -8,33 +8,33 @@
 
 streaming API authentication, metadata, and DRM playback 
 
-## movies (2016 - 2026)
+## tomatoMeter=80
 
 | Titles | Country | Provider |
 |---|---|---|
-| 23580 | us | tubi-tv |
-| 11955 | us | plex |
-| 10398 | us | the-roku-channel |
-| 6243 | us | kanopy |
-| 5116 | uk | rakuten-tv |
-| 3204 | us | pluto-tv |
-| 1744 | ca | crave |
-| 1174 | fr | molotov-tv |
-| 974 | us | hulu |
-| 841 | us | hbo-max |
-| 624 | nl | cinemember |
-| 621 | us | disney-plus |
-| 600 | us | peacock |
-| 592 | us | amc-plus |
-| 492 | us | paramount-plus-premium |
-| 485 | se | draken-films |
-| 423 | be | rtbf-auvio |
-| 339 | cz | canal-plus |
-| 269 | us | mubi |
-| 248 | us | criterion-channel |
-| 217 | ca | ctv |
-| 131 | uk | itvx |
-| 0 | us | nbc |
+| 26668 | us | plex |
+| 14781 | us | kanopy |
+| 4957 | ca | crave |
+| 4055 | us | tubi-tv |
+| 2713 | uk | rakuten-tv |
+| 2673 | us | criterion-channel |
+| 2346 | us | the-roku-channel |
+| 2291 | us | disney-plus |
+| 1987 | us | peacock |
+| 1375 | ca | ctv |
+| 1239 | uk | itvx |
+| 1003 | us | hbo-max |
+| 1002 | us | pluto-tv |
+| 664 | se | draken-films |
+| 614 | us | hulu |
+| 579 | fr | molotov-tv |
+| 549 | nl | cinemember |
+| 464 | us | amc-plus |
+| 331 | us | paramount-plus-premium |
+| 251 | us | mubi |
+| 251 | cz | canal-plus |
+| 154 | be | rtbf-auvio |
+| 139 | us | nbc |
 
 ## contact
 

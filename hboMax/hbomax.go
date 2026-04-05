@@ -13,6 +13,11 @@ import (
    "strings"
 )
 
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
 var Markets = []string{
    "amer",
    "apac",
@@ -70,6 +75,12 @@ type Dash struct {
    Url  *url.URL
 }
 
+type Error struct {
+   Code    string
+   Detail  string // show was filtered by validator
+   Message string // Token is missing or not valid
+}
+
 func (e *Error) Error() string {
    var data strings.Builder
    data.WriteString("code = ")
@@ -84,6 +95,63 @@ func (e *Error) Error() string {
    return data.String()
 }
 
+type Included struct {
+   Attributes *struct {
+      SeasonNumber  int
+      EpisodeNumber int
+      Name          string
+      VideoType     string
+   }
+   Relationships *struct {
+      Edit *struct {
+         Data struct {
+            Id string
+         }
+      }
+   }
+}
+
+func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   req.Header.Set("x-device-info", device_info)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+      Errors []Error
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result.Data.Attributes, nil
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
 func (i *Initiate) String() string {
    var data strings.Builder
    data.WriteString("target URL = ")
@@ -91,6 +159,14 @@ func (i *Initiate) String() string {
    data.WriteString("\nlinking code = ")
    data.WriteString(i.LinkingCode)
    return data.String()
+}
+
+func (l *Login) PlayReady(editId string) (*Playback, error) {
+   return l.playback(editId, "playready")
+}
+
+func (l *Login) Widevine(editId string) (*Playback, error) {
+   return l.playback(editId, "widevine")
 }
 
 func (l *Login) playback(edit_id, drm string) (*Playback, error) {
@@ -231,10 +307,27 @@ func (l Login) Season(showId string, number int) (*Page, error) {
    return result, nil
 }
 
-///
+type Page struct {
+   Errors   []Error
+   Included []*Included
+}
 
-func (l *Login) Widevine(editId string) (*Playback, error) {
-   return l.playback(editId, "widevine")
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors   []Error
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
 }
 
 // 1080p SL2000
@@ -283,6 +376,8 @@ func (p *Playback) Dash() (*Dash, error) {
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
+
+///
 
 func (i *Included) String() string {
    var data strings.Builder
@@ -377,98 +472,3 @@ func FetchLogin(st *http.Cookie) (*Login, error) {
    }
    return result, nil
 }
-
-func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   req.Header.Set("x-device-info", device_info)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-      Errors []Error
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result.Data.Attributes, nil
-}
-
-func (l *Login) PlayReady(editId string) (*Playback, error) {
-   return l.playback(editId, "playready")
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   []Error
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-type Included struct {
-   Attributes *struct {
-      SeasonNumber  int
-      EpisodeNumber int
-      Name          string
-      VideoType     string
-   }
-   Relationships *struct {
-      Edit *struct {
-         Data struct {
-            Id string
-         }
-      }
-   }
-}
-
-type Page struct {
-   Errors   []Error
-   Included []*Included
-}
-
-type Error struct {
-   Code    string
-   Detail  string // show was filtered by validator
-   Message string // Token is missing or not valid
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
