@@ -8,7 +8,4 @@ monetization = FLATRATE
 
 https://justwatch.com/pl/serwis-streamingowy/player
 
-3517 titles
-
 WYPOŻYCZ = RENT
-

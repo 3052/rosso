@@ -1,4 +1,4 @@
-# persist
+# persistedQuery
 
 with GraphQL, if the client is using `persistedQuery`, you can either modify
 the request `sha256Hash`, or modify the response message to

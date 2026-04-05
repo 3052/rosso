@@ -1,5 +1,21 @@
 # stan
 
+## g2g.com
+
+Accounts not working
+
+https://g2g.com/categories/stan-accounts
+
+Awaiting for seller to respond. Otherwise you may escalate in 1 day 23 hours
+
+https://g2g.com/g2g-user/purchase/order/item/1775390678778K4B3-1
+
+## shellix.xyz
+
+no matches
+
+https://shellix.xyz/products?page=1&search=stan
+
 ## privacy.com
 
 1. stan.com.au
@@ -29,14 +45,6 @@ information by visiting my.stan.com.au and retry
 - https://play.google.com/store/apps/details?id=au.com.stan.and
 
 Create Android 6 device. Install user certificate
-
-## g2g.com
-
-Accounts not working
-
-Awaiting for seller to respond. Otherwise you may escalate in 1 day 23 hours
-
-https://g2g.com/categories/stan-accounts
 
 ## z2u.com
 
