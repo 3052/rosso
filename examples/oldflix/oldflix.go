@@ -6,6 +6,10 @@ import (
    "log"
 )
 
+func (c *client) do_hls_id() error {
+   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, nil)
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/oldflix.xml")
    if err != nil {
@@ -40,18 +44,6 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_hls_id() error {
-   return nil
-}
-
-func (c *client) do_oldflix_id() error {
-   return nil
-}
-
-func (c *client) do_username_password() error {
-   return nil
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    maya.SetProxy("", "")
@@ -61,8 +53,20 @@ func main() {
    }
 }
 
+var cache maya.Cache
+
+func (c *client) do_username_password() error {
+   var err error
+   c.Login, err = oldflix.FetchLogin(c.username, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 type client struct {
-   Hls *oldflix.Hls
+   Hls   *oldflix.Hls
+   Login *oldflix.Login
    //--------------
    Job maya.Job
    //--------------
@@ -74,4 +78,26 @@ type client struct {
    hls_id int
 }
 
-var cache maya.Cache
+func (c *client) do_oldflix_id() error {
+   browse, err := c.Login.FetchBrowse(c.oldflix_id)
+   if err != nil {
+      return err
+   }
+   original, err := browse.GetOriginal()
+   if err != nil {
+      return err
+   }
+   watch, err := browse.FetchWatch(original.Id, c.Login.Token)
+   if err != nil {
+      return err
+   }
+   c.Hls, err = watch.FetchHls()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListHls(c.Hls.Body, c.Hls.Url)
+}

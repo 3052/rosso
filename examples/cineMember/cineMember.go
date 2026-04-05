@@ -7,6 +7,10 @@ import (
    "net/http"
 )
 
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, nil)
+}
+
 type client struct {
    Dash    *cineMember.Dash
    Session *http.Cookie
@@ -77,10 +81,6 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, nil)
 }
 
 func main() {
