@@ -10,6 +10,20 @@ import (
    "path"
 )
 
+// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+func ParseId(urlData string) string {
+   part := path.Base(urlData)
+   len_part := len(part)
+   const len_uuid = 36
+   if len_part > len_uuid {
+      if part[len_part-len_uuid-1] == '-' {
+         return part[len_part-len_uuid:]
+      }
+   }
+   return part
+}
+
 func (d *Device) DeepLink(id string) (*DeepLink, error) {
    req := http.Request{
       URL: &url.URL{
@@ -78,19 +92,7 @@ func (p *Playlist) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-func ParseId(urlData string) string {
-   part := path.Base(urlData)
-   len_part := len(part)
-   const len_uuid = 36
-   if len_part > len_uuid {
-      if part[len_part-len_uuid-1] == '-' {
-         return part[len_part-len_uuid:]
-      }
-   }
-   return part
-}
+///
 
 type DeepLink struct {
    EabId   string `json:"eab_id"`

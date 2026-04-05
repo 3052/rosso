@@ -32,6 +32,31 @@ var validVideoTypes = []string{
    "STANDALONE_EVENT",
 }
 
+func FetchSt() (*http.Cookie, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com", // Refactored
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "st" {
+         return cookie, nil
+      }
+   }
+   return nil, http.ErrNoCookie
+}
+
 func isCategory(segment string) bool {
    switch segment {
    case "movies", "shows", "movie", "show":
@@ -92,6 +117,28 @@ func (e *Error) Error() string {
       data.WriteString("\nmessage = ")
       data.WriteString(e.Message)
    }
+   return data.String()
+}
+
+func (i *Included) String() string {
+   var data strings.Builder
+   if i.Attributes.SeasonNumber >= 1 {
+      data.WriteString("season number = ")
+      data.WriteString(strconv.Itoa(i.Attributes.SeasonNumber))
+   }
+   if i.Attributes.EpisodeNumber >= 1 {
+      data.WriteString("\nepisode number = ")
+      data.WriteString(strconv.Itoa(i.Attributes.EpisodeNumber))
+   }
+   if data.Len() >= 1 {
+      data.WriteByte('\n')
+   }
+   data.WriteString("name = ")
+   data.WriteString(i.Attributes.Name)
+   data.WriteString("\nvideo type = ")
+   data.WriteString(i.Attributes.VideoType)
+   data.WriteString("\nedit id = ")
+   data.WriteString(i.Relationships.Edit.Data.Id)
    return data.String()
 }
 
@@ -163,6 +210,33 @@ func (i *Initiate) String() string {
 
 func (l *Login) PlayReady(editId string) (*Playback, error) {
    return l.playback(editId, "playready")
+}
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func FetchLogin(st *http.Cookie) (*Login, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com", // Refactored
+         Path:   "/authentication/linkDevice/login",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Login{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
 }
 
 func (l *Login) Widevine(editId string) (*Playback, error) {
@@ -312,6 +386,22 @@ type Page struct {
    Included []*Included
 }
 
+func (p *Page) FilterAndSort() {
+   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
+      if i.Attributes == nil {
+         return true // Remove videos with nil attributes.
+      }
+      // We return 'true' to delete if the video's type is NOT in our slice.
+      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
+   })
+   slices.SortFunc(p.Included, func(a, b *Included) int {
+      if a.Attributes == nil || b.Attributes == nil {
+         return 0 // Consider them equal if attributes are missing.
+      }
+      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
+   })
+}
+
 type Playback struct {
    Drm struct {
       Schemes struct {
@@ -377,98 +467,6 @@ func (p *Playback) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-///
-
-func (i *Included) String() string {
-   var data strings.Builder
-   if i.Attributes.SeasonNumber >= 1 {
-      data.WriteString("season number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.SeasonNumber))
-   }
-   if i.Attributes.EpisodeNumber >= 1 {
-      data.WriteString("\nepisode number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("name = ")
-   data.WriteString(i.Attributes.Name)
-   data.WriteString("\nvideo type = ")
-   data.WriteString(i.Attributes.VideoType)
-   data.WriteString("\nedit id = ")
-   data.WriteString(i.Relationships.Edit.Data.Id)
-   return data.String()
-}
-
 type Scheme struct {
    LicenseUrl string
-}
-
-func (p *Page) FilterAndSort() {
-   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
-   })
-   slices.SortFunc(p.Included, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-}
-
-func FetchSt() (*http.Cookie, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com", // Refactored
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-device-info", device_info)
-   req.Header.Set("x-disco-client", disco_client)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "st" {
-         return cookie, nil
-      }
-   }
-   return nil, http.ErrNoCookie
-}
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func FetchLogin(st *http.Cookie) (*Login, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com", // Refactored
-         Path:   "/authentication/linkDevice/login",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }

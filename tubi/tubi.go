@@ -19,7 +19,10 @@ func FetchContent(id int) (*Content, error) {
          RawQuery: url.Values{
             "content_id":          {strconv.Itoa(id)},
             "deviceId":            {"!"},
-            "limit_resolutions[]": {"h265_1080p"},
+            "limit_resolutions[]": {
+               "h264_1080p",
+               "h265_1080p",
+            },
             "platform":            {"web"},
             "video_resources[]": {
                "dash",
