@@ -10,6 +10,34 @@ import (
    "path"
 )
 
+func main() {
+   maya.SetProxy("", "*.dash")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Dash    *canal.Dash
+   Player  *canal.Player
+   Session *canal.Session
+   //--------------------
+   Job maya.Job
+   //--------------------
+   email    string
+   password string
+   //--------------------
+   address string
+   //--------------------
+   tracking string
+   season   int
+   //--------------------
+   dash_id string
+}
 func (c *client) do() error {
    err := cache.Setup("rosso/canal.xml")
    if err != nil {
@@ -167,33 +195,4 @@ func get(address string) error {
    defer file.Close()
    _, err = file.ReadFrom(resp.Body)
    return err
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.dash")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Dash    *canal.Dash
-   Player  *canal.Player
-   Session *canal.Session
-   //--------------------
-   Job maya.Job
-   //--------------------
-   email    string
-   password string
-   //--------------------
-   address string
-   //--------------------
-   tracking string
-   season   int
-   //--------------------
-   dash_id string
 }

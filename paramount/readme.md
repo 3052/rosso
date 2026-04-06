@@ -1,11 +1,25 @@
 # Paramount+
 
-## How to get secret\_key?
+## paypal.com United States
 
-~~~
-sources/com/cbs/app/androiddata/retrofit/util/RetrofitUtil.java
-SecretKeySpec secretKeySpec = new SecretKeySpec(b("302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"), "AES");
-~~~
+1. paramountplus.com
+2. get started
+3. paramount+ premium
+   - continue
+4. full name
+5. email
+6. password
+7. zip code
+8. birthdate
+9. gender
+10. agree & continue
+11. paypal
+12. continue to paypal
+13. agree and continue
+14. subscribe
+15. paypal.com/myaccount/autopay
+16. paramount
+17. stop paying with paypal
 
 ## paypal.com United Kingdom
 
@@ -37,32 +51,12 @@ SecretKeySpec secretKeySpec = new SecretKeySpec(b("302a6a0d70a7e9b967f91d39fef3e
 19. stop paying with paypal (again)
 20. stop paying with paypal (again again)
 
-## paypal.com United States
+## How to get secret\_key?
 
-1. about:config
-2. general.useragent.override
-3. string
-4. add
-5. Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:147.0) Gecko/20100101 Firefox/147.0
-6. paramountplus.com
-7. get started
-8. paramount+ premium
-   - continue
-9. full name
-10. email
-   - mail.tm
-11. password
-12. zip code
-13. birthdate
-14. gender
-15. agree & continue
-16. paypal
-17. continue to paypal
-18. agree and continue
-19. subscribe
-20. paypal.com/myaccount/autopay
-21. paramount
-22. stop paying with paypal
+~~~
+sources/com/cbs/app/androiddata/retrofit/util/RetrofitUtil.java
+SecretKeySpec secretKeySpec = new SecretKeySpec(b("302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"), "AES");
+~~~
 
 ## com.cbs.app
 

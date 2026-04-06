@@ -13,12 +13,6 @@ var videos = []struct {
    cookie     bool
 }{
    {
-      justWatch:  "https://justwatch.com/us/tv-show/cia",
-      paramount:  "https://paramountplus.com/shows/video/8PO2sBBr6lFb7J4nklXuzNZRhUR_V9dd",
-      resolution: "1080p",
-      cookie:     false,
-   },
-   {
       justWatch:  "https://justwatch.com/us/movie/zodiac",
       resolution: "2160p",
       paramount:  "https://paramountplus.com/movies/video/wjQ4RChi6BHHu4MVTncppVuCwu44uq2Q",
@@ -35,5 +29,11 @@ var videos = []struct {
       paramount:  "https://cbs.com/shows/video/uuwl_4UT4MrVsGwmKFA_FE95RXPmbOMl",
       resolution: "1080p",
       cookie:     false,
+   },
+   {
+      cookie:     false,
+      paramount:  "https://paramountplus.com/shows/video/ALVE01KMDREQKEENRS8QS6BASFR1TA",
+      resolution: "1080p",
+      justWatch:  "https://justwatch.com/us/tv-show/the-bold-and-the-beautiful",
    },
 }
