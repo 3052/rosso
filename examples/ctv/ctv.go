@@ -6,47 +6,9 @@ import (
    "log"
 )
 
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, ctv.FetchWidevine,
-   )
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/ctv.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case dash_id.IsSet:
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-      address,
-      dash_id,
-   }})
-}
-
-var cache maya.Cache
-
 func main() {
    log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4a,*.m4v")
+   maya.SetProxy("", "*.m4a", "*.m4v")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -94,3 +56,41 @@ type client struct {
    //------------
    dash_id string
 }
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, ctv.FetchWidevine,
+   )
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/ctv.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return cache.Write(c)
+   case address.IsSet:
+      return c.do_address()
+   case dash_id.IsSet:
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      address,
+      dash_id,
+   }})
+}
+
+var cache maya.Cache

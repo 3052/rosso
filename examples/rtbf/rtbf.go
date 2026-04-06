@@ -6,6 +6,32 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Account     *rtbf.Account
+   Dash        *rtbf.Dash
+   Entitlement *rtbf.Entitlement
+   //---------------------------
+   Job maya.Job
+   //---------------------------
+   email    string
+   password string
+   //---------------------------
+   address string
+   //---------------------------
+   dash_id string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/rtbf.xml")
    if err != nil {
@@ -95,30 +121,4 @@ func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
       c.Dash.Body, c.Dash.Url, c.dash_id, c.Entitlement.Widevine,
    )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Account     *rtbf.Account
-   Dash        *rtbf.Dash
-   Entitlement *rtbf.Entitlement
-   //---------------------------
-   Job maya.Job
-   //---------------------------
-   email    string
-   password string
-   //---------------------------
-   address string
-   //---------------------------
-   dash_id string
 }

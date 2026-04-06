@@ -17,6 +17,8 @@ func (c *client) do() error {
    //-----------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-----------------------------------------------------------
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //-----------------------------------------------------------
    username := maya.StringFlag(&c.username, "u", "username")
    password := maya.StringFlag(&c.password, "p", "password")
    //-----------------------------------------------------------
@@ -39,6 +41,9 @@ func (c *client) do() error {
    if proxy.IsSet {
       return cache.Write(c)
    }
+   if threads.IsSet {
+      return cache.Write(c)
+   }
    if username.IsSet {
       if password.IsSet {
          return c.do_username_password()
@@ -56,6 +61,7 @@ func (c *client) do() error {
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
       {proxy},
+      {threads},
       {username, password},
       {profile},
       {address},

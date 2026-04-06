@@ -7,6 +7,34 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   // server checks location on all requests
+   maya.SetProxy("", "*.isma", "*.ismv")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Content *rakuten.Content
+   Dash    *rakuten.Dash
+   //-------------------
+   Job maya.Job
+   //-------------------
+   address string
+   //-------------------
+   season string
+   //-------------------
+   Language string
+   Episode  string
+   //-------------------
+   dash_id string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/rakuten.xml")
    if err != nil {
@@ -111,32 +139,4 @@ func (c *client) do_dash_id() error {
       return err
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, stream.Widevine)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   // server checks location on all requests
-   maya.SetProxy("", "*.isma,*.ismv")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Content *rakuten.Content
-   Dash    *rakuten.Dash
-   //-------------------
-   Job maya.Job
-   //-------------------
-   address string
-   //-------------------
-   season string
-   //-------------------
-   Language string
-   Episode  string
-   //-------------------
-   dash_id string
 }
