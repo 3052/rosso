@@ -12,29 +12,30 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 26668 | us | plex |
-| 14781 | us | kanopy |
+| 26667 | us | plex |
+| 9932 | uk | rakuten-tv |
 | 4957 | ca | crave |
-| 4055 | us | tubi-tv |
-| 2713 | uk | rakuten-tv |
-| 2673 | us | criterion-channel |
-| 2346 | us | the-roku-channel |
-| 2291 | us | disney-plus |
+| 4263 | us | kanopy |
+| 4056 | us | tubi-tv |
+| 3604 | us | hbo-max |
+| 2952 | us | hulu |
+| 2345 | us | the-roku-channel |
+| 2292 | us | disney-plus |
 | 1987 | us | peacock |
-| 1375 | ca | ctv |
-| 1239 | uk | itvx |
-| 1003 | us | hbo-max |
+| 1072 | nl | cinemember |
 | 1002 | us | pluto-tv |
-| 664 | se | draken-films |
-| 614 | us | hulu |
-| 579 | fr | molotov-tv |
-| 549 | nl | cinemember |
+| 930 | us | criterion-channel |
+| 863 | br | oldflix |
+| 715 | be | rtbf-auvio |
+| 665 | se | draken-films |
+| 580 | fr | molotov-tv |
 | 464 | us | amc-plus |
 | 331 | us | paramount-plus-premium |
-| 251 | us | mubi |
+| 273 | ca | ctv |
 | 251 | cz | canal-plus |
-| 154 | be | rtbf-auvio |
-| 139 | us | nbc |
+| 251 | us | mubi |
+| 228 | uk | itvx |
+| 140 | us | nbc |
 
 ## contact
 

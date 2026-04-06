@@ -10,6 +10,58 @@ import (
    "path"
 )
 
+var deejay = []struct {
+   resolution  string
+   device_id   int
+   key_version int
+}{
+   {
+      resolution:  "2160p",
+      device_id:   210,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   208,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   204,
+      key_version: 4,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   188,
+      key_version: 17,
+   },
+   {
+      resolution:  "720p",
+      device_id:   214,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   191,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   190,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   142,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   109,
+      key_version: 1,
+   },
+}
+
 // https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
 // https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
 func ParseId(urlData string) string {
@@ -22,6 +74,11 @@ func ParseId(urlData string) string {
       }
    }
    return part
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }
 
 type DeepLink struct {
@@ -262,61 +319,4 @@ func (p *Playlist) Widevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-var deejay = []struct {
-   resolution  string
-   device_id   int
-   key_version int
-}{
-   {
-      resolution:  "2160p",
-      device_id:   210,
-      key_version: 1,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   208,
-      key_version: 1,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   204,
-      key_version: 4,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   188,
-      key_version: 17,
-   },
-   {
-      resolution:  "720p",
-      device_id:   214,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   191,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   190,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   142,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   109,
-      key_version: 1,
-   },
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
