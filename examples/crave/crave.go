@@ -7,14 +7,60 @@ import (
    "log"
 )
 
-func main() {
-   // MP4 need proxy
-   maya.SetProxy("", "*.m4v")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
+func (c *client) do() error {
+   err := cache.Setup("rosso/crave.xml")
    if err != nil {
-      log.Fatal(err)
+      return err
    }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+   //-----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //-----------------------------------------------------------
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-----------------------------------------------------------
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   //-----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //-----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy, "*.m4v") // MP4 need proxy
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return with_cache(c.do_profile)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {proxy},
+      {username, password},
+      {profile},
+      {address},
+      {dash_id},
+   })
 }
 
 func (c *client) do_username_password() error {
@@ -98,6 +144,14 @@ func (c *client) do_profile() error {
    return cache.Write(c)
 }
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    Account        *crave.Account
    ContentPackage *crave.ContentPackage
@@ -105,6 +159,8 @@ type client struct {
    Media          *crave.Media
    //--------------------
    Job maya.Job
+   //--------------------
+   Proxy string
    //--------------------
    username string
    password string
@@ -114,50 +170,4 @@ type client struct {
    address string
    //--------------------
    dash_id string
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //-----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return with_cache(c.do_profile)
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {username, password},
-      {profile},
-      {address},
-      {dash_id},
-   })
 }
