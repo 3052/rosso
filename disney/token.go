@@ -33,13 +33,14 @@ func (t *Token) Page(entity string) (*Page, error) {
       Data struct {
          Page Page
       }
+      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if message := result.Data.Page.Visuals.Restriction.Message; message != "" {
-      return nil, errors.New(message)
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
    }
    return &result.Data.Page, nil
 }
@@ -102,9 +103,6 @@ func (t *Token) Stream(mediaId string) (*Stream, error) {
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
    }
    return &result.Stream, nil
 }
@@ -254,9 +252,6 @@ func (t *Token) Login(email, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
    *t = result.Extensions.Sdk.Token
    return &result.Data.Login, nil
 }
@@ -301,9 +296,6 @@ func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
    return &result.Data.RequestOtp, nil
 }
 
@@ -345,9 +337,6 @@ func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOt
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
    }
    return &result.Data.AuthenticateWithOtp, nil
 }

@@ -11,6 +11,20 @@ import (
    "strings"
 )
 
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription = ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+type Error struct {
+   Code        string // 2026-04-05
+   Description string // 2026-04-05
+}
+
 // ZGlzbmV5JmJyb3dzZXImMS4wLjA
 // disney&browser&1.0.0
 const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
@@ -59,45 +73,6 @@ func GetEntity(urlData string) (string, error) {
 
 type AuthenticateWithOtp struct {
    ActionGrant string
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   if e.Code != "" {
-      data.WriteString("code = ")
-      data.WriteString(e.Code)
-   }
-   if e.Description != "" {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("description = ")
-      data.WriteString(e.Description)
-   }
-   if e.Extensions != nil {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("extensions = ")
-      data.WriteString(e.Extensions.Code)
-   }
-   if e.Message != "" {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("message = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-type Error struct {
-   Code        string
-   Description string
-   Extensions  *struct {
-      Code string
-   }
-   Message string
 }
 
 type Hls struct {
@@ -281,9 +256,6 @@ func RegisterDevice() (*Token, error) {
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
    }
    return &result.Data.RegisterDevice.Token, nil
 }

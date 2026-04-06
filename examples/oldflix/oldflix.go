@@ -6,16 +6,16 @@ import (
    "log"
 )
 
-func (c *client) do_hls_id() error {
-   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, nil)
-}
-
 func (c *client) do() error {
    err := cache.Setup("rosso/oldflix.xml")
    if err != nil {
       return err
    }
    with_cache := cache.Read(c)
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //-------------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //-------------------------------------------------------------
    username := maya.StringFlag(&c.username, "u", "username")
    password := maya.StringFlag(&c.password, "p", "password")
    //-------------------------------------------------------------
@@ -25,6 +25,16 @@ func (c *client) do() error {
    err = maya.ParseFlags()
    if err != nil {
       return err
+   }
+   err = maya.SetProxy(c.Proxy, "*.ts")
+   if err != nil {
+      return err
+   }
+   if proxy.IsSet {
+      return cache.Write(c)
+   }
+   if threads.IsSet {
+      return cache.Write(c)
    }
    if username.IsSet {
       if password.IsSet {
@@ -38,44 +48,12 @@ func (c *client) do() error {
       return with_cache(c.do_hls_id)
    }
    return maya.PrintFlags([][]*maya.Flag{
+      {proxy},
+      {threads},
       {username, password},
       {oldflix_id},
       {hls_id},
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-func (c *client) do_username_password() error {
-   var err error
-   c.Login, err = oldflix.FetchLogin(c.username, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   Hls   *oldflix.Hls
-   Login *oldflix.Login
-   //--------------
-   Job maya.Job
-   //--------------
-   username string
-   password string
-   //--------------
-   oldflix_id string
-   //--------------
-   hls_id int
 }
 
 func (c *client) do_oldflix_id() error {
@@ -100,4 +78,43 @@ func (c *client) do_oldflix_id() error {
       return err
    }
    return maya.ListHls(c.Hls.Body, c.Hls.Url)
+}
+
+func (c *client) do_hls_id() error {
+   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, nil)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+func (c *client) do_username_password() error {
+   var err error
+   c.Login, err = oldflix.FetchLogin(c.username, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   Hls   *oldflix.Hls
+   Login *oldflix.Login
+   //--------------
+   Job maya.Job
+   //--------------
+   Proxy string
+   //--------------
+   username string
+   password string
+   //--------------
+   oldflix_id string
+   //--------------
+   hls_id int
 }
