@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-   maya.SetProxy("", "*.mp4,*.mp4a")
+   maya.SetProxy("", "*.mp4", "*.mp4a")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

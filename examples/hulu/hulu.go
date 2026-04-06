@@ -6,39 +6,9 @@ import (
    "log"
 )
 
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
-   )
-}
-
-func (c *client) do_address() error {
-   err := c.Device.TokenRefresh()
-   if err != nil {
-      return err
-   }
-   deep_link, err := c.Device.DeepLink(hulu.ParseId(c.address))
-   if err != nil {
-      return err
-   }
-   c.Playlist, err = c.Device.Playlist(deep_link.EabId)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.Playlist.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.mp4,*.mp4a")
+   maya.SetProxy("", "*.mp4", "*.mp4a")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -109,4 +79,34 @@ func (c *client) do() error {
       {address},
       {dash_id},
    })
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
+   )
+}
+
+func (c *client) do_address() error {
+   err := c.Device.TokenRefresh()
+   if err != nil {
+      return err
+   }
+   deep_link, err := c.Device.DeepLink(hulu.ParseId(c.address))
+   if err != nil {
+      return err
+   }
+   c.Playlist, err = c.Device.Playlist(deep_link.EabId)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.Playlist.Dash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
