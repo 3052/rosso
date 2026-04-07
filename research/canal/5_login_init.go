@@ -26,7 +26,6 @@ func (a *App) LoginInit() error {
          Brand:            "m7cp",
          Country:          "CZ",
       },
-      OldSsoToken: a.SsoToken,
    }
 
    body, err := json.Marshal(payload)
