@@ -1,9 +1,11 @@
 package main
 
 import (
+   "encoding/json"
    "log"
    "net/http"
    "net/http/cookiejar"
+   "os/exec"
    "time"
 )
 
@@ -19,7 +21,6 @@ type App struct {
 
 func main() {
    jar, _ := cookiejar.New(nil)
-
    app := &App{
       Client: &http.Client{
          Timeout: 15 * time.Second,
@@ -28,11 +29,10 @@ func main() {
       DeviceSerial: "w76d15b90-3215-11f1-87ca-01f0af932fb7", // Replace with a randomly generated UUID if desired
    }
 
-   log.Println("1/6 Fetching Config...")
-   if err := app.GetConfig(); err != nil {
-      log.Fatalf("Config failed: %v", err)
-   }
-
+   //log.Println("1/6 Fetching Config...")
+   //if err := app.GetConfig(); err != nil {
+   //   log.Fatalf("Config failed: %v", err)
+   //}
    log.Println("2/6 Provisioning Device...")
    if err := app.Provision(); err != nil {
       log.Fatalf("Provision failed: %v", err)
@@ -43,19 +43,32 @@ func main() {
       log.Fatalf("Demo failed: %v", err)
    }
 
-   log.Println("4/6 Starting Session...")
-   if err := app.Session(); err != nil {
-      log.Fatalf("Session failed: %v", err)
-   }
+   //log.Println("4/6 Starting Session...")
+   //if err := app.Session(); err != nil {
+   //   log.Fatalf("Session failed: %v", err)
+   //}
 
    log.Println("5/6 Initializing Login (Fetching Ticket)...")
    if err := app.LoginInit(); err != nil {
       log.Fatalf("LoginInit failed: %v", err)
    }
 
+   data, err := exec.Command("credential", "-j=canalplus.cz").Output()
+   if err != nil {
+      panic(err)
+   }
+   var credential []struct {
+      Username string
+      Password string
+   }
+   err = json.Unmarshal(data, &credential)
+   if err != nil {
+      panic(err)
+   }
    log.Println("6/6 Submitting Credentials...")
    // Put the target email and password here
-   if err := app.LoginSubmit("27@riseup.net", "***REMOVED***"); err != nil {
+   err = app.LoginSubmit(credential[0].Username, credential[0].Password)
+   if err != nil {
       log.Fatalf("LoginSubmit failed: %v", err)
    }
 

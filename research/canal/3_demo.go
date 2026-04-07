@@ -8,21 +8,8 @@ import (
    "time"
 )
 
-type DeviceInfo struct {
-   OsVersion        string `json:"osVersion"`
-   DeviceModel      string `json:"deviceModel"`
-   DeviceType       string `json:"deviceType"`
-   DeviceSerial     string `json:"deviceSerial"`
-   DeviceOem        string `json:"deviceOem"`
-   DevicePrettyName string `json:"devicePrettyName"`
-   AppVersion       string `json:"appVersion"`
-   Language         string `json:"language"`
-   Brand            string `json:"brand"`
-   Country          string `json:"country,omitempty"`
-}
-
 type DemoPayload struct {
-   ProvisionData string     `json:"provisionData"`
+   ProvisionData string     `json:"provisionData,omitempty"`
    DeviceInfo    DeviceInfo `json:"deviceInfo"`
 }
 
@@ -77,4 +64,17 @@ func (a *App) Demo() error {
 
    a.SsoToken = result.SsoToken
    return nil
+}
+
+type DeviceInfo struct {
+   OsVersion        string `json:"osVersion"`
+   DeviceModel      string `json:"deviceModel"`
+   DeviceType       string `json:"deviceType"`
+   DeviceSerial     string `json:"deviceSerial"`
+   DeviceOem        string `json:"deviceOem"`
+   DevicePrettyName string `json:"devicePrettyName"`
+   AppVersion       string `json:"appVersion"`
+   Language         string `json:"language"`
+   Brand            string `json:"brand"`
+   Country          string `json:"country,omitempty"`
 }
