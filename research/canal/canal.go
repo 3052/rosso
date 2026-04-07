@@ -65,7 +65,35 @@ func LoginSubmit(ticket, username, password string) (string, error) {
    return "", fmt.Errorf("login response label: %s", result.Label)
 }
 
+const user_agent = "Mozilla/5.0 Windows"
+
+type DeviceInfo struct {
+   Brand        string `json:"brand"`
+   DeviceModel  string `json:"deviceModel"`
+   DeviceOem    string `json:"deviceOem"`
+   DeviceSerial string `json:"deviceSerial"`
+   DeviceType   string `json:"deviceType"`
+   OsVersion    string `json:"osVersion"`
+}
+
+type LoginSubmitPayload struct {
+   Ticket    string    `json:"ticket"`
+   UserInput UserInput `json:"userInput"`
+}
+
+type UserInput struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
+}
+
+type LoginInitPayload struct {
+   DeviceInfo DeviceInfo `json:"deviceInfo"`
+}
+
+const device_serial = "!!!!"
+
 // Global variables for authentication
+
 const (
    client_key = "web.NhFyz4KsZ54"
    secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
@@ -100,43 +128,6 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    data.WriteString(signature)
    return data.String(), nil
 }
-
-///
-
-type DeviceInfo struct {
-   Brand        string `json:"brand"`
-   DeviceModel  string `json:"deviceModel"`
-   DeviceOem    string `json:"deviceOem"`
-   DeviceSerial string `json:"deviceSerial"`
-   DeviceType   string `json:"deviceType"`
-   OsVersion    string `json:"osVersion"`
-}
-
-type LoginSubmitPayload struct {
-   Ticket    string    `json:"ticket"`
-   UserInput UserInput `json:"userInput"`
-}
-
-type UserInput struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
-}
-
-type LoginInitPayload struct {
-   DeviceInfo DeviceInfo `json:"deviceInfo"`
-}
-
-type App struct {
-   Client        *http.Client
-   DeviceSerial  string
-   TVApiBaseURL  string
-   ProvisionData string
-   SsoToken      string
-   BearerToken   string
-   Ticket        string
-}
-
-const device_serial = "!!!!"
 
 func LoginInit() (string, error) {
    u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
@@ -184,5 +175,3 @@ func LoginInit() (string, error) {
    }
    return result.Ticket, nil
 }
-
-const user_agent = "Mozilla/5.0 Windows"
