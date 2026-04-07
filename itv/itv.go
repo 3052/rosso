@@ -14,6 +14,45 @@ import (
    "strings"
 )
 
+func (p *Playlist) PlayReady(id string) error {
+   data, err := json.Marshal(map[string]any{
+      "client": map[string]string{
+         "id": "browser",
+      },
+      "variantAvailability": map[string]any{
+         "drm": map[string]string{
+            "maxSupported": "SL3000",
+            "system":       "playready",
+         },
+         "featureset": []string{
+            "hd",
+            "mpeg-dash",
+            "single-track",
+            "playready",
+         },
+         "platformTag": "ctv", // 1080p
+      },
+   })
+   if err != nil {
+      return err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://magni.itv.com/playlist/itvonline/ITV/"+id,
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("accept", "application/vnd.itv.vod.playlist.v4+json")
+   req.Header.Set("user-agent", "!")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(p)
+}
+
 func Titles(legacyId string) ([]Title, error) {
    var data strings.Builder
    err := json.NewEncoder(&data).Encode(map[string]string{
@@ -62,44 +101,7 @@ type Title struct {
    Title         string
 }
 
-func (p *Playlist) PlayReady(id string) error {
-   data, err := json.Marshal(map[string]any{
-      "client": map[string]string{
-         "id": "browser",
-      },
-      "variantAvailability": map[string]any{
-         "drm": map[string]string{
-            "maxSupported": "SL3000",
-            "system":       "playready",
-         },
-         "featureset": []string{
-            "hd",
-            "mpeg-dash",
-            "single-track",
-            "playready",
-         },
-         "platformTag": "ctv", // 1080p
-      },
-   })
-   if err != nil {
-      return err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://magni.itv.com/playlist/itvonline/ITV/"+id,
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("accept", "application/vnd.itv.vod.playlist.v4+json")
-   req.Header.Set("user-agent", "!")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(p)
-}
+///
 
 func (m *MediaFile) Widevine(data []byte) ([]byte, error) {
    resp, err := http.Post(

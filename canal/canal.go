@@ -12,6 +12,50 @@ import (
    "strings"
 )
 
+func FetchTicket() (*Ticket, error) {
+   data, err := json.Marshal(map[string]any{
+      "deviceInfo": map[string]string{
+         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
+         "deviceModel":  "Firefox",
+         "deviceOem":    "Firefox",
+         "deviceSerial": device_serial,
+         "deviceType":   "PC",
+         "osVersion":    "Windows 10",
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://m7cp.login.solocoo.tv/login", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   client, err := get_client(req.URL, data)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", client)
+   req.Header.Set("user-agent", user_agent)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Ticket
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+const user_agent = "Mozilla/5.0 Windows"
+
 type Player struct {
    Drm struct {
       LicenseUrl string
@@ -237,47 +281,3 @@ func FetchSession(ssoToken string) (*Session, error) {
 }
 
 const device_serial = "!!!!"
-
-func FetchTicket() (*Ticket, error) {
-   data, err := json.Marshal(map[string]any{
-      "deviceInfo": map[string]string{
-         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
-         "deviceModel":  "Firefox",
-         "deviceOem":    "Firefox",
-         "deviceSerial": device_serial,
-         "deviceType":   "PC",
-         "osVersion":    "Windows 10",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://m7cp.login.solocoo.tv/login", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   client, err := get_client(req.URL, data)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", client)
-   req.Header.Set("user-agent", user_agent)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Ticket
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-const user_agent = "Mozilla/5.0 Windows"

@@ -308,8 +308,6 @@ func (p *Playlist) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-///
-
 func (p *Playlist) Widevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       p.WvServer, "application/x-protobuf", bytes.NewReader(data),
