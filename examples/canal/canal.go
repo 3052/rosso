@@ -31,8 +31,6 @@ type client struct {
    email    string
    password string
    //--------------------
-   address string
-   //--------------------
    tracking string
    season   int
    //--------------------
@@ -53,8 +51,6 @@ func (c *client) do() error {
    //------------------------------------------------------
    refresh := maya.BoolFlag("r", "refresh")
    //---------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //------------------------------------------------------
    tracking := maya.StringFlag(&c.tracking, "t", "tracking")
    season := maya.IntFlag(&c.season, "s", "season")
    //----------------------------------------------------
@@ -76,9 +72,6 @@ func (c *client) do() error {
    if refresh.IsSet {
       return with_cache(c.do_refresh)
    }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
    if tracking.IsSet {
       if season.IsSet {
          return with_cache(c.do_tracking_season)
@@ -95,7 +88,6 @@ func (c *client) do() error {
       {widevine},
       {email, password},
       {refresh},
-      {address},
       {tracking, season},
       {subtitles},
       {dash_id},
@@ -125,15 +117,6 @@ func (c *client) do_refresh() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   tracking, err := canal.FetchTracking(c.address)
-   if err != nil {
-      return err
-   }
-   fmt.Println("tracking =", tracking)
-   return nil
 }
 
 func (c *client) do_tracking() error {

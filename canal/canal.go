@@ -12,6 +12,55 @@ import (
    "strings"
 )
 
+type Player struct {
+   Drm struct {
+      LicenseUrl string
+   }
+   Message   string
+   Subtitles []struct {
+      Url string
+   }
+   Url string // MPD
+}
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   data, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
 func (t *Ticket) Login(username, password string) (*Login, error) {
    data, err := json.Marshal(map[string]any{
       "ticket": t.Ticket,
@@ -56,32 +105,6 @@ type Ticket struct {
    Ticket  string
 }
 
-func FetchTracking(urlData string) (string, error) {
-   resp, err := http.Get(urlData)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return "", errors.New(resp.Status)
-   }
-   var data strings.Builder
-   _, err = io.Copy(&data, resp.Body)
-   if err != nil {
-      return "", err
-   }
-   const start_key = `data-algolia-convert-tracking="`
-   _, after, found := strings.Cut(data.String(), start_key)
-   if !found {
-      return "", fmt.Errorf("attribute key %q not found", start_key)
-   }
-   before, _, found := strings.Cut(after, `"`)
-   if !found {
-      return "", errors.New("could not find closing quote for the attribute")
-   }
-   return before, nil
-}
-
 type Dash struct {
    Body []byte
    Url  *url.URL
@@ -124,17 +147,6 @@ func (l *Login) Error() string {
    return data.String()
 }
 
-type Player struct {
-   Drm struct {
-      LicenseUrl string
-   }
-   Message   string
-   Subtitles []struct {
-      Url string
-   }
-   Url string // MPD
-}
-
 func (p *Player) Widevine(data []byte) ([]byte, error) {
    resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
    if err != nil {
@@ -155,44 +167,6 @@ func (p *Player) Dash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   data, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
 
 type Session struct {
