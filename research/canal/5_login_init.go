@@ -5,7 +5,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
-   "time"
+   "net/url"
 )
 
 type LoginInitPayload struct {
@@ -15,7 +15,10 @@ type LoginInitPayload struct {
 }
 
 func (a *App) LoginInit() error {
-   url := "https://m7cp.login.solocoo.tv/login"
+   u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
+   if err != nil {
+      return err
+   }
 
    payload := LoginInitPayload{
       ProvisionData: a.ProvisionData,
@@ -34,17 +37,23 @@ func (a *App) LoginInit() error {
       OldSsoToken: a.SsoToken,
    }
 
-   body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   body, err := json.Marshal(payload)
    if err != nil {
       return err
    }
 
+   authHeader, err := get_client(u, body)
+   if err != nil {
+      return err
+   }
+
+   req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
+   if err != nil {
+      return err
+   }
    setCommonHeaders(req)
    req.Header.Set("Content-Type", "application/json")
-
-   timestamp := time.Now().Unix()
-   req.Header.Set("Authorization", GenerateAuthorizationHeader(url, body, timestamp))
+   req.Header.Set("Authorization", authHeader)
 
    resp, err := a.Client.Do(req)
    if err != nil {

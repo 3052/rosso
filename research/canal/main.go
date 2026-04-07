@@ -1,11 +1,8 @@
 package main
 
 import (
-   "encoding/json"
    "log"
    "net/http"
-   "net/http/cookiejar"
-   "os/exec"
    "time"
 )
 
@@ -20,19 +17,13 @@ type App struct {
 }
 
 func main() {
-   jar, _ := cookiejar.New(nil)
    app := &App{
       Client: &http.Client{
          Timeout: 15 * time.Second,
-         Jar:     jar,
       },
-      DeviceSerial: "w76d15b90-3215-11f1-87ca-01f0af932fb7", // Replace with a randomly generated UUID if desired
+      DeviceSerial: "w76d15b90-3215-11f1-87ca-01f0af932fb7", // Replace with a dynamic UUID if needed
    }
-
-   //log.Println("1/6 Fetching Config...")
-   //if err := app.GetConfig(); err != nil {
-   //   log.Fatalf("Config failed: %v", err)
-   //}
+   app.TVApiBaseURL = "https://tvapi-hlm2.solocoo.tv"
    log.Println("2/6 Provisioning Device...")
    if err := app.Provision(); err != nil {
       log.Fatalf("Provision failed: %v", err)
@@ -42,40 +33,19 @@ func main() {
    if err := app.Demo(); err != nil {
       log.Fatalf("Demo failed: %v", err)
    }
-
-   //log.Println("4/6 Starting Session...")
-   //if err := app.Session(); err != nil {
-   //   log.Fatalf("Session failed: %v", err)
-   //}
-
    log.Println("5/6 Initializing Login (Fetching Ticket)...")
    if err := app.LoginInit(); err != nil {
       log.Fatalf("LoginInit failed: %v", err)
    }
-
-   data, err := exec.Command("credential", "-j=canalplus.cz").Output()
-   if err != nil {
-      panic(err)
-   }
-   var credential []struct {
-      Username string
-      Password string
-   }
-   err = json.Unmarshal(data, &credential)
-   if err != nil {
-      panic(err)
-   }
    log.Println("6/6 Submitting Credentials...")
-   // Put the target email and password here
-   err = app.LoginSubmit(credential[0].Username, credential[0].Password)
-   if err != nil {
+   // Feed your credentials here
+   if err := app.LoginSubmit("27@riseup.net", "***REMOVED***"); err != nil {
       log.Fatalf("LoginSubmit failed: %v", err)
    }
-
-   log.Println("Successfully completed the login flow and retrieved the final SSO Token!")
+   log.Println("Successfully logged in!")
 }
 
-// setCommonHeaders applies headers that are present across most requests
+// setCommonHeaders applies headers that are present across the requests
 func setCommonHeaders(req *http.Request) {
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
    req.Header.Set("Accept", "application/json, text/plain, */*")

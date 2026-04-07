@@ -6,7 +6,7 @@ import (
    "fmt"
    "log"
    "net/http"
-   "time"
+   "net/url"
 )
 
 type UserInput struct {
@@ -20,7 +20,10 @@ type LoginSubmitPayload struct {
 }
 
 func (a *App) LoginSubmit(username, password string) error {
-   url := "https://m7cp.login.solocoo.tv/login"
+   u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
+   if err != nil {
+      return err
+   }
 
    payload := LoginSubmitPayload{
       Ticket: a.Ticket,
@@ -30,17 +33,23 @@ func (a *App) LoginSubmit(username, password string) error {
       },
    }
 
-   body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   body, err := json.Marshal(payload)
    if err != nil {
       return err
    }
 
+   authHeader, err := get_client(u, body)
+   if err != nil {
+      return err
+   }
+
+   req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
+   if err != nil {
+      return err
+   }
    setCommonHeaders(req)
    req.Header.Set("Content-Type", "application/json")
-
-   timestamp := time.Now().Unix()
-   req.Header.Set("Authorization", GenerateAuthorizationHeader(url, body, timestamp))
+   req.Header.Set("Authorization", authHeader)
 
    resp, err := a.Client.Do(req)
    if err != nil {
@@ -62,10 +71,10 @@ func (a *App) LoginSubmit(username, password string) error {
    }
 
    if result.Result == "success" {
-      log.Println("Login successful! New Authed SSO Token obtained.")
-      a.SsoToken = result.SsoToken // You are now fully logged in
+      log.Println("Login successful! Acquired final SSO token.")
+      a.SsoToken = result.SsoToken
    } else {
-      log.Printf("Login response: %s", result.Result)
+      log.Printf("Login response label: %s", result.Label)
    }
 
    return nil

@@ -5,16 +5,32 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
-   "time"
+   "net/url"
 )
 
+type DeviceInfo struct {
+   OsVersion        string `json:"osVersion"`
+   DeviceModel      string `json:"deviceModel"`
+   DeviceType       string `json:"deviceType"`
+   DeviceSerial     string `json:"deviceSerial"`
+   DeviceOem        string `json:"deviceOem"`
+   DevicePrettyName string `json:"devicePrettyName"`
+   AppVersion       string `json:"appVersion"`
+   Language         string `json:"language"`
+   Brand            string `json:"brand"`
+   Country          string `json:"country,omitempty"`
+}
+
 type DemoPayload struct {
-   ProvisionData string     `json:"provisionData,omitempty"`
+   ProvisionData string     `json:"provisionData"`
    DeviceInfo    DeviceInfo `json:"deviceInfo"`
 }
 
 func (a *App) Demo() error {
-   url := "https://m7cp.login.solocoo.tv/demo"
+   u, err := url.Parse("https://m7cp.login.solocoo.tv/demo")
+   if err != nil {
+      return err
+   }
 
    payload := DemoPayload{
       ProvisionData: a.ProvisionData,
@@ -32,18 +48,23 @@ func (a *App) Demo() error {
       },
    }
 
-   body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   body, err := json.Marshal(payload)
    if err != nil {
       return err
    }
 
+   authHeader, err := get_client(u, body)
+   if err != nil {
+      return err
+   }
+
+   req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
+   if err != nil {
+      return err
+   }
    setCommonHeaders(req)
    req.Header.Set("Content-Type", "application/json")
-
-   // Create dynamic HMAC Authorization Header
-   timestamp := time.Now().Unix()
-   req.Header.Set("Authorization", GenerateAuthorizationHeader(url, body, timestamp))
+   req.Header.Set("Authorization", authHeader)
 
    resp, err := a.Client.Do(req)
    if err != nil {
@@ -64,17 +85,4 @@ func (a *App) Demo() error {
 
    a.SsoToken = result.SsoToken
    return nil
-}
-
-type DeviceInfo struct {
-   OsVersion        string `json:"osVersion"`
-   DeviceModel      string `json:"deviceModel"`
-   DeviceType       string `json:"deviceType"`
-   DeviceSerial     string `json:"deviceSerial"`
-   DeviceOem        string `json:"deviceOem"`
-   DevicePrettyName string `json:"devicePrettyName"`
-   AppVersion       string `json:"appVersion"`
-   Language         string `json:"language"`
-   Brand            string `json:"brand"`
-   Country          string `json:"country,omitempty"`
 }

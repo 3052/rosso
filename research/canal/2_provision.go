@@ -21,7 +21,7 @@ type ProvisionPayload struct {
 }
 
 func (a *App) Provision() error {
-   url := fmt.Sprintf("%s/v1/provision", a.TVApiBaseURL)
+   targetUrl := fmt.Sprintf("%s/v1/provision", a.TVApiBaseURL)
 
    payload := ProvisionPayload{
       OsVersion:        "Windows 10",
@@ -36,8 +36,12 @@ func (a *App) Provision() error {
       FeatureLevel:     7,
    }
 
-   body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   body, err := json.Marshal(payload)
+   if err != nil {
+      return err
+   }
+
+   req, err := http.NewRequest("POST", targetUrl, bytes.NewBuffer(body))
    if err != nil {
       return err
    }
@@ -49,6 +53,10 @@ func (a *App) Provision() error {
       return err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
 
    var result struct {
       Session struct {
