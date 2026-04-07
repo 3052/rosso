@@ -101,6 +101,8 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+///
+
 type DeviceInfo struct {
    Brand        string `json:"brand"`
    DeviceModel  string `json:"deviceModel"`
