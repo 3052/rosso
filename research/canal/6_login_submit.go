@@ -9,22 +9,11 @@ import (
    "net/url"
 )
 
-type UserInput struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
-}
-
-type LoginSubmitPayload struct {
-   Ticket    string    `json:"ticket"`
-   UserInput UserInput `json:"userInput"`
-}
-
 func (a *App) LoginSubmit(username, password string) error {
    u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
    if err != nil {
       return err
    }
-
    payload := LoginSubmitPayload{
       Ticket: a.Ticket,
       UserInput: UserInput{
@@ -78,4 +67,14 @@ func (a *App) LoginSubmit(username, password string) error {
    }
 
    return nil
+}
+
+type UserInput struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
+}
+
+type LoginSubmitPayload struct {
+   Ticket    string    `json:"ticket"`
+   UserInput UserInput `json:"userInput"`
 }

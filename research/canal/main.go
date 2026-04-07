@@ -24,10 +24,6 @@ func main() {
       DeviceSerial: "w76d15b90-3215-11f1-87ca-01f0af932fb7", // Replace with a dynamic UUID if needed
    }
    app.TVApiBaseURL = "https://tvapi-hlm2.solocoo.tv"
-   log.Println("2/6 Provisioning Device...")
-   if err := app.Provision(); err != nil {
-      log.Fatalf("Provision failed: %v", err)
-   }
 
    log.Println("3/6 Requesting Demo SSO Token...")
    if err := app.Demo(); err != nil {

@@ -38,6 +38,7 @@ type client struct {
    //--------------------
    dash_id string
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/canal.xml")
    if err != nil {

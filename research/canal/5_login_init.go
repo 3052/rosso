@@ -8,20 +8,12 @@ import (
    "net/url"
 )
 
-type LoginInitPayload struct {
-   ProvisionData string     `json:"provisionData"`
-   DeviceInfo    DeviceInfo `json:"deviceInfo"`
-   OldSsoToken   string     `json:"oldSsoToken"`
-}
-
 func (a *App) LoginInit() error {
    u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
    if err != nil {
       return err
    }
-
    payload := LoginInitPayload{
-      ProvisionData: a.ProvisionData,
       DeviceInfo: DeviceInfo{
          OsVersion:        "Windows 10",
          DeviceModel:      "Firefox",
@@ -74,4 +66,10 @@ func (a *App) LoginInit() error {
 
    a.Ticket = result.Ticket
    return nil
+}
+
+type LoginInitPayload struct {
+   ProvisionData string     `json:"provisionData"`
+   DeviceInfo    DeviceInfo `json:"deviceInfo"`
+   OldSsoToken   string     `json:"oldSsoToken"`
 }
