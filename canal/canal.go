@@ -12,6 +12,8 @@ import (
    "strings"
 )
 
+const device_serial = "!!!!"
+
 func FetchTicket() (*Ticket, error) {
    data, err := json.Marshal(map[string]any{
       "deviceInfo": map[string]string{
@@ -53,7 +55,48 @@ func FetchTicket() (*Ticket, error) {
    return &result, nil
 }
 
-const device_serial = "!!!!"
+func (t *Ticket) Login(username, password string) (*Login, error) {
+   data, err := json.Marshal(map[string]any{
+      "ticket": t.Ticket,
+      "userInput": map[string]string{
+         "username": username,
+         "password": password,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://m7cp.login.solocoo.tv/login", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   client, err := get_client(req.URL, data)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", client)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Login
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, &result
+   }
+   return &result, nil
+}
+
+type Ticket struct {
+   Message string
+   Ticket  string
+}
 
 func FetchTracking(urlData string) (string, error) {
    resp, err := http.Get(urlData)
@@ -259,47 +302,4 @@ func FetchSession(ssoToken string) (*Session, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-func (t *Ticket) Login(username, password string) (*Login, error) {
-   data, err := json.Marshal(map[string]any{
-      "ticket": t.Ticket,
-      "userInput": map[string]string{
-         "username": username,
-         "password": password,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://m7cp.login.solocoo.tv/login", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   client, err := get_client(req.URL, data)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", client)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Login
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      return nil, &result
-   }
-   return &result, nil
-}
-
-type Ticket struct {
-   Message string
-   Ticket  string
 }

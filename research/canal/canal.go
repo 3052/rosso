@@ -16,14 +16,53 @@ import (
    "time"
 )
 
-type UserInput struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
-}
-
-type LoginSubmitPayload struct {
-   Ticket    string    `json:"ticket"`
-   UserInput UserInput `json:"userInput"`
+func LoginSubmit(ticket, username, password string) (string, error) {
+   u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
+   if err != nil {
+      return "", err
+   }
+   payload := LoginSubmitPayload{
+      Ticket: ticket,
+      UserInput: UserInput{
+         Username: username,
+         Password: password,
+      },
+   }
+   body, err := json.Marshal(payload)
+   if err != nil {
+      return "", err
+   }
+   authHeader, err := get_client(u, body)
+   if err != nil {
+      return "", err
+   }
+   req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
+   if err != nil {
+      return "", err
+   }
+   req.Header.Set("Authorization", authHeader)
+   req.Header.Set("User-Agent", user_agent)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+   var result struct {
+      Label    string `json:"label"`
+      Result   string `json:"result"`
+      SsoToken string `json:"ssoToken"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return "", err
+   }
+   if result.Result == "success" {
+      log.Println("Login successful! Acquired final SSO token.")
+      return result.SsoToken, nil
+   }
+   return "", fmt.Errorf("login response label: %s", result.Label)
 }
 
 // Global variables for authentication
@@ -62,6 +101,29 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+type DeviceInfo struct {
+   Brand        string `json:"brand"`
+   DeviceModel  string `json:"deviceModel"`
+   DeviceOem    string `json:"deviceOem"`
+   DeviceSerial string `json:"deviceSerial"`
+   DeviceType   string `json:"deviceType"`
+   OsVersion    string `json:"osVersion"`
+}
+
+type LoginSubmitPayload struct {
+   Ticket    string    `json:"ticket"`
+   UserInput UserInput `json:"userInput"`
+}
+
+type UserInput struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
+}
+
+type LoginInitPayload struct {
+   DeviceInfo DeviceInfo `json:"deviceInfo"`
+}
+
 type App struct {
    Client        *http.Client
    DeviceSerial  string
@@ -72,144 +134,53 @@ type App struct {
    Ticket        string
 }
 
-type LoginInitPayload struct {
-   ProvisionData string     `json:"provisionData"`
-   DeviceInfo    DeviceInfo `json:"deviceInfo"`
-   OldSsoToken   string     `json:"oldSsoToken"`
-}
+const device_serial = "!!!!"
 
-type DeviceInfo struct {
-   OsVersion        string `json:"osVersion"`
-   DeviceModel      string `json:"deviceModel"`
-   DeviceType       string `json:"deviceType"`
-   DeviceSerial     string `json:"deviceSerial"`
-   DeviceOem        string `json:"deviceOem"`
-   DevicePrettyName string `json:"devicePrettyName"`
-   AppVersion       string `json:"appVersion"`
-   Language         string `json:"language"`
-   Brand            string `json:"brand"`
-   Country          string `json:"country,omitempty"`
-}
-
-///
-
-func (a *App) LoginSubmit(username, password string) error {
+func LoginInit() (string, error) {
    u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
    if err != nil {
-      return err
-   }
-   payload := LoginSubmitPayload{
-      Ticket: a.Ticket,
-      UserInput: UserInput{
-         Username: username,
-         Password: password,
-      },
-   }
-
-   body, err := json.Marshal(payload)
-   if err != nil {
-      return err
-   }
-
-   authHeader, err := get_client(u, body)
-   if err != nil {
-      return err
-   }
-
-   req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
-   if err != nil {
-      return err
-   }
-
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Authorization", authHeader)
-
-   resp, err := a.Client.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != 200 {
-      return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   var result struct {
-      Label    string `json:"label"`
-      Result   string `json:"result"`
-      SsoToken string `json:"ssoToken"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
-   }
-
-   if result.Result == "success" {
-      log.Println("Login successful! Acquired final SSO token.")
-      a.SsoToken = result.SsoToken
-   } else {
-      log.Printf("Login response label: %s", result.Label)
-   }
-
-   return nil
-}
-
-func (a *App) LoginInit() error {
-   u, err := url.Parse("https://m7cp.login.solocoo.tv/login")
-   if err != nil {
-      return err
+      return "", err
    }
    payload := LoginInitPayload{
       DeviceInfo: DeviceInfo{
-         OsVersion:        "Windows 10",
-         DeviceModel:      "Firefox",
-         DeviceType:       "PC",
-         DeviceSerial:     a.DeviceSerial,
-         DeviceOem:        "Firefox",
-         DevicePrettyName: "Firefox 140.0",
-         AppVersion:       "12.9",
-         Language:         "en_US",
-         Brand:            "m7cp",
-         Country:          "CZ",
+         Brand:        "m7cp",
+         DeviceModel:  "Firefox",
+         DeviceOem:    "Firefox",
+         DeviceSerial: device_serial,
+         DeviceType:   "PC",
+         OsVersion:    "Windows 10",
       },
    }
-
    body, err := json.Marshal(payload)
    if err != nil {
-      return err
+      return "", err
    }
-
    authHeader, err := get_client(u, body)
    if err != nil {
-      return err
+      return "", err
    }
-
    req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(body))
    if err != nil {
-      return err
+      return "", err
    }
-
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Authorization", authHeader)
-
-   resp, err := a.Client.Do(req)
+   req.Header.Set("User-Agent", user_agent)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
-      return err
+      return "", err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != 200 {
-      return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
-
    var result struct {
       Ticket string `json:"ticket"`
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
+      return "", err
    }
-
-   a.Ticket = result.Ticket
-   return nil
+   return result.Ticket, nil
 }
+
+const user_agent = "Mozilla/5.0 Windows"
