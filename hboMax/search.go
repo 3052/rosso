@@ -8,40 +8,14 @@ import (
    "strings"
 )
 
-func (l Login) Search(query string) ([]Included, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/routes/search/result",
-         RawQuery: url.Values{
-            "contentFilter[query]": {query},
-            "include":              {"default"},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Included []Included
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
-}
-
 func (i *Included) String() string {
    data := &strings.Builder{}
    if i.Attributes.EpisodeNumber >= 1 {
       fmt.Fprintln(data, "episode number =", i.Attributes.EpisodeNumber)
    }
-   fmt.Fprintln(data, "name =", i.Attributes.Name)
+   if i.Attributes.Name != "" {
+      fmt.Fprintln(data, "name =", i.Attributes.Name)
+   }
    if i.Attributes.SeasonNumber >= 1 {
       fmt.Fprintln(data, "season number =", i.Attributes.SeasonNumber)
    }
@@ -70,4 +44,32 @@ type Included struct {
          }
       }
    }
+}
+
+func (l Login) Search(query string) ([]Included, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/cms/routes/search/result",
+         RawQuery: url.Values{
+            "contentFilter[query]": {query},
+            "include":              {"default"},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Included []Included
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Included, nil
 }

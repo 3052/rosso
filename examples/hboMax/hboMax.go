@@ -8,6 +8,29 @@ import (
    "net/http"
 )
 
+func (c *client) do_show() error {
+   var (
+      page *hboMax.Page
+      err error
+   )
+   if c.season >= 1 {
+      page, err = c.Login.Season(c.show, c.season)
+   } else {
+      page, err = c.Login.Movie(c.show)
+   }
+   if err != nil {
+      return err
+   }
+   page.FilterAndSort()
+   for i, video := range page.Included {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(video)
+   }
+   return nil
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/hboMax.xml")
    if err != nil {
@@ -21,8 +44,10 @@ func (c *client) do() error {
    //-------------------------------------------------------------
    login := maya.BoolFlag("l", "login")
    //-------------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   season := maya.IntFlag(&c.season, "s", "season")
+   search := maya.StringFlag(&c.search, "s", "search")
+   //-------------------------------------------------------------
+   show := maya.StringFlag(&c.show, "SM", "show/movie ID")
+   season := maya.IntFlag(&c.season, "S", "season")
    //-------------------------------------------------------------
    edit := maya.StringFlag(&c.edit, "e", "edit ID")
    //-------------------------------------------------------------
@@ -31,7 +56,6 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   maya.SetProxy("", "*.mp4")
    if playReady.IsSet {
       return cache.Write(c)
    }
@@ -43,8 +67,11 @@ func (c *client) do() error {
    if login.IsSet {
       return with_cache(c.do_login)
    }
-   if address.IsSet {
-      return with_cache(c.do_address)
+   if search.IsSet {
+      return with_cache(c.do_search)
+   }
+   if show.IsSet {
+      return with_cache(c.do_show)
    }
    if edit.IsSet {
       return with_cache(c.do_edit)
@@ -56,49 +83,11 @@ func (c *client) do() error {
       {playReady},
       {initiate, market},
       {login},
-      {address, season},
+      {search},
+      {show, season},
       {edit},
       {dash_id},
    })
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
-   )
-}
-
-func (c *client) do_login() error {
-   var err error
-   c.Login, err = hboMax.FetchLogin(c.St)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   show_id, err := hboMax.ParseShowId(c.address)
-   if err != nil {
-      return err
-   }
-   var page *hboMax.Page
-   if c.season >= 1 {
-      page, err = c.Login.Season(show_id, c.season)
-   } else {
-      page, err = c.Login.Movie(show_id)
-   }
-   if err != nil {
-      return err
-   }
-   page.FilterAndSort()
-   for i, video := range page.Included {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(video)
-   }
-   return nil
 }
 
 func (c *client) do_initiate() error {
@@ -132,14 +121,30 @@ func (c *client) do_edit() error {
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
-var cache maya.Cache
-
 func main() {
+   maya.SetProxy("", "*.mp4")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
+}
+
+var cache maya.Cache
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
+   )
+}
+
+func (c *client) do_login() error {
+   var err error
+   c.Login, err = hboMax.FetchLogin(c.St)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }
 
 type client struct {
@@ -152,10 +157,25 @@ type client struct {
    //-------------------
    market string
    //-------------------
-   address string
+   search string
+   //-------------------
+   show string
    season  int
    //-------------------
    edit string
    //-------------------
    dash_id string
+}
+func (c *client) do_search() error {
+   search, err := c.Login.Search(c.search)
+   if err != nil {
+      return err
+   }
+   for i, included := range search {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&included)
+   }
+   return nil
 }
