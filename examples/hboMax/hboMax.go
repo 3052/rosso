@@ -8,6 +8,51 @@ import (
    "net/http"
 )
 
+func main() {
+   maya.SetProxy("", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
+   )
+}
+
+func (c *client) do_login() error {
+   var err error
+   c.Login, err = hboMax.FetchLogin(c.St)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   Dash     *hboMax.Dash
+   Login    *hboMax.Login
+   Playback *hboMax.Playback
+   St       *http.Cookie
+   //-------------------
+   Job maya.Job
+   //-------------------
+   market string
+   //-------------------
+   search string
+   //-------------------
+   show string
+   season  int
+   //-------------------
+   edit string
+   //-------------------
+   dash_id string
+}
 func (c *client) do_search() error {
    search, err := c.Login.Search(c.search)
    if err != nil {
@@ -133,50 +178,4 @@ func (c *client) do_edit() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func main() {
-   maya.SetProxy("", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
-   )
-}
-
-func (c *client) do_login() error {
-   var err error
-   c.Login, err = hboMax.FetchLogin(c.St)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   Dash     *hboMax.Dash
-   Login    *hboMax.Login
-   Playback *hboMax.Playback
-   St       *http.Cookie
-   //-------------------
-   Job maya.Job
-   //-------------------
-   market string
-   //-------------------
-   search string
-   //-------------------
-   show string
-   season  int
-   //-------------------
-   edit string
-   //-------------------
-   dash_id string
 }

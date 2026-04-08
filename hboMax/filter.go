@@ -1,11 +1,27 @@
 package hboMax
 
-import (
-   "slices"
-)
+import "slices"
 
-// validVideoTypes acts as a set to hold the video types we want to keep
-var validVideoTypes = []string{
+func FilterAndSort(values []*Included) []*Included {
+   values = slices.DeleteFunc(values, func(i *Included) bool {
+      if i.Attributes == nil {
+         return true // Remove videos with nil attributes.
+      }
+      // Check if the current types are in our valid slices
+      isValidVideo := slices.Contains(valid_types, i.Attributes.VideoType)
+      isValidShow := slices.Contains(valid_types, i.Attributes.ShowType)
+      return !isValidVideo && !isValidShow
+   })
+   slices.SortFunc(values, func(a, b *Included) int {
+      if a.Attributes == nil || b.Attributes == nil {
+         return 0 // Consider them equal if attributes are missing.
+      }
+      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
+   })
+   return values
+}
+
+var valid_types = []string{
    "EPISODE",
    "MOVIE",
 }
@@ -15,7 +31,7 @@ type Included struct {
       EpisodeNumber int
       Name          string
       SeasonNumber  int
-      ShowType string
+      ShowType      string
       VideoType     string
    }
    Id            string
@@ -26,21 +42,4 @@ type Included struct {
          }
       }
    }
-}
-
-func FilterAndSort(values []*Included) []*Included {
-   values = slices.DeleteFunc(values, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
-   })
-   slices.SortFunc(values, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-   return values
 }
