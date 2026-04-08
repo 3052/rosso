@@ -8,6 +8,21 @@ import (
    "net/http"
 )
 
+func (c *client) do_search() error {
+   search, err := c.Login.Search(c.search)
+   if err != nil {
+      return err
+   }
+   search = hboMax.FilterAndSort(search)
+   for i, included := range search {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(included)
+   }
+   return nil
+}
+
 func (c *client) do_show() error {
    var (
       page *hboMax.Page
@@ -21,8 +36,7 @@ func (c *client) do_show() error {
    if err != nil {
       return err
    }
-   page.FilterAndSort()
-   for i, video := range page.Included {
+   for i, video := range hboMax.FilterAndSort(page.Included) {
       if i >= 1 {
          fmt.Println()
       }
@@ -165,17 +179,4 @@ type client struct {
    edit string
    //-------------------
    dash_id string
-}
-func (c *client) do_search() error {
-   search, err := c.Login.Search(c.search)
-   if err != nil {
-      return err
-   }
-   for i, included := range search {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&included)
-   }
-   return nil
 }

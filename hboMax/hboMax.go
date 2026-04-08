@@ -8,10 +8,61 @@ import (
    "io"
    "net/http"
    "net/url"
-   "slices"
    "strconv"
    "strings"
 )
+
+func (i *Included) String() string {
+   data := &strings.Builder{}
+   if i.Attributes.EpisodeNumber >= 1 {
+      fmt.Fprintln(data, "episode number =", i.Attributes.EpisodeNumber)
+   }
+   if i.Attributes.Name != "" {
+      fmt.Fprintln(data, "name =", i.Attributes.Name)
+   }
+   if i.Attributes.SeasonNumber >= 1 {
+      fmt.Fprintln(data, "season number =", i.Attributes.SeasonNumber)
+   }
+   if i.Attributes.ShowType != "" {
+      fmt.Fprintln(data, "show type =", i.Attributes.ShowType)
+   }
+   if i.Attributes.VideoType != "" {
+      fmt.Fprintln(data, "video type =", i.Attributes.VideoType)
+   }
+   fmt.Fprint(data, "id = ", i.Id)
+   if i.Relationships.Edit != nil {
+      fmt.Fprint(data, "\nedit id = ", i.Relationships.Edit.Data.Id)
+   }
+   return data.String()
+}
+
+func (l Login) Search(query string) ([]*Included, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/cms/routes/search/result",
+         RawQuery: url.Values{
+            "contentFilter[query]": {query},
+            "include":              {"default"},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Included []*Included
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Included, nil
+}
 
 func (l Login) Movie(showId string) (*Page, error) {
    req := http.Request{
@@ -74,22 +125,6 @@ func (l Login) Season(showId string, number int) (*Page, error) {
 type Page struct {
    Errors   []Error
    Included []*Included
-}
-
-func (p *Page) FilterAndSort() {
-   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
-   })
-   slices.SortFunc(p.Included, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
 }
 
 type Playback struct {
@@ -171,12 +206,6 @@ var Markets = []string{
    "apac",
    "emea",
    "latam",
-}
-
-// validVideoTypes acts as a set to hold the video types we want to keep.
-var validVideoTypes = []string{
-   "EPISODE",
-   "MOVIE",
 }
 
 func FetchSt() (*http.Cookie, error) {
