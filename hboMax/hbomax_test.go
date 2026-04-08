@@ -7,48 +7,28 @@ import (
 )
 
 var content_tests = []struct {
-   url      string
-   location []string
+   location   []string
+   resolution string
+   url        string
 }{
    {
-      url:      "https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a",
-      location: []string{"united states"},
+      location:   []string{"united states"},
+      resolution: "2160p",
+      url:        "https://hbomax.com/movies/one-battle-after-another/bebe611d-8178-481a-a4f2-de743b5b135a",
    },
    {
-      url:      "https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448",
       location: []string{"austria"},
+      url:      "https://hbomax.com/at/en/movies/austin-powers-international-man-of-mystery/a979fb8b-f713-4de3-a625-d16ad4d37448",
    },
    {
-      url: "https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505",
       location: []string{
-         "belgium",
-         "brazil",
-         "bulgaria",
-         "chile",
-         "colombia",
-         "croatia",
-         "czech republic",
-         "denmark",
-         "finland",
-         "france",
-         "hungary",
-         "indonesia",
-         "malaysia",
-         "mexico",
-         "netherlands",
-         "norway",
-         "peru",
-         "philippines",
-         "poland",
-         "portugal",
-         "romania",
-         "singapore",
-         "slovakia",
-         "spain",
-         "sweden",
-         "thailand",
-         "united states",
+         "belgium", "brazil", "bulgaria", "chile", "colombia", "croatia",
+         "czech republic", "denmark", "finland", "france", "hungary",
+         "indonesia", "malaysia", "mexico", "netherlands", "norway", "peru",
+         "philippines", "poland", "portugal", "romania", "singapore", "slovakia",
+         "spain", "sweden", "thailand", "united states",
       },
+      url: "https://hbomax.com/shows/white-lotus/14f9834d-bc23-41a8-ab61-5c8abdbea505",
    },
 }
 
