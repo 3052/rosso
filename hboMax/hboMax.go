@@ -13,18 +13,152 @@ import (
    "strings"
 )
 
-func (i *Included) String() string {
-   data := &strings.Builder{}
-   if i.Attributes.SeasonNumber >= 1 {
-      fmt.Fprintln(data, "season number =", i.Attributes.SeasonNumber)
+func (l Login) Movie(showId string) (*Page, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/cms/routes/movie/" + showId,
+         RawQuery: url.Values{
+            "include":          {"default"},
+            "page[items.size]": {"1"},
+         }.Encode(),
+      },
+      Header: http.Header{},
    }
-   if i.Attributes.EpisodeNumber >= 1 {
-      fmt.Fprintln(data, "episode number =", i.Attributes.EpisodeNumber)
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
    }
-   fmt.Fprintln(data, "name =", i.Attributes.Name)
-   fmt.Fprintln(data, "video type =", i.Attributes.VideoType)
-   fmt.Fprint(data, "edit id = ", i.Relationships.Edit.Data.Id)
-   return data.String()
+   defer resp.Body.Close()
+   var result Page
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result, nil
+}
+
+func (l Login) Season(showId string, number int) (*Page, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+         RawQuery: url.Values{
+            "include":          {"default"},
+            "pf[seasonNumber]": {strconv.Itoa(number)},
+            "pf[show.id]":      {showId},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Page{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Page struct {
+   Errors   []Error
+   Included []*Included
+}
+
+func (p *Page) FilterAndSort() {
+   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
+      if i.Attributes == nil {
+         return true // Remove videos with nil attributes.
+      }
+      // We return 'true' to delete if the video's type is NOT in our slice.
+      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
+   })
+   slices.SortFunc(p.Included, func(a, b *Included) int {
+      if a.Attributes == nil || b.Attributes == nil {
+         return 0 // Consider them equal if attributes are missing.
+      }
+      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
+   })
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors   []Error
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+// 1080p SL2000
+// 1440p SL3000
+func (p *Playback) PlayReady(body []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) Widevine(body []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) Dash() (*Dash, error) {
+   resp, err := http.Get(
+      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Scheme struct {
+   LicenseUrl string
 }
 
 const (
@@ -43,7 +177,6 @@ var Markets = []string{
 var validVideoTypes = []string{
    "EPISODE",
    "MOVIE",
-   "STANDALONE_EVENT",
 }
 
 func FetchSt() (*http.Cookie, error) {
@@ -132,22 +265,6 @@ func (e *Error) Error() string {
       data.WriteString(e.Message)
    }
    return data.String()
-}
-
-type Included struct {
-   Attributes *struct {
-      SeasonNumber  int
-      EpisodeNumber int
-      Name          string
-      VideoType     string
-   }
-   Relationships *struct {
-      Edit *struct {
-         Data struct {
-            Id string
-         }
-      }
-   }
 }
 
 func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
@@ -313,152 +430,4 @@ type Login struct {
          Token string
       }
    }
-}
-
-func (l Login) Movie(showId string) (*Page, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/routes/movie/" + showId,
-         RawQuery: url.Values{
-            "include":          {"default"},
-            "page[items.size]": {"1"},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Page
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result, nil
-}
-
-func (l Login) Season(showId string, number int) (*Page, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-         RawQuery: url.Values{
-            "include":          {"default"},
-            "pf[seasonNumber]": {strconv.Itoa(number)},
-            "pf[show.id]":      {showId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Page{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Page struct {
-   Errors   []Error
-   Included []*Included
-}
-
-func (p *Page) FilterAndSort() {
-   p.Included = slices.DeleteFunc(p.Included, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // We return 'true' to delete if the video's type is NOT in our slice.
-      return !slices.Contains(validVideoTypes, i.Attributes.VideoType)
-   })
-   slices.SortFunc(p.Included, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   []Error
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-// 1080p SL2000
-// 1440p SL3000
-func (p *Playback) PlayReady(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) Widevine(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) Dash() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Scheme struct {
-   LicenseUrl string
 }
