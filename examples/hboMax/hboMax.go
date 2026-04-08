@@ -16,6 +16,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
    //-------------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //-------------------------------------------------------------
    initiate := maya.BoolFlag("i", "initiate")
    market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
    //-------------------------------------------------------------
@@ -31,7 +33,14 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
+   err = maya.SetProxy(c.Proxy, "*.mp4")
+   if err != nil {
+      return err
+   }
    if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
       return cache.Write(c)
    }
    if initiate.IsSet {
@@ -53,6 +62,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
+      {proxy},
       {initiate, market},
       {login},
       {address, season},
@@ -133,6 +143,14 @@ func (c *client) do_edit() error {
 
 var cache maya.Cache
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    Dash     *hboMax.Dash
    Login    *hboMax.Login
@@ -140,6 +158,8 @@ type client struct {
    St       *http.Cookie
    //-------------------
    Job maya.Job
+   //-------------------
+   Proxy string
    //-------------------
    market string
    //-------------------
@@ -149,13 +169,4 @@ type client struct {
    edit string
    //-------------------
    dash_id string
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.mp4")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }

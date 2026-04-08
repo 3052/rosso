@@ -8,9 +8,55 @@ import (
    "io"
    "net/http"
    "net/url"
-   "strconv"
    "strings"
 )
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   data, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func (e *Episode) String() string {
+   data := &strings.Builder{}
+   fmt.Fprintln(data, "episode =", e.Params.SeriesEpisode)
+   fmt.Fprintln(data, "title =", e.Title)
+   fmt.Fprintln(data, "desc =", e.Desc)
+   fmt.Fprint(data, "tracking = ", e.Id)
+   return data.String()
+}
 
 func FetchTicket() (*Ticket, error) {
    data, err := json.Marshal(map[string]any{
@@ -65,44 +111,6 @@ type Player struct {
       Url string
    }
    Url string // MPD
-}
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   data, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      fmt.Sprintf("https://tvapi-hlm2.solocoo.tv/v1/assets/%v/play", tracking),
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
 
 func (t *Ticket) Login(username, password string) (*Login, error) {
@@ -161,19 +169,6 @@ type Episode struct {
       SeriesEpisode int
    }
    Title string
-}
-
-func (e *Episode) String() string {
-   var data strings.Builder
-   data.WriteString("episode = ")
-   data.WriteString(strconv.Itoa(e.Params.SeriesEpisode))
-   data.WriteString("\ntitle = ")
-   data.WriteString(e.Title)
-   data.WriteString("\ndesc = ")
-   data.WriteString(e.Desc)
-   data.WriteString("\ntracking = ")
-   data.WriteString(e.Id)
-   return data.String()
 }
 
 type Login struct {

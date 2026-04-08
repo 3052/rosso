@@ -13,6 +13,20 @@ import (
    "strings"
 )
 
+func (i *Included) String() string {
+   data := &strings.Builder{}
+   if i.Attributes.SeasonNumber >= 1 {
+      fmt.Fprintln(data, "season number =", i.Attributes.SeasonNumber)
+   }
+   if i.Attributes.EpisodeNumber >= 1 {
+      fmt.Fprintln(data, "episode number =", i.Attributes.EpisodeNumber)
+   }
+   fmt.Fprintln(data, "name =", i.Attributes.Name)
+   fmt.Fprintln(data, "video type =", i.Attributes.VideoType)
+   fmt.Fprint(data, "edit id = ", i.Relationships.Edit.Data.Id)
+   return data.String()
+}
+
 const (
    disco_client = "!:!:beam:!"
    device_info  = "!/!(!/!;!/!;!/!)"
@@ -117,28 +131,6 @@ func (e *Error) Error() string {
       data.WriteString("\nmessage = ")
       data.WriteString(e.Message)
    }
-   return data.String()
-}
-
-func (i *Included) String() string {
-   var data strings.Builder
-   if i.Attributes.SeasonNumber >= 1 {
-      data.WriteString("season number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.SeasonNumber))
-   }
-   if i.Attributes.EpisodeNumber >= 1 {
-      data.WriteString("\nepisode number = ")
-      data.WriteString(strconv.Itoa(i.Attributes.EpisodeNumber))
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("name = ")
-   data.WriteString(i.Attributes.Name)
-   data.WriteString("\nvideo type = ")
-   data.WriteString(i.Attributes.VideoType)
-   data.WriteString("\nedit id = ")
-   data.WriteString(i.Relationships.Edit.Data.Id)
    return data.String()
 }
 

@@ -5,14 +5,27 @@ import (
    _ "embed"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
    "net/http"
    "net/http/cookiejar"
    "net/url"
    "path"
-   "strconv"
    "strings"
 )
+
+func (t *Title) String() string {
+   data := &strings.Builder{}
+   if t.Series != nil {
+      fmt.Fprintln(data, "series =", t.Series.SeriesNumber)
+      fmt.Fprintln(data, "episode =", t.EpisodeNumber)
+   }
+   if t.Title != "" {
+      fmt.Fprintln(data, "title =", t.Title)
+   }
+   fmt.Fprint(data, "playlist = ", t.LatestAvailableVersion.PlaylistUrl)
+   return data.String()
+}
 
 func (p *Playlist) PlayReady(id string) error {
    data, err := json.Marshal(map[string]any{
@@ -67,7 +80,7 @@ func Titles(legacyId string) ([]Title, error) {
          Host:   "content-inventory.prd.oasvc.itv.com",
          Path:   "/discovery",
          RawQuery: url.Values{
-            "query":     {graphql_compact(programme_page)},
+            "query":     {programme_page},
             "variables": {data.String()},
          }.Encode(),
       },
@@ -101,8 +114,6 @@ type Title struct {
    Title         string
 }
 
-///
-
 func (m *MediaFile) Widevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       m.KeyServiceUrl, "application/x-protobuf", bytes.NewReader(data),
@@ -112,33 +123,6 @@ func (m *MediaFile) Widevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-func (t *Title) String() string {
-   var data strings.Builder
-   if t.Series != nil {
-      data.WriteString("series = ")
-      data.WriteString(strconv.Itoa(t.Series.SeriesNumber))
-      data.WriteString("\nepisode = ")
-      data.WriteString(strconv.Itoa(t.EpisodeNumber))
-   }
-   if t.Title != "" {
-      if data.Len() >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("title = ")
-      data.WriteString(t.Title)
-   }
-   if data.Len() >= 1 {
-      data.WriteByte('\n')
-   }
-   data.WriteString("playlist = ")
-   data.WriteString(t.LatestAvailableVersion.PlaylistUrl)
-   return data.String()
-}
-
-func graphql_compact(data string) string {
-   return strings.Join(strings.Fields(data), " ")
 }
 
 func FetchPlaylist(urlData string) (*Playlist, error) {
