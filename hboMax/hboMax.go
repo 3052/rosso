@@ -13,36 +13,6 @@ import (
    "strings"
 )
 
-func (l Login) Movie(showId string) (*Page, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/routes/movie/" + showId,
-         RawQuery: url.Values{
-            "include":          {"default"},
-            "page[items.size]": {"1"},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Page
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result, nil
-}
-
 func (l Login) Season(showId string, number int) (*Page, error) {
    req := http.Request{
       URL: &url.URL{
@@ -473,4 +443,33 @@ func (l Login) Search(query string) ([]*Included, error) {
       return nil, err
    }
    return result.Included, nil
+}
+func (l Login) Movie(showId string) (*Page, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/cms/routes/movie/" + showId,
+         RawQuery: url.Values{
+            "include":          {"default"},
+            "page[items.size]": {"1"},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Page
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result, nil
 }

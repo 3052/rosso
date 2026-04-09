@@ -17,13 +17,13 @@ func TestGetSeasonEpisodesLive(t *testing.T) {
    }
 
    // Extract formatted episodes
-   episodes := GetEpisodes(entities)
+   episodes := GetVideos(entities)
 
    if len(episodes) == 0 {
       t.Fatalf("Expected episodes for Show ID %s Season %d, got 0", showID, seasonNumber)
    }
 
-   if len(episodes) > 1 && episodes[0].EpisodeNumber > episodes[1].EpisodeNumber {
+   if len(episodes) > 1 && episodes[0].Attributes.EpisodeNumber > episodes[1].Attributes.EpisodeNumber {
       t.Errorf("Episodes were not sorted properly")
    }
 
@@ -31,11 +31,10 @@ func TestGetSeasonEpisodesLive(t *testing.T) {
    t.Logf(" Found %d Episodes for Season %d", len(episodes), seasonNumber)
    t.Log("==================================================")
    for _, ep := range episodes {
-      t.Logf("Episode %d: %s", ep.EpisodeNumber, ep.Name)
-      t.Logf("Video ID:  %s", ep.VideoID)
-      t.Logf("Edit ID:   %s", ep.EditID)
-      t.Logf("Air Date:  %s", ep.AirDate)
-      t.Logf("Summary:   %s", ep.Description)
+      t.Logf("Episode %d: %s", ep.Attributes.EpisodeNumber, ep.Attributes.Name)
+      t.Logf("Edit ID:   %s", ep.Relationships.Edit.Data.ID)
+      t.Logf("Air Date:  %s", ep.Attributes.AirDate)
+      t.Logf("Summary:   %s", ep.Attributes.Description)
       t.Log("--------------------------------------------------")
    }
 }

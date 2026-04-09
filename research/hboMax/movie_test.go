@@ -15,15 +15,34 @@ func TestGetMovieLive(t *testing.T) {
       t.Fatalf("Live API request failed: %v", err)
    }
 
-   // Extract Edit ID
-   editID, err := GetEditID(entities)
-   if err != nil {
-      t.Fatalf("Failed to extract Edit ID: %v", err)
+   // Extract formatted movie entities
+   movies := GetVideos(entities)
+
+   if len(movies) == 0 {
+      t.Fatalf("Expected at least one movie entity, got 0")
    }
 
-   if editID == "" {
-      t.Fatalf("Expected an Edit ID, but got an empty string")
-   }
+   t.Log("==================================================")
+   t.Logf(" Found %d Movie Entities", len(movies))
+   t.Log("==================================================")
 
-   t.Logf("Successfully retrieved Edit ID from live server: %s", editID)
+   for i, movie := range movies {
+      // Fallback to ID if Name is empty in the video entity
+      name := movie.Attributes.Name
+      if name == "" {
+         name = "Unknown Name (Check Route ID)"
+      }
+
+      t.Logf("Movie %d: %s", i+1, name)
+      t.Logf("Edit ID:    %s", movie.Relationships.Edit.Data.ID)
+      t.Logf("Video Type: %s", movie.Attributes.VideoType)
+      if movie.Attributes.Description != "" {
+         t.Logf("Summary:    %s", movie.Attributes.Description)
+      }
+      t.Log("--------------------------------------------------")
+
+      if movie.Relationships.Edit.Data.ID == "" {
+         t.Errorf("Movie %d is missing an Edit ID", i+1)
+      }
+   }
 }

@@ -1,10 +1,12 @@
 package hboMax
 
 import (
+   "cmp"
    "encoding/json"
    "fmt"
    "io"
    "net/http"
+   "slices"
 )
 
 // Resource represents a relationship pointer in the JSON:API graph.
@@ -13,22 +15,24 @@ type Resource struct {
    Type string `json:"type"`
 }
 
+// Attributes holds the metadata properties for a media entity.
+type Attributes struct {
+   Name          string `json:"name"`
+   Alias         string `json:"alias"`
+   ShowType      string `json:"showType"`
+   VideoType     string `json:"videoType"`
+   MaterialType  string `json:"materialType"`
+   Description   string `json:"description"`
+   SeasonNumber  int    `json:"seasonNumber"`
+   EpisodeNumber int    `json:"episodeNumber"`
+   AirDate       string `json:"airDate"`
+}
+
 // Entity represents a single unified node in the Max API response.
-// It combines the attributes and relationships needed across Search, Season, and Movie endpoints.
 type Entity struct {
-   ID         string `json:"id"`
-   Type       string `json:"type"`
-   Attributes struct {
-      Name          string `json:"name"`
-      Alias         string `json:"alias"`
-      ShowType      string `json:"showType"`
-      VideoType     string `json:"videoType"`
-      MaterialType  string `json:"materialType"`
-      Description   string `json:"description"`
-      SeasonNumber  int    `json:"seasonNumber"`
-      EpisodeNumber int    `json:"episodeNumber"`
-      AirDate       string `json:"airDate"`
-   } `json:"attributes"`
+   ID            string     `json:"id"`
+   Type          string     `json:"type"`
+   Attributes    Attributes `json:"attributes"`
    Relationships struct {
       Items struct {
          Data []Resource `json:"data"`
@@ -62,7 +66,7 @@ func NewClient(token string) *Client {
 }
 
 // getEntities is a shared internal method that hits an endpoint and returns the extracted JSON:API entities.
-func (c *Client) getEntities(endpoint string) ([]Entity, error) {
+func (c *Client) getEntities(endpoint string) ([]*Entity, error) {
    req, err := http.NewRequest("GET", c.BaseURL+endpoint, nil)
    if err != nil {
       return nil, err
@@ -92,11 +96,34 @@ func (c *Client) getEntities(endpoint string) ([]Entity, error) {
    }
 
    var rootResponse struct {
-      Included []Entity `json:"included"`
+      Included []*Entity `json:"included"`
    }
    if err := json.Unmarshal(bodyBytes, &rootResponse); err != nil {
       return nil, err
    }
 
    return rootResponse.Included, nil
+}
+
+// GetVideos extracts and sorts playable video entities (Episodes or Movies) from an entity slice.
+func GetVideos(entities []*Entity) []*Entity {
+   var videos []*Entity
+   for _, item := range entities {
+      if item.Type == "video" {
+         isEpisode := item.Attributes.MaterialType == "EPISODE"
+         isMovie := item.Attributes.VideoType == "MOVIE"
+
+         // We strictly filter for episodes or movies to avoid grabbing trailers/extras
+         if isEpisode || isMovie {
+            videos = append(videos, item)
+         }
+      }
+   }
+
+   // Sort by EpisodeNumber. For Movies, this safely defaults to 0 and has no impact.
+   slices.SortFunc(videos, func(a, b *Entity) int {
+      return cmp.Compare(a.Attributes.EpisodeNumber, b.Attributes.EpisodeNumber)
+   })
+
+   return videos
 }
