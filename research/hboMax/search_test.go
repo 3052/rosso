@@ -15,7 +15,7 @@ func TestSearchLive(t *testing.T) {
    }
 
    // Extract formatted results
-   results, err := entities.GetSearchResults()
+   results, err := GetSearchResults(entities)
    if err != nil {
       t.Fatalf("Failed to extract results from search entities: %v", err)
    }

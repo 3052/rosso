@@ -17,7 +17,7 @@ func TestGetSeasonEpisodesLive(t *testing.T) {
    }
 
    // Extract formatted episodes
-   episodes := entities.GetEpisodes()
+   episodes := GetEpisodes(entities)
 
    if len(episodes) == 0 {
       t.Fatalf("Expected episodes for Show ID %s Season %d, got 0", showID, seasonNumber)

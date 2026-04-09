@@ -45,9 +45,6 @@ type Entity struct {
    } `json:"relationships"`
 }
 
-// Entities is a custom slice type that holds the 'included' array from the API.
-type Entities []Entity
-
 // Client handles communication with the HBO Max API.
 type Client struct {
    BaseURL    string
@@ -65,7 +62,7 @@ func NewClient(token string) *Client {
 }
 
 // getEntities is a shared internal method that hits an endpoint and returns the extracted JSON:API entities.
-func (c *Client) getEntities(endpoint string) (Entities, error) {
+func (c *Client) getEntities(endpoint string) ([]Entity, error) {
    req, err := http.NewRequest("GET", c.BaseURL+endpoint, nil)
    if err != nil {
       return nil, err
@@ -95,7 +92,7 @@ func (c *Client) getEntities(endpoint string) (Entities, error) {
    }
 
    var rootResponse struct {
-      Included Entities `json:"included"`
+      Included []Entity `json:"included"`
    }
    if err := json.Unmarshal(bodyBytes, &rootResponse); err != nil {
       return nil, err

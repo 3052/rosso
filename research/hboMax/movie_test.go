@@ -16,7 +16,7 @@ func TestGetMovieLive(t *testing.T) {
    }
 
    // Extract Edit ID
-   editID, err := entities.GetEditID()
+   editID, err := GetEditID(entities)
    if err != nil {
       t.Fatalf("Failed to extract Edit ID: %v", err)
    }

@@ -11,8 +11,8 @@ type SearchResult struct {
    MediaType string
 }
 
-// GetSearchResults parses the entities slice into an ordered list of SearchResults.
-func (entities Entities) GetSearchResults() ([]SearchResult, error) {
+// GetSearchResults parses an entity slice into an ordered list of SearchResults.
+func GetSearchResults(entities []Entity) ([]SearchResult, error) {
    entitiesMap := make(map[string]Entity)
    for _, e := range entities {
       entitiesMap[e.ID] = e
@@ -68,7 +68,7 @@ func (entities Entities) GetSearchResults() ([]SearchResult, error) {
 }
 
 // Search queries the API and returns the root entity slice.
-func (c *Client) Search(query string) (Entities, error) {
+func (c *Client) Search(query string) ([]Entity, error) {
    endpoint := fmt.Sprintf("/cms/routes/search/result?include=default&decorators=viewingHistory,isFavorite,contentAction,badges&page[items.size]=10&contentFilter[query]=%s", url.QueryEscape(query))
    return c.getEntities(endpoint)
 }
