@@ -1,27 +1,38 @@
-package main
+// season_episodes.go
+package hboMax
 
 import (
    "encoding/json"
    "fmt"
    "io"
-   "log"
    "net/http"
    "sort"
 )
 
-// Define the structs needed to parse the JSON:API response format
-type HBOApiResponse struct {
-   Included []IncludedData `json:"included"`
+// Episode represents a parsed episode from a season.
+type Episode struct {
+   VideoID       string
+   EditID        string
+   Name          string
+   Description   string
+   SeasonNumber  int
+   EpisodeNumber int
+   AirDate       string
 }
 
-type IncludedData struct {
-   Id            string        `json:"id"`
-   Type          string        `json:"type"`
-   Attributes    Attributes    `json:"attributes"`
-   Relationships Relationships `json:"relationships"`
+// Internal structures for parsing the Season API response
+type seasonResponse struct {
+   Included []seasonIncludedData `json:"included"`
 }
 
-type Attributes struct {
+type seasonIncludedData struct {
+   ID            string              `json:"id"`
+   Type          string              `json:"type"`
+   Attributes    seasonAttributes    `json:"attributes"`
+   Relationships seasonRelationships `json:"relationships"`
+}
+
+type seasonAttributes struct {
    MaterialType  string `json:"materialType"`
    Name          string `json:"name"`
    Description   string `json:"description"`
@@ -30,88 +41,68 @@ type Attributes struct {
    AirDate       string `json:"airDate"`
 }
 
-type Relationships struct {
-   Edit RelationshipEdit `json:"edit"`
+type seasonRelationships struct {
+   Edit seasonRelationshipEdit `json:"edit"`
 }
 
-type RelationshipEdit struct {
-   Data RelationshipData `json:"data"`
+type seasonRelationshipEdit struct {
+   Data seasonRelationshipData `json:"data"`
 }
 
-type RelationshipData struct {
-   Id   string `json:"id"`
+type seasonRelationshipData struct {
+   ID   string `json:"id"`
    Type string `json:"type"`
 }
 
-func main() {
+// GetSeasonEpisodes fetches all episodes for a given show ID and season number.
+func (c *Client) GetSeasonEpisodes(showID string, seasonNumber int) ([]Episode, error) {
    // The collection ID '227084608563650952176059252419027445293' represents the "Season Tabbed Content" UI rail.
-   // You can change pf[seasonNumber]=2 to target different seasons.
-   url := "https://default.any-emea.prd.api.hbomax.com/cms/collections/227084608563650952176059252419027445293?include=default&decorators=viewingHistory,isFavorite,contentAction,badges&pf[show.id]=4ffd33c9-e0d6-4cd6-bd13-34c266c79be0&pf[seasonNumber]=2"
+   endpoint := fmt.Sprintf("/cms/collections/227084608563650952176059252419027445293?include=default&decorators=viewingHistory,isFavorite,contentAction,badges&pf[show.id]=%s&pf[seasonNumber]=%d", showID, seasonNumber)
 
-   req, err := http.NewRequest("GET", url, nil)
+   req, err := c.newRequest("GET", endpoint)
    if err != nil {
-      log.Fatalf("Error creating request: %v", err)
+      return nil, err
    }
 
-   // Standard Headers
-   req.Header.Set("accept", "application/json")
-   req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-
-   // Max/Discovery Specific Headers
-   req.Header.Set("x-device-info", "hbomax/6.17.1 (desktop/desktop; Windows/NT 10.0; f681564c-1be5-4495-882b-6efc06cd8a9d/da0cdd94-5a39-42ef-aa68-54cbc1b852c3)")
-   req.Header.Set("x-disco-client", "WEB:NT 10.0:hbomax:6.17.1")
-   req.Header.Set("x-disco-params", "realm=bolt,bid=beam,features=ar")
-
-   // ONLY the 'st' cookie is provided for authentication
-   stToken := "eyJhbGciOiJSUzI1NiJ9.eyJqdGkiOiJ0b2tlbi1hMmNlZThjMy0zNGNhLTQ0YTEtYjM4NC04YzIzOWNkZmQxZWQiLCJpc3MiOiJmcGEtaXNzdWVyIiwic3ViIjoiVVNFUklEOmJvbHQ6MGQ0NWNjZjgtYjRhMi00MTQ3LWJiZWItYzdiY2IxNDBmMzgyIiwiaWF0IjoxNzc1NjE5MTE5LCJleHAiOjIwOTA5NzkxMTksInR5cGUiOiJBQ0NFU1NfVE9LRU4iLCJzdWJkaXZpc2lvbiI6ImJlYW1fZW1lYSIsInNjb3BlIjoiZGVmYXVsdCIsImlpZCI6ImJlMzI5MzdhLTU3MWEtNDAzMC1hZWIyLTQ1MWViZjI3M2M5YiIsInZlcnNpb24iOiJ2NCIsImFub255bW91cyI6ZmFsc2UsImRldmljZUlkIjoiZjY4MTU2NGMtMWJlNS00NDk1LTg4MmItNmVmYzA2Y2Q4YTlkIn0.kkxM9-egjkpxnz2fSft9G1cQMdfFh9qK8_DHTk2D7Zb43FpORAkUbU92X7o-AMZxPl9pQfDlsE4KWmJHIB3vQUAC5WJmJHUDC2jc7nFYvKhDJfFLDcZD7Jc6TvpNrIYkbhP0gfF_lAxImYfoUFAQx9XzGWFiVfGe1Sy8lalVMwF-nQBdNSPxGijg1IAp-8Nt4xIScM3RScJDaJ7LqQzpNc4p9vK1l68oVUXA-NsE1RpB6caS7AucluygtjVSIGqtLE2HNDMQhJijPdCvYjRmNrQq30Ke_6tC6ezGIj5OD3Z2Sm4lJ0gFdzMZu_MggPUyadEbbK2LDI9nTU5qch1RYw"
-   req.Header.Set("Cookie", fmt.Sprintf("st=%s", stToken))
-
-   client := &http.Client{}
-   resp, err := client.Do(req)
+   resp, err := c.HTTPClient.Do(req)
    if err != nil {
-      log.Fatalf("Request failed: %v", err)
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      log.Fatalf("API returned non-200 status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("API returned non-200 status code: %d", resp.StatusCode)
    }
 
    body, err := io.ReadAll(resp.Body)
    if err != nil {
-      log.Fatalf("Failed to read body: %v", err)
+      return nil, err
    }
 
-   // Parse the JSON Response
-   var apiResponse HBOApiResponse
-   if err := json.Unmarshal(body, &apiResponse); err != nil {
-      log.Fatalf("Failed to unmarshal JSON: %v", err)
+   var apiResp seasonResponse
+   if err := json.Unmarshal(body, &apiResp); err != nil {
+      return nil, err
    }
 
-   // Extract episodes from the "included" array
-   var episodes []IncludedData
-   for _, item := range apiResponse.Included {
+   var episodes []Episode
+   for _, item := range apiResp.Included {
       if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         episodes = append(episodes, item)
+         episodes = append(episodes, Episode{
+            VideoID:       item.ID,
+            EditID:        item.Relationships.Edit.Data.ID,
+            Name:          item.Attributes.Name,
+            Description:   item.Attributes.Description,
+            SeasonNumber:  item.Attributes.SeasonNumber,
+            EpisodeNumber: item.Attributes.EpisodeNumber,
+            AirDate:       item.Attributes.AirDate,
+         })
       }
    }
 
    // Sort episodes by EpisodeNumber just in case the API returned them out of order
    sort.Slice(episodes, func(i, j int) bool {
-      return episodes[i].Attributes.EpisodeNumber < episodes[j].Attributes.EpisodeNumber
+      return episodes[i].EpisodeNumber < episodes[j].EpisodeNumber
    })
 
-   // Print the output
-   fmt.Println("==================================================")
-   fmt.Printf(" Found %d Episodes for Season %d\n", len(episodes), 2)
-   fmt.Println("==================================================")
-
-   for _, ep := range episodes {
-      fmt.Printf("Episode %d: %s\n", ep.Attributes.EpisodeNumber, ep.Attributes.Name)
-      fmt.Printf("Video ID:  %s\n", ep.Id)
-      fmt.Printf("Edit ID:   %s\n", ep.Relationships.Edit.Data.Id)
-      fmt.Printf("Air Date:  %s\n", ep.Attributes.AirDate)
-      fmt.Printf("Summary:   %s\n", ep.Attributes.Description)
-      fmt.Println("--------------------------------------------------")
-   }
+   return episodes, nil
 }
