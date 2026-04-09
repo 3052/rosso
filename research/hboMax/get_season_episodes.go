@@ -15,8 +15,10 @@ type HBOApiResponse struct {
 }
 
 type IncludedData struct {
-   Type       string     `json:"type"`
-   Attributes Attributes `json:"attributes"`
+   Id            string        `json:"id"`
+   Type          string        `json:"type"`
+   Attributes    Attributes    `json:"attributes"`
+   Relationships Relationships `json:"relationships"`
 }
 
 type Attributes struct {
@@ -26,6 +28,19 @@ type Attributes struct {
    SeasonNumber  int    `json:"seasonNumber"`
    EpisodeNumber int    `json:"episodeNumber"`
    AirDate       string `json:"airDate"`
+}
+
+type Relationships struct {
+   Edit RelationshipEdit `json:"edit"`
+}
+
+type RelationshipEdit struct {
+   Data RelationshipData `json:"data"`
+}
+
+type RelationshipData struct {
+   Id   string `json:"id"`
+   Type string `json:"type"`
 }
 
 func main() {
@@ -42,7 +57,7 @@ func main() {
    req.Header.Set("accept", "application/json")
    req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
-   // Max/Discovery Specific Headers (Required by their backend architecture)
+   // Max/Discovery Specific Headers
    req.Header.Set("x-device-info", "hbomax/6.17.1 (desktop/desktop; Windows/NT 10.0; f681564c-1be5-4495-882b-6efc06cd8a9d/da0cdd94-5a39-42ef-aa68-54cbc1b852c3)")
    req.Header.Set("x-disco-client", "WEB:NT 10.0:hbomax:6.17.1")
    req.Header.Set("x-disco-params", "realm=bolt,bid=beam,features=ar")
@@ -90,9 +105,11 @@ func main() {
    fmt.Println("==================================================")
    fmt.Printf(" Found %d Episodes for Season %d\n", len(episodes), 2)
    fmt.Println("==================================================")
-   
+
    for _, ep := range episodes {
       fmt.Printf("Episode %d: %s\n", ep.Attributes.EpisodeNumber, ep.Attributes.Name)
+      fmt.Printf("Video ID:  %s\n", ep.Id)
+      fmt.Printf("Edit ID:   %s\n", ep.Relationships.Edit.Data.Id)
       fmt.Printf("Air Date:  %s\n", ep.Attributes.AirDate)
       fmt.Printf("Summary:   %s\n", ep.Attributes.Description)
       fmt.Println("--------------------------------------------------")
