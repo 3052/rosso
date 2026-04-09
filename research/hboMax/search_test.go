@@ -8,10 +8,17 @@ func TestSearchLive(t *testing.T) {
    client := NewClient(testToken)
 
    query := "marnie"
-   // Hit the live API searching for "marnie"
-   results, err := client.Search(query)
+
+   // 1. Hit the live API searching for "marnie"
+   searchResp, err := client.Search(query)
    if err != nil {
       t.Fatalf("Live API request failed: %v", err)
+   }
+
+   // 2. Use the method to extract and map the results
+   results, err := searchResp.GetResults()
+   if err != nil {
+      t.Fatalf("Failed to extract results from search response: %v", err)
    }
 
    if len(results) == 0 {
