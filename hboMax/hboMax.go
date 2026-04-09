@@ -42,6 +42,7 @@ func (l Login) Movie(showId string) (*Page, error) {
    }
    return &result, nil
 }
+
 func (l Login) Season(showId string, number int) (*Page, error) {
    req := http.Request{
       URL: &url.URL{
@@ -379,6 +380,7 @@ type Login struct {
       }
    }
 }
+
 func FilterAndSort(values []*Included) []*Included {
    values = slices.DeleteFunc(values, func(i *Included) bool {
       if i.Attributes == nil {
@@ -420,6 +422,7 @@ type Included struct {
       }
    }
 }
+
 func (i *Included) String() string {
    data := &strings.Builder{}
    if i.Attributes.EpisodeNumber >= 1 {
@@ -471,4 +474,3 @@ func (l Login) Search(query string) ([]*Included, error) {
    }
    return result.Included, nil
 }
-

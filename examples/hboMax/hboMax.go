@@ -46,13 +46,14 @@ type client struct {
    //-------------------
    search string
    //-------------------
-   show string
-   season  int
+   show   string
+   season int
    //-------------------
    edit string
    //-------------------
    dash_id string
 }
+
 func (c *client) do_search() error {
    search, err := c.Login.Search(c.search)
    if err != nil {
@@ -71,7 +72,7 @@ func (c *client) do_search() error {
 func (c *client) do_show() error {
    var (
       page *hboMax.Page
-      err error
+      err  error
    )
    if c.season >= 1 {
       page, err = c.Login.Season(c.show, c.season)
