@@ -54,6 +54,15 @@ func GetSearchResults(entities []*Entity) ([]*Entity, error) {
 
 // Search queries the API and returns the root entity slice.
 func (c *Client) Search(query string) ([]*Entity, error) {
-   endpoint := fmt.Sprintf("/cms/routes/search/result?include=default&decorators=viewingHistory,isFavorite,contentAction,badges&page[items.size]=10&contentFilter[query]=%s", url.QueryEscape(query))
-   return c.getEntities(endpoint)
+   u, err := url.Parse("/cms/routes/search/result")
+   if err != nil {
+      return nil, err
+   }
+
+   q := u.Query()
+   q.Set("page[items.size]", "10")
+   q.Set("contentFilter[query]", query)
+   u.RawQuery = q.Encode()
+
+   return c.getEntities(u)
 }

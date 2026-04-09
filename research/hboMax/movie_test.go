@@ -9,14 +9,12 @@ func TestGetMovieLive(t *testing.T) {
 
    movieRouteID := "bebe611d-8178-481a-a4f2-de743b5b135a"
 
-   // Get raw entities
    entities, err := client.GetMovie(movieRouteID)
    if err != nil {
       t.Fatalf("Live API request failed: %v", err)
    }
 
-   // Extract formatted movie entities
-   movies := GetVideos(entities)
+   movies := GetMovies(entities)
 
    if len(movies) == 0 {
       t.Fatalf("Expected at least one movie entity, got 0")
@@ -25,20 +23,8 @@ func TestGetMovieLive(t *testing.T) {
    t.Log("==================================================")
    t.Logf(" Found %d Movie Entities", len(movies))
    t.Log("==================================================")
-
    for i, movie := range movies {
-      // Fallback to ID if Name is empty in the video entity
-      name := movie.Attributes.Name
-      if name == "" {
-         name = "Unknown Name (Check Route ID)"
-      }
-
-      t.Logf("Movie %d: %s", i+1, name)
-      t.Logf("Edit ID:    %s", movie.Relationships.Edit.Data.ID)
-      t.Logf("Video Type: %s", movie.Attributes.VideoType)
-      if movie.Attributes.Description != "" {
-         t.Logf("Summary:    %s", movie.Attributes.Description)
-      }
+      t.Log(movie.String())
       t.Log("--------------------------------------------------")
 
       if movie.Relationships.Edit.Data.ID == "" {

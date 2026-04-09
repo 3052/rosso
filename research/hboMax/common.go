@@ -1,12 +1,12 @@
 package hboMax
 
 import (
-   "cmp"
    "encoding/json"
    "fmt"
    "io"
    "net/http"
-   "slices"
+   "net/url"
+   "strings"
 )
 
 // Resource represents a relationship pointer in the JSON:API graph.
@@ -66,8 +66,21 @@ func NewClient(token string) *Client {
 }
 
 // getEntities is a shared internal method that hits an endpoint and returns the extracted JSON:API entities.
-func (c *Client) getEntities(endpoint string) ([]*Entity, error) {
-   req, err := http.NewRequest("GET", c.BaseURL+endpoint, nil)
+func (c *Client) getEntities(u *url.URL) ([]*Entity, error) {
+   // Inject generic query parameters required by all endpoints
+   q := u.Query()
+   q.Set("include", "default")
+   q.Set("decorators", "viewingHistory,isFavorite,contentAction,badges")
+   u.RawQuery = q.Encode()
+
+   // Resolve the relative URL against the base URL
+   baseURL, err := url.Parse(c.BaseURL)
+   if err != nil {
+      return nil, err
+   }
+   reqURL := baseURL.ResolveReference(u).String()
+
+   req, err := http.NewRequest("GET", reqURL, nil)
    if err != nil {
       return nil, err
    }
@@ -105,25 +118,31 @@ func (c *Client) getEntities(endpoint string) ([]*Entity, error) {
    return rootResponse.Included, nil
 }
 
-// GetVideos extracts and sorts playable video entities (Episodes or Movies) from an entity slice.
-func GetVideos(entities []*Entity) []*Entity {
-   var videos []*Entity
-   for _, item := range entities {
-      if item.Type == "video" {
-         isEpisode := item.Attributes.MaterialType == "EPISODE"
-         isMovie := item.Attributes.VideoType == "MOVIE"
+// String implements the fmt.Stringer interface to provide a clean visual output for the Entity.
+func (e *Entity) String() string {
+   var b strings.Builder
 
-         // We strictly filter for episodes or movies to avoid grabbing trailers/extras
-         if isEpisode || isMovie {
-            videos = append(videos, item)
-         }
-      }
+   // 1. print episode number if material type is episode
+   if e.Attributes.MaterialType == "EPISODE" {
+      fmt.Fprintf(&b, "Episode: %d\n", e.Attributes.EpisodeNumber)
    }
 
-   // Sort by EpisodeNumber. For Movies, this safely defaults to 0 and has no impact.
-   slices.SortFunc(videos, func(a, b *Entity) int {
-      return cmp.Compare(a.Attributes.EpisodeNumber, b.Attributes.EpisodeNumber)
-   })
+   // 2. print attributes name
+   fmt.Fprintf(&b, "Name: %s\n", e.Attributes.Name)
 
-   return videos
+   // 3 & 4. print edit ID if type is video, otherwise print ID
+   if e.Type == "video" {
+      fmt.Fprintf(&b, "Edit ID: %s\n", e.Relationships.Edit.Data.ID)
+   } else {
+      fmt.Fprintf(&b, "ID: %s\n", e.ID)
+   }
+
+   // 5. print either show type or video type
+   if e.Attributes.ShowType != "" {
+      fmt.Fprintf(&b, "Show Type: %s\n", e.Attributes.ShowType)
+   } else if e.Attributes.VideoType != "" {
+      fmt.Fprintf(&b, "Video Type: %s\n", e.Attributes.VideoType)
+   }
+
+   return strings.TrimSpace(b.String())
 }
