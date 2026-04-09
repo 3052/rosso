@@ -119,6 +119,7 @@ func (t *Token) SwitchProfile(profileId string) error {
       "variables": map[string]any{
          "input": map[string]string{
             "profileId": profileId,
+            "entryPin":  "6565",
          },
       },
    })
@@ -183,7 +184,24 @@ func RefreshToken(refresh *Token) error {
       return err
    }
    defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(refresh)
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return err
+   }
+
+   var result struct {
+      Extensions struct {
+         Sdk struct {
+            Token Token
+         }
+      }
+   }
+
+   if err := json.Unmarshal(respBody, &result); err != nil {
+      return err
+   }
+   *refresh = result.Extensions.Sdk.Token
+   return nil
 }
 
 func (r *RequestOtp) String() string {
@@ -460,12 +478,16 @@ func (t *Token) Season(id string) (*Season, error) {
       return nil, err
    }
    defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
    var result struct {
       Data struct {
          Season Season
       }
    }
-   err = json.NewDecoder(resp.Body).Decode(&result)
+   err = json.NewDecoder(bytes.NewReader(body)).Decode(&result)
    if err != nil {
       return nil, err
    }
