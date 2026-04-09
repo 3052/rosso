@@ -1,10 +1,7 @@
 package hboMax
 
 import (
-   "encoding/json"
    "fmt"
-   "io"
-   "net/http"
    "net/url"
 )
 
@@ -14,50 +11,16 @@ type SearchResult struct {
    MediaType string
 }
 
-// SearchResource represents a relationship pointer in the JSON:API graph.
-type SearchResource struct {
-   ID   string `json:"id"`
-   Type string `json:"type"`
-}
-
-// SearchEntity represents a single node in the API response.
-type SearchEntity struct {
-   ID         string `json:"id"`
-   Type       string `json:"type"`
-   Attributes struct {
-      Alias     string `json:"alias"`
-      Name      string `json:"name"`
-      ShowType  string `json:"showType"`
-      VideoType string `json:"videoType"`
-   } `json:"attributes"`
-   Relationships struct {
-      Items struct {
-         Data []SearchResource `json:"data"`
-      } `json:"items"`
-      Show struct {
-         Data SearchResource `json:"data"`
-      } `json:"show"`
-      Video struct {
-         Data SearchResource `json:"data"`
-      } `json:"video"`
-   } `json:"relationships"`
-}
-
-// SearchResponse represents the root JSON structure returned by the API.
-type SearchResponse struct {
-   Included []SearchEntity `json:"included"`
-}
-
-// GetResults parses the JSON graph into an ordered list of SearchResults.
-func (sr *SearchResponse) GetResults() ([]SearchResult, error) {
-   entitiesMap := make(map[string]SearchEntity)
-   for _, e := range sr.Included {
+// GetSearchResults parses the entities slice into an ordered list of SearchResults.
+func (entities Entities) GetSearchResults() ([]SearchResult, error) {
+   entitiesMap := make(map[string]Entity)
+   for _, e := range entities {
       entitiesMap[e.ID] = e
    }
 
-   var searchResultsCollection SearchEntity
+   var searchResultsCollection Entity
    found := false
-   for _, e := range sr.Included {
+   for _, e := range entities {
       if e.Type == "collection" && e.Attributes.Alias == "search-page-rail-results" {
          searchResultsCollection = e
          found = true
@@ -104,34 +67,8 @@ func (sr *SearchResponse) GetResults() ([]SearchResult, error) {
    return results, nil
 }
 
-// Search queries the API and returns the parsed JSON response.
-func (c *Client) Search(query string) (*SearchResponse, error) {
+// Search queries the API and returns the root entity slice.
+func (c *Client) Search(query string) (Entities, error) {
    endpoint := fmt.Sprintf("/cms/routes/search/result?include=default&decorators=viewingHistory,isFavorite,contentAction,badges&page[items.size]=10&contentFilter[query]=%s", url.QueryEscape(query))
-
-   req, err := c.newRequest("GET", endpoint)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := c.HTTPClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("API returned non-200 status code: %d", resp.StatusCode)
-   }
-
-   bodyBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var apiResp SearchResponse
-   if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
-      return nil, err
-   }
-
-   return &apiResp, nil
+   return c.getEntities(endpoint)
 }

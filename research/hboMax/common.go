@@ -1,9 +1,52 @@
 package hboMax
 
 import (
+   "encoding/json"
    "fmt"
+   "io"
    "net/http"
 )
+
+// Resource represents a relationship pointer in the JSON:API graph.
+type Resource struct {
+   ID   string `json:"id"`
+   Type string `json:"type"`
+}
+
+// Entity represents a single unified node in the Max API response.
+// It combines the attributes and relationships needed across Search, Season, and Movie endpoints.
+type Entity struct {
+   ID         string `json:"id"`
+   Type       string `json:"type"`
+   Attributes struct {
+      Name          string `json:"name"`
+      Alias         string `json:"alias"`
+      ShowType      string `json:"showType"`
+      VideoType     string `json:"videoType"`
+      MaterialType  string `json:"materialType"`
+      Description   string `json:"description"`
+      SeasonNumber  int    `json:"seasonNumber"`
+      EpisodeNumber int    `json:"episodeNumber"`
+      AirDate       string `json:"airDate"`
+   } `json:"attributes"`
+   Relationships struct {
+      Items struct {
+         Data []Resource `json:"data"`
+      } `json:"items"`
+      Show struct {
+         Data Resource `json:"data"`
+      } `json:"show"`
+      Video struct {
+         Data Resource `json:"data"`
+      } `json:"video"`
+      Edit struct {
+         Data Resource `json:"data"`
+      } `json:"edit"`
+   } `json:"relationships"`
+}
+
+// Entities is a custom slice type that holds the 'included' array from the API.
+type Entities []Entity
 
 // Client handles communication with the HBO Max API.
 type Client struct {
@@ -21,9 +64,9 @@ func NewClient(token string) *Client {
    }
 }
 
-// newRequest sets up the boilerplate headers required by the API.
-func (c *Client) newRequest(method, endpoint string) (*http.Request, error) {
-   req, err := http.NewRequest(method, c.BaseURL+endpoint, nil)
+// getEntities is a shared internal method that hits an endpoint and returns the extracted JSON:API entities.
+func (c *Client) getEntities(endpoint string) (Entities, error) {
+   req, err := http.NewRequest("GET", c.BaseURL+endpoint, nil)
    if err != nil {
       return nil, err
    }
@@ -36,5 +79,27 @@ func (c *Client) newRequest(method, endpoint string) (*http.Request, error) {
    req.Header.Set("X-Disco-Params", "realm=bolt,bid=beam,features=ar")
    req.Header.Set("Cookie", fmt.Sprintf("st=%s", c.Token))
 
-   return req, nil
+   resp, err := c.HTTPClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("API returned non-200 status code: %d", resp.StatusCode)
+   }
+
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   var rootResponse struct {
+      Included Entities `json:"included"`
+   }
+   if err := json.Unmarshal(bodyBytes, &rootResponse); err != nil {
+      return nil, err
+   }
+
+   return rootResponse.Included, nil
 }

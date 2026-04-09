@@ -7,29 +7,29 @@ import (
 func TestGetSeasonEpisodesLive(t *testing.T) {
    client := NewClient(testToken)
 
-   // Hit the live API for the specific show and season 2
    showID := "4ffd33c9-e0d6-4cd6-bd13-34c266c79be0"
    seasonNumber := 2
 
-   episodes, err := client.GetSeasonEpisodes(showID, seasonNumber)
+   // Get raw entities
+   entities, err := client.GetSeasonEpisodes(showID, seasonNumber)
    if err != nil {
       t.Fatalf("Live API request failed: %v", err)
    }
+
+   // Extract formatted episodes
+   episodes := entities.GetEpisodes()
 
    if len(episodes) == 0 {
       t.Fatalf("Expected episodes for Show ID %s Season %d, got 0", showID, seasonNumber)
    }
 
-   // Verify they are sorted
    if len(episodes) > 1 && episodes[0].EpisodeNumber > episodes[1].EpisodeNumber {
       t.Errorf("Episodes were not sorted properly")
    }
 
-   // Print all episodes
    t.Log("==================================================")
    t.Logf(" Found %d Episodes for Season %d", len(episodes), seasonNumber)
    t.Log("==================================================")
-
    for _, ep := range episodes {
       t.Logf("Episode %d: %s", ep.EpisodeNumber, ep.Name)
       t.Logf("Video ID:  %s", ep.VideoID)
