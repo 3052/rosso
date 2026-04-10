@@ -8,15 +8,6 @@ import (
    "net/http"
 )
 
-func main() {
-   maya.SetProxy("", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 var cache maya.Cache
 
 func (c *client) do_dash_id() error {
@@ -32,6 +23,15 @@ func (c *client) do_login() error {
       return err
    }
    return cache.Write(c)
+}
+
+func main() {
+   maya.SetProxy("", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {

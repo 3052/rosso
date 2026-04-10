@@ -44,7 +44,7 @@ type Entity struct {
    Type string `json:"type"`
 }
 
-func SearchResults(entities []*Entity) ([]*Entity, error) {
+func SearchResponse(entities []*Entity) ([]*Entity, error) {
    entitiesMap := make(map[string]*Entity)
    for _, entity := range entities {
       entitiesMap[entity.Id] = entity
@@ -89,7 +89,7 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    return results, nil
 }
 
-func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
+func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
@@ -121,23 +121,22 @@ func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
    return &result.Data.Attributes, nil
 }
 
-func (l *Login) FetchPlayReady(editId string) (*Playback, error) {
-   return l.fetch_playback(editId, "playready")
+func (l *Login) PlayReadyRequest(editId string) (*Playback, error) {
+   return l.playback_request(editId, "playready")
 }
 
-func (l *Login) FetchWidevine(editId string) (*Playback, error) {
-   return l.fetch_playback(editId, "widevine")
+func (l *Login) WidevineRequest(editId string) (*Playback, error) {
+   return l.playback_request(editId, "widevine")
 }
 
-// Search queries the API and returns the root entity slice
-func (l Login) Search(query string) ([]*Entity, error) {
+func (l Login) SearchRequest(query string) ([]*Entity, error) {
    queryParams := url.Values{}
    queryParams.Set("contentFilter[query]", query)
    parsedUrl := &url.URL{
       Path:     "/cms/routes/search/result",
       RawQuery: queryParams.Encode(),
    }
-   return l.fetch_entities(parsedUrl)
+   return l.entity_request(parsedUrl)
 }
 
 type Playback struct {
@@ -163,20 +162,17 @@ type Resource struct {
    Type string `json:"type"`
 }
 
-///
-
-// GetMovie fetches the CMS data for a movie ID and returns the parsed entities
-func (l Login) FetchMovie(movieRouteId string) ([]*Entity, error) {
+func (l Login) MovieRequest(showId string) ([]*Entity, error) {
    queryParams := url.Values{}
    queryParams.Set("page[items.size]", "1")
    parsedUrl := &url.URL{
-      Path:     "/cms/routes/movie/" + movieRouteId,
+      Path:     "/cms/routes/movie/" + showId,
       RawQuery: queryParams.Encode(),
    }
-   return l.fetch_entities(parsedUrl)
+   return l.entity_request(parsedUrl)
 }
 
-func (l Login) FetchSeason(showId string, seasonNumber int) ([]*Entity, error) {
+func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
    queryParams := url.Values{}
    queryParams.Set("pf[show.id]", showId)
    queryParams.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
@@ -184,10 +180,10 @@ func (l Login) FetchSeason(showId string, seasonNumber int) ([]*Entity, error) {
       Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
       RawQuery: queryParams.Encode(),
    }
-   return l.fetch_entities(parsedUrl)
+   return l.entity_request(parsedUrl)
 }
 
-func (l Login) fetch_entities(endpoint *url.URL) ([]*Entity, error) {
+func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    // Scheme
    endpoint.Scheme = "https"
    // Host
@@ -219,7 +215,7 @@ func (l Login) fetch_entities(endpoint *url.URL) ([]*Entity, error) {
    return result.Included, nil
 }
 
-func MovieResults(entities []*Entity) []*Entity {
+func MovieResponse(entities []*Entity) []*Entity {
    var movies []*Entity
    for _, item := range entities {
       // Identify the primary video entity for the movie
@@ -230,7 +226,7 @@ func MovieResults(entities []*Entity) []*Entity {
    return movies
 }
 
-func EpisodeResults(entities []*Entity) []*Entity {
+func EpisodeResponse(entities []*Entity) []*Entity {
    var episodes []*Entity
    for _, item := range entities {
       if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
@@ -275,7 +271,7 @@ func (e *Entity) String() string {
 
 // SL2000 max 1080p
 // SL3000 max 2160p
-func (p *Playback) FetchPlayReady(body []byte) ([]byte, error) {
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
    resp, err := http.Post(
       p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
       bytes.NewReader(body),
@@ -290,9 +286,7 @@ func (p *Playback) FetchPlayReady(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-///
-
-func (p *Playback) FetchWidevine(body []byte) ([]byte, error) {
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
    resp, err := http.Post(
       p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
       bytes.NewReader(body),
@@ -307,7 +301,7 @@ func (p *Playback) FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-func (p *Playback) FetchDash() (*Dash, error) {
+func (p *Playback) DashRequest() (*Dash, error) {
    resp, err := http.Get(
       strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
    )
@@ -333,7 +327,7 @@ var Markets = []string{
    "latam",
 }
 
-func FetchSt() (*http.Cookie, error) {
+func StRequest() (*http.Cookie, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme:   "https",
@@ -377,7 +371,7 @@ func (i *Initiate) String() string {
    return data.String()
 }
 
-func (l *Login) fetch_playback(edit_id, drm string) (*Playback, error) {
+func (l *Login) playback_request(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
       "consumptionType":      "streaming",
@@ -451,7 +445,7 @@ const (
 // you must
 // /authentication/linkDevice/initiate
 // first or this will always fail
-func FetchLogin(st *http.Cookie) (*Login, error) {
+func LoginRequest(st *http.Cookie) (*Login, error) {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
