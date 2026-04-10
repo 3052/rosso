@@ -20,7 +20,7 @@ func (l Login) getEntities(endpoint *url.URL) ([]*Entity, error) {
    queryParams.Set("include", "default")
    endpoint.RawQuery = queryParams.Encode()
    req := http.Request{
-      URL: endpoint,
+      URL:    endpoint,
       Header: http.Header{},
    }
    req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
@@ -70,6 +70,7 @@ func (e *Entity) String() string {
 
    return strings.TrimSpace(builder.String())
 }
+
 // Resource represents a relationship pointer in the JSON:API graph.
 type Resource struct {
    ID   string `json:"id"`
