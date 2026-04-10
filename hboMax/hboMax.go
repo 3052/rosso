@@ -13,6 +13,106 @@ import (
    "strings"
 )
 
+func SearchResults(entities []*Entity) ([]*Entity, error) {
+   entitiesMap := make(map[string]*Entity)
+   for _, entity := range entities {
+      entitiesMap[entity.Id] = entity
+   }
+
+   var searchResultsCollection *Entity
+   for _, entity := range entities {
+      if entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
+         searchResultsCollection = entity
+         break
+      }
+   }
+
+   if searchResultsCollection == nil {
+      return nil, fmt.Errorf("could not find the search results collection in the response payload")
+   }
+
+   var results []*Entity
+   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
+      colItem, exists := entitiesMap[itemRes.Id]
+      if !exists {
+         continue
+      }
+
+      targetId := colItem.Relationships.Show.Data.Id
+      if targetId == "" {
+         targetId = colItem.Relationships.Video.Data.Id
+      }
+
+      if targetId == "" {
+         continue
+      }
+
+      mediaEntity, exists := entitiesMap[targetId]
+      if !exists {
+         continue
+      }
+
+      // Append the actual show/movie entity
+      results = append(results, mediaEntity)
+   }
+
+   return results, nil
+}
+
+func MovieResults(entities []*Entity) []*Entity {
+   var movies []*Entity
+   for _, item := range entities {
+      // Identify the primary video entity for the movie
+      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
+         movies = append(movies, item)
+      }
+   }
+   return movies
+}
+
+func EpisodeResults(entities []*Entity) []*Entity {
+   var episodes []*Entity
+   for _, item := range entities {
+      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
+         episodes = append(episodes, item)
+      }
+   }
+   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
+   slices.SortFunc(episodes, func(entityA, entityB *Entity) int {
+      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
+   })
+   return episodes
+}
+
+// String implements the fmt.Stringer interface to provide a clean visual output for the Entity.
+func (e *Entity) String() string {
+   data := &strings.Builder{}
+
+   // 1. print episode number if material type is episode
+   if e.Attributes.MaterialType == "EPISODE" {
+      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
+   }
+
+   // 2. print attributes name
+   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
+
+   // 3 & 4. print edit ID if type is video, otherwise print ID
+   if e.Type == "video" {
+      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
+   } else {
+      fmt.Fprintf(data, "ID: %s\n", e.Id)
+   }
+
+   // 5. print either show type or video type
+   if e.Attributes.ShowType != "" {
+      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
+   } else if e.Attributes.VideoType != "" {
+      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
+   }
+
+   return strings.TrimSpace(data.String())
+}
+
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) FetchPlayReady(body []byte) ([]byte, error) {
@@ -30,34 +130,7 @@ func (p *Playback) FetchPlayReady(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-// String implements the fmt.Stringer interface to provide a clean visual output for the Entity.
-func (e *Entity) String() string {
-   var builder strings.Builder
-
-   // 1. print episode number if material type is episode
-   if e.Attributes.MaterialType == "EPISODE" {
-      fmt.Fprintf(&builder, "Episode: %d\n", e.Attributes.EpisodeNumber)
-   }
-
-   // 2. print attributes name
-   fmt.Fprintf(&builder, "Name: %s\n", e.Attributes.Name)
-
-   // 3 & 4. print edit ID if type is video, otherwise print ID
-   if e.Type == "video" {
-      fmt.Fprintf(&builder, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
-   } else {
-      fmt.Fprintf(&builder, "ID: %s\n", e.Id)
-   }
-
-   // 5. print either show type or video type
-   if e.Attributes.ShowType != "" {
-      fmt.Fprintf(&builder, "Show Type: %s\n", e.Attributes.ShowType)
-   } else if e.Attributes.VideoType != "" {
-      fmt.Fprintf(&builder, "Video Type: %s\n", e.Attributes.VideoType)
-   }
-
-   return strings.TrimSpace(builder.String())
-}
+///
 
 func (p *Playback) FetchWidevine(body []byte) ([]byte, error) {
    resp, err := http.Post(
@@ -408,75 +481,4 @@ func (l Login) fetch_entities(endpoint *url.URL) ([]*Entity, error) {
       return nil, err
    }
    return result.Included, nil
-}
-
-func SearchResults(entities []*Entity) ([]*Entity, error) {
-   entitiesMap := make(map[string]*Entity)
-   for _, entity := range entities {
-      entitiesMap[entity.Id] = entity
-   }
-
-   var searchResultsCollection *Entity
-   for _, entity := range entities {
-      if entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = entity
-         break
-      }
-   }
-
-   if searchResultsCollection == nil {
-      return nil, fmt.Errorf("could not find the search results collection in the response payload")
-   }
-
-   var results []*Entity
-   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
-      colItem, exists := entitiesMap[itemRes.Id]
-      if !exists {
-         continue
-      }
-
-      targetId := colItem.Relationships.Show.Data.Id
-      if targetId == "" {
-         targetId = colItem.Relationships.Video.Data.Id
-      }
-
-      if targetId == "" {
-         continue
-      }
-
-      mediaEntity, exists := entitiesMap[targetId]
-      if !exists {
-         continue
-      }
-
-      // Append the actual show/movie entity
-      results = append(results, mediaEntity)
-   }
-
-   return results, nil
-}
-
-func MovieResults(entities []*Entity) []*Entity {
-   var movies []*Entity
-   for _, item := range entities {
-      // Identify the primary video entity for the movie
-      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
-         movies = append(movies, item)
-      }
-   }
-   return movies
-}
-
-func EpisodeResults(entities []*Entity) []*Entity {
-   var episodes []*Entity
-   for _, item := range entities {
-      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         episodes = append(episodes, item)
-      }
-   }
-   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
-   slices.SortFunc(episodes, func(entityA, entityB *Entity) int {
-      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
-   })
-   return episodes
 }

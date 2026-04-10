@@ -8,23 +8,40 @@ import (
    "net/http"
 )
 
+func (c *client) do_search() error {
+   results, err := c.Login.Search(c.search)
+   if err != nil {
+      return err
+   }
+   results, err = hboMax.SearchResults(results)
+   if err != nil {
+      return err
+   }
+   for i, result := range results {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(result)
+   }
+   return nil
+}
 func (c *client) do_show() error {
    var (
       results []*hboMax.Entity
       err     error
    )
    if c.season >= 1 {
-      results, err = c.Login.GetSeasonEpisodes(c.show, c.season)
+      results, err = c.Login.FetchSeason(c.show, c.season)
       if err != nil {
          return err
       }
-      results = hboMax.GetEpisodes(results)
+      results = hboMax.EpisodeResults(results)
    } else {
-      results, err = c.Login.GetMovie(c.show)
+      results, err = c.Login.FetchMovie(c.show)
       if err != nil {
          return err
       }
-      results = hboMax.GetMovies(results)
+      results = hboMax.MovieResults(results)
    }
    for i, result := range results {
       if i >= 1 {
@@ -107,14 +124,13 @@ func (c *client) do_initiate() error {
    fmt.Println(initiate)
    return cache.Write(c)
 }
-
 func (c *client) do_edit() error {
    var err error
-   c.Playback, err = c.Login.PlayReady(c.edit)
+   c.Playback, err = c.Login.FetchPlayReady(c.edit)
    if err != nil {
       return err
    }
-   c.Dash, err = c.Playback.Dash()
+   c.Dash, err = c.Playback.FetchDash()
    if err != nil {
       return err
    }
@@ -135,10 +151,9 @@ func main() {
 }
 
 var cache maya.Cache
-
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.PlayReady,
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playback.FetchPlayReady,
    )
 }
 
@@ -169,22 +184,4 @@ type client struct {
    edit string
    //-------------------
    dash_id string
-}
-
-func (c *client) do_search() error {
-   search, err := c.Login.Search(c.search)
-   if err != nil {
-      return err
-   }
-   results, err := hboMax.GetSearchResults(search)
-   if err != nil {
-      return err
-   }
-   for i, result := range results {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(result)
-   }
-   return nil
 }
