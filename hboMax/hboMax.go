@@ -13,6 +13,112 @@ import (
    "strings"
 )
 
+func (l *Login) playback(edit_id, drm string) (*Playback, error) {
+   body, err := json.Marshal(map[string]any{
+      "editId":               edit_id,
+      "consumptionType":      "streaming",
+      "appBundle":            "",         // required
+      "applicationSessionId": "",         // required
+      "firstPlay":            false,      // required
+      "gdpr":                 false,      // required
+      "playbackSessionId":    "",         // required
+      "userPreferences":      struct{}{}, // required
+      "capabilities": map[string]any{
+         "contentProtection": map[string]any{
+            "contentDecryptionModules": []any{
+               map[string]string{
+                  "drmKeySystem": drm,
+               },
+            },
+         },
+         "manifests": map[string]any{
+            "formats": map[string]any{
+               "dash": struct{}{}, // required
+            }, // required
+         }, // required
+      }, // required
+      "deviceInfo": map[string]any{
+         "player": map[string]any{
+            "mediaEngine": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+            "playerView": map[string]int{
+               "height": 0, // required
+               "width":  0, // required
+            }, // required
+            "sdk": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+         }, // required
+      }, // required
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://default.prd.api.hbomax.com", bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
+   req.Header.Set("authorization", "Bearer "+l.Token)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func FetchLogin(st *http.Cookie) (*Login, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com", // Refactored
+         Path:   "/authentication/linkDevice/login",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+type Login struct {
+   Token string
+}
+
 // getEntities is a shared internal method that hits an endpoint and returns
 // the extracted JSON:API entities
 func (l Login) getEntities(endpoint *url.URL) ([]*Entity, error) {
@@ -28,7 +134,7 @@ func (l Login) getEntities(endpoint *url.URL) ([]*Entity, error) {
       URL:    endpoint,
       Header: http.Header{},
    }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
+   req.Header.Set("authorization", "Bearer "+l.Token)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -76,31 +182,32 @@ func (e *Entity) String() string {
    return strings.TrimSpace(builder.String())
 }
 
+///
+
 // Resource represents a relationship pointer in the JSON:API graph.
 type Resource struct {
    ID   string `json:"id"`
    Type string `json:"type"`
 }
 
-// Attributes holds the metadata properties for a media entity.
-type Attributes struct {
-   Name          string `json:"name"`
-   Alias         string `json:"alias"`
-   ShowType      string `json:"showType"`
-   VideoType     string `json:"videoType"`
-   MaterialType  string `json:"materialType"`
-   Description   string `json:"description"`
-   SeasonNumber  int    `json:"seasonNumber"`
-   EpisodeNumber int    `json:"episodeNumber"`
-   AirDate       string `json:"airDate"`
-}
-
 // Entity represents a single unified node in the Max API response.
 type Entity struct {
-   ID            string     `json:"id"`
-   Type          string     `json:"type"`
-   Attributes    Attributes `json:"attributes"`
+   Attributes struct {
+      Name          string `json:"name"`
+      Alias         string `json:"alias"`
+      ShowType      string `json:"showType"`
+      VideoType     string `json:"videoType"`
+      MaterialType  string `json:"materialType"`
+      Description   string `json:"description"`
+      SeasonNumber  int    `json:"seasonNumber"`
+      EpisodeNumber int    `json:"episodeNumber"`
+      AirDate       string `json:"airDate"`
+   }
+   ID            string `json:"id"`
    Relationships struct {
+      Edit struct {
+         Data Resource `json:"data"`
+      } `json:"edit"`
       Items struct {
          Data []Resource `json:"data"`
       } `json:"items"`
@@ -110,10 +217,8 @@ type Entity struct {
       Video struct {
          Data Resource `json:"data"`
       } `json:"video"`
-      Edit struct {
-         Data Resource `json:"data"`
-      } `json:"edit"`
    } `json:"relationships"`
+   Type string `json:"type"`
 }
 
 // Search queries the API and returns the root entity slice
@@ -226,11 +331,6 @@ func GetMovies(entities []*Entity) []*Entity {
    return movies
 }
 
-type Page struct {
-   Errors   []Error
-   Included []*Included
-}
-
 type Playback struct {
    Drm struct {
       Schemes struct {
@@ -238,7 +338,6 @@ type Playback struct {
          Widevine  *Scheme
       }
    }
-   Errors   []Error
    Fallback struct {
       Manifest struct {
          Url string // _fallback.mpd:1080p, .mpd:4K
@@ -300,11 +399,6 @@ type Scheme struct {
    LicenseUrl string
 }
 
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
 var Markets = []string{
    "amer",
    "apac",
@@ -342,26 +436,6 @@ type Dash struct {
    Url  *url.URL
 }
 
-type Error struct {
-   Code    string
-   Detail  string // show was filtered by validator
-   Message string // Token is missing or not valid
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   if e.Detail != "" {
-      data.WriteString("\ndetail = ")
-      data.WriteString(e.Detail)
-   } else {
-      data.WriteString("\nmessage = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
 func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
    req := http.Request{
       Method: "POST",
@@ -386,14 +460,10 @@ func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
       Data struct {
          Attributes Initiate
       }
-      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
    }
    return &result.Data.Attributes, nil
 }
@@ -416,131 +486,6 @@ func (l *Login) PlayReady(editId string) (*Playback, error) {
    return l.playback(editId, "playready")
 }
 
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func FetchLogin(st *http.Cookie) (*Login, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com", // Refactored
-         Path:   "/authentication/linkDevice/login",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
 func (l *Login) Widevine(editId string) (*Playback, error) {
    return l.playback(editId, "widevine")
-}
-
-func (l *Login) playback(edit_id, drm string) (*Playback, error) {
-   body, err := json.Marshal(map[string]any{
-      "editId":               edit_id,
-      "consumptionType":      "streaming",
-      "appBundle":            "",         // required
-      "applicationSessionId": "",         // required
-      "firstPlay":            false,      // required
-      "gdpr":                 false,      // required
-      "playbackSessionId":    "",         // required
-      "userPreferences":      struct{}{}, // required
-      "capabilities": map[string]any{
-         "contentProtection": map[string]any{
-            "contentDecryptionModules": []any{
-               map[string]string{
-                  "drmKeySystem": drm,
-               },
-            },
-         },
-         "manifests": map[string]any{
-            "formats": map[string]any{
-               "dash": struct{}{}, // required
-            }, // required
-         }, // required
-      }, // required
-      "deviceInfo": map[string]any{
-         "player": map[string]any{
-            "mediaEngine": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-            "playerView": map[string]int{
-               "height": 0, // required
-               "width":  0, // required
-            }, // required
-            "sdk": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-         }, // required
-      }, // required
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://default.prd.api.hbomax.com", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode == 504 {
-      return nil, errors.New(resp.Status) // bail since no response body
-   }
-   var result Playback
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result, nil
-}
-
-type Login struct {
-   Data struct {
-      Attributes struct {
-         Token string
-      }
-   }
-}
-
-type Included struct {
-   Attributes *struct {
-      EpisodeNumber int
-      Name          string
-      SeasonNumber  int
-      ShowType      string
-      VideoType     string
-   }
-   Id            string
-   Relationships *struct {
-      Edit *struct {
-         Data struct {
-            Id string
-         }
-      }
-   }
 }
