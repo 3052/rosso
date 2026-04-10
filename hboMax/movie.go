@@ -1,9 +1,19 @@
 package hboMax
 
 import (
-   "fmt"
    "net/url"
 )
+
+// GetMovie fetches the CMS data for a movie ID and returns the parsed entities
+func (l Login) GetMovie(movieRouteID string) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("page[items.size]", "1")
+   parsedURL := &url.URL{
+      Path:     "/cms/routes/movie/" + movieRouteID,
+      RawQuery: queryParams.Encode(),
+   }
+   return l.getEntities(parsedURL)
+}
 
 // GetMovies filters the entity slice for primary movie video entities.
 func GetMovies(entities []*Entity) []*Entity {
@@ -15,18 +25,4 @@ func GetMovies(entities []*Entity) []*Entity {
       }
    }
    return movies
-}
-
-// GetMovie fetches the CMS data for a movie ID and returns the parsed entities.
-func (c *Client) GetMovie(movieRouteID string) ([]*Entity, error) {
-   u, err := url.Parse(fmt.Sprintf("/cms/routes/movie/%s", movieRouteID))
-   if err != nil {
-      return nil, err
-   }
-
-   q := u.Query()
-   q.Set("page[items.size]", "10")
-   u.RawQuery = q.Encode()
-
-   return c.getEntities(u)
 }

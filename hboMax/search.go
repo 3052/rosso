@@ -5,17 +5,30 @@ import (
    "net/url"
 )
 
-// GetSearchResults parses an entity slice into an ordered list of matching media entities.
+// Search queries the API and returns the root entity slice
+func (l Login) Search(query string) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("page[items.size]", "10")
+   queryParams.Set("contentFilter[query]", query)
+   parsedURL := &url.URL{
+      Path:     "/cms/routes/search/result",
+      RawQuery: queryParams.Encode(),
+   }
+   return l.getEntities(parsedURL)
+}
+
+// GetSearchResults parses an entity slice into an ordered list of matching
+// media entities
 func GetSearchResults(entities []*Entity) ([]*Entity, error) {
    entitiesMap := make(map[string]*Entity)
-   for _, e := range entities {
-      entitiesMap[e.ID] = e
+   for _, entity := range entities {
+      entitiesMap[entity.ID] = entity
    }
 
    var searchResultsCollection *Entity
-   for _, e := range entities {
-      if e.Type == "collection" && e.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = e
+   for _, entity := range entities {
+      if entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
+         searchResultsCollection = entity
          break
       }
    }
@@ -50,19 +63,4 @@ func GetSearchResults(entities []*Entity) ([]*Entity, error) {
    }
 
    return results, nil
-}
-
-// Search queries the API and returns the root entity slice.
-func (c *Client) Search(query string) ([]*Entity, error) {
-   u, err := url.Parse("/cms/routes/search/result")
-   if err != nil {
-      return nil, err
-   }
-
-   q := u.Query()
-   q.Set("page[items.size]", "10")
-   q.Set("contentFilter[query]", query)
-   u.RawQuery = q.Encode()
-
-   return c.getEntities(u)
 }

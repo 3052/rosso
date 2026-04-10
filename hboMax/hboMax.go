@@ -8,38 +8,8 @@ import (
    "io"
    "net/http"
    "net/url"
-   "slices"
-   "strconv"
    "strings"
 )
-
-func (l Login) Season(showId string, number int) (*Page, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-         RawQuery: url.Values{
-            "include":          {"default"},
-            "pf[seasonNumber]": {strconv.Itoa(number)},
-            "pf[show.id]":      {showId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Page{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
 
 type Page struct {
    Errors   []Error
@@ -351,25 +321,6 @@ type Login struct {
    }
 }
 
-func FilterAndSort(values []*Included) []*Included {
-   values = slices.DeleteFunc(values, func(i *Included) bool {
-      if i.Attributes == nil {
-         return true // Remove videos with nil attributes.
-      }
-      // Check if the current types are in our valid slices
-      isValidVideo := slices.Contains(valid_types, i.Attributes.VideoType)
-      isValidShow := slices.Contains(valid_types, i.Attributes.ShowType)
-      return !isValidVideo && !isValidShow
-   })
-   slices.SortFunc(values, func(a, b *Included) int {
-      if a.Attributes == nil || b.Attributes == nil {
-         return 0 // Consider them equal if attributes are missing.
-      }
-      return a.Attributes.EpisodeNumber - b.Attributes.EpisodeNumber
-   })
-   return values
-}
-
 var valid_types = []string{
    "EPISODE",
    "MOVIE",
@@ -391,85 +342,4 @@ type Included struct {
          }
       }
    }
-}
-
-func (i *Included) String() string {
-   data := &strings.Builder{}
-   if i.Attributes.EpisodeNumber >= 1 {
-      fmt.Fprintln(data, "episode number =", i.Attributes.EpisodeNumber)
-   }
-   if i.Attributes.Name != "" {
-      fmt.Fprintln(data, "name =", i.Attributes.Name)
-   }
-   if i.Attributes.SeasonNumber >= 1 {
-      fmt.Fprintln(data, "season number =", i.Attributes.SeasonNumber)
-   }
-   if i.Attributes.ShowType != "" {
-      fmt.Fprintln(data, "show type =", i.Attributes.ShowType)
-   }
-   if i.Attributes.VideoType != "" {
-      fmt.Fprintln(data, "video type =", i.Attributes.VideoType)
-   }
-   fmt.Fprint(data, "id = ", i.Id)
-   if i.Relationships.Edit != nil {
-      fmt.Fprint(data, "\nedit id = ", i.Relationships.Edit.Data.Id)
-   }
-   return data.String()
-}
-
-func (l Login) Search(query string) ([]*Included, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/routes/search/result",
-         RawQuery: url.Values{
-            "contentFilter[query]": {query},
-            "include":              {"default"},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Included []*Included
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
-}
-func (l Login) Movie(showId string) (*Page, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/cms/routes/movie/" + showId,
-         RawQuery: url.Values{
-            "include":          {"default"},
-            "page[items.size]": {"1"},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Data.Attributes.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Page
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result, nil
 }
