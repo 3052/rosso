@@ -13,6 +13,195 @@ import (
    "strings"
 )
 
+func (l *Login) playback_request(edit_id, drm string) (*Playback, error) {
+   body, err := json.Marshal(map[string]any{
+      "editId":               edit_id,
+      "consumptionType":      "streaming",
+      "appBundle":            "",         // required
+      "applicationSessionId": "",         // required
+      "firstPlay":            false,      // required
+      "gdpr":                 false,      // required
+      "playbackSessionId":    "",         // required
+      "userPreferences":      struct{}{}, // required
+      "capabilities": map[string]any{
+         "contentProtection": map[string]any{
+            "contentDecryptionModules": []any{
+               map[string]string{
+                  "drmKeySystem": drm,
+               },
+            },
+         },
+         "manifests": map[string]any{
+            "formats": map[string]any{
+               "dash": struct{}{}, // required
+            }, // required
+         }, // required
+      }, // required
+      "deviceInfo": map[string]any{
+         "player": map[string]any{
+            "mediaEngine": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+            "playerView": map[string]int{
+               "height": 0, // required
+               "width":  0, // required
+            }, // required
+            "sdk": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+         }, // required
+      }, // required
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://default.prd.api.hbomax.com", bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
+   req.Header.Set("authorization", "Bearer "+l.Token)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result, nil
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors []Error
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *http.Cookie) (*Login, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com", // Refactored
+         Path:   "/authentication/linkDevice/login",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+type Login struct {
+   Token string
+}
+func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   queryParams := endpoint.Query()
+   queryParams.Set("include", "default")
+   endpoint.RawQuery = queryParams.Encode()
+   req := http.Request{
+      URL:    endpoint,
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Errors []Error
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return result.Included, nil
+}
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   if e.Detail != "" {
+      data.WriteString("\ndetail = ")
+      data.WriteString(e.Detail)
+   }
+   if e.Message != "" {
+      data.WriteString("\nmessage = ")
+      data.WriteString(e.Message)
+   }
+   return data.String()
+}
+
+type Error struct {
+   Code string // 2026-04-10
+   Detail string // 2026-04-10
+   Message string // 2026-04-10
+}
+
+func (l Login) MovieRequest(showId string) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("page[items.size]", "1")
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/movie/" + showId,
+      RawQuery: queryParams.Encode(),
+   }
+   return l.entity_request(parsedUrl)
+}
+
 // Entity represents a single unified node in the Max API response.
 type Entity struct {
    Attributes struct {
@@ -139,37 +328,10 @@ func (l Login) SearchRequest(query string) ([]*Entity, error) {
    return l.entity_request(parsedUrl)
 }
 
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
 // Resource represents a relationship pointer in the JSON:API graph.
 type Resource struct {
    Id   string `json:"id"`
    Type string `json:"type"`
-}
-
-func (l Login) MovieRequest(showId string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("page[items.size]", "1")
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/movie/" + showId,
-      RawQuery: queryParams.Encode(),
-   }
-   return l.entity_request(parsedUrl)
 }
 
 func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
@@ -181,38 +343,6 @@ func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error)
       RawQuery: queryParams.Encode(),
    }
    return l.entity_request(parsedUrl)
-}
-
-func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   queryParams := endpoint.Query()
-   queryParams.Set("include", "default")
-   endpoint.RawQuery = queryParams.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("API returned non-200 status code: %d", resp.StatusCode)
-   }
-   var result struct {
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
 }
 
 func MovieResults(entities []*Entity) []*Entity {
@@ -369,110 +499,4 @@ func (i *Initiate) String() string {
    data.WriteString("\nlinking code = ")
    data.WriteString(i.LinkingCode)
    return data.String()
-}
-
-func (l *Login) playback_request(edit_id, drm string) (*Playback, error) {
-   body, err := json.Marshal(map[string]any{
-      "editId":               edit_id,
-      "consumptionType":      "streaming",
-      "appBundle":            "",         // required
-      "applicationSessionId": "",         // required
-      "firstPlay":            false,      // required
-      "gdpr":                 false,      // required
-      "playbackSessionId":    "",         // required
-      "userPreferences":      struct{}{}, // required
-      "capabilities": map[string]any{
-         "contentProtection": map[string]any{
-            "contentDecryptionModules": []any{
-               map[string]string{
-                  "drmKeySystem": drm,
-               },
-            },
-         },
-         "manifests": map[string]any{
-            "formats": map[string]any{
-               "dash": struct{}{}, // required
-            }, // required
-         }, // required
-      }, // required
-      "deviceInfo": map[string]any{
-         "player": map[string]any{
-            "mediaEngine": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-            "playerView": map[string]int{
-               "height": 0, // required
-               "width":  0, // required
-            }, // required
-            "sdk": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-         }, // required
-      }, // required
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://default.prd.api.hbomax.com", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
-   req.Header.Set("authorization", "Bearer "+l.Token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *http.Cookie) (*Login, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com", // Refactored
-         Path:   "/authentication/linkDevice/login",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-type Login struct {
-   Token string
 }
