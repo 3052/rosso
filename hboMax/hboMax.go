@@ -122,15 +122,6 @@ func FetchSt() (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
-func isCategory(segment string) bool {
-   switch segment {
-   case "movies", "shows", "movie", "show":
-      return true
-   default:
-      return false
-   }
-}
-
 type Dash struct {
    Body []byte
    Url  *url.URL
@@ -319,11 +310,6 @@ type Login struct {
          Token string
       }
    }
-}
-
-var valid_types = []string{
-   "EPISODE",
-   "MOVIE",
 }
 
 type Included struct {
