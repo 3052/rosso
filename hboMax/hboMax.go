@@ -44,7 +44,7 @@ type Entity struct {
    Type string `json:"type"`
 }
 
-func SearchResponse(entities []*Entity) ([]*Entity, error) {
+func SearchResults(entities []*Entity) ([]*Entity, error) {
    entitiesMap := make(map[string]*Entity)
    for _, entity := range entities {
       entitiesMap[entity.Id] = entity
@@ -215,7 +215,7 @@ func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    return result.Included, nil
 }
 
-func MovieResponse(entities []*Entity) []*Entity {
+func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
    for _, item := range entities {
       // Identify the primary video entity for the movie
@@ -226,18 +226,18 @@ func MovieResponse(entities []*Entity) []*Entity {
    return movies
 }
 
-func EpisodeResponse(entities []*Entity) []*Entity {
-   var episodes []*Entity
+func SeasonResults(entities []*Entity) []*Entity {
+   var results []*Entity
    for _, item := range entities {
       if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         episodes = append(episodes, item)
+         results = append(results, item)
       }
    }
    // Sort episodes by EpisodeNumber using the modern slices.SortFunc
-   slices.SortFunc(episodes, func(entityA, entityB *Entity) int {
+   slices.SortFunc(results, func(entityA, entityB *Entity) int {
       return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
    })
-   return episodes
+   return results
 }
 
 // String implements the fmt.Stringer interface to provide a clean visual output for the Entity.
