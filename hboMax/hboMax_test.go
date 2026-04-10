@@ -1,10 +1,6 @@
 package hboMax
 
-import (
-   "encoding/xml"
-   "os"
-   "testing"
-)
+import "testing"
 
 var content_tests = []struct {
    location   []string
