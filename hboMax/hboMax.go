@@ -13,15 +13,35 @@ import (
    "strings"
 )
 
-// Search queries the API and returns the root entity slice
-func (l Login) Search(query string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: queryParams.Encode(),
+// Entity represents a single unified node in the Max API response.
+type Entity struct {
+   Attributes struct {
+      Name          string `json:"name"`
+      Alias         string `json:"alias"`
+      ShowType      string `json:"showType"`
+      VideoType     string `json:"videoType"`
+      MaterialType  string `json:"materialType"`
+      Description   string `json:"description"`
+      SeasonNumber  int    `json:"seasonNumber"`
+      EpisodeNumber int    `json:"episodeNumber"`
+      AirDate       string `json:"airDate"`
    }
-   return l.fetch_entities(parsedUrl)
+   Id            string `json:"id"`
+   Relationships struct {
+      Edit struct {
+         Data Resource `json:"data"`
+      } `json:"edit"`
+      Items struct {
+         Data []Resource `json:"data"`
+      } `json:"items"`
+      Show struct {
+         Data Resource `json:"data"`
+      } `json:"show"`
+      Video struct {
+         Data Resource `json:"data"`
+      } `json:"video"`
+   } `json:"relationships"`
+   Type string `json:"type"`
 }
 
 func SearchResults(entities []*Entity) ([]*Entity, error) {
@@ -66,11 +86,84 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
       // Append the actual show/movie entity
       results = append(results, mediaEntity)
    }
-   
-   println(len(results))
-   
    return results, nil
 }
+
+func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   req.Header.Set("x-device-info", device_info)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+func (l *Login) FetchPlayReady(editId string) (*Playback, error) {
+   return l.fetch_playback(editId, "playready")
+}
+
+func (l *Login) FetchWidevine(editId string) (*Playback, error) {
+   return l.fetch_playback(editId, "widevine")
+}
+
+// Search queries the API and returns the root entity slice
+func (l Login) Search(query string) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("contentFilter[query]", query)
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/search/result",
+      RawQuery: queryParams.Encode(),
+   }
+   return l.fetch_entities(parsedUrl)
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+// Resource represents a relationship pointer in the JSON:API graph.
+type Resource struct {
+   Id   string `json:"id"`
+   Type string `json:"type"`
+}
+
+///
 
 // GetMovie fetches the CMS data for a movie ID and returns the parsed entities
 func (l Login) FetchMovie(movieRouteId string) ([]*Entity, error) {
@@ -283,6 +376,7 @@ func (i *Initiate) String() string {
    data.WriteString(i.LinkingCode)
    return data.String()
 }
+
 func (l *Login) fetch_playback(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -387,98 +481,4 @@ func FetchLogin(st *http.Cookie) (*Login, error) {
 
 type Login struct {
    Token string
-}
-
-// Resource represents a relationship pointer in the JSON:API graph.
-type Resource struct {
-   Id   string `json:"id"`
-   Type string `json:"type"`
-}
-
-// Entity represents a single unified node in the Max API response.
-type Entity struct {
-   Attributes struct {
-      Name          string `json:"name"`
-      Alias         string `json:"alias"`
-      ShowType      string `json:"showType"`
-      VideoType     string `json:"videoType"`
-      MaterialType  string `json:"materialType"`
-      Description   string `json:"description"`
-      SeasonNumber  int    `json:"seasonNumber"`
-      EpisodeNumber int    `json:"episodeNumber"`
-      AirDate       string `json:"airDate"`
-   }
-   Id            string `json:"id"`
-   Relationships struct {
-      Edit struct {
-         Data Resource `json:"data"`
-      } `json:"edit"`
-      Items struct {
-         Data []Resource `json:"data"`
-      } `json:"items"`
-      Show struct {
-         Data Resource `json:"data"`
-      } `json:"show"`
-      Video struct {
-         Data Resource `json:"data"`
-      } `json:"video"`
-   } `json:"relationships"`
-   Type string `json:"type"`
-}
-
-func FetchInitiate(st *http.Cookie, market string) (*Initiate, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   req.Header.Set("x-device-info", device_info)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-func (l *Login) FetchPlayReady(editId string) (*Playback, error) {
-   return l.fetch_playback(editId, "playready")
-}
-
-func (l *Login) FetchWidevine(editId string) (*Playback, error) {
-   return l.fetch_playback(editId, "widevine")
 }
