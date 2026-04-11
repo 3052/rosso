@@ -16,6 +16,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //----------------------------------------------------------
    code := maya.BoolFlag("c", "link code")
    //----------------------------------------------------------
    session := maya.BoolFlag("S", "session")
@@ -30,8 +32,14 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
+   err = maya.SetProxy(c.Proxy, "*.dash")
+   if err != nil {
+      return err
+   }
    switch {
    case widevine.IsSet:
+      return cache.Write(c)
+   case proxy.IsSet:
       return cache.Write(c)
    case code.IsSet:
       return c.do_code()
@@ -46,6 +54,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
+      {proxy},
       {code},
       {session},
       {address, season},
@@ -126,7 +135,6 @@ func (c *client) do_dash_id() error {
 
 func main() {
    log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.dash")
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -139,6 +147,8 @@ type client struct {
    Session  *mubi.Session
    //--------------------
    Job maya.Job
+   //--------------------
+   Proxy string
    //--------------------
    address string
    season  int

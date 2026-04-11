@@ -12,6 +12,66 @@ import (
    "strings"
 )
 
+type SecureUrl struct {
+   TextTrackUrls []struct {
+      Id  string
+      Url string
+   } `json:"text_track_urls"`
+   Url         string // MPD
+   UserMessage string `json:"user_message"`
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type LinkCode struct {
+   AuthToken string `json:"auth_token"`
+   LinkCode  string `json:"link_code"`
+}
+
+func (l *LinkCode) String() string {
+   var data strings.Builder
+   data.WriteString("TO LOG IN AND START WATCHING\n")
+   data.WriteString("Go to\n")
+   data.WriteString("mubi.com/android\n")
+   data.WriteString("and enter the code below\n")
+   data.WriteString(l.LinkCode)
+   return data.String()
+}
+
+// "android" requires headers:
+// client-device-identifier
+// client-version
+const client = "web"
+
+var ClientCountry = "US"
+
+func FetchLinkCode() (*LinkCode, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   "/v3/link_code",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &LinkCode{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 func (f *Film) String() string {
    data := &strings.Builder{}
    data.WriteString("title = ")
@@ -83,7 +143,7 @@ type Session struct {
    }
 }
 
-func (s *Session) Widevine(body []byte) ([]byte, error) {
+func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    // final slash is needed
    req, err := http.NewRequest(
       "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
@@ -124,7 +184,7 @@ func (s *Session) Widevine(body []byte) ([]byte, error) {
 
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
-func (s *Session) Viewing(id int) error {
+func (s *Session) FetchViewing(id int) error {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
@@ -155,31 +215,7 @@ func (s *Session) Viewing(id int) error {
    return nil
 }
 
-func FetchLinkCode() (*LinkCode, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   "/v3/link_code",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &LinkCode{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func (s *SecureUrl) Dash() (*Dash, error) {
+func (s *SecureUrl) FetchDash() (*Dash, error) {
    s.Url = strings.NewReplacer(
       ".AVC1", "",
       ".ex-eac3", "",
@@ -197,7 +233,7 @@ func (s *SecureUrl) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-func (s *Session) SecureUrl(id int) (*SecureUrl, error) {
+func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
@@ -226,36 +262,7 @@ func (s *Session) SecureUrl(id int) (*SecureUrl, error) {
    return &result, nil
 }
 
-type SecureUrl struct {
-   TextTrackUrls []struct {
-      Id  string
-      Url string
-   } `json:"text_track_urls"`
-   Url         string // MPD
-   UserMessage string `json:"user_message"`
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type LinkCode struct {
-   AuthToken string `json:"auth_token"`
-   LinkCode  string `json:"link_code"`
-}
-
-func (l *LinkCode) String() string {
-   var data strings.Builder
-   data.WriteString("TO LOG IN AND START WATCHING\n")
-   data.WriteString("Go to\n")
-   data.WriteString("mubi.com/android\n")
-   data.WriteString("and enter the code below\n")
-   data.WriteString(l.LinkCode)
-   return data.String()
-}
-
-func (l *LinkCode) Session() (*Session, error) {
+func (l *LinkCode) FetchSession() (*Session, error) {
    body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
    if err != nil {
       return nil, err
@@ -281,10 +288,3 @@ func (l *LinkCode) Session() (*Session, error) {
    }
    return result, nil
 }
-
-// "android" requires headers:
-// client-device-identifier
-// client-version
-const client = "web"
-
-var ClientCountry = "US"
