@@ -8,7 +8,5 @@ monetization = FLATRATE
 
 https://justwatch.com/pl/serwis-streamingowy/polsat-box-go
 
-1575 titles
-
 - Materiał w dostępie na 48 godzin
 - Content available for 48 hours
