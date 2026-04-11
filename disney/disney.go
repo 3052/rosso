@@ -2,15 +2,65 @@ package disney
 
 import (
    "bytes"
-   _ "embed"
    "encoding/json"
    "errors"
    "io"
    "net/http"
    "net/url"
    "strings"
+   _ "embed"
 )
 
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
+}
+
+// expires: 4 hours
+// request: Account
+func (t *Token) Refresh() error {
+   if err := t.assert("Account"); err != nil {
+      return err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_refresh_token,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "refreshToken": t.RefreshToken,
+         },
+      },
+   })
+   if err != nil {
+      return err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("authorization", "Bearer "+client_api_key)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Extensions struct {
+         Sdk struct {
+            Token Token
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   *t = result.Extensions.Sdk.Token
+   return nil
+}
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
@@ -46,42 +96,6 @@ func (s *Stream) FetchHls() (*Hls, error) {
       return nil, err
    }
    return &Hls{Body: body, Url: resp.Request.URL}, nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/entity-" + entity,
-         RawQuery: "limit=0",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Page Page
-      }
-      Errors []Error
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result.Data.Page, nil
 }
 
 // Response: Device
@@ -641,46 +655,6 @@ type Stream struct {
    Sources []struct {
       Complete struct {
          Url string
-      }
-   }
-}
-
-func (p *Page) String() string {
-   var data strings.Builder
-   if len(p.Containers[0].Seasons) >= 1 {
-      var line bool
-      for _, seasonItem := range p.Containers[0].Seasons {
-         if line {
-            data.WriteString("\n\n")
-         } else {
-            line = true
-         }
-         data.WriteString("name = ")
-         data.WriteString(seasonItem.Visuals.Name)
-         data.WriteString("\nid = ")
-         data.WriteString(seasonItem.Id)
-      }
-   } else {
-      data.WriteString(p.Actions[0].InternalTitle)
-   }
-   return data.String()
-}
-
-type Page struct {
-   Actions []struct {
-      InternalTitle string // movie
-   }
-   Containers []struct {
-      Seasons []struct { // series
-         Visuals struct {
-            Name string
-         }
-         Id string
-      }
-   }
-   Visuals struct {
-      Restriction struct {
-         Message string
       }
    }
 }
