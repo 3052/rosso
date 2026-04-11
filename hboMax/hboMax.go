@@ -13,6 +13,69 @@ import (
    "strings"
 )
 
+var Markets = []string{
+   "amer",
+   "apac",
+   "emea",
+   "latam",
+}
+
+func StRequest() (*http.Cookie, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com", // Refactored
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "st" {
+         return cookie, nil
+      }
+   }
+   return nil, http.ErrNoCookie
+}
+
+// Entity represents a single unified node in the Max API response
+type Entity struct {
+   Attributes struct {
+      Name          string
+      Alias         string
+      ShowType      string
+      VideoType     string
+      MaterialType  string
+      Description   string
+      SeasonNumber  int
+      EpisodeNumber int
+      AirDate       string
+   }
+   Id            string
+   Relationships struct {
+      Edit struct {
+         Data Resource
+      }
+      Items struct {
+         Data []Resource
+      }
+      Show struct {
+         Data Resource
+      }
+      Video struct {
+         Data Resource
+      }
+   }
+   Type string
+}
+
 func SearchResults(entities []*Entity) ([]*Entity, error) {
    // Pre-allocate map capacity for better performance
    entitiesMap := make(map[string]*Entity, len(entities))
@@ -58,53 +121,6 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    return results, nil
 }
 
-func (l Login) SearchRequest(query string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: queryParams.Encode(),
-   }
-   return l.entity_request(parsedUrl)
-}
-
-// Resource represents a relationship pointer in the JSON:API graph
-type Resource struct {
-   Id   string
-   Type string
-}
-
-// Entity represents a single unified node in the Max API response
-type Entity struct {
-   Attributes struct {
-      Name          string
-      Alias         string
-      ShowType      string
-      VideoType     string
-      MaterialType  string
-      Description   string
-      SeasonNumber  int
-      EpisodeNumber int
-      AirDate       string
-   }
-   Id            string
-   Relationships struct {
-      Edit struct {
-         Data Resource
-      }
-      Items struct {
-         Data []Resource
-      }
-      Show struct {
-         Data Resource
-      }
-      Video struct {
-         Data Resource
-      }
-   }
-   Type string
-}
-
 func (e *Error) Error() string {
    var data strings.Builder
    // 1. print code
@@ -127,6 +143,75 @@ type Error struct {
    Detail  string // 2026-04-10
    Message string // 2026-04-10
 }
+
+func (l Login) SearchRequest(query string) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("contentFilter[query]", query)
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/search/result",
+      RawQuery: queryParams.Encode(),
+   }
+   return l.entity_request(parsedUrl)
+}
+
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) DashRequest() (*Dash, error) {
+   resp, err := http.Get(
+      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+// Resource represents a relationship pointer in the JSON:API graph
+type Resource struct {
+   Id   string
+   Type string
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+
+///
 
 func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    // Scheme
@@ -391,87 +476,4 @@ func SeasonResults(entities []*Entity) []*Entity {
       return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
    })
    return results
-}
-
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) DashRequest() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-var Markets = []string{
-   "amer",
-   "apac",
-   "emea",
-   "latam",
-}
-
-func StRequest() (*http.Cookie, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com", // Refactored
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-device-info", device_info)
-   req.Header.Set("x-disco-client", disco_client)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "st" {
-         return cookie, nil
-      }
-   }
-   return nil, http.ErrNoCookie
 }
