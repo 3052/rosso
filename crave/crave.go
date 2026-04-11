@@ -14,19 +14,6 @@ import (
    _ "embed"
 )
 
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
-   Id int `json:"id,string"`
-}
-
 func (a *Account) FetchContentPackage(contentId int) (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
@@ -434,4 +421,16 @@ func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platfo
    }
 
    return &result, nil
+}
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+   Id int `json:"id,string"`
 }

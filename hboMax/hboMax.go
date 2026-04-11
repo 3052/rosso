@@ -45,6 +45,31 @@ func StRequest() (*http.Cookie, error) {
    return nil, http.ErrNoCookie
 }
 
+func MovieResults(entities []*Entity) []*Entity {
+   var movies []*Entity
+   for _, item := range entities {
+      // Identify the primary video entity for the movie
+      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
+         movies = append(movies, item)
+      }
+   }
+   return movies
+}
+
+func SeasonResults(entities []*Entity) []*Entity {
+   var results []*Entity
+   for _, item := range entities {
+      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
+         results = append(results, item)
+      }
+   }
+   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
+   slices.SortFunc(results, func(entityA, entityB *Entity) int {
+      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
+   })
+   return results
+}
+
 // Entity represents a single unified node in the Max API response
 type Entity struct {
    Attributes struct {
@@ -142,6 +167,57 @@ type Error struct {
    Code    string // 2026-04-10
    Detail  string // 2026-04-10
    Message string // 2026-04-10
+}
+
+func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   req.Header.Set("x-device-info", device_info)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+func (l Login) PlayReadyRequest(editId string) (*Playback, error) {
+   return l.playback_request(editId, "playready")
+}
+
+func (l Login) WidevineRequest(editId string) (*Playback, error) {
+   return l.playback_request(editId, "widevine")
+}
+
+func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
+   queryParams := url.Values{}
+   queryParams.Set("pf[show.id]", showId)
+   queryParams.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
+   parsedUrl := &url.URL{
+      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+      RawQuery: queryParams.Encode(),
+   }
+   return l.entity_request(parsedUrl)
 }
 
 func (l Login) SearchRequest(query string) ([]*Entity, error) {
@@ -400,80 +476,4 @@ func (l Login) MovieRequest(showId string) ([]*Entity, error) {
       RawQuery: queryParams.Encode(),
    }
    return l.entity_request(parsedUrl)
-}
-
-func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   req.Header.Set("x-device-info", device_info)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-func (l Login) PlayReadyRequest(editId string) (*Playback, error) {
-   return l.playback_request(editId, "playready")
-}
-
-func (l Login) WidevineRequest(editId string) (*Playback, error) {
-   return l.playback_request(editId, "widevine")
-}
-
-func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("pf[show.id]", showId)
-   queryParams.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
-   parsedUrl := &url.URL{
-      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: queryParams.Encode(),
-   }
-   return l.entity_request(parsedUrl)
-}
-
-func MovieResults(entities []*Entity) []*Entity {
-   var movies []*Entity
-   for _, item := range entities {
-      // Identify the primary video entity for the movie
-      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
-         movies = append(movies, item)
-      }
-   }
-   return movies
-}
-
-func SeasonResults(entities []*Entity) []*Entity {
-   var results []*Entity
-   for _, item := range entities {
-      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         results = append(results, item)
-      }
-   }
-   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
-   slices.SortFunc(results, func(entityA, entityB *Entity) int {
-      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
-   })
-   return results
 }

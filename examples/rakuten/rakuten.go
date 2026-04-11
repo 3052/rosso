@@ -7,34 +7,6 @@ import (
    "log"
 )
 
-func main() {
-   log.SetFlags(log.Ltime)
-   // server checks location on all requests
-   maya.SetProxy("", "*.isma", "*.ismv")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Content *rakuten.Content
-   Dash    *rakuten.Dash
-   //-------------------
-   Job maya.Job
-   //-------------------
-   address string
-   //-------------------
-   season string
-   //-------------------
-   Language string
-   Episode  string
-   //-------------------
-   dash_id string
-}
-
 func (c *client) do() error {
    err := cache.Setup("rosso/rakuten.xml")
    if err != nil {
@@ -42,6 +14,8 @@ func (c *client) do() error {
    }
    with_cache := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
@@ -55,8 +29,14 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
+   err = maya.SetProxy(c.Proxy, "*.isma", "*.ismv")
+   if err != nil {
+      return err
+   }
    switch {
    case widevine.IsSet:
+      return cache.Write(c)
+   case proxy.IsSet:
       return cache.Write(c)
    case address.IsSet:
       return c.do_address()
@@ -69,12 +49,15 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
+      {proxy},
       {address},
       {season},
       {language, episode},
       {dash_id},
    })
 }
+
+var cache maya.Cache
 
 func (c *client) do_address() error {
    var err error
@@ -139,4 +122,30 @@ func (c *client) do_dash_id() error {
       return err
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, stream.Widevine)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Content *rakuten.Content
+   Dash    *rakuten.Dash
+   //-------------------
+   Job maya.Job
+   //-------------------
+   Proxy string
+   //-------------------
+   address string
+   //-------------------
+   season string
+   //-------------------
+   Language string
+   Episode  string
+   //-------------------
+   dash_id string
 }
