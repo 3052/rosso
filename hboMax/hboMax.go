@@ -13,6 +13,29 @@ import (
    "strings"
 )
 
+type Error struct {
+   Code    string // 2026-04-10
+   Detail  string // 2026-04-10
+   Message string // 2026-04-10
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   // 1. print code
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   // 2, 3, 4. if detail print detail, if message print message, if both print
+   // one
+   if e.Detail != "" {
+      data.WriteString("\ndetail = ")
+      data.WriteString(e.Detail)
+   } else if e.Message != "" {
+      data.WriteString("\nmessage = ")
+      data.WriteString(e.Message)
+   }
+   return data.String()
+}
+
 func (l *Login) playback_request(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -89,7 +112,7 @@ type Playback struct {
          Widevine  *Scheme
       }
    }
-   Errors []Error
+   Errors   []Error
    Fallback struct {
       Manifest struct {
          Url string // _fallback.mpd:1080p, .mpd:4K
@@ -139,6 +162,7 @@ func LoginRequest(st *http.Cookie) (*Login, error) {
 type Login struct {
    Token string
 }
+
 func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    // Scheme
    endpoint.Scheme = "https"
@@ -159,7 +183,7 @@ func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    }
    defer resp.Body.Close()
    var result struct {
-      Errors []Error
+      Errors   []Error
       Included []*Entity `json:"included"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
@@ -171,26 +195,6 @@ func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
    }
    return result.Included, nil
 }
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   if e.Detail != "" {
-      data.WriteString("\ndetail = ")
-      data.WriteString(e.Detail)
-   }
-   if e.Message != "" {
-      data.WriteString("\nmessage = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-type Error struct {
-   Code string // 2026-04-10
-   Detail string // 2026-04-10
-   Message string // 2026-04-10
-}
 
 func (l Login) MovieRequest(showId string) ([]*Entity, error) {
    queryParams := url.Values{}
@@ -200,82 +204,6 @@ func (l Login) MovieRequest(showId string) ([]*Entity, error) {
       RawQuery: queryParams.Encode(),
    }
    return l.entity_request(parsedUrl)
-}
-
-// Entity represents a single unified node in the Max API response.
-type Entity struct {
-   Attributes struct {
-      Name          string `json:"name"`
-      Alias         string `json:"alias"`
-      ShowType      string `json:"showType"`
-      VideoType     string `json:"videoType"`
-      MaterialType  string `json:"materialType"`
-      Description   string `json:"description"`
-      SeasonNumber  int    `json:"seasonNumber"`
-      EpisodeNumber int    `json:"episodeNumber"`
-      AirDate       string `json:"airDate"`
-   }
-   Id            string `json:"id"`
-   Relationships struct {
-      Edit struct {
-         Data Resource `json:"data"`
-      } `json:"edit"`
-      Items struct {
-         Data []Resource `json:"data"`
-      } `json:"items"`
-      Show struct {
-         Data Resource `json:"data"`
-      } `json:"show"`
-      Video struct {
-         Data Resource `json:"data"`
-      } `json:"video"`
-   } `json:"relationships"`
-   Type string `json:"type"`
-}
-
-func SearchResults(entities []*Entity) ([]*Entity, error) {
-   entitiesMap := make(map[string]*Entity)
-   for _, entity := range entities {
-      entitiesMap[entity.Id] = entity
-   }
-
-   var searchResultsCollection *Entity
-   for _, entity := range entities {
-      if entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = entity
-         break
-      }
-   }
-
-   if searchResultsCollection == nil {
-      return nil, fmt.Errorf("could not find the search results collection in the response payload")
-   }
-
-   var results []*Entity
-   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
-      colItem, exists := entitiesMap[itemRes.Id]
-      if !exists {
-         continue
-      }
-
-      targetId := colItem.Relationships.Show.Data.Id
-      if targetId == "" {
-         targetId = colItem.Relationships.Video.Data.Id
-      }
-
-      if targetId == "" {
-         continue
-      }
-
-      mediaEntity, exists := entitiesMap[targetId]
-      if !exists {
-         continue
-      }
-
-      // Append the actual show/movie entity
-      results = append(results, mediaEntity)
-   }
-   return results, nil
 }
 
 func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
@@ -316,16 +244,6 @@ func (l *Login) PlayReadyRequest(editId string) (*Playback, error) {
 
 func (l *Login) WidevineRequest(editId string) (*Playback, error) {
    return l.playback_request(editId, "widevine")
-}
-
-func (l Login) SearchRequest(query string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: queryParams.Encode(),
-   }
-   return l.entity_request(parsedUrl)
 }
 
 // Resource represents a relationship pointer in the JSON:API graph.
