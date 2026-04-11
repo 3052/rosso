@@ -13,30 +13,7 @@ import (
    "strings"
 )
 
-type Error struct {
-   Code    string // 2026-04-10
-   Detail  string // 2026-04-10
-   Message string // 2026-04-10
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   // 1. print code
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   // 2, 3, 4. if detail print detail, if message print message, if both print
-   // one
-   if e.Detail != "" {
-      data.WriteString("\ndetail = ")
-      data.WriteString(e.Detail)
-   } else if e.Message != "" {
-      data.WriteString("\nmessage = ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-func (l *Login) playback_request(edit_id, drm string) (*Playback, error) {
+func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
       "consumptionType":      "streaming",
@@ -159,43 +136,6 @@ func LoginRequest(st *http.Cookie) (*Login, error) {
    return &result.Data.Attributes, nil
 }
 
-type Login struct {
-   Token string
-}
-
-func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   queryParams := endpoint.Query()
-   queryParams.Set("include", "default")
-   endpoint.RawQuery = queryParams.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors   []Error
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return result.Included, nil
-}
-
 func (l Login) MovieRequest(showId string) ([]*Entity, error) {
    queryParams := url.Values{}
    queryParams.Set("page[items.size]", "1")
@@ -238,18 +178,12 @@ func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
    return &result.Data.Attributes, nil
 }
 
-func (l *Login) PlayReadyRequest(editId string) (*Playback, error) {
+func (l Login) PlayReadyRequest(editId string) (*Playback, error) {
    return l.playback_request(editId, "playready")
 }
 
-func (l *Login) WidevineRequest(editId string) (*Playback, error) {
+func (l Login) WidevineRequest(editId string) (*Playback, error) {
    return l.playback_request(editId, "widevine")
-}
-
-// Resource represents a relationship pointer in the JSON:API graph.
-type Resource struct {
-   Id   string `json:"id"`
-   Type string `json:"type"`
 }
 
 func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
