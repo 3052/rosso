@@ -136,7 +136,6 @@ func RegisterDevice() (*Token, error) {
             Token Token
          }
       }
-      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
@@ -233,7 +232,6 @@ func (t *Token) FetchLogin(email, password string) (*Login, error) {
       Data struct {
          Login Login
       }
-      Errors     []Error
       Extensions struct {
          Sdk struct {
             Token Token
@@ -282,7 +280,6 @@ func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
       Data struct {
          RequestOtp RequestOtp
       }
-      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
@@ -324,7 +321,6 @@ func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOt
       Data struct {
          AuthenticateWithOtp AuthenticateWithOtp
       }
-      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
@@ -465,7 +461,6 @@ func (t *Token) FetchStream(mediaId string) (*Stream, error) {
    }
    defer resp.Body.Close()
    var result struct {
-      Errors []Error
       Stream Stream
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
@@ -536,22 +531,6 @@ func (t *Token) String() string {
       data.WriteString(t.RefreshToken)
    }
    return data.String()
-}
-
-///
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription = ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
-type Error struct {
-   Code        string // 2026-04-05
-   Description string // 2026-04-05
 }
 
 // ZGlzbmV5JmJyb3dzZXImMS4wLjA

@@ -29,16 +29,16 @@ func (t *Token) FetchPage(entity string) (*Page, error) {
    defer resp.Body.Close()
    var result struct {
       Data struct {
+         Errors []Error // 2026-04-11
          Page Page
       }
-      Errors []Error
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
    }
    return &result.Data.Page, nil
 }
@@ -81,4 +81,17 @@ type Page struct {
          Message string
       }
    }
+}
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription = ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+type Error struct {
+   Code        string // 2026-04-05
+   Description string // 2026-04-05
 }
