@@ -7,6 +7,33 @@ import (
    "log"
 )
 
+func (c *client) do_media_id() error {
+   stream, err := c.Token.FetchStream(c.media)
+   if err != nil {
+      return err
+   }
+   c.Hls, err = stream.FetchHls()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListHls(c.Hls.Body, c.Hls.Url)
+}
+
+func (c *client) do_refresh() error {
+   err := disney.RefreshToken(c.Token)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_hls_id() error {
+   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.PlayReady)
+}
 func main() {
    maya.SetProxy("", "*.mp4", "*.mp4a")
    log.SetFlags(log.Ltime)
@@ -138,9 +165,8 @@ func (c *client) do_profile_id() error {
    }
    return cache.Write(c)
 }
-
 func (c *client) do_address() error {
-   entity, err := disney.GetEntity(c.address)
+   entity, err := disney.ParseEntity(c.address)
    if err != nil {
       return err
    }
@@ -151,40 +177,11 @@ func (c *client) do_address() error {
    fmt.Println(page)
    return nil
 }
-
 func (c *client) do_season_id() error {
-   season, err := c.Token.Season(c.season)
+   season, err := c.Token.FetchSeason(c.season)
    if err != nil {
       return err
    }
    fmt.Println(season)
    return nil
-}
-
-func (c *client) do_media_id() error {
-   stream, err := c.Token.Stream(c.media)
-   if err != nil {
-      return err
-   }
-   c.Hls, err = stream.Hls()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListHls(c.Hls.Body, c.Hls.Url)
-}
-
-func (c *client) do_refresh() error {
-   err := disney.RefreshToken(c.Token)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_hls_id() error {
-   return c.Job.DownloadHls(c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.PlayReady)
 }

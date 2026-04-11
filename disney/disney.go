@@ -11,277 +11,6 @@ import (
    _ "embed"
 )
 
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription = ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
-type Error struct {
-   Code        string // 2026-04-05
-   Description string // 2026-04-05
-}
-
-// ZGlzbmV5JmJyb3dzZXImMS4wLjA
-// disney&browser&1.0.0
-const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
-
-//go:embed authenticateWithOtp.gql
-var mutation_authenticate_with_otp string
-
-//go:embed loginWithActionGrant.gql
-var mutation_login_with_action_grant string
-
-//go:embed registerDevice.gql
-var mutation_register_device string
-
-//go:embed login.gql
-var mutation_login string
-
-//go:embed requestOtp.gql
-var mutation_request_otp string
-
-//go:embed refreshToken.gql
-var mutation_refresh_token string
-
-//go:embed switchProfile.gql
-var mutation_switch_profile string
-
-type AuthenticateWithOtp struct {
-   ActionGrant string
-}
-
-type Hls struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Login struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-type LoginWithActionGrant struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name = ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Profile struct {
-   Name string
-   Id   string
-}
-
-type RequestOtp struct {
-   Accepted bool
-}
-
-func (s Season) String() string {
-   var (
-      data strings.Builder
-      line bool
-   )
-   for _, item := range s.Items {
-      for _, action := range item.Actions {
-         if line {
-            data.WriteByte('\n')
-         } else {
-            line = true
-         }
-         data.WriteString(action.InternalTitle)
-      }
-   }
-   return data.String()
-}
-
-type Season struct {
-   Items []struct {
-      Actions []struct {
-         InternalTitle string
-      }
-   }
-}
-
-func (r *RequestOtp) String() string {
-   if r.Accepted {
-      return "accepted = true"
-   }
-   return "accepted = false"
-}
-
-type Stream struct {
-   Sources []struct {
-      Complete struct {
-         Url string
-      }
-   }
-}
-
-func (p *Page) String() string {
-   var data strings.Builder
-   if len(p.Containers[0].Seasons) >= 1 {
-      var line bool
-      for _, seasonItem := range p.Containers[0].Seasons {
-         if line {
-            data.WriteString("\n\n")
-         } else {
-            line = true
-         }
-         data.WriteString("name = ")
-         data.WriteString(seasonItem.Visuals.Name)
-         data.WriteString("\nid = ")
-         data.WriteString(seasonItem.Id)
-      }
-   } else {
-      data.WriteString(p.Actions[0].InternalTitle)
-   }
-   return data.String()
-}
-
-type Page struct {
-   Actions []struct {
-      InternalTitle string // movie
-   }
-   Containers []struct {
-      Seasons []struct { // series
-         Visuals struct {
-            Name string
-         }
-         Id string
-      }
-   }
-   Visuals struct {
-      Restriction struct {
-         Message string
-      }
-   }
-}
-
-///
-
-// request: Account
-func (t *Token) Page(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/entity-" + entity,
-         RawQuery: "limit=0",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Page Page
-      }
-      Errors []Error
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result.Data.Page, nil
-}
-
-// expires: 4 hours
-// request: Account
-func RefreshToken(refresh *Token) error {
-   if err := refresh.assert("Account"); err != nil {
-      return err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_refresh_token,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "refreshToken": refresh.RefreshToken,
-         },
-      },
-   })
-   if err != nil {
-      return err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("authorization", "Bearer "+client_api_key)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Extensions struct {
-         Sdk struct {
-            Token Token
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   *refresh = result.Extensions.Sdk.Token
-   return nil
-}
-
-func (s *Stream) Hls() (*Hls, error) {
-   resp, err := http.Get(s.Sources[0].Complete.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (t *Token) String() string {
-   var data strings.Builder
-   data.WriteString("type = ")
-   data.WriteString(t.AccessTokenType)
-   data.WriteString("\naccess token = ")
-   data.WriteString(t.AccessToken)
-   if t.RefreshToken != "" {
-      data.WriteString("\nrefresh token = ")
-      data.WriteString(t.RefreshToken)
-   }
-   return data.String()
-}
-
 // Response: Device
 func RegisterDevice() (*Token, error) {
    data, err := json.Marshal(map[string]any{
@@ -329,12 +58,6 @@ func RegisterDevice() (*Token, error) {
    return &result.Data.RegisterDevice.Token, nil
 }
 
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
-}
-
 // THIS REQUEST SETS THE LOCATION BASED ON YOUR IP
 // request: AccountWithoutActiveProfile
 // response: Account
@@ -380,7 +103,6 @@ func (t *Token) SwitchProfile(profileId string) error {
    *t = result.Extensions.Sdk.Token
    return nil
 }
-
 func (t *Token) assert(expected string) error {
    if t.AccessTokenType != expected {
       return errors.New("expected token type " + expected)
@@ -388,11 +110,9 @@ func (t *Token) assert(expected string) error {
    return nil
 }
 
-///
-
 // request: Device
 // response: AccountWithoutActiveProfile
-func (t *Token) Login(email, password string) (*Login, error) {
+func (t *Token) FetchLogin(email, password string) (*Login, error) {
    if err := t.assert("Device"); err != nil {
       return nil, err
    }
@@ -573,59 +293,8 @@ func (t *Token) LoginWithActionGrant(actionGrant string) (*LoginWithActionGrant,
    return &result.Data.LoginWithActionGrant, nil
 }
 
-// SL2000: 720p
-// SL3000: 2160p
 // request: Account
-func (t *Token) PlayReady(body []byte) ([]byte, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      "https://disney.playback.edge.bamgrid.com/playready/v1/obtain-license.asmx",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-// L1: 2160p
-// L3: 720p
-// request: Account
-func (t *Token) Widevine(body []byte) ([]byte, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-// request: Account
-func (t *Token) Season(id string) (*Season, error) {
+func (t *Token) FetchSeason(id string) (*Season, error) {
    if err := t.assert("Account"); err != nil {
       return nil, err
    }
@@ -655,9 +324,8 @@ func (t *Token) Season(id string) (*Season, error) {
    }
    return &result.Data.Season, nil
 }
-
 // request: Account
-func (t *Token) Stream(mediaId string) (*Stream, error) {
+func (t *Token) FetchStream(mediaId string) (*Stream, error) {
    if err := t.assert("Account"); err != nil {
       return nil, err
    }
@@ -718,10 +386,72 @@ func (t *Token) Stream(mediaId string) (*Stream, error) {
    return &result.Stream, nil
 }
 
+// SL2000 max: 720p
+// SL3000 max: 2160p
+// request: Account
+func (t *Token) FetchPlayReady(body []byte) ([]byte, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      "https://disney.playback.edge.bamgrid.com/playready/v1/obtain-license.asmx",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", t.AccessToken)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+// L3 max: 720p
+// request: Account
+func (t *Token) FetchWidevine(body []byte) ([]byte, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", t.AccessToken)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+func (t *Token) String() string {
+   var data strings.Builder
+   data.WriteString("type = ")
+   data.WriteString(t.AccessTokenType)
+   data.WriteString("\naccess token = ")
+   data.WriteString(t.AccessToken)
+   if t.RefreshToken != "" {
+      data.WriteString("\nrefresh token = ")
+      data.WriteString(t.RefreshToken)
+   }
+   return data.String()
+}
+
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func GetEntity(urlData string) (string, error) {
+func ParseEntity(urlData string) (string, error) {
    if strings.Contains(urlData, "/play/") {
       return "", errors.New("URL is a 'play' and not a 'browse'")
    }
@@ -737,4 +467,215 @@ func GetEntity(urlData string) (string, error) {
    }
    // The 'id' variable now holds the rest of the string after the marker.
    return id, nil
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription = ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+type Error struct {
+   Code        string // 2026-04-05
+   Description string // 2026-04-05
+}
+
+// ZGlzbmV5JmJyb3dzZXImMS4wLjA
+// disney&browser&1.0.0
+const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
+
+//go:embed authenticateWithOtp.gql
+var mutation_authenticate_with_otp string
+
+//go:embed loginWithActionGrant.gql
+var mutation_login_with_action_grant string
+
+//go:embed registerDevice.gql
+var mutation_register_device string
+
+//go:embed login.gql
+var mutation_login string
+
+//go:embed requestOtp.gql
+var mutation_request_otp string
+
+//go:embed refreshToken.gql
+var mutation_refresh_token string
+
+//go:embed switchProfile.gql
+var mutation_switch_profile string
+
+type AuthenticateWithOtp struct {
+   ActionGrant string
+}
+
+type Hls struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Login struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+type LoginWithActionGrant struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name = ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type Profile struct {
+   Name string
+   Id   string
+}
+
+type RequestOtp struct {
+   Accepted bool
+}
+
+func (s Season) String() string {
+   var (
+      data strings.Builder
+      line bool
+   )
+   for _, item := range s.Items {
+      for _, action := range item.Actions {
+         if line {
+            data.WriteByte('\n')
+         } else {
+            line = true
+         }
+         data.WriteString(action.InternalTitle)
+      }
+   }
+   return data.String()
+}
+
+type Season struct {
+   Items []struct {
+      Actions []struct {
+         InternalTitle string
+      }
+   }
+}
+
+func (r *RequestOtp) String() string {
+   if r.Accepted {
+      return "accepted = true"
+   }
+   return "accepted = false"
+}
+
+type Stream struct {
+   Sources []struct {
+      Complete struct {
+         Url string
+      }
+   }
+}
+
+func (p *Page) String() string {
+   var data strings.Builder
+   if len(p.Containers[0].Seasons) >= 1 {
+      var line bool
+      for _, seasonItem := range p.Containers[0].Seasons {
+         if line {
+            data.WriteString("\n\n")
+         } else {
+            line = true
+         }
+         data.WriteString("name = ")
+         data.WriteString(seasonItem.Visuals.Name)
+         data.WriteString("\nid = ")
+         data.WriteString(seasonItem.Id)
+      }
+   } else {
+      data.WriteString(p.Actions[0].InternalTitle)
+   }
+   return data.String()
+}
+
+type Page struct {
+   Actions []struct {
+      InternalTitle string // movie
+   }
+   Containers []struct {
+      Seasons []struct { // series
+         Visuals struct {
+            Name string
+         }
+         Id string
+      }
+   }
+   Visuals struct {
+      Restriction struct {
+         Message string
+      }
+   }
+}
+
+func (s *Stream) FetchHls() (*Hls, error) {
+   resp, err := http.Get(s.Sources[0].Complete.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Hls{Body: body, Url: resp.Request.URL}, nil
+}
+
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/entity-" + entity,
+         RawQuery: "limit=0",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+t.AccessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Page Page
+      }
+      Errors []Error
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return &result.Data.Page, nil
 }
