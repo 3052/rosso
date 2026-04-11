@@ -14,15 +14,15 @@ type Token struct {
 
 // expires: 4 hours
 // request: Account
-func RefreshToken(refresh *Token) error {
-   if err := refresh.assert("Account"); err != nil {
+func (t *Token) Refresh() error {
+   if err := t.assert("Account"); err != nil {
       return err
    }
    body, err := json.Marshal(map[string]any{
       "query": mutation_refresh_token,
       "variables": map[string]any{
          "input": map[string]string{
-            "refreshToken": refresh.RefreshToken,
+            "refreshToken": t.RefreshToken,
          },
       },
    })
@@ -53,6 +53,6 @@ func RefreshToken(refresh *Token) error {
    if err != nil {
       return err
    }
-   *refresh = result.Extensions.Sdk.Token
+   *t = result.Extensions.Sdk.Token
    return nil
 }
