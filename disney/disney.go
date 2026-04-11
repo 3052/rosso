@@ -11,6 +11,98 @@ import (
    _ "embed"
 )
 
+// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+func ParseEntity(urlData string) (string, error) {
+   if strings.Contains(urlData, "/play/") {
+      return "", errors.New("URL is a 'play' and not a 'browse'")
+   }
+   // The unique marker for the ID we want is "/browse/entity-".
+   const marker = "/browse/entity-"
+   // strings.Cut splits the string at the first instance of the marker.
+   // It returns the part before, the part after, and a boolean indicating if the marker was found.
+   // We don't need the 'before' part, so we discard it with the blank identifier _.
+   _, id, found := strings.Cut(urlData, marker)
+   // If the marker was not found, or if the resulting ID string is empty, return an error.
+   if !found || id == "" {
+      return "", errors.New("failed to find a valid ID in the URL")
+   }
+   // The 'id' variable now holds the rest of the string after the marker.
+   return id, nil
+}
+
+type Login struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+type LoginWithActionGrant struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name = ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type Profile struct {
+   Name string
+   Id   string
+}
+
+type RequestOtp struct {
+   Accepted bool
+}
+
+func (r *RequestOtp) String() string {
+   if r.Accepted {
+      return "accepted = true"
+   }
+   return "accepted = false"
+}
+
+func (s Season) String() string {
+   var (
+      data strings.Builder
+      line bool
+   )
+   for _, item := range s.Items {
+      for _, action := range item.Actions {
+         if line {
+            data.WriteByte('\n')
+         } else {
+            line = true
+         }
+         data.WriteString(action.InternalTitle)
+      }
+   }
+   return data.String()
+}
+
+type Season struct {
+   Items []struct {
+      Actions []struct {
+         InternalTitle string
+      }
+   }
+}
+
+type Stream struct {
+   Sources []struct {
+      Complete struct {
+         Url string
+      }
+   }
+}
+
 type Token struct {
    AccessTokenType string
    AccessToken     string
@@ -61,26 +153,8 @@ func (t *Token) Refresh() error {
    *t = result.Extensions.Sdk.Token
    return nil
 }
-// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func ParseEntity(urlData string) (string, error) {
-   if strings.Contains(urlData, "/play/") {
-      return "", errors.New("URL is a 'play' and not a 'browse'")
-   }
-   // The unique marker for the ID we want is "/browse/entity-".
-   const marker = "/browse/entity-"
-   // strings.Cut splits the string at the first instance of the marker.
-   // It returns the part before, the part after, and a boolean indicating if the marker was found.
-   // We don't need the 'before' part, so we discard it with the blank identifier _.
-   _, id, found := strings.Cut(urlData, marker)
-   // If the marker was not found, or if the resulting ID string is empty, return an error.
-   if !found || id == "" {
-      return "", errors.New("failed to find a valid ID in the URL")
-   }
-   // The 'id' variable now holds the rest of the string after the marker.
-   return id, nil
-}
+
+///
 
 func (s *Stream) FetchHls() (*Hls, error) {
    resp, err := http.Get(s.Sources[0].Complete.Url)
@@ -565,75 +639,4 @@ type AuthenticateWithOtp struct {
 type Hls struct {
    Body []byte
    Url  *url.URL
-}
-
-type Login struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-type LoginWithActionGrant struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name = ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Profile struct {
-   Name string
-   Id   string
-}
-
-type RequestOtp struct {
-   Accepted bool
-}
-
-func (s Season) String() string {
-   var (
-      data strings.Builder
-      line bool
-   )
-   for _, item := range s.Items {
-      for _, action := range item.Actions {
-         if line {
-            data.WriteByte('\n')
-         } else {
-            line = true
-         }
-         data.WriteString(action.InternalTitle)
-      }
-   }
-   return data.String()
-}
-
-type Season struct {
-   Items []struct {
-      Actions []struct {
-         InternalTitle string
-      }
-   }
-}
-
-func (r *RequestOtp) String() string {
-   if r.Accepted {
-      return "accepted = true"
-   }
-   return "accepted = false"
-}
-
-type Stream struct {
-   Sources []struct {
-      Complete struct {
-         Url string
-      }
-   }
 }
