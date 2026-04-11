@@ -30,7 +30,7 @@ func (t *Token) FetchPage(entity string) (*Page, error) {
    var result struct {
       Data struct {
          Errors []Error // 2026-04-11
-         Page Page
+         Page   Page
       }
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
@@ -82,6 +82,7 @@ type Page struct {
       }
    }
 }
+
 func (e *Error) Error() string {
    var data strings.Builder
    data.WriteString("code = ")

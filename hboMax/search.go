@@ -9,16 +9,16 @@ import (
 )
 
 func SearchResults(entities []*Entity) ([]*Entity, error) {
-   entitiesMap := make(map[string]*Entity)
+   // Pre-allocate map capacity for better performance
+   entitiesMap := make(map[string]*Entity, len(entities))
+   var searchResultsCollection *Entity
+
+   // Combine map building and target collection searching into a single loop
    for _, entity := range entities {
       entitiesMap[entity.Id] = entity
-   }
 
-   var searchResultsCollection *Entity
-   for _, entity := range entities {
-      if entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
+      if searchResultsCollection == nil && entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
          searchResultsCollection = entity
-         break
       }
    }
 

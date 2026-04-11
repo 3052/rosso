@@ -2,14 +2,39 @@ package disney
 
 import (
    "bytes"
+   _ "embed"
    "encoding/json"
    "errors"
    "io"
    "net/http"
    "net/url"
    "strings"
-   _ "embed"
 )
+
+// ZGlzbmV5JmJyb3dzZXImMS4wLjA
+// disney&browser&1.0.0
+const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
+
+//go:embed authenticateWithOtp.gql
+var mutation_authenticate_with_otp string
+
+//go:embed loginWithActionGrant.gql
+var mutation_login_with_action_grant string
+
+//go:embed registerDevice.gql
+var mutation_register_device string
+
+//go:embed login.gql
+var mutation_login string
+
+//go:embed requestOtp.gql
+var mutation_request_otp string
+
+//go:embed refreshToken.gql
+var mutation_refresh_token string
+
+//go:embed switchProfile.gql
+var mutation_switch_profile string
 
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
@@ -30,6 +55,15 @@ func ParseEntity(urlData string) (string, error) {
    }
    // The 'id' variable now holds the rest of the string after the marker.
    return id, nil
+}
+
+type AuthenticateWithOtp struct {
+   ActionGrant string
+}
+
+type Hls struct {
+   Body []byte
+   Url  *url.URL
 }
 
 type Login struct {
@@ -101,75 +135,6 @@ type Stream struct {
          Url string
       }
    }
-}
-
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
-}
-
-// expires: 4 hours
-// request: Account
-func (t *Token) Refresh() error {
-   if err := t.assert("Account"); err != nil {
-      return err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_refresh_token,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "refreshToken": t.RefreshToken,
-         },
-      },
-   })
-   if err != nil {
-      return err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("authorization", "Bearer "+client_api_key)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Extensions struct {
-         Sdk struct {
-            Token Token
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   *t = result.Extensions.Sdk.Token
-   return nil
-}
-
-///
-
-func (s *Stream) FetchHls() (*Hls, error) {
-   resp, err := http.Get(s.Sources[0].Complete.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
 }
 
 // Response: Device
@@ -607,36 +572,71 @@ func (t *Token) String() string {
    return data.String()
 }
 
-// ZGlzbmV5JmJyb3dzZXImMS4wLjA
-// disney&browser&1.0.0
-const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
-
-//go:embed authenticateWithOtp.gql
-var mutation_authenticate_with_otp string
-
-//go:embed loginWithActionGrant.gql
-var mutation_login_with_action_grant string
-
-//go:embed registerDevice.gql
-var mutation_register_device string
-
-//go:embed login.gql
-var mutation_login string
-
-//go:embed requestOtp.gql
-var mutation_request_otp string
-
-//go:embed refreshToken.gql
-var mutation_refresh_token string
-
-//go:embed switchProfile.gql
-var mutation_switch_profile string
-
-type AuthenticateWithOtp struct {
-   ActionGrant string
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
 }
 
-type Hls struct {
-   Body []byte
-   Url  *url.URL
+// expires: 4 hours
+// request: Account
+func (t *Token) Refresh() error {
+   if err := t.assert("Account"); err != nil {
+      return err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_refresh_token,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "refreshToken": t.RefreshToken,
+         },
+      },
+   })
+   if err != nil {
+      return err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("authorization", "Bearer "+client_api_key)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Extensions struct {
+         Sdk struct {
+            Token Token
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   *t = result.Extensions.Sdk.Token
+   return nil
+}
+
+///
+
+func (s *Stream) FetchHls() (*Hls, error) {
+   resp, err := http.Get(s.Sources[0].Complete.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Hls{Body: body, Url: resp.Request.URL}, nil
 }
