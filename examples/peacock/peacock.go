@@ -50,7 +50,7 @@ func (c *client) do() error {
 
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playout.Widevine,
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playout.FetchWidevine,
    )
 }
 
@@ -59,15 +59,15 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Playout, err = token.Playout(path.Base(c.address))
+   c.Playout, err = token.FetchPlayout(path.Base(c.address))
    if err != nil {
       return err
    }
-   endpoint, err := c.Playout.Fastly()
+   endpoint, err := c.Playout.GetFastly()
    if err != nil {
       return err
    }
-   c.Dash, err = endpoint.Dash()
+   c.Dash, err = endpoint.FetchDash()
    if err != nil {
       return err
    }
