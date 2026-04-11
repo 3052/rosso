@@ -1,5 +1,23 @@
 # crave.ca
 
+## PlayReady
+
+set user agent to Xbox One
+
+~~~
+save.har @shown oldflix.har
+~~~
+
+### How to include Authorization headers in Edge HAR exports:
+
+1. Open **Developer Tools** in Edge (Press `F12` or `Ctrl + Shift + I`).
+2. Open the DevTools **Settings** by clicking the **Gear icon ⚙️** in the
+   top-right corner of the Developer Tools pane (or simply press `F1` while
+   DevTools is focused).
+3. On the left sidebar, make sure you are in the **Preferences** tab.
+4. Scroll down until you find the **Network** section.
+5. Check the box next to **"Allow generating HAR with sensitive data"**.
+
 ## sharesub.com
 
 https://sharesub.com/en/brand/crave
@@ -48,4 +66,3 @@ YOU CANNOT LOGIN
 14. continue (again)
 
 if you choose debit card or gift card, the country must be canada
-
