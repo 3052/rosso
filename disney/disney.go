@@ -11,6 +11,125 @@ import (
    _ "embed"
 )
 
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code = ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription = ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+type Error struct {
+   Code        string // 2026-04-05
+   Description string // 2026-04-05
+}
+
+// ZGlzbmV5JmJyb3dzZXImMS4wLjA
+// disney&browser&1.0.0
+const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
+
+//go:embed authenticateWithOtp.gql
+var mutation_authenticate_with_otp string
+
+//go:embed loginWithActionGrant.gql
+var mutation_login_with_action_grant string
+
+//go:embed registerDevice.gql
+var mutation_register_device string
+
+//go:embed login.gql
+var mutation_login string
+
+//go:embed requestOtp.gql
+var mutation_request_otp string
+
+//go:embed refreshToken.gql
+var mutation_refresh_token string
+
+//go:embed switchProfile.gql
+var mutation_switch_profile string
+
+type AuthenticateWithOtp struct {
+   ActionGrant string
+}
+
+type Hls struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Login struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+type LoginWithActionGrant struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name = ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type Profile struct {
+   Name string
+   Id   string
+}
+
+type RequestOtp struct {
+   Accepted bool
+}
+
+func (s Season) String() string {
+   var (
+      data strings.Builder
+      line bool
+   )
+   for _, item := range s.Items {
+      for _, action := range item.Actions {
+         if line {
+            data.WriteByte('\n')
+         } else {
+            line = true
+         }
+         data.WriteString(action.InternalTitle)
+      }
+   }
+   return data.String()
+}
+
+type Season struct {
+   Items []struct {
+      Actions []struct {
+         InternalTitle string
+      }
+   }
+}
+
+func (r *RequestOtp) String() string {
+   if r.Accepted {
+      return "accepted = true"
+   }
+   return "accepted = false"
+}
+
+type Stream struct {
+   Sources []struct {
+      Complete struct {
+         Url string
+      }
+   }
+}
+
 func (p *Page) String() string {
    var data strings.Builder
    if len(p.Containers[0].Seasons) >= 1 {
@@ -50,6 +169,8 @@ type Page struct {
       }
    }
 }
+
+///
 
 // request: Account
 func (t *Token) Page(entity string) (*Page, error) {
@@ -130,20 +251,6 @@ func RefreshToken(refresh *Token) error {
    }
    *refresh = result.Extensions.Sdk.Token
    return nil
-}
-func (r *RequestOtp) String() string {
-   if r.Accepted {
-      return "accepted = true"
-   }
-   return "accepted = false"
-}
-
-type Stream struct {
-   Sources []struct {
-      Complete struct {
-         Url string
-      }
-   }
 }
 
 func (s *Stream) Hls() (*Hls, error) {
@@ -274,14 +381,14 @@ func (t *Token) SwitchProfile(profileId string) error {
    return nil
 }
 
-///
-
 func (t *Token) assert(expected string) error {
    if t.AccessTokenType != expected {
       return errors.New("expected token type " + expected)
    }
    return nil
 }
+
+///
 
 // request: Device
 // response: AccountWithoutActiveProfile
@@ -611,45 +718,6 @@ func (t *Token) Stream(mediaId string) (*Stream, error) {
    return &result.Stream, nil
 }
 
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription = ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
-type Error struct {
-   Code        string // 2026-04-05
-   Description string // 2026-04-05
-}
-
-// ZGlzbmV5JmJyb3dzZXImMS4wLjA
-// disney&browser&1.0.0
-const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
-
-//go:embed authenticateWithOtp.gql
-var mutation_authenticate_with_otp string
-
-//go:embed loginWithActionGrant.gql
-var mutation_login_with_action_grant string
-
-//go:embed registerDevice.gql
-var mutation_register_device string
-
-//go:embed login.gql
-var mutation_login string
-
-//go:embed requestOtp.gql
-var mutation_request_otp string
-
-//go:embed refreshToken.gql
-var mutation_refresh_token string
-
-//go:embed switchProfile.gql
-var mutation_switch_profile string
-
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
@@ -669,69 +737,4 @@ func GetEntity(urlData string) (string, error) {
    }
    // The 'id' variable now holds the rest of the string after the marker.
    return id, nil
-}
-
-type AuthenticateWithOtp struct {
-   ActionGrant string
-}
-
-type Hls struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Login struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-type LoginWithActionGrant struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name = ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type Profile struct {
-   Name string
-   Id   string
-}
-
-type RequestOtp struct {
-   Accepted bool
-}
-
-func (s Season) String() string {
-   var (
-      data strings.Builder
-      line bool
-   )
-   for _, item := range s.Items {
-      for _, action := range item.Actions {
-         if line {
-            data.WriteByte('\n')
-         } else {
-            line = true
-         }
-         data.WriteString(action.InternalTitle)
-      }
-   }
-   return data.String()
-}
-
-type Season struct {
-   Items []struct {
-      Actions []struct {
-         InternalTitle string
-      }
-   }
 }
