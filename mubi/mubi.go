@@ -12,6 +12,38 @@ import (
    "strings"
 )
 
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (l *LinkCode) FetchSession() (*Session, error) {
+   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Session{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 type SecureUrl struct {
    TextTrackUrls []struct {
       Id  string
@@ -21,10 +53,36 @@ type SecureUrl struct {
    UserMessage string `json:"user_message"`
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("user-agent", "Firefox")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SecureUrl
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.UserMessage != "" {
+      return nil, errors.New(result.UserMessage)
+   }
+   return &result, nil
 }
+
+///
 
 type LinkCode struct {
    AuthToken string `json:"auth_token"`
@@ -231,60 +289,4 @@ func (s *SecureUrl) FetchDash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   req.Header.Set("user-agent", "Firefox")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SecureUrl
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.UserMessage != "" {
-      return nil, errors.New(result.UserMessage)
-   }
-   return &result, nil
-}
-
-func (l *LinkCode) FetchSession() (*Session, error) {
-   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Session{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
