@@ -18,24 +18,19 @@ func main() {
    if err != nil {
       log.Fatalf("Error getting playback info: %v", err)
    }
-
    if len(playbackInfo.AvailableContentPackages) == 0 {
       log.Fatalf("No content packages available for this content.")
    }
-
    // We typically use the first available package matching our criteria (e.g., English)
    pkg := playbackInfo.AvailableContentPackages[0]
    packageID := fmt.Sprintf("%d", pkg.ID)
    destID := fmt.Sprintf("%d", pkg.DestinationID)
-
    fmt.Printf("Found Package ID: %s, Destination ID: %s\n", packageID, destID)
    fmt.Println("Fetching Stream Metadata...")
-
    streamInfo, err := GetStreamMeta(ContentID, packageID, destID, AccessToken)
    if err != nil {
       log.Fatalf("Error getting stream meta: %v", err)
    }
-
    fmt.Println("\n=== SUCCESS ===")
    fmt.Printf("MPD Playback URL:\n%s\n", streamInfo.Playback)
 }

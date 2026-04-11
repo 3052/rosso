@@ -7,6 +7,86 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   var err error
+   c.Media, err = crave.ParseMedia(c.address)
+   if err != nil {
+      return err
+   }
+   if c.Media.FirstContent.Id == 0 {
+      c.Media, err = crave.FetchMedia(c.Media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   c.ContentPackage, err = c.Account.FetchContentPackage(c.Media.FirstContent.Id)
+   if err != nil {
+      return err
+   }
+   manifest, err := c.ContentPackage.ManifestPlayReady(
+      c.Media.FirstContent.Id, c.Account.AccessToken,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = manifest.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+var cache maya.Cache
+
+func (c *client) do_profile() error {
+   err := c.Account.Login(c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := c.Account.FetchSubscriptions()
+   if err != nil {
+      return err
+   }
+   for i, sub := range subs {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&sub)
+   }
+   return cache.Write(c)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Account        *crave.Account
+   ContentPackage *crave.ContentPackage
+   Dash           *crave.Dash
+   Media          *crave.Media
+   //--------------------
+   Job maya.Job
+   //--------------------
+   Proxy string
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
+   //--------------------
+   dash_id string
+}
 func (c *client) do() error {
    err := cache.Setup("rosso/crave.xml")
    if err != nil {
@@ -95,85 +175,4 @@ func (c *client) do_dash_id() error {
       )
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, fetch)
-}
-
-func (c *client) do_address() error {
-   var err error
-   c.Media, err = crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if c.Media.FirstContent.Id == 0 {
-      c.Media, err = crave.FetchMedia(c.Media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   c.ContentPackage, err = c.Media.FetchContentPackage()
-   if err != nil {
-      return err
-   }
-   manifest, err := c.ContentPackage.ManifestPlayReady(
-      c.Media.FirstContent.Id, c.Account.AccessToken,
-   )
-   if err != nil {
-      return err
-   }
-   c.Dash, err = manifest.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-var cache maya.Cache
-
-func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
-   if err != nil {
-      return err
-   }
-   subs, err := c.Account.FetchSubscriptions()
-   if err != nil {
-      return err
-   }
-   for i, sub := range subs {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&sub)
-   }
-   return cache.Write(c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Account        *crave.Account
-   ContentPackage *crave.ContentPackage
-   Dash           *crave.Dash
-   Media          *crave.Media
-   //--------------------
-   Job maya.Job
-   //--------------------
-   Proxy string
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
-   //--------------------
-   dash_id string
 }

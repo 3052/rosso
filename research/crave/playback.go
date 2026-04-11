@@ -8,33 +8,17 @@ import (
    "net/http"
 )
 
-// PlaybackResponse maps only the necessary fields from the playback response JSON
-type PlaybackResponse struct {
-   AvailableContentPackages []struct {
-      ID            int `json:"id"`
-      DestinationID int `json:"destinationId"`
-   } `json:"availableContentPackages"`
-}
-
 // GetPlaybackInfo fetches content metadata to grab the Package and Destination IDs
 func GetPlaybackInfo(contentID, token string) (*PlaybackResponse, error) {
    url := fmt.Sprintf("https://playback.rte-api.bellmedia.ca/contents/%s", contentID)
-
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err
    }
-
    // Essential headers from HAR
-   req.Header.Set("accept", "*/*")
-   req.Header.Set("accept-language", "EN")
-   req.Header.Set("authorization", "Bearer "+token)
-   req.Header.Set("origin", "https://www.crave.ca")
-   req.Header.Set("referer", "https://www.crave.ca/")
-   req.Header.Set("user-agent", "Xbox One")
-   req.Header.Set("x-client-platform", "platform_jasper_html")
    req.Header.Set("x-playback-language", "EN")
-
+   req.Header.Set("x-client-platform", "platform_jasper_html")
+   req.Header.Set("authorization", "Bearer "+token)
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -57,4 +41,11 @@ func GetPlaybackInfo(contentID, token string) (*PlaybackResponse, error) {
    }
 
    return &playResp, nil
+}
+// PlaybackResponse maps only the necessary fields from the playback response JSON
+type PlaybackResponse struct {
+   AvailableContentPackages []struct {
+      ID            int `json:"id"`
+      DestinationID int `json:"destinationId"`
+   } `json:"availableContentPackages"`
 }
