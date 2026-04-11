@@ -137,6 +137,22 @@ type Stream struct {
    }
 }
 
+func (s *Stream) FetchHls() (*Hls, error) {
+   resp, err := http.Get(s.Sources[0].Complete.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Hls{Body: body, Url: resp.Request.URL}, nil
+}
+
 // Response: Device
 func RegisterDevice() (*Token, error) {
    data, err := json.Marshal(map[string]any{
@@ -621,22 +637,4 @@ func (t *Token) Refresh() error {
    }
    *t = result.Extensions.Sdk.Token
    return nil
-}
-
-///
-
-func (s *Stream) FetchHls() (*Hls, error) {
-   resp, err := http.Get(s.Sources[0].Complete.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
 }

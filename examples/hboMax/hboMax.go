@@ -18,6 +18,8 @@ func (c *client) do() error {
    //-------------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-------------------------------------------------------------
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //-------------------------------------------------------------
    initiate := maya.BoolFlag("i", "initiate")
    market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
    //-------------------------------------------------------------
@@ -45,6 +47,9 @@ func (c *client) do() error {
    if proxy.IsSet {
       return cache.Write(c)
    }
+   if threads.IsSet {
+      return cache.Write(c)
+   }
    if initiate.IsSet {
       if market.IsSet {
          return c.do_initiate()
@@ -68,6 +73,7 @@ func (c *client) do() error {
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
       {proxy},
+      {threads},
       {initiate, market},
       {login},
       {search},

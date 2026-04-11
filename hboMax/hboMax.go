@@ -13,6 +13,30 @@ import (
    "strings"
 )
 
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL = ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code = ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
+
 func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -100,10 +124,7 @@ type Playback struct {
    }
 }
 
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
+///
 
 // you must
 // /authentication/linkDevice/initiate
@@ -332,23 +353,4 @@ func StRequest() (*http.Cookie, error) {
       }
    }
    return nil, http.ErrNoCookie
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL = ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
 }
