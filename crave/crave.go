@@ -14,48 +14,29 @@ import (
    "strings"
 )
 
-func FetchMedia(id int) (*Media, error) {
-   body, err := marshal(map[string]any{
-      "query": get_showpage,
-      "variables": map[string]any{
-         "sessionContext": map[string]string{
-            "userLanguage": Language,
-            "userMaturity": "ADULT",
-         },
-         "ids": []string{strconv.Itoa(id)},
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   bearer := base64.StdEncoding.EncodeToString(
-      []byte(`{ "platform": "platform_web" }`),
-   )
-   req.Header.Set("Authorization", "Bearer "+bearer)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Medias []Media
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
-      return nil, errors.New("content ID not found in GraphQL response")
-   }
-   return &result.Data.Medias[0], nil
+// SL2000 max 2160p
+func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
 }
+
+// L3 max 720p
+func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
+}
+
+func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 1)
+}
+
+func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 48)
+}
+
+type ContentPackage struct {
+   DestinationId int
+   Id            int
+}
+
 func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
    req := http.Request{
       URL: &url.URL{
@@ -188,6 +169,51 @@ func (m *Media) FetchContentPackage() (*ContentPackage, error) {
    }
    return &result.ContentPackage, nil
 }
+
+func FetchMedia(id int) (*Media, error) {
+   body, err := marshal(map[string]any{
+      "query": get_showpage,
+      "variables": map[string]any{
+         "sessionContext": map[string]string{
+            "userLanguage": Language,
+            "userMaturity": "ADULT",
+         },
+         "ids": []string{strconv.Itoa(id)},
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://rte-api.bellmedia.ca/graphql", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   bearer := base64.StdEncoding.EncodeToString(
+      []byte(`{ "platform": "platform_web" }`),
+   )
+   req.Header.Set("Authorization", "Bearer "+bearer)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Medias []Media
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if len(result.Data.Medias) == 0 || result.Data.Medias[0].FirstContent.Id == 0 {
+      return nil, errors.New("content ID not found in GraphQL response")
+   }
+   return &result.Data.Medias[0], nil
+}
+
+///
 
 func (p *Profile) String() string {
    var data strings.Builder
@@ -354,27 +380,4 @@ func (a *Account) Login(profileId string) error {
       return fmt.Errorf("profile login failed with: %v", resp.Status)
    }
    return json.NewDecoder(resp.Body).Decode(a)
-}
-
-// SL2000 max 2160p
-func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
-}
-
-// L3 max 720p
-func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
-}
-
-func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 1)
-}
-
-func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 48)
-}
-
-type ContentPackage struct {
-   Id            int
-   DestinationId int
 }

@@ -99,6 +99,7 @@ type Entity struct {
    }
    Type string
 }
+
 func (e *Error) Error() string {
    var data strings.Builder
    // 1. print code
