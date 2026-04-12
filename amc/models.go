@@ -1,6 +1,14 @@
 package amc
 
-import "fmt"
+import (
+   "fmt"
+   "net/url"
+)
+
+type Dash struct {
+   Body []byte
+   Url *url.URL
+}
 
 // AuthData represents the inner payload of authentication responses.
 type AuthData struct {

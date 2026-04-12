@@ -7,9 +7,9 @@ import (
    "net/http"
 )
 
-func Playback(authToken, videoID string) (*PlaybackResult, error) {
-   url := fmt.Sprintf("https://gw.cds.amcn.com/playback-id/api/v1/playback/%s", videoID)
-
+func Playback(authToken string, videoID int) (*PlaybackResult, error) {
+   url := fmt.Sprintf("https://gw.cds.amcn.com/playback-id/api/v1/playback/%d", videoID)
+   
    payload := []byte(`{"adtags":{"lat":0,"mode":"on-demand","playerHeight":0,"playerWidth":0,"ppid":0,"url":"-"}}`)
 
    req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))

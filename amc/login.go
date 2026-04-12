@@ -7,7 +7,9 @@ import (
    "net/http"
 )
 
-func Login(unauthToken, email, password string) (*AuthData, error) {
+// Login authenticates the user. It requires the guest token (access_token) 
+// retrieved from calling the Unauth() function.
+func Login(guestToken, email, password string) (*AuthData, error) {
    body := map[string]string{
       "email":    email,
       "password": password,
@@ -22,7 +24,7 @@ func Login(unauthToken, email, password string) (*AuthData, error) {
       return nil, err
    }
 
-   req.Header.Set("authorization", "Bearer "+unauthToken)
+   req.Header.Set("authorization", "Bearer "+guestToken)
    req.Header.Set("content-type", "application/json")
    req.Header.Set("x-amcn-language", "en")
    req.Header.Set("x-amcn-network", "amcplus")

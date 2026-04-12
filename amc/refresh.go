@@ -8,9 +8,9 @@ import (
    "net/http"
 )
 
-func SeasonEpisodes(authToken, seasonID string) (*ContentNode, error) {
-   url := fmt.Sprintf("https://gw.cds.amcn.com/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/%s", seasonID)
-
+func SeasonEpisodes(authToken string, seasonID int) (*ContentNode, error) {
+   url := fmt.Sprintf("https://gw.cds.amcn.com/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/%d", seasonID)
+   
    req, err := http.NewRequest(http.MethodGet, url, nil)
    if err != nil {
       return nil, err
@@ -45,6 +45,7 @@ func SeasonEpisodes(authToken, seasonID string) (*ContentNode, error) {
 
    return &envelope.Data, nil
 }
+
 func License(licenseURL, bcovAuth string, challengePayload []byte) ([]byte, error) {
    req, err := http.NewRequest(http.MethodPost, licenseURL, bytes.NewReader(challengePayload))
    if err != nil {
@@ -66,6 +67,7 @@ func License(licenseURL, bcovAuth string, challengePayload []byte) ([]byte, erro
 
    return io.ReadAll(resp.Body)
 }
+
 func Refresh(refreshToken string) (*AuthData, error) {
    req, err := http.NewRequest(http.MethodPost, "https://gw.cds.amcn.com/auth-orchestration-id/api/v1/refresh", nil)
    if err != nil {

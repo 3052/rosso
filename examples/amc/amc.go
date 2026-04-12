@@ -7,76 +7,8 @@ import (
    "log"
 )
 
-func main() {
-   maya.SetProxy("", "*.m4f")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   BcJwt  string
-   AuthData *amc.AuthData
-   Dash   *amc.Dash
-   Source *amc.Source
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-   //------------------------
-   dash_id string
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.Client, err = amc.Unauth()
-   if err != nil {
-      return err
-   }
-   err = c.Client.Login(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_refresh() error {
-   err := c.Client.Refresh()
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_series() error {
-   series, err := c.Client.Series(c.series)
-   if err != nil {
-      return err
-   }
-   seasons, err := series.Seasons()
-   if err != nil {
-      return err
-   }
-   for i, season := range seasons {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(season)
-   }
-   return nil
-}
-
 func (c *client) do_season() error {
-   season, err := c.Client.Season(c.season)
+   season, err := c.AuthData.Season(c.season)
    if err != nil {
       return err
    }
@@ -94,7 +26,7 @@ func (c *client) do_season() error {
 }
 
 func (c *client) do_episode() error {
-   sources, header, err := c.Client.Playback(c.episode)
+   sources, header, err := c.AuthData.Playback(c.episode)
    if err != nil {
       return err
    }
@@ -180,3 +112,64 @@ func (c *client) do() error {
 }
 
 var cache maya.Cache
+func main() {
+   maya.SetProxy("", "*.m4f")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   BcJwt  string
+   AuthData *amc.AuthData
+   Dash   *amc.Dash
+   Source *amc.Source
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   series int
+   //------------------------
+   season int
+   //------------------------
+   episode int
+   //------------------------
+   dash_id string
+}
+func (c *client) do_email_password() error {
+   var err error
+   c.AuthData, err = amc.Unauth()
+   if err != nil {
+      return err
+   }
+   c.AuthData, err = amc.Login(c.AuthData.AccessToken, c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+func (c *client) do_refresh() error {
+   var err error
+   c.AuthData, err = amc.Refresh(c.AuthData.RefreshToken)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+func (c *client) do_series() error {
+   series, err := amc.SeriesDetail(c.AuthData.AccessToken, c.series)
+   if err != nil {
+      return err
+   }
+   for i, season := range series.SeasonsMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(season)
+   }
+   return nil
+}
