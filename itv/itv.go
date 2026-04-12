@@ -2,6 +2,7 @@ package itv
 
 import (
    "bytes"
+   _ "embed"
    "encoding/json"
    "errors"
    "fmt"
@@ -11,8 +12,24 @@ import (
    "net/url"
    "path"
    "strings"
-   _ "embed"
 )
+
+//go:embed ProgrammePage.gql
+var programme_page string
+
+func ParseLegacyId(urlData string) string {
+   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
+   base := path.Base(urlData)
+   // 2. Split the string by the character 'a'
+   parts := strings.Split(base, "a")
+   // 3. Join them back together with '/'
+   return strings.Join(parts, "/")
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
 
 func (m *MediaFile) FetchKeyService(data []byte) ([]byte, error) {
    req, err := http.NewRequest("POST", m.KeyServiceUrl, bytes.NewReader(data))
@@ -51,27 +68,6 @@ func (m *MediaFile) FetchDash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-func (p *Playlist) Get1080() (*MediaFile, error) {
-   for _, file := range p.Playlist.Video.MediaFiles {
-      if file.Resolution == "1080" {
-         return &file, nil
-      }
-   }
-   return nil, errors.New("1080p media file not found")
-}
-
-//go:embed ProgrammePage.gql
-var programme_page string
-
-func ParseLegacyId(urlData string) string {
-   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
-   base := path.Base(urlData)
-   // 2. Split the string by the character 'a'
-   parts := strings.Split(base, "a")
-   // 3. Join them back together with '/'
-   return strings.Join(parts, "/")
-}
-
 type Playlist struct {
    Error    string
    Playlist struct {
@@ -81,9 +77,13 @@ type Playlist struct {
    }
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+func (p *Playlist) Get1080() (*MediaFile, error) {
+   for _, file := range p.Playlist.Video.MediaFiles {
+      if file.Resolution == "1080" {
+         return &file, nil
+      }
+   }
+   return nil, errors.New("1080p media file not found")
 }
 
 type Title struct {

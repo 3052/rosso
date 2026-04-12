@@ -8,7 +8,7 @@ import (
 )
 
 func (c *client) do_playlist() error {
-   playlist, err := itv.FetchPlaylist(c.playlist)
+   playlist, err := itv.FetchWidevine(c.playlist)
    if err != nil {
       return err
    }
@@ -29,7 +29,7 @@ func (c *client) do_playlist() error {
 
 func (c *client) do_dash_id() error {
    return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.FetchWidevine,
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.FetchKeyService,
    )
 }
 
@@ -55,6 +55,7 @@ type client struct {
    //----------------------
    dash_id string
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/itv.xml")
    if err != nil {
@@ -100,6 +101,7 @@ func (c *client) do() error {
 }
 
 var cache maya.Cache
+
 func (c *client) do_address() error {
    titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address))
    if err != nil {

@@ -7,21 +7,32 @@ import (
    "net/http"
 )
 
+// FetchPlayReady fetches a playlist with PlayReady DRM requirements
+func FetchPlayReady(urlData string) (*Playlist, error) {
+   return fetchPlaylist(urlData, "playready", "SL3000")
+}
+
+// FetchWidevine fetches a playlist with Widevine DRM requirements
 func FetchWidevine(urlData string) (*Playlist, error) {
+   return fetchPlaylist(urlData, "widevine", "L3")
+}
+
+// fetchPlaylist is the common underlying function doing the heavy lifting
+func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
    data, err := json.Marshal(map[string]any{
       "client": map[string]string{
          "id": "browser",
       },
       "variantAvailability": map[string]any{
          "drm": map[string]string{
-            "maxSupported": "L3",
-            "system":       "widevine",
+            "maxSupported": maxSupported,
+            "system":       drmSystem,
          },
          "featureset": []string{ // need all these to get 720p
             "hd",
             "mpeg-dash",
             "single-track",
-            "widevine",
+            drmSystem, // Injects "playready" or "widevine"
          },
          "platformTag": "ctv", // 1080p
       },
@@ -41,8 +52,7 @@ func FetchWidevine(urlData string) (*Playlist, error) {
    }
    defer resp.Body.Close()
    var result Playlist
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
    if result.Error != "" {

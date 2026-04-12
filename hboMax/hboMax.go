@@ -205,6 +205,43 @@ func (l Login) PlayReadyRequest(editId string) (*Playback, error) {
    return l.playback_request(editId, "playready")
 }
 
+func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   queryParams := endpoint.Query()
+   queryParams.Set("include", "default")
+   endpoint.RawQuery = queryParams.Encode()
+   req := http.Request{
+      URL:    endpoint,
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Token)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Errors   []Error
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return result.Included, nil
+}
+
+type Login struct {
+   Token string
+}
+
 func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -416,43 +453,6 @@ type Scheme struct {
 }
 
 ///
-
-func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   queryParams := endpoint.Query()
-   queryParams.Set("include", "default")
-   endpoint.RawQuery = queryParams.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors   []Error
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return result.Included, nil
-}
-
-type Login struct {
-   Token string
-}
 
 const (
    disco_client = "!:!:beam:!"
