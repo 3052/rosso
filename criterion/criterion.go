@@ -10,23 +10,6 @@ import (
    "net/url"
 )
 
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href string // MPD
-      }
-   } `json:"_links"`
-   Method string
-}
-
 func (f *File) FetchDash() (*Dash, error) {
    resp, err := http.Get(f.Links.Source.Href)
    if err != nil {
@@ -182,4 +165,20 @@ func (t *Token) Refresh() error {
       return err
    }
    return t.AsError()
+}
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href string // MPD
+      }
+   } `json:"_links"`
+   Method string
 }
