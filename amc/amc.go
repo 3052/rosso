@@ -11,6 +11,19 @@ import (
    "strings"
 )
 
+func (s *Source) Dash() (*Dash, error) {
+   resp, err := http.Get(s.Src)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
 func BcJwt(header http.Header) string {
    return header.Get("x-amcn-bc-jwt")
 }
@@ -355,17 +368,4 @@ type Source struct {
    } `json:"key_systems"`
    Src  string // URL to the MPD manifest
    Type string // e.g., "application/dash+xml"
-}
-
-func (s *Source) Dash() (*Dash, error) {
-   resp, err := http.Get(s.Src)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }

@@ -10,6 +10,64 @@ import (
    "strings"
 )
 
+func (m *MediaLink) Dash() (*Dash, error) {
+   resp, err := http.Get(m.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Stream struct {
+   Error    string
+   Links    []MediaLink
+   NoAccess bool
+}
+
+// must run login first
+func FetchStream(session *http.Cookie, id int) (*Stream, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "www.cinemember.nl",
+         Path:     "/elements/films/stream.php",
+         RawQuery: "id=" + strconv.Itoa(id),
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(session)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Stream
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   if result.NoAccess {
+      return nil, errors.New("no access")
+   }
+   return &result, nil
+}
+
+func (s *Stream) Dash() (*MediaLink, error) {
+   for _, link := range s.Links {
+      if link.MimeType == "application/dash+xml" {
+         return &link, nil
+      }
+   }
+   return nil, errors.New("DASH link not found")
+}
 func FetchSession() (*http.Cookie, error) {
    req := http.Request{
       Method: "HEAD",
@@ -92,63 +150,4 @@ type Dash struct {
 type MediaLink struct {
    MimeType string
    Url      string
-}
-
-func (m *MediaLink) Dash() (*Dash, error) {
-   resp, err := http.Get(m.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Stream struct {
-   Error    string
-   Links    []MediaLink
-   NoAccess bool
-}
-
-// must run login first
-func FetchStream(session *http.Cookie, id int) (*Stream, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "www.cinemember.nl",
-         Path:     "/elements/films/stream.php",
-         RawQuery: "id=" + strconv.Itoa(id),
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(session)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Stream
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   if result.NoAccess {
-      return nil, errors.New("no access")
-   }
-   return &result, nil
-}
-
-func (s *Stream) Dash() (*MediaLink, error) {
-   for _, link := range s.Links {
-      if link.MimeType == "application/dash+xml" {
-         return &link, nil
-      }
-   }
-   return nil, errors.New("DASH link not found")
 }

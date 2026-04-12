@@ -10,6 +10,33 @@ import (
    "strconv"
 )
 
+func (v *VideoResource) Dash() (*Dash, error) {
+   resp, err := http.Get(v.Manifest.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type VideoResource struct {
+   LicenseServer *struct {
+      Url string
+   } `json:"license_server"`
+   Manifest struct {
+      Url string // MPD
+   }
+   Type string
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
 func FetchContent(id int) (*Content, error) {
    req := http.Request{
       URL: &url.URL{
@@ -66,32 +93,4 @@ func (v *VideoResource) Widevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-func (v *VideoResource) Dash() (*Dash, error) {
-   resp, err := http.Get(v.Manifest.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type VideoResource struct {
-   LicenseServer *struct {
-      Url string
-   } `json:"license_server"`
-   Manifest struct {
-      Url string // MPD
-   }
-   Type string
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
