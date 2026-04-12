@@ -13,6 +13,8 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
@@ -34,6 +36,8 @@ func (c *client) do() error {
       return err
    }
    switch {
+   case threads.IsSet:
+      return cache.Write(c)
    case widevine.IsSet:
       return cache.Write(c)
    case proxy.IsSet:
@@ -48,6 +52,7 @@ func (c *client) do() error {
       return with_cache(c.do_dash_id)
    }
    return maya.PrintFlags([][]*maya.Flag{
+      {threads},
       {widevine},
       {proxy},
       {address},
