@@ -130,7 +130,7 @@ type PlaybackData struct {
 
 type Source struct {
    Codecs     string     `json:"codecs"`
-   Src        string     `json:"src"`
+   Src        string     `json:"src"` // MPD
    Type       string     `json:"type"`
    KeySystems KeySystems `json:"key_systems"`
 }
@@ -155,17 +155,17 @@ type PlaybackResult struct {
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
    var metadata []*Metadata
 
-   var walk func(node *ContentNode)
-   walk = func(node *ContentNode) {
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
       if node.Type == "card" && node.Properties != nil && node.Properties.ContentType == "episode" && node.Properties.Metadata != nil {
          metadata = append(metadata, node.Properties.Metadata)
       }
-      for i := range node.Children {
-         walk(&node.Children[i])
+      for _, child := range node.Children {
+         walk(child)
       }
    }
 
-   walk(c)
+   walk(*c)
    return metadata
 }
 
@@ -174,30 +174,29 @@ func (c *ContentNode) EpisodesMetadata() []*Metadata {
 func (c *ContentNode) SeasonsMetadata() []*Metadata {
    var metadata []*Metadata
 
-   var walk func(node *ContentNode)
-   walk = func(node *ContentNode) {
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
       // Season tabs are identified by being a tab_bar_item with a valid season number
       if node.Type == "tab_bar_item" && node.Properties != nil && node.Properties.Metadata != nil && node.Properties.Metadata.SeasonNumber > 0 {
          metadata = append(metadata, node.Properties.Metadata)
       }
-      for i := range node.Children {
-         walk(&node.Children[i])
+      for _, child := range node.Children {
+         walk(child)
       }
    }
 
-   walk(c)
+   walk(*c)
    return metadata
 }
 
 // DashSource finds and returns the first Source with the type "application/dash+xml".
-// Returns nil if no DASH source is found.
-func (p *PlaybackData) DashSource() *Source {
-   for i := range p.PlaybackJsonData.Sources {
-      if p.PlaybackJsonData.Sources[i].Type == "application/dash+xml" {
-         return &p.PlaybackJsonData.Sources[i]
+func (p *PlaybackData) DashSource() (*Source, error) {
+   for _, src := range p.PlaybackJsonData.Sources {
+      if src.Type == "application/dash+xml" {
+         return &src, nil
       }
    }
-   return nil
+   return nil, fmt.Errorf("application/dash+xml source not found")
 }
 
 // String implements the fmt.Stringer interface for easy printing.
