@@ -18,6 +18,35 @@ import (
    "strings"
 )
 
+func (s *Session) FetchDash() (*Dash, error) {
+   resp, err := http.Get(s.StreamingUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (s *Session) Fetch(body []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.LsSession)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {
@@ -213,34 +242,4 @@ type Session struct {
    Message      string
    StreamingUrl string // MPD
    Url          string // License Server
-}
-
-func (s *Session) FetchDash() (*Dash, error) {
-   resp, err := http.Get(s.StreamingUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (s *Session) Fetch(body []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(body))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+s.LsSession)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
 }

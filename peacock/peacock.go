@@ -17,6 +17,71 @@ import (
    "time"
 )
 
+func (e *Endpoint) FetchDash() (*Dash, error) {
+   resp, err := http.Get(e.Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
+   body, err := json.Marshal(map[string]any{
+      "device": map[string]any{
+         "capabilities": []any{
+            map[string]string{
+               "acodec":     "AAC",
+               "container":  "ISOBMFF",
+               "protection": "WIDEVINE",
+               "transport":  "DASH",
+               "vcodec":     "H264",
+            },
+         },
+         "maxVideoFormat": "HD",
+      },
+      "personaParentalControlRating": 9,
+      // "contentId": "GMO_00000000261361_02_HDSDR",
+      "providerVariantId": variantId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://ovp.peacocktv.com/video/playouts/vod",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // `application/json` fails
+   req.Header.Set("content-type", "application/vnd.playvod.v1+json")
+   req.Header.Set("x-skyott-usertoken", t.UserToken)
+   req.Header.Set(
+      "x-sky-signature",
+      generate_sky_ott(req.Method, req.URL.Path, req.Header, body),
+   )
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playout
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Description != "" {
+      return nil, errors.New(result.Description)
+   }
+   return &result, nil
+}
+
+var Territory = "US"
 func FetchIdSession(user, password string) (*http.Cookie, error) {
    data := url.Values{
       "userIdentifier": {user},
@@ -146,8 +211,6 @@ func FetchToken(idSession *http.Cookie) (*Token, error) {
    return &result, nil
 }
 
-///
-
 type Endpoint struct {
    Cdn string
    Url string
@@ -244,69 +307,3 @@ func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
    }
    return io.ReadAll(resp.Body)
 }
-
-func (e *Endpoint) FetchDash() (*Dash, error) {
-   resp, err := http.Get(e.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
-   body, err := json.Marshal(map[string]any{
-      "device": map[string]any{
-         "capabilities": []any{
-            map[string]string{
-               "acodec":     "AAC",
-               "container":  "ISOBMFF",
-               "protection": "WIDEVINE",
-               "transport":  "DASH",
-               "vcodec":     "H264",
-            },
-         },
-         "maxVideoFormat": "HD",
-      },
-      "personaParentalControlRating": 9,
-      // "contentId": "GMO_00000000261361_02_HDSDR",
-      "providerVariantId": variantId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://ovp.peacocktv.com/video/playouts/vod",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // `application/json` fails
-   req.Header.Set("content-type", "application/vnd.playvod.v1+json")
-   req.Header.Set("x-skyott-usertoken", t.UserToken)
-   req.Header.Set(
-      "x-sky-signature",
-      generate_sky_ott(req.Method, req.URL.Path, req.Header, body),
-   )
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playout
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Description != "" {
-      return nil, errors.New(result.Description)
-   }
-   return &result, nil
-}
-
-var Territory = "US"

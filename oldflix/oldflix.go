@@ -10,6 +10,25 @@ import (
    "strings"
 )
 
+func (w *Watch) FetchHls() (*Hls, error) {
+   resp, err := http.Get(w.Playlist[0].File)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Hls{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Watch struct {
+   Message  string
+   Playlist []struct {
+      File string
+   }
+}
 const BaseUrl = "https://oldflix-api.azurewebsites.net"
 
 func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {
@@ -126,24 +145,4 @@ type Track struct {
    Id   string
    Lang string
    Lnk  string
-}
-
-func (w *Watch) FetchHls() (*Hls, error) {
-   resp, err := http.Get(w.Playlist[0].File)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Watch struct {
-   Message  string
-   Playlist []struct {
-      File string
-   }
 }

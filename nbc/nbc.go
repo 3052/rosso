@@ -17,6 +17,23 @@ import (
    "time"
 )
 
+func (s Stream) Dash() (*Dash, error) {
+   resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
 //go:embed page.gql
 var query_page string
 
@@ -159,22 +176,4 @@ func buildAuthQuery(drmType string) string {
       "hash":   {hash},
       "time":   {timestamp},
    }.Encode()
-}
-
-func (s Stream) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
