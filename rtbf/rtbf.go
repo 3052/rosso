@@ -10,6 +10,46 @@ import (
    "net/url"
 )
 
+func (f *FormatItem) Dash() (*Dash, error) {
+   resp, err := http.Get(f.MediaLocator)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Entitlement struct {
+   AssetId   string
+   Formats   []FormatItem
+   Message   string
+   PlayToken string
+}
+
+type FormatItem struct {
+   Format       string
+   MediaLocator string // MPD
+}
+
+// Dash finds the "DASH" format in the Entitlement's formats.
+// It returns the FormatItem if found, otherwise it returns an error.
+func (e *Entitlement) Dash() (*FormatItem, error) {
+   for _, format := range e.Formats {
+      if format.Format == "DASH" {
+         return &format, nil
+      }
+   }
+   return nil, errors.New("DASH format not found")
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
    req := http.Request{
       URL: &url.URL{
@@ -210,45 +250,4 @@ func FetchAccount(id, password string) (*Account, error) {
       return nil, errors.New(result.ErrorMessage)
    }
    return &result, nil
-}
-
-func (f *FormatItem) Dash() (*Dash, error) {
-   resp, err := http.Get(f.MediaLocator)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Entitlement struct {
-   AssetId   string
-   Formats   []FormatItem
-   Message   string
-   PlayToken string
-}
-
-type FormatItem struct {
-   Format       string
-   MediaLocator string // MPD
-}
-
-// Dash finds the "DASH" format in the Entitlement's formats.
-// It returns the FormatItem if found, otherwise it returns an error.
-func (e *Entitlement) Dash() (*FormatItem, error) {
-   for _, format := range e.Formats {
-      if format.Format == "DASH" {
-         return &format, nil
-      }
-   }
-   return nil, errors.New("DASH format not found")
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
