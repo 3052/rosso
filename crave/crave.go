@@ -2,6 +2,7 @@ package crave
 
 import (
    "bytes"
+   _ "embed"
    "encoding/base64"
    "encoding/json"
    "errors"
@@ -11,7 +12,6 @@ import (
    "net/url"
    "strconv"
    "strings"
-   _ "embed"
 )
 
 func (a *Account) FetchContentPackage(contentId int) (*ContentPackage, error) {
@@ -26,7 +26,7 @@ func (a *Account) FetchContentPackage(contentId int) (*ContentPackage, error) {
    req.Header.Set("x-playback-language", Language)
    // platform_jasper_html
    req.Header.Set("x-client-platform", "platform_jasper_web")
-   req.Header.Set("authorization", "Bearer " + a.AccessToken)
+   req.Header.Set("authorization", "Bearer "+a.AccessToken)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
@@ -384,6 +384,7 @@ type Manifest struct {
    Message  string
    Playback string
 }
+
 func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
    req := http.Request{
       URL: &url.URL{
@@ -422,6 +423,7 @@ func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platfo
 
    return &result, nil
 }
+
 type Account struct {
    AccessToken  string `json:"access_token"`
    AccountId    string `json:"account_id"`

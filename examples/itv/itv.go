@@ -15,6 +15,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
    playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
@@ -24,8 +26,14 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
+   err = maya.SetProxy(c.Proxy, "*.dash")
+   if err != nil {
+      return err
+   }
    switch {
    case widevine.IsSet:
+      return cache.Write(c)
+   case proxy.IsSet:
       return cache.Write(c)
    case address.IsSet:
       return c.do_address()
@@ -36,26 +44,11 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
+      proxy,
       address,
       playlist,
       dash_id,
    }})
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.Widevine,
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   // ALL REQUEST ARE GEO BLOCKED
-   maya.SetProxy("", "*.dash")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 var cache maya.Cache
@@ -94,11 +87,27 @@ func (c *client) do_playlist() error {
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
 }
 
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.Widevine,
+   )
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    Dash      *itv.Dash
    MediaFile *itv.MediaFile
    //----------------------
    Job maya.Job
+   //----------------------
+   Proxy string
    //----------------------
    address string
    //----------------------

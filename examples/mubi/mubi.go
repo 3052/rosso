@@ -99,6 +99,7 @@ func (c *client) do_code() error {
    fmt.Println(c.LinkCode)
    return cache.Write(c)
 }
+
 func (c *client) do_session() error {
    var err error
    c.Session, err = c.LinkCode.FetchSession()
