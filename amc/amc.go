@@ -11,6 +11,59 @@ import (
    "strings"
 )
 
+func (c *Client) Playback(id int) ([]Source, http.Header, error) {
+   data, err := json.Marshal(map[string]any{
+      "adtags": map[string]any{
+         "lat":          0,
+         "mode":         "on-demand",
+         "playerHeight": 0,
+         "playerWidth":  0,
+         "ppid":         0,
+         "url":          "-",
+      },
+   })
+   if err != nil {
+      return nil, nil, err
+   }
+   req, err := http.NewRequest(
+      "POST",
+      fmt.Sprint("https://gw.cds.amcn.com/playback-id/api/v1/playback/", id),
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("x-amcn-device-ad-id", "-")
+   req.Header.Set("x-amcn-language", "en")
+   req.Header.Set("x-amcn-network", "amcplus")
+   req.Header.Set("x-amcn-platform", "web")
+   req.Header.Set("x-amcn-service-id", "amcplus")
+   req.Header.Set("x-amcn-tenant", "amcn")
+   req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, nil, err
+   }
+   return result.Data.PlaybackJsonData.Sources, resp.Header, nil
+}
+
 type Client struct {
    Data struct {
       AccessToken  string `json:"access_token"`
@@ -108,60 +161,6 @@ func (c *Client) Series(id int) (*Series, error) {
       return nil, err
    }
    return &result.Data, nil
-}
-
-func (c *Client) Playback(id int) ([]Source, http.Header, error) {
-   data, err := json.Marshal(map[string]any{
-      "adtags": map[string]any{
-         "lat":          0,
-         "mode":         "on-demand",
-         "playerHeight": 0,
-         "playerWidth":  0,
-         "ppid":         0,
-         "url":          "-",
-      },
-   })
-   if err != nil {
-      return nil, nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      fmt.Sprint("https://gw.cds.amcn.com/playback-id/api/v1/playback/", id),
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+c.Data.AccessToken)
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("x-amcn-device-ad-id", "-")
-   req.Header.Set("x-amcn-language", "en")
-   req.Header.Set("x-amcn-network", "amcplus")
-   req.Header.Set("x-amcn-platform", "web")
-   req.Header.Set("x-amcn-service-id", "amcplus")
-   req.Header.Set("x-amcn-tenant", "amcn")
-   req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         PlaybackJsonData struct {
-            Sources []Source
-         }
-      }
-      Error string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, nil, err
-   }
-   if result.Error != "" {
-      return nil, nil, errors.New(result.Error)
-   }
-   return result.Data.PlaybackJsonData.Sources, resp.Header, nil
 }
 
 type Dash struct {
@@ -301,6 +300,7 @@ type Source struct {
    Src  string // URL to the MPD manifest
    Type string // e.g., "application/dash+xml"
 }
+
 func (c *Client) Refresh() error {
    req := http.Request{
       Method: "POST",
@@ -355,11 +355,9 @@ func (c *Client) Season(id int) (*Season, error) {
       return nil, err
    }
    defer resp.Body.Close()
-
    if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
-
    var result struct {
       Data Season
    }

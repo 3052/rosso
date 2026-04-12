@@ -7,69 +7,9 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/amc.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   email := maya.StringFlag(&c.email, "E", "email")
-   password := maya.StringFlag(&c.password, "P", "password")
-   //----------------------------------------------------------
-   refresh := maya.BoolFlag("r", "refresh")
-   //----------------------------------------------------------
-   series := maya.IntFlag(&c.series, "s", "series ID")
-   //----------------------------------------------------------
-   season := maya.IntFlag(&c.season, "S", "season ID")
-   //----------------------------------------------------------
-   episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if refresh.IsSet {
-      return with_cache(c.do_refresh)
-   }
-   if series.IsSet {
-      return with_cache(c.do_series)
-   }
-   if season.IsSet {
-      return with_cache(c.do_season)
-   }
-   if episode.IsSet {
-      return with_cache(c.do_episode)
-   }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {refresh},
-      {series},
-      {season},
-      {episode},
-      {dash_id},
-   })
-}
-
-var cache maya.Cache
-
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4f")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -181,3 +121,62 @@ func (c *client) do_dash_id() error {
       },
    )
 }
+func (c *client) do() error {
+   err := cache.Setup("rosso/amc.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   email := maya.StringFlag(&c.email, "E", "email")
+   password := maya.StringFlag(&c.password, "P", "password")
+   //----------------------------------------------------------
+   refresh := maya.BoolFlag("r", "refresh")
+   //----------------------------------------------------------
+   series := maya.IntFlag(&c.series, "s", "series ID")
+   //----------------------------------------------------------
+   season := maya.IntFlag(&c.season, "S", "season ID")
+   //----------------------------------------------------------
+   episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
+   //----------------------------------------------------------
+   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if refresh.IsSet {
+      return with_cache(c.do_refresh)
+   }
+   if series.IsSet {
+      return with_cache(c.do_series)
+   }
+   if season.IsSet {
+      return with_cache(c.do_season)
+   }
+   if episode.IsSet {
+      return with_cache(c.do_episode)
+   }
+   if dash_id.IsSet {
+      return with_cache(c.do_dash_id)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {email, password},
+      {refresh},
+      {series},
+      {season},
+      {episode},
+      {dash_id},
+   })
+}
+
+var cache maya.Cache
