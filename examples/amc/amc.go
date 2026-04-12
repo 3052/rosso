@@ -65,6 +65,37 @@ func (c *client) do() error {
    })
 }
 
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   maya.SetProxy("", "*.m4f")
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   BcJwt  string
+   Client *amc.Client
+   Dash   *amc.Dash
+   Source *amc.Source
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   series int
+   //------------------------
+   season int
+   //------------------------
+   episode int
+   //------------------------
+   dash_id string
+}
+
 func (c *client) do_email_password() error {
    var err error
    c.Client, err = amc.Unauth()
@@ -149,35 +180,4 @@ func (c *client) do_dash_id() error {
          return c.Source.Widevine(c.BcJwt, data)
       },
    )
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4f")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   BcJwt  string
-   Client *amc.Client
-   Dash   *amc.Dash
-   Source *amc.Source
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-   //------------------------
-   dash_id string
 }

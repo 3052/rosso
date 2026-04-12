@@ -10,6 +10,29 @@ import (
    "path"
 )
 
+func (p *Playlist) Dash() (*Dash, error) {
+   resp, err := http.Get(p.StreamUrl)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (p *Playlist) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.WvServer, "application/x-protobuf", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
 var deejay = []struct {
    resolution  string
    device_id   int
@@ -293,28 +316,4 @@ func (p *Playlist) PlayReady(data []byte) ([]byte, error) {
       return nil, errors.New(result.Message)
    }
    return data, nil
-}
-
-func (p *Playlist) Dash() (*Dash, error) {
-   resp, err := http.Get(p.StreamUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (p *Playlist) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.WvServer, "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }

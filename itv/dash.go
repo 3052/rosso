@@ -8,11 +8,6 @@ import (
    "strings"
 )
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
 func (m *MediaFile) FetchDash() (*Dash, error) {
    var err error
    http.DefaultClient.Jar, err = cookiejar.New(nil)
@@ -29,4 +24,9 @@ func (m *MediaFile) FetchDash() (*Dash, error) {
       return nil, err
    }
    return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
 }
