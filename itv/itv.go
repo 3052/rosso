@@ -1,7 +1,7 @@
 package itv
 
 import (
-   _ "embed"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
@@ -11,7 +11,45 @@ import (
    "net/url"
    "path"
    "strings"
+   _ "embed"
 )
+
+func (m *MediaFile) FetchKeyService(data []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", m.KeyServiceUrl, bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type MediaFile struct {
+   Href          string // MPD
+   KeyServiceUrl string // DRM
+   Resolution    string
+}
+
+func (m *MediaFile) FetchDash() (*Dash, error) {
+   var err error
+   http.DefaultClient.Jar, err = cookiejar.New(nil)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.Get(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
 
 func (p *Playlist) Get1080() (*MediaFile, error) {
    for _, file := range p.Playlist.Video.MediaFiles {
@@ -43,12 +81,6 @@ type Playlist struct {
    }
 }
 
-type MediaFile struct {
-   Href          string
-   KeyServiceUrl string
-   Resolution    string
-}
-
 type Dash struct {
    Body []byte
    Url  *url.URL
@@ -76,24 +108,6 @@ func (t *Title) String() string {
    }
    fmt.Fprint(data, "playlist = ", t.LatestAvailableVersion.PlaylistUrl)
    return data.String()
-}
-
-func (m *MediaFile) FetchDash() (*Dash, error) {
-   var err error
-   http.DefaultClient.Jar, err = cookiejar.New(nil)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.Get(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
 func FetchTitles(legacyId string) ([]Title, error) {
