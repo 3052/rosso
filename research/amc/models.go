@@ -1,5 +1,7 @@
 package amc
 
+import "fmt"
+
 // AuthData represents the inner payload of authentication responses.
 type AuthData struct {
    AccessToken  string `json:"access_token"`
@@ -19,16 +21,16 @@ type ContentNode struct {
 
 // Properties holds all possible strongly-typed properties found in the UI nodes.
 type Properties struct {
-   ID           string `json:"id,omitempty"`
-   PageType     string `json:"pageType,omitempty"`
-   ManifestType string `json:"manifestType,omitempty"`
-   CountryCode  string `json:"countryCode,omitempty"`
-   Mode         string `json:"mode,omitempty"`
-   Orientation  string `json:"orientation,omitempty"`
-   Layout       string `json:"layout,omitempty"`
-   Scrollable   bool   `json:"scrollable,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   Nid          int    `json:"nid,omitempty"`
+   ID           string        `json:"id,omitempty"`
+   PageType     string        `json:"pageType,omitempty"`
+   ManifestType string        `json:"manifestType,omitempty"`
+   CountryCode  string        `json:"countryCode,omitempty"`
+   Mode         string        `json:"mode,omitempty"`
+   Orientation  string        `json:"orientation,omitempty"`
+   Layout       string        `json:"layout,omitempty"`
+   Scrollable   bool          `json:"scrollable,omitempty"`
+   ContentType  string        `json:"contentType,omitempty"`
+   Nid          int           `json:"nid,omitempty"`
 
    Images       *Images       `json:"images,omitempty"`
    Metadata     *Metadata     `json:"metadata,omitempty"`
@@ -121,25 +123,99 @@ type Callback struct {
 // PlaybackData represents the inner streaming and DRM source data.
 type PlaybackData struct {
    PlaybackJsonData struct {
-      VideoID string `json:"id"`
-      Sources []struct {
-         Codecs     string `json:"codecs"`
-         Src        string `json:"src"`
-         Type       string `json:"type"`
-         KeySystems struct {
-            ComWidevineAlpha struct {
-               LicenseURL string `json:"license_url"`
-            } `json:"com.widevine.alpha"`
-            ComMicrosoftPlayready struct {
-               LicenseURL string `json:"license_url"`
-            } `json:"com.microsoft.playready"`
-         } `json:"key_systems"`
-      } `json:"sources"`
+      VideoID string   `json:"id"`
+      Sources []Source `json:"sources"`
    } `json:"playbackJsonData"`
+}
+
+type Source struct {
+   Codecs     string     `json:"codecs"`
+   Src        string     `json:"src"`
+   Type       string     `json:"type"`
+   KeySystems KeySystems `json:"key_systems"`
+}
+
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
 }
 
 // PlaybackResult groups the parsed playback data with the Brightcove JWT needed for DRM.
 type PlaybackResult struct {
    Data     PlaybackData
    BcovAuth string
+}
+
+// EpisodesMetadata recursively traverses the Server-Driven UI tree 
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node *ContentNode)
+   walk = func(node *ContentNode) {
+      if node.Type == "card" && node.Properties != nil && node.Properties.ContentType == "episode" && node.Properties.Metadata != nil {
+         metadata = append(metadata, node.Properties.Metadata)
+      }
+      for i := range node.Children {
+         walk(&node.Children[i])
+      }
+   }
+
+   walk(c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree 
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node *ContentNode)
+   walk = func(node *ContentNode) {
+      // Season tabs are identified by being a tab_bar_item with a valid season number
+      if node.Type == "tab_bar_item" && node.Properties != nil && node.Properties.Metadata != nil && node.Properties.Metadata.SeasonNumber > 0 {
+         metadata = append(metadata, node.Properties.Metadata)
+      }
+      for i := range node.Children {
+         walk(&node.Children[i])
+      }
+   }
+
+   walk(c)
+   return metadata
+}
+
+// DashSource finds and returns the first Source with the type "application/dash+xml".
+// Returns nil if no DASH source is found.
+func (p *PlaybackData) DashSource() *Source {
+   for i := range p.PlaybackJsonData.Sources {
+      if p.PlaybackJsonData.Sources[i].Type == "application/dash+xml" {
+         return &p.PlaybackJsonData.Sources[i]
+      }
+   }
+   return nil
+}
+
+// String implements the fmt.Stringer interface for easy printing.
+func (m *Metadata) String() string {
+   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
+      return fmt.Sprintf("%s S%02dE%02d: %s (ID: %d)", m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+   }
+   if m.SeasonNumber > 0 {
+      if m.ShowName != "" {
+         return fmt.Sprintf("%s %s (ID: %d)", m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
+   }
+   if m.Title != "" {
+      if m.ShowName != "" && m.ShowName != m.Title {
+         return fmt.Sprintf("%s: %s (ID: %d)", m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
+   }
+   return fmt.Sprintf("NID: %d", m.Nid)
 }

@@ -11,6 +11,15 @@ import (
    "strings"
 )
 
+func GetDash(sources []Source) (*Source, error) {
+   for _, source_data := range sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, errors.New("DASH source not found")
+}
+
 func (s *Source) Widevine(bcJwt string, data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", s.KeySystems.ComWidevineAlpha.LicenseUrl,
@@ -172,8 +181,6 @@ func Unauth() (*Client, error) {
    return result, nil
 }
 
-///
-
 func (c *Client) Login(email, password string) error {
    data, err := json.Marshal(map[string]string{
       "email":    email,
@@ -310,6 +317,19 @@ func (m *Metadata) String() string {
    return data.String()
 }
 
+type Series struct {
+   Children   []Series
+   Properties struct {
+      Metadata *Metadata
+      Text     *struct {
+         Title struct {
+            Title string
+         }
+      }
+   }
+   Type string
+}
+
 // Seasons extracts metadata exclusively from a Series
 func (s *Series) Seasons() ([]*Metadata, error) {
    for _, child := range s.Children {
@@ -346,26 +366,4 @@ func (s *Series) Seasons() ([]*Metadata, error) {
    }
    // If all loops complete without returning, the target was not found.
    return nil, errors.New("could not find the seasons list within the manifest")
-}
-
-type Series struct {
-   Children   []Series
-   Properties struct {
-      Metadata *Metadata
-      Text     *struct {
-         Title struct {
-            Title string
-         }
-      }
-   }
-   Type string
-}
-
-func GetDash(sources []Source) (*Source, error) {
-   for _, source_data := range sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, errors.New("DASH source not found")
 }
