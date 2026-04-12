@@ -14,6 +14,197 @@ import (
    "strings"
 )
 
+func (m *Manifest) FetchDash() (*Dash, error) {
+   resp, err := http.Get(m.Playback)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+/*
+https://crave.ca/en/movie/anaconda-2025-59881
+https://crave.ca/en/play/anaconda-2025-3300246
+https://crave.ca/movie/anaconda-2025-59881
+https://crave.ca/play/anaconda-2025-3300246
+*/
+func ParseMedia(rawURL string) (*Media, error) {
+   parsedURL, err := url.Parse(rawURL)
+   if err != nil {
+      return nil, err
+   }
+   // Split the path directly.
+   // e.g., "/en/movie/anaconda-2025-59881" -> ["", "en", "movie", "anaconda-2025-59881"]
+   parts := strings.Split(parsedURL.Path, "/")
+   // We need at least 3 parts: the empty string (before the first "/"), the type, and the slug
+   if len(parts) < 3 {
+      return nil, errors.New("invalid URL path format")
+   }
+   // Safely grab the last two segments
+   lastPart := parts[len(parts)-1] // e.g., "anaconda-2025-59881"
+   typePart := parts[len(parts)-2] // e.g., "movie" or "play"
+   // Find the last dash to extract the ID
+   dashIdx := strings.LastIndex(lastPart, "-")
+   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
+      return nil, errors.New("no ID found at the end of the URL")
+   }
+   idStr := lastPart[dashIdx+1:]
+   // Convert extracted string to integer
+   id, err := strconv.Atoi(idStr)
+   if err != nil {
+      return nil, fmt.Errorf("invalid ID format: %w", err)
+   }
+   // Populate struct based on the type
+   media := &Media{}
+   switch typePart {
+   case "movie":
+      media.Id = id
+   case "play":
+      media.FirstContent.Id = id
+   default:
+      return nil, fmt.Errorf("unknown media type: %s", typePart)
+   }
+   return media, nil
+}
+
+// SL2000 max 2160p
+func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
+}
+
+// L3 max 720p
+func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
+}
+
+func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 1)
+}
+
+func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 48)
+}
+
+type ContentPackage struct {
+   DestinationId int
+   Id            int
+}
+
+func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
+   data, err := marshal(map[string]any{
+      "payload": payload,
+      "playbackContext": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       platformId,
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+
+   req, err := http.NewRequest(
+      "POST", "https://license.9c9media.com/"+path, bytes.NewBuffer(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+
+   return data, nil
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
+func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
+            contentId, c.Id, c.DestinationId, platformId,
+         ),
+         RawQuery: url.Values{
+            "filter": {"ff"}, // 2160p HEVC
+            "format": {"mpd"},
+            "hd":     {"true"}, // 1080p H.264
+            "mcv":    {"true"}, // H.264 + HEVC
+            "uhd":    {"true"}, // 2160p HEVC
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+
+   return &result, nil
+}
+
+type Account struct {
+   AccessToken  string `json:"access_token"`
+   AccountId    string `json:"account_id"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+   Id int `json:"id,string"`
+}
 func (a *Account) FetchContentPackage(contentId int) (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
@@ -245,194 +436,3 @@ func (a *Account) Login(profileId string) error {
    return json.NewDecoder(resp.Body).Decode(a)
 }
 
-func (m *Manifest) FetchDash() (*Dash, error) {
-   resp, err := http.Get(m.Playback)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-/*
-https://crave.ca/en/movie/anaconda-2025-59881
-https://crave.ca/en/play/anaconda-2025-3300246
-https://crave.ca/movie/anaconda-2025-59881
-https://crave.ca/play/anaconda-2025-3300246
-*/
-func ParseMedia(rawURL string) (*Media, error) {
-   parsedURL, err := url.Parse(rawURL)
-   if err != nil {
-      return nil, err
-   }
-   // Split the path directly.
-   // e.g., "/en/movie/anaconda-2025-59881" -> ["", "en", "movie", "anaconda-2025-59881"]
-   parts := strings.Split(parsedURL.Path, "/")
-   // We need at least 3 parts: the empty string (before the first "/"), the type, and the slug
-   if len(parts) < 3 {
-      return nil, errors.New("invalid URL path format")
-   }
-   // Safely grab the last two segments
-   lastPart := parts[len(parts)-1] // e.g., "anaconda-2025-59881"
-   typePart := parts[len(parts)-2] // e.g., "movie" or "play"
-   // Find the last dash to extract the ID
-   dashIdx := strings.LastIndex(lastPart, "-")
-   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
-      return nil, errors.New("no ID found at the end of the URL")
-   }
-   idStr := lastPart[dashIdx+1:]
-   // Convert extracted string to integer
-   id, err := strconv.Atoi(idStr)
-   if err != nil {
-      return nil, fmt.Errorf("invalid ID format: %w", err)
-   }
-   // Populate struct based on the type
-   media := &Media{}
-   switch typePart {
-   case "movie":
-      media.Id = id
-   case "play":
-      media.FirstContent.Id = id
-   default:
-      return nil, fmt.Errorf("unknown media type: %s", typePart)
-   }
-   return media, nil
-}
-
-// SL2000 max 2160p
-func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
-}
-
-// L3 max 720p
-func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
-}
-
-func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 1)
-}
-
-func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 48)
-}
-
-type ContentPackage struct {
-   DestinationId int
-   Id            int
-}
-
-func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
-   data, err := marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       platformId,
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/"+path, bytes.NewBuffer(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-
-   return data, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
-}
-
-func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
-            contentId, c.Id, c.DestinationId, platformId,
-         ),
-         RawQuery: url.Values{
-            "filter": {"ff"}, // 2160p HEVC
-            "format": {"mpd"},
-            "hd":     {"true"}, // 1080p H.264
-            "mcv":    {"true"}, // H.264 + HEVC
-            "uhd":    {"true"}, // 2160p HEVC
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result Manifest
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-
-   return &result, nil
-}
-
-type Account struct {
-   AccessToken  string `json:"access_token"`
-   AccountId    string `json:"account_id"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
-   Id int `json:"id,string"`
-}
