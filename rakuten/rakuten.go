@@ -11,6 +11,132 @@ import (
    "strings"
 )
 
+func (s Stream) Dash() (*Dash, error) {
+   resp, err := http.Get(s.StreamInfos[0].Url)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (s Stream) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      s.StreamInfos[0].LicenseUrl, "application/x-protobuf",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (c *Content) IsMovie() bool {
+   return c.Type == "movies"
+}
+
+func (c *Content) IsTvShow() bool {
+   return c.Type == "tv_shows"
+}
+
+// Season fetches episodes for a specific season (GET).
+func (c *Content) Season(seasonId string) (*Season, error) {
+   urlData := url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/seasons/" + seasonId,
+      RawQuery: url.Values{
+         "classification_id": {strconv.Itoa(c.ClassificationId)},
+         "device_identifier": {DeviceId},
+         "market_code":       {c.MarketCode},
+      }.Encode(),
+   }
+
+   resp, err := http.Get(urlData.String())
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data Season
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+func (c *Content) TvShow() (*TvShow, error) {
+   urlData := url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/tv_shows/" + c.Id,
+      RawQuery: url.Values{
+         "classification_id": {strconv.Itoa(c.ClassificationId)},
+         "device_identifier": {DeviceId},
+         "market_code":       {c.MarketCode},
+      }.Encode(),
+   }
+
+   resp, err := http.Get(urlData.String())
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data TvShow
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+func (c *Content) Movie() (*MovieOrEpisode, error) {
+   urlData := url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/movies/" + c.Id,
+      RawQuery: url.Values{
+         "classification_id": {strconv.Itoa(c.ClassificationId)},
+         "device_identifier": {DeviceId},
+         "market_code":       {c.MarketCode},
+      }.Encode(),
+   }
+
+   resp, err := http.Get(urlData.String())
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data MovieOrEpisode
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
 var classificationMap = map[string]int{
    "cz": 272,
    "es": 5,
@@ -164,131 +290,4 @@ func (t TvShow) String() string {
       data.WriteString(season.Id)
    }
    return data.String()
-}
-
-func (s Stream) Dash() (*Dash, error) {
-   resp, err := http.Get(s.StreamInfos[0].Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (s Stream) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      s.StreamInfos[0].LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (c *Content) IsMovie() bool {
-   return c.Type == "movies"
-}
-
-func (c *Content) IsTvShow() bool {
-   return c.Type == "tv_shows"
-}
-
-// Season fetches episodes for a specific season (GET).
-func (c *Content) Season(seasonId string) (*Season, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + seasonId,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data Season
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-func (c *Content) TvShow() (*TvShow, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/tv_shows/" + c.Id,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data TvShow
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-func (c *Content) Movie() (*MovieOrEpisode, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/movies/" + c.Id,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data MovieOrEpisode
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
 }

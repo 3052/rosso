@@ -11,6 +11,23 @@ import (
    "strings"
 )
 
+func FetchDash(urlData *url.URL) (*Dash, error) {
+   req := http.Request{
+      URL:    urlData,
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
 func (v *Vod) String() string {
    data := &strings.Builder{}
    var lines bool
@@ -165,21 +182,4 @@ func (s *Series) GetMovieUrl() *url.URL {
    // Directly access the required path based on the data guarantees
    path := s.Vod[0].Stitched.Paths[0].Path
    return s.buildStitcherUrl(path)
-}
-
-func FetchDash(urlData *url.URL) (*Dash, error) {
-   req := http.Request{
-      URL:    urlData,
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }

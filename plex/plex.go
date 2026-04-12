@@ -10,6 +10,90 @@ import (
    "strings"
 )
 
+func (u User) Dash(partData *Part, forwardedFor string) (*Dash, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "vod.provider.plex.tv",
+         Path:     partData.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
+         RawQuery: url.Values{"x-plex-token": {u.AuthToken}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   if forwardedFor != "" {
+      req.Header.Set("X-Forwarded-For", forwardedFor)
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+type User struct {
+   AuthToken string
+}
+
+func (u User) Widevine(partData *Part, data []byte) ([]byte, error) {
+   req, err := http.NewRequest("POST", partData.License, bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   req.URL.Scheme = "https"
+   req.URL.Host = "vod.provider.plex.tv"
+   req.URL.RawQuery = url.Values{
+      "x-plex-drm":   {"widevine"},
+      "x-plex-token": {u.AuthToken},
+   }.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "discover.provider.plex.tv",
+         Path:   "/library/metadata/matches",
+         RawQuery: url.Values{
+            "url":          {rawUrl},
+            "x-plex-token": {u.AuthToken},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("accept", "application/json")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Error struct {
+         Message string
+      }
+      MediaContainer struct {
+         Metadata []ItemMetadata
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error.Message != "" {
+      return nil, errors.New(result.Error.Message)
+   }
+   return &result.MediaContainer.Metadata[0], nil
+}
 func (u User) Media(item *ItemMetadata, forwardedFor string) (*ItemMetadata, error) {
    req := http.Request{
       URL: &url.URL{
@@ -116,89 +200,4 @@ func FetchUser() (*User, error) {
       return nil, err
    }
    return result, nil
-}
-
-func (u User) Dash(partData *Part, forwardedFor string) (*Dash, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "vod.provider.plex.tv",
-         Path:     partData.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
-         RawQuery: url.Values{"x-plex-token": {u.AuthToken}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if forwardedFor != "" {
-      req.Header.Set("X-Forwarded-For", forwardedFor)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type User struct {
-   AuthToken string
-}
-
-func (u User) Widevine(partData *Part, data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", partData.License, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.URL.Scheme = "https"
-   req.URL.Host = "vod.provider.plex.tv"
-   req.URL.RawQuery = url.Values{
-      "x-plex-drm":   {"widevine"},
-      "x-plex-token": {u.AuthToken},
-   }.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "discover.provider.plex.tv",
-         Path:   "/library/metadata/matches",
-         RawQuery: url.Values{
-            "url":          {rawUrl},
-            "x-plex-token": {u.AuthToken},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("accept", "application/json")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Error struct {
-         Message string
-      }
-      MediaContainer struct {
-         Metadata []ItemMetadata
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error.Message != "" {
-      return nil, errors.New(result.Error.Message)
-   }
-   return &result.MediaContainer.Metadata[0], nil
 }
