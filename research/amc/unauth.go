@@ -6,7 +6,7 @@ import (
    "net/http"
 )
 
-func Unauth() (*AuthResponse, error) {
+func Unauth() (*AuthData, error) {
    req, err := http.NewRequest(http.MethodPost, "https://gw.cds.amcn.com/auth-orchestration-id/api/v1/unauth", nil)
    if err != nil {
       return nil, err
@@ -29,10 +29,16 @@ func Unauth() (*AuthResponse, error) {
       return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
    }
 
-   var authResp AuthResponse
-   if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   return &authResp, nil
+   return &envelope.Data, nil
 }

@@ -7,7 +7,7 @@ import (
    "net/http"
 )
 
-func Login(unauthToken, email, password string) (*AuthResponse, error) {
+func Login(unauthToken, email, password string) (*AuthData, error) {
    body := map[string]string{
       "email":    email,
       "password": password,
@@ -45,10 +45,16 @@ func Login(unauthToken, email, password string) (*AuthResponse, error) {
       return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
    }
 
-   var authResp AuthResponse
-   if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   return &authResp, nil
+   return &envelope.Data, nil
 }

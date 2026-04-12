@@ -38,12 +38,19 @@ func Playback(authToken, videoID string) (*PlaybackResult, error) {
       return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
    }
 
-   var result PlaybackResult
-   if err := json.NewDecoder(resp.Body).Decode(&result.Response); err != nil {
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool         `json:"success"`
+      Status  int          `json:"status"`
+      Data    PlaybackData `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   result.BcovAuth = resp.Header.Get("x-amcn-bc-jwt")
-
-   return &result, nil
+   return &PlaybackResult{
+      Data:     envelope.Data,
+      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+   }, nil
 }

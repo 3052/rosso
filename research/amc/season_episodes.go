@@ -6,7 +6,7 @@ import (
    "net/http"
 )
 
-func SeasonEpisodes(authToken, seasonID string) (*ContentResponse, error) {
+func SeasonEpisodes(authToken, seasonID string) (*ContentNode, error) {
    url := fmt.Sprintf("https://gw.cds.amcn.com/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/%s", seasonID)
 
    req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -30,10 +30,16 @@ func SeasonEpisodes(authToken, seasonID string) (*ContentResponse, error) {
       return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
    }
 
-   var contentResp ContentResponse
-   if err := json.NewDecoder(resp.Body).Decode(&contentResp); err != nil {
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   return &contentResp, nil
+   return &envelope.Data, nil
 }
