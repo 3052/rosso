@@ -18,7 +18,7 @@ func main() {
 
 type client struct {
    BcJwt  string
-   Client *amc.Client
+   AuthData *amc.AuthData
    Dash   *amc.Dash
    Source *amc.Source
    //------------------------

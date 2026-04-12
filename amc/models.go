@@ -21,16 +21,16 @@ type ContentNode struct {
 
 // Properties holds all possible strongly-typed properties found in the UI nodes.
 type Properties struct {
-   ID           string        `json:"id,omitempty"`
-   PageType     string        `json:"pageType,omitempty"`
-   ManifestType string        `json:"manifestType,omitempty"`
-   CountryCode  string        `json:"countryCode,omitempty"`
-   Mode         string        `json:"mode,omitempty"`
-   Orientation  string        `json:"orientation,omitempty"`
-   Layout       string        `json:"layout,omitempty"`
-   Scrollable   bool          `json:"scrollable,omitempty"`
-   ContentType  string        `json:"contentType,omitempty"`
-   Nid          int           `json:"nid,omitempty"`
+   ID           string `json:"id,omitempty"`
+   PageType     string `json:"pageType,omitempty"`
+   ManifestType string `json:"manifestType,omitempty"`
+   CountryCode  string `json:"countryCode,omitempty"`
+   Mode         string `json:"mode,omitempty"`
+   Orientation  string `json:"orientation,omitempty"`
+   Layout       string `json:"layout,omitempty"`
+   Scrollable   bool   `json:"scrollable,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   Nid          int    `json:"nid,omitempty"`
 
    Images       *Images       `json:"images,omitempty"`
    Metadata     *Metadata     `json:"metadata,omitempty"`
@@ -150,7 +150,7 @@ type PlaybackResult struct {
    BcovAuth string
 }
 
-// EpisodesMetadata recursively traverses the Server-Driven UI tree 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for playable episodes.
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
    var metadata []*Metadata
@@ -169,7 +169,7 @@ func (c *ContentNode) EpisodesMetadata() []*Metadata {
    return metadata
 }
 
-// SeasonsMetadata recursively traverses the Server-Driven UI tree 
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for seasons.
 func (c *ContentNode) SeasonsMetadata() []*Metadata {
    var metadata []*Metadata

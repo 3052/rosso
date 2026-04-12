@@ -1,8 +1,6 @@
 package amc
 
-import (
-   "testing"
-)
+import "testing"
 
 var tests = []struct {
    content string
