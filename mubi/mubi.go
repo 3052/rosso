@@ -12,47 +12,6 @@ import (
    "strings"
 )
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (l *LinkCode) FetchSession() (*Session, error) {
-   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Session{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type SecureUrl struct {
-   TextTrackUrls []struct {
-      Id  string
-      Url string
-   } `json:"text_track_urls"`
-   Url         string // MPD
-   UserMessage string `json:"user_message"`
-}
-
 func (s *SecureUrl) FetchDash() (*Dash, error) {
    s.Url = strings.NewReplacer(
       ".AVC1", "",
@@ -289,4 +248,44 @@ func FetchFilm(slug string) (*Film, error) {
       return nil, err
    }
    return result, nil
+}
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+func (l *LinkCode) FetchSession() (*Session, error) {
+   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("content-type", "application/json")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Session{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type SecureUrl struct {
+   TextTrackUrls []struct {
+      Id  string
+      Url string
+   } `json:"text_track_urls"`
+   Url         string // MPD
+   UserMessage string `json:"user_message"`
 }

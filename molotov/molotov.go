@@ -12,6 +12,91 @@ import (
    "strings"
 )
 
+func (a *Asset) Dash() (*Dash, error) {
+   resp, err := http.Get(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("developer message = ")
+   data.WriteString(e.DeveloperMessage)
+   data.WriteString("\nuser message = ")
+   data.WriteString(e.UserMessage)
+   return data.String()
+}
+
+type Error struct {
+   DeveloperMessage string `json:"developer_message"`
+   UserMessage      string `json:"user_message"`
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Error  *Error
+   Stream struct {
+      Url string // MPD
+   }
+}
+
+type Url struct {
+   Program int
+   Channel int
+}
+
+func (u *Url) FetchProgram(accessToken string) (*Program, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "fapi.molotov.tv",
+         Path:     fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
+         RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Program Program
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Program.Actions.Play == nil {
+      return nil, errors.New("program is not available for playback")
+   }
+   return &result.Program, nil
+}
+
+type Program struct {
+   Actions struct {
+      Play *struct {
+         Url string // fapi.molotov.tv/v2/me/assets
+      }
+   }
+}
+
+type Login struct {
+   Auth struct {
+      AccessToken  string `json:"access_token"`
+      RefreshToken string `json:"refresh_token"`
+   }
+}
 func (p Program) Asset(accessToken string) (*Asset, error) {
    req := http.Request{
       Header: http.Header{},
@@ -154,90 +239,4 @@ func (l *Login) Refresh() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(l)
-}
-
-func (a *Asset) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("developer message = ")
-   data.WriteString(e.DeveloperMessage)
-   data.WriteString("\nuser message = ")
-   data.WriteString(e.UserMessage)
-   return data.String()
-}
-
-type Error struct {
-   DeveloperMessage string `json:"developer_message"`
-   UserMessage      string `json:"user_message"`
-}
-
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Error  *Error
-   Stream struct {
-      Url string // MPD
-   }
-}
-
-type Url struct {
-   Program int
-   Channel int
-}
-
-func (u *Url) FetchProgram(accessToken string) (*Program, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "fapi.molotov.tv",
-         Path:     fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
-         RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Program Program
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Program.Actions.Play == nil {
-      return nil, errors.New("program is not available for playback")
-   }
-   return &result.Program, nil
-}
-
-type Program struct {
-   Actions struct {
-      Play *struct {
-         Url string // fapi.molotov.tv/v2/me/assets
-      }
-   }
-}
-
-type Login struct {
-   Auth struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
 }
