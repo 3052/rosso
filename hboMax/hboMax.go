@@ -13,6 +13,56 @@ import (
    "strings"
 )
 
+func (p *Playback) DashRequest() (*Dash, error) {
+   resp, err := http.Get(
+      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
+// Resource represents a relationship pointer in the JSON:API graph
+type Resource struct {
+   Id   string
+   Type string
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+
+///
+
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL = ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code = ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
 var Markets = []string{
    "amer",
    "apac",
@@ -425,55 +475,4 @@ func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) DashRequest() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-// Resource represents a relationship pointer in the JSON:API graph
-type Resource struct {
-   Id   string
-   Type string
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-///
-
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL = ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
 }

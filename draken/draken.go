@@ -11,88 +11,6 @@ import (
    "strings"
 )
 
-//go:embed GetCustomIdFullMovie.gql
-var get_custom_id_full_movie string
-
-// setPlaybackHeaders adds the headers specific to playback functionality.
-func setPlaybackHeaders(req *http.Request) {
-   req.Header.Set("magine-play-deviceid", "!")
-   req.Header.Set("magine-play-devicemodel", "firefox 111.0 / windows 10")
-   req.Header.Set("magine-play-deviceplatform", "firefox")
-   req.Header.Set("magine-play-devicetype", "web")
-   req.Header.Set("magine-play-drm", "widevine")
-   req.Header.Set("magine-play-protocol", "dashs")
-}
-
-// setBaseHeaders adds the common authentication and access tokens to a request.
-func setBaseHeaders(req *http.Request, loginToken string) {
-   req.Header.Set("magine-accesstoken", "22cc71a2-8b77-4819-95b0-8c90f4cf5663")
-   if loginToken != "" {
-      req.Header.Set("authorization", "Bearer "+loginToken)
-   }
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Entitlement struct {
-   Error *Error
-   Token string
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("message = ")
-   data.WriteString(e.Message)
-   data.WriteString("\nuser message = ")
-   data.WriteString(e.UserMessage)
-   return data.String()
-}
-
-type Error struct {
-   Message     string
-   UserMessage string `json:"user_message"`
-}
-
-func FetchLogin(identity, accessKey string) (*Login, error) {
-   body, err := json.Marshal(map[string]string{
-      "accessKey": accessKey,
-      "identity":  identity,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/login/v2/auth/email",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, "") // No login token for this request
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Login
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-type Login struct {
-   Message string
-   Token   string
-}
-
 func (p *Playback) Dash() (*Dash, error) {
    resp, err := http.Get(p.Playlist)
    if err != nil {
@@ -233,4 +151,85 @@ func FetchViewer(customId string) (*Viewer, error) {
       return nil, errors.New("ViewableCustomId")
    }
    return &result.Data.Viewer, nil
+}
+//go:embed GetCustomIdFullMovie.gql
+var get_custom_id_full_movie string
+
+// setPlaybackHeaders adds the headers specific to playback functionality.
+func setPlaybackHeaders(req *http.Request) {
+   req.Header.Set("magine-play-deviceid", "!")
+   req.Header.Set("magine-play-devicemodel", "firefox 111.0 / windows 10")
+   req.Header.Set("magine-play-deviceplatform", "firefox")
+   req.Header.Set("magine-play-devicetype", "web")
+   req.Header.Set("magine-play-drm", "widevine")
+   req.Header.Set("magine-play-protocol", "dashs")
+}
+
+// setBaseHeaders adds the common authentication and access tokens to a request.
+func setBaseHeaders(req *http.Request, loginToken string) {
+   req.Header.Set("magine-accesstoken", "22cc71a2-8b77-4819-95b0-8c90f4cf5663")
+   if loginToken != "" {
+      req.Header.Set("authorization", "Bearer "+loginToken)
+   }
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+type Entitlement struct {
+   Error *Error
+   Token string
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("message = ")
+   data.WriteString(e.Message)
+   data.WriteString("\nuser message = ")
+   data.WriteString(e.UserMessage)
+   return data.String()
+}
+
+type Error struct {
+   Message     string
+   UserMessage string `json:"user_message"`
+}
+
+func FetchLogin(identity, accessKey string) (*Login, error) {
+   body, err := json.Marshal(map[string]string{
+      "accessKey": accessKey,
+      "identity":  identity,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/login/v2/auth/email",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   setBaseHeaders(req, "") // No login token for this request
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Login
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Login struct {
+   Message string
+   Token   string
 }
