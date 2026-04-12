@@ -12,79 +12,13 @@ import (
    "strings"
 )
 
-func (l *Login) Membership() (*Membership, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "www.kanopy.com",
-         Path:     "/kapi/memberships",
-         RawQuery: "userId=" + strconv.Itoa(l.UserId),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-version", x_version)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      List []Membership
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.List[0], nil
-}
-
-func (p *Plays) Dash() (*Manifest, error) {
+func (p *Plays) GetDash() (*Manifest, error) {
    for _, manifest_data := range p.Manifests {
       if manifest_data.ManifestType == "dash" {
          return &manifest_data, nil
       }
    }
    return nil, errors.New("dash manifest not found")
-}
-
-func (l *Login) Plays(domainId, videoId int) (*Plays, error) {
-   data, err := json.Marshal(map[string]int{
-      "domainId": domainId,
-      "userId":   l.UserId,
-      "videoId":  videoId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://www.kanopy.com/kapi/plays", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-version", x_version)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Plays
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.ErrorMsgLong != "" {
-      return nil, errors.New(result.ErrorMsgLong)
-   }
-   return &result, nil
 }
 
 type Plays struct {
@@ -111,28 +45,6 @@ type Manifest struct {
    DrmLicenseId string
    ManifestType string
    Url          string
-}
-
-func (l *Login) Widevine(licenseId string, data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://www.kanopy.com/kapi/licenses/widevine/"+licenseId,
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+l.Jwt)
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-version", x_version)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
 }
 
 const user_agent = "!"
@@ -207,7 +119,19 @@ func FetchLogin(email, password string) (*Login, error) {
    return result, nil
 }
 
-func (m *Manifest) Dash() (*Dash, error) {
+type Video struct {
+   Alias   string
+   VideoId int
+}
+
+type Dash struct {
+   Body []byte
+   Url  *url.URL
+}
+
+const x_version = "!/!/!/!"
+
+func (m *Manifest) FetchDash() (*Dash, error) {
    req := http.Request{
       Header: http.Header{},
    }
@@ -229,9 +153,7 @@ func (m *Manifest) Dash() (*Dash, error) {
    return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
-const x_version = "!/!/!/!"
-
-func (l *Login) Video(alias string) (*Video, error) {
+func (l *Login) FetchVideo(alias string) (*Video, error) {
    req := http.Request{
       URL: &url.URL{
          Scheme: "https",
@@ -257,12 +179,90 @@ func (l *Login) Video(alias string) (*Video, error) {
    return &result.Video, nil
 }
 
-type Video struct {
-   Alias   string
-   VideoId int
+func (l *Login) FetchMembership() (*Membership, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "www.kanopy.com",
+         Path:     "/kapi/memberships",
+         RawQuery: "userId=" + strconv.Itoa(l.UserId),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   req.Header.Set("user-agent", user_agent)
+   req.Header.Set("x-version", x_version)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      List []Membership
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.List[0], nil
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+func (l *Login) FetchPlays(domainId, videoId int) (*Plays, error) {
+   data, err := json.Marshal(map[string]int{
+      "domainId": domainId,
+      "userId":   l.UserId,
+      "videoId":  videoId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://www.kanopy.com/kapi/plays", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("user-agent", user_agent)
+   req.Header.Set("x-version", x_version)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Plays
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.ErrorMsgLong != "" {
+      return nil, errors.New(result.ErrorMsgLong)
+   }
+   return &result, nil
+}
+
+func (l *Login) FetchWidevine(licenseId string, data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://www.kanopy.com/kapi/licenses/widevine/"+licenseId,
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+l.Jwt)
+   req.Header.Set("user-agent", user_agent)
+   req.Header.Set("x-version", x_version)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
 }

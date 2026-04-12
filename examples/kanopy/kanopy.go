@@ -7,6 +7,39 @@ import (
    "log"
 )
 
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
+      func(data []byte) ([]byte, error) {
+         return c.Login.FetchWidevine(c.Manifest.DrmLicenseId, data)
+      },
+   )
+}
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Dash     *kanopy.Dash
+   Login    *kanopy.Login
+   Manifest *kanopy.Manifest
+   //-------------------------------
+   Job maya.Job
+   //-------------------------------
+   email    string
+   password string
+   //-------------------------------
+   address string
+   //-------------------------------
+   dash_id string
+}
 func (c *client) do() error {
    err := cache.Setup("rosso/kanopy.xml")
    if err != nil {
@@ -55,23 +88,22 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
-
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {
       return err
    }
    if video.VideoId == 0 {
-      video, err = c.Login.Video(video.Alias)
+      video, err = c.Login.FetchVideo(video.Alias)
       if err != nil {
          return err
       }
    }
-   membership, err := c.Login.Membership()
+   membership, err := c.Login.FetchMembership()
    if err != nil {
       return err
    }
-   plays, err := c.Login.Plays(membership.DomainId, video.VideoId)
+   plays, err := c.Login.FetchPlays(membership.DomainId, video.VideoId)
    if err != nil {
       return err
    }
@@ -80,11 +112,11 @@ func (c *client) do_address() error {
          fmt.Println(file.Url)
       }
    }
-   c.Manifest, err = plays.Dash()
+   c.Manifest, err = plays.GetDash()
    if err != nil {
       return err
    }
-   c.Dash, err = c.Manifest.Dash()
+   c.Dash, err = c.Manifest.FetchDash()
    if err != nil {
       return err
    }
@@ -93,38 +125,4 @@ func (c *client) do_address() error {
       return err
    }
    return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
-      func(data []byte) ([]byte, error) {
-         return c.Login.Widevine(c.Manifest.DrmLicenseId, data)
-      },
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Dash     *kanopy.Dash
-   Login    *kanopy.Login
-   Manifest *kanopy.Manifest
-   //-------------------------------
-   Job maya.Job
-   //-------------------------------
-   email    string
-   password string
-   //-------------------------------
-   address string
-   //-------------------------------
-   dash_id string
 }
