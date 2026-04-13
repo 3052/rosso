@@ -7,59 +7,13 @@ import (
    "log"
 )
 
-func (c *client) do_episode() error {
-   var err error
-   c.PlaybackResult, err = amc.Playback(c.AuthData.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   source, err := c.PlaybackResult.Data.DashSource()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = source.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
 func (c *client) do_dash_id() error {
-   source, err := c.PlaybackResult.Data.DashSource()
-   if err != nil {
-      return err
-   }
    fetch := func(data []byte) ([]byte, error) {
       return amc.License(
-         source.KeySystems.ComWidevineAlpha.LicenseURL,
-         c.PlaybackResult.BcovAuth,
-         data,
+         c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
       )
    }
    return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, fetch)
-}
-
-type client struct {
-   AuthData       *amc.AuthData
-   Dash           *amc.Dash
-   PlaybackResult *amc.PlaybackResult
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-   //------------------------
-   dash_id string
 }
 
 func (c *client) do() error {
@@ -179,4 +133,45 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+func (c *client) do_episode() error {
+   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   c.Source, err = playback.Data.DashSource()
+   if err != nil {
+      return err
+   }
+   c.BcovAuth = playback.BcovAuth
+   c.Dash, err = c.Source.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+type client struct {
+   AuthData *amc.AuthData
+   BcovAuth string
+   Dash     *amc.Dash
+   Source   *amc.Source
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   series int
+   //------------------------
+   season int
+   //------------------------
+   episode int
+   //------------------------
+   dash_id string
 }
