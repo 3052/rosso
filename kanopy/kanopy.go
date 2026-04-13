@@ -12,25 +12,8 @@ import (
    "strings"
 )
 
-func (m *Manifest) FetchDash() (*Dash, error) {
-   req := http.Request{
-      Header: http.Header{},
-   }
-   var err error
-   req.URL, err = url.Parse(m.Url)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func (m *Manifest) ParseDash() (*url.URL, error) {
+   return url.Parse(m.Url)
 }
 
 func (l *Login) FetchVideo(alias string) (*Video, error) {
@@ -257,11 +240,6 @@ func FetchLogin(email, password string) (*Login, error) {
 type Video struct {
    Alias   string
    VideoId int
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
 
 const x_version = "!/!/!/!"

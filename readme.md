@@ -12,30 +12,30 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 26667 | us | plex |
-| 9932 | uk | rakuten-tv |
-| 4957 | ca | crave |
-| 4263 | us | kanopy |
-| 4056 | us | tubi-tv |
-| 3604 | us | hbo-max |
-| 2952 | us | hulu |
-| 2345 | us | the-roku-channel |
-| 2292 | us | disney-plus |
-| 1987 | us | peacock |
-| 1072 | nl | cinemember |
-| 1002 | us | pluto-tv |
-| 930 | us | criterion-channel |
-| 863 | br | oldflix |
-| 715 | be | rtbf-auvio |
+| 4273 | us | kanopy |
+| 4079 | us | tubi-tv |
+| 2779 | us | plex |
+| 2719 | uk | rakuten-tv |
+| 2338 | us | the-roku-channel |
+| 1190 | ca | crave |
+| 1001 | us | hbo-max |
+| 1000 | us | pluto-tv |
+| 929 | us | criterion-channel |
 | 665 | se | draken-films |
-| 580 | fr | molotov-tv |
-| 464 | us | amc-plus |
-| 331 | us | paramount-plus-premium |
-| 273 | ca | ctv |
-| 251 | cz | canal-plus |
-| 251 | us | mubi |
-| 228 | uk | itvx |
-| 140 | us | nbc |
+| 617 | fr | molotov-tv |
+| 608 | us | hulu |
+| 550 | nl | cinemember |
+| 462 | us | amc-plus |
+| 383 | us | disney-plus |
+| 332 | us | paramount-plus-premium |
+| 252 | us | mubi |
+| 252 | ca | ctv |
+| 249 | us | peacock |
+| 248 | cz | canal-plus |
+| 241 | br | oldflix |
+| 237 | uk | itvx |
+| 156 | be | rtbf-auvio |
+| 2 | us | nbc |
 
 ## contact
 
