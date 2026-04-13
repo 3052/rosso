@@ -66,6 +66,7 @@ func (c *client) do_address() error {
    }
    return nil
 }
+
 func (c *client) do_playlist() error {
    playlist, err := itv.FetchWidevine(c.playlist)
    if err != nil {

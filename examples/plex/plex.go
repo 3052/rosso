@@ -6,40 +6,12 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/plex.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   xff := maya.StringFlag(&c.xff, "x", "x-forwarded-for")
-   //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case threads.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case dash_id.IsSet:
-      return with_cache(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {threads},
-      {address, xff},
-      {dash_id},
-   })
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job,
+      func(data []byte) ([]byte, error) {
+         return c.Part.FetchWidevine(c.User.AuthToken, data)
+      },
+   )
 }
 
 func (c *client) do_address() error {
@@ -48,36 +20,32 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   address, err := plex.GetPath(c.address)
+   path, err := plex.ParsePath(c.address)
    if err != nil {
       return err
    }
-   metadata, err := c.User.RatingKey(address)
+   metadata, err := plex.FetchMatch(c.User.AuthToken, path)
    if err != nil {
       return err
    }
-   metadata, err = c.User.Media(metadata, c.xff)
+   metadata, err = metadata.Fetch(c.User.AuthToken)
    if err != nil {
       return err
    }
-   c.Part, err = metadata.Dash()
+   c.Part, err = metadata.GetDash()
    if err != nil {
       return err
    }
-   c.Dash, err = c.User.Dash(c.Part, c.xff)
+   c.Dash, err = maya.ListDash(c.Part.GetDash(c.User.AuthToken))
    if err != nil {
       return err
    }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -86,23 +54,42 @@ func main() {
 
 var cache maya.Cache
 
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
-      func(data []byte) ([]byte, error) {
-         return c.User.Widevine(c.Part, data)
-      },
-   )
-}
-
 type client struct {
-   Dash *plex.Dash
-   Part *plex.Part
    User *plex.User
+   Part *plex.Part
    //------------------
-   Job maya.Job
+   Dash *maya.Dash
+   Job  maya.Job
    //------------------
    address string
-   xff     string
-   //------------------
-   dash_id string
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/plex.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return cache.Write(c)
+   case address.IsSet:
+      return c.do_address()
+   case dash.IsSet:
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {address},
+      {dash},
+   })
 }
