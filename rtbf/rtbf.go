@@ -50,6 +50,7 @@ type Dash struct {
    Body []byte
    Url  *url.URL
 }
+
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
    req := http.Request{
       URL: &url.URL{

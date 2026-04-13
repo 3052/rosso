@@ -47,6 +47,7 @@ func (s *Session) Fetch(body []byte) ([]byte, error) {
    }
    return io.ReadAll(resp.Body)
 }
+
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *App) FetchCbsCom(username, password string) (*http.Cookie, error) {

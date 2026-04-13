@@ -37,6 +37,7 @@ type Dash struct {
    Body []byte
    Url  *url.URL
 }
+
 func FetchContent(id int) (*Content, error) {
    req := http.Request{
       URL: &url.URL{

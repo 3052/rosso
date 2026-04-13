@@ -133,6 +133,7 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
    }
    return &result.Data.AxisContent, nil
 }
+
 //go:embed resolvePath.gql
 var query_resolve_path string
 

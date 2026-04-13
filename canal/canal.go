@@ -263,6 +263,7 @@ func (l *Login) Error() string {
    data.WriteString(l.Message)
    return data.String()
 }
+
 const device_serial = "!!!!"
 
 // Global variables for authentication

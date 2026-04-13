@@ -63,6 +63,7 @@ func (i *Initiate) String() string {
    data.WriteString(i.LinkingCode)
    return data.String()
 }
+
 var Markets = []string{
    "amer",
    "apac",

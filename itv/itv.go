@@ -2,6 +2,7 @@ package itv
 
 import (
    "bytes"
+   _ "embed"
    "encoding/json"
    "errors"
    "fmt"
@@ -10,7 +11,6 @@ import (
    "net/url"
    "path"
    "strings"
-   _ "embed"
 )
 
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
@@ -66,6 +66,7 @@ func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
    }
    return &result, nil
 }
+
 //go:embed ProgrammePage.gql
 var programme_page string
 

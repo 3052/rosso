@@ -7,7 +7,7 @@ import (
    "net/http"
 )
 
-// Login authenticates the user. It requires the guest token (access_token) 
+// Login authenticates the user. It requires the guest token (access_token)
 // retrieved from calling the Unauth() function.
 func Login(guestToken, email, password string) (*AuthData, error) {
    body := map[string]string{

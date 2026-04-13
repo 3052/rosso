@@ -5,9 +5,16 @@ import (
    "net/url"
 )
 
+type Source struct {
+   Codecs     string     `json:"codecs"`
+   Src        string     `json:"src"` // MPD
+   Type       string     `json:"type"`
+   KeySystems KeySystems `json:"key_systems"`
+}
+
 type Dash struct {
    Body []byte
-   Url *url.URL
+   Url  *url.URL
 }
 
 // AuthData represents the inner payload of authentication responses.
@@ -134,13 +141,6 @@ type PlaybackData struct {
       VideoID string   `json:"id"`
       Sources []Source `json:"sources"`
    } `json:"playbackJsonData"`
-}
-
-type Source struct {
-   Codecs     string     `json:"codecs"`
-   Src        string     `json:"src"` // MPD
-   Type       string     `json:"type"`
-   KeySystems KeySystems `json:"key_systems"`
 }
 
 type KeySystems struct {

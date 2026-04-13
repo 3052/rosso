@@ -34,6 +34,7 @@ type Dash struct {
    Body []byte
    Url  *url.URL
 }
+
 //go:embed page.gql
 var query_page string
 

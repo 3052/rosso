@@ -4,12 +4,26 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
+   "io"
    "net/http"
 )
 
+func (s *Source) FetchDash() (*Dash, error) {
+   resp, err := http.Get(s.Src)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   return &Dash{Body: body, Url: resp.Request.URL}, nil
+}
+
 func Playback(authToken string, videoID int) (*PlaybackResult, error) {
    url := fmt.Sprintf("https://gw.cds.amcn.com/playback-id/api/v1/playback/%d", videoID)
-   
+
    payload := []byte(`{"adtags":{"lat":0,"mode":"on-demand","playerHeight":0,"playerWidth":0,"ppid":0,"url":"-"}}`)
 
    req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payload))

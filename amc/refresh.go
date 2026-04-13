@@ -10,7 +10,7 @@ import (
 
 func SeasonEpisodes(authToken string, seasonID int) (*ContentNode, error) {
    url := fmt.Sprintf("https://gw.cds.amcn.com/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/%d", seasonID)
-   
+
    req, err := http.NewRequest(http.MethodGet, url, nil)
    if err != nil {
       return nil, err

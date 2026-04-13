@@ -94,6 +94,7 @@ func (u User) RatingKey(rawUrl string) (*ItemMetadata, error) {
    }
    return &result.MediaContainer.Metadata[0], nil
 }
+
 func (u User) Media(item *ItemMetadata, forwardedFor string) (*ItemMetadata, error) {
    req := http.Request{
       URL: &url.URL{

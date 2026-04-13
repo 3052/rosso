@@ -137,6 +137,7 @@ func (c *Content) Movie() (*MovieOrEpisode, error) {
    }
    return &result.Data, nil
 }
+
 var classificationMap = map[string]int{
    "cz": 272,
    "es": 5,

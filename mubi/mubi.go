@@ -249,6 +249,7 @@ func FetchFilm(slug string) (*Film, error) {
    }
    return result, nil
 }
+
 type Dash struct {
    Body []byte
    Url  *url.URL

@@ -97,6 +97,7 @@ type Login struct {
       RefreshToken string `json:"refresh_token"`
    }
 }
+
 func (p Program) Asset(accessToken string) (*Asset, error) {
    req := http.Request{
       Header: http.Header{},

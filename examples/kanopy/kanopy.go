@@ -40,6 +40,7 @@ type client struct {
    //-------------------------------
    dash_id string
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/kanopy.xml")
    if err != nil {
@@ -88,6 +89,7 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
+
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {

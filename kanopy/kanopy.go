@@ -146,6 +146,7 @@ func (l *Login) FetchWidevine(licenseId string, data []byte) ([]byte, error) {
    }
    return io.ReadAll(resp.Body)
 }
+
 func (p *Plays) GetDash() (*Manifest, error) {
    for _, manifest_data := range p.Manifests {
       if manifest_data.ManifestType == "dash" {

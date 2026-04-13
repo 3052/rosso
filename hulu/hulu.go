@@ -33,6 +33,7 @@ func (p *Playlist) Widevine(data []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 var deejay = []struct {
    resolution  string
    device_id   int

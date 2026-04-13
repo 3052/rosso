@@ -205,6 +205,7 @@ type Media struct {
    }
    Id int `json:"id,string"`
 }
+
 func (a *Account) FetchContentPackage(contentId int) (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
@@ -435,4 +436,3 @@ func (a *Account) Login(profileId string) error {
    }
    return json.NewDecoder(resp.Body).Decode(a)
 }
-

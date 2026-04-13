@@ -82,6 +82,7 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
 }
 
 var Territory = "US"
+
 func FetchIdSession(user, password string) (*http.Cookie, error) {
    data := url.Values{
       "userIdentifier": {user},

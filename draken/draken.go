@@ -152,6 +152,7 @@ func FetchViewer(customId string) (*Viewer, error) {
    }
    return &result.Data.Viewer, nil
 }
+
 //go:embed GetCustomIdFullMovie.gql
 var get_custom_id_full_movie string
 

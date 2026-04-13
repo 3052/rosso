@@ -8,7 +8,7 @@ import (
 
 func SeriesDetail(authToken string, seriesID int) (*ContentNode, error) {
    url := fmt.Sprintf("https://gw.cds.amcn.com/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/%d", seriesID)
-   
+
    req, err := http.NewRequest(http.MethodGet, url, nil)
    if err != nil {
       return nil, err

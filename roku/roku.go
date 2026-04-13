@@ -116,6 +116,7 @@ func FetchToken(codeData *Code) (*Token, error) {
    }
    return result, nil
 }
+
 // /api/v1/account/activation/code
 func (t *Token) Code(activationData *Activation) (*Code, error) {
    req := http.Request{

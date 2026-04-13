@@ -29,6 +29,7 @@ type Watch struct {
       File string
    }
 }
+
 const BaseUrl = "https://oldflix-api.azurewebsites.net"
 
 func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {

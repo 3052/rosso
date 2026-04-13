@@ -68,6 +68,7 @@ func (s *Stream) Dash() (*MediaLink, error) {
    }
    return nil, errors.New("DASH link not found")
 }
+
 func FetchSession() (*http.Cookie, error) {
    req := http.Request{
       Method: "HEAD",
