@@ -3,17 +3,11 @@ package itv
 import (
    "io"
    "net/http"
-   "net/http/cookiejar"
    "net/url"
    "strings"
 )
 
 func (m *MediaFile) FetchDash() (*Dash, error) {
-   var err error
-   http.DefaultClient.Jar, err = cookiejar.New(nil)
-   if err != nil {
-      return nil, err
-   }
    resp, err := http.Get(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
    if err != nil {
       return nil, err

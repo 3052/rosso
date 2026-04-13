@@ -7,55 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.playlist)
-   if err != nil {
-      return err
-   }
-   c.MediaFile, err = playlist.Get1080()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.MediaFile.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.FetchKeyService,
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Dash      *itv.Dash
-   MediaFile *itv.MediaFile
-   //----------------------
-   Job maya.Job
-   //----------------------
-   Proxy string
-   //----------------------
-   address string
-   //----------------------
-   playlist string
-   //----------------------
-   dash_id string
-}
-
 func (c *client) do() error {
    err := cache.Setup("rosso/itv.xml")
    if err != nil {
@@ -114,4 +65,52 @@ func (c *client) do_address() error {
       fmt.Println(&title)
    }
    return nil
+}
+func (c *client) do_playlist() error {
+   playlist, err := itv.FetchWidevine(c.playlist)
+   if err != nil {
+      return err
+   }
+   c.MediaFile, err = playlist.Get1080()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = c.MediaFile.FetchDash()
+   if err != nil {
+      return err
+   }
+   err = cache.Write(c)
+   if err != nil {
+      return err
+   }
+   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+}
+
+func (c *client) do_dash_id() error {
+   return c.Job.DownloadDash(
+      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.FetchKeyService,
+   )
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Dash      *itv.Dash
+   MediaFile *itv.MediaFile
+   //----------------------
+   Job maya.Job
+   //----------------------
+   Proxy string
+   //----------------------
+   address string
+   //----------------------
+   playlist string
+   //----------------------
+   dash_id string
 }

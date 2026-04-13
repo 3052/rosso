@@ -82,17 +82,3 @@ type Page struct {
       }
    }
 }
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription = ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
-type Error struct {
-   Code        string // 2026-04-05
-   Description string // 2026-04-05
-}

@@ -36,7 +36,6 @@ func Login(guestToken, email, password string) (*AuthData, error) {
    req.Header.Set("x-amcn-device-id", "-")
    req.Header.Set("x-amcn-service-id", "amcplus")
    req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -94,7 +93,6 @@ func Playback(authToken string, videoID int) (*PlaybackResult, error) {
    req.Header.Set("x-amcn-tenant", "amcn")
    req.Header.Set("x-amcn-device-ad-id", "-")
    req.Header.Set("x-ccpa-do-not-sell", "doNotPassData")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -135,7 +133,6 @@ func SeriesDetail(authToken string, seriesID int) (*ContentNode, error) {
    req.Header.Set("x-amcn-network", "amcplus")
    req.Header.Set("x-amcn-platform", "android")
    req.Header.Set("x-amcn-tenant", "amcn")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -172,7 +169,6 @@ func Unauth() (*AuthData, error) {
    req.Header.Set("x-amcn-tenant", "amcn")
    req.Header.Set("x-amcn-device-id", "-")
    req.Header.Set("x-amcn-language", "en")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -210,7 +206,6 @@ func SeasonEpisodes(authToken string, seasonID int) (*ContentNode, error) {
    req.Header.Set("x-amcn-network", "amcplus")
    req.Header.Set("x-amcn-platform", "android")
    req.Header.Set("x-amcn-tenant", "amcn")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -243,7 +238,6 @@ func License(licenseURL, bcovAuth string, challengePayload []byte) ([]byte, erro
    }
 
    req.Header.Set("bcov-auth", bcovAuth)
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -265,7 +259,6 @@ func Refresh(refreshToken string) (*AuthData, error) {
    }
 
    req.Header.Set("authorization", "Bearer "+refreshToken)
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
