@@ -6,6 +6,48 @@ import (
    "log"
 )
 
+func (c *client) do_tubi() error {
+   content, err := tubi.FetchContent(c.tubi_id)
+   if err != nil {
+      return err
+   }
+   c.VideoResource = &content.VideoResources[0]
+   dash, err := c.VideoResource.ParseDash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(dash)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.VideoResource.FetchWidevine)
+}
+
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Dash          *maya.Dash
+   VideoResource *tubi.VideoResource
+   //-------------------------------
+   Job maya.Job
+   //-------------------------------
+   Proxy string
+   //-------------------------------
+   tubi_id int
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/tubi.xml")
    if err != nil {
@@ -19,7 +61,7 @@ func (c *client) do() error {
    //----------------------------------------------------------
    tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
    //------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -35,59 +77,13 @@ func (c *client) do() error {
       return cache.Write(c)
    case tubi_id.IsSet:
       return c.do_tubi()
-   case dash_id.IsSet:
-      return with_cache(c.do_dash_id)
+   case dash.IsSet:
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
       proxy,
       tubi_id,
-      dash_id,
+      dash,
    }})
-}
-
-func (c *client) do_tubi() error {
-   content, err := tubi.FetchContent(c.tubi_id)
-   if err != nil {
-      return err
-   }
-   c.VideoResource = &content.VideoResources[0]
-   c.Dash, err = c.VideoResource.Dash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.VideoResource.Widevine,
-   )
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Dash          *tubi.Dash
-   VideoResource *tubi.VideoResource
-   //-------------------------------
-   Job maya.Job
-   //-------------------------------
-   Proxy string
-   //-------------------------------
-   tubi_id int
-   //-------------------------------
-   dash_id string
 }

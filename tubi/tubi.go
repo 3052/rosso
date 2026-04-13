@@ -10,17 +10,19 @@ import (
    "strconv"
 )
 
-func (v *VideoResource) Dash() (*Dash, error) {
-   resp, err := http.Get(v.Manifest.Url)
+func (v *VideoResource) FetchWidevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      v.LicenseServer.Url, "application/x-protobuf", bytes.NewReader(data),
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+   return io.ReadAll(resp.Body)
+}
+
+func (v *VideoResource) ParseDash() (*url.URL, error) {
+   return url.Parse(v.Manifest.Url)
 }
 
 type VideoResource struct {
@@ -31,11 +33,6 @@ type VideoResource struct {
       Url string // MPD
    }
    Type string
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
 
 func FetchContent(id int) (*Content, error) {
@@ -83,15 +80,4 @@ type Content struct {
    SeriesId     int    `json:"series_id,string"`
    // these should already be in reverse order by resolution
    VideoResources []VideoResource `json:"video_resources"`
-}
-
-func (v *VideoResource) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      v.LicenseServer.Url, "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }

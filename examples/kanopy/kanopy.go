@@ -7,6 +7,19 @@ import (
    "log"
 )
 
+type client struct {
+   Login    *kanopy.Login
+   Manifest *kanopy.Manifest
+   //-------------------------------
+   Dash *maya.Dash
+   Job  maya.Job
+   //-------------------------------
+   email    string
+   password string
+   //-------------------------------
+   address string
+}
+
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {
@@ -39,7 +52,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.DashManifest, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
@@ -58,7 +71,7 @@ func main() {
 var cache maya.Cache
 
 func (c *client) do_dash() error {
-   return c.DashManifest.Download(&c.Job,
+   return c.Dash.Download(&c.Job,
       func(data []byte) ([]byte, error) {
          return c.Login.FetchWidevine(c.Manifest.DrmLicenseId, data)
       },
@@ -112,17 +125,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-type client struct {
-   Login    *kanopy.Login
-   Manifest *kanopy.Manifest
-   //-------------------------------
-   DashManifest *maya.DashManifest
-   Job maya.Job
-   //-------------------------------
-   email    string
-   password string
-   //-------------------------------
-   address string
 }
