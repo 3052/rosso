@@ -10,17 +10,8 @@ import (
    "strings"
 )
 
-func (m *MediaLink) Dash() (*Dash, error) {
-   resp, err := http.Get(m.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func (m *MediaLink) ParseDash() (*url.URL, error) {
+   return url.Parse(m.Url)
 }
 
 type Stream struct {
@@ -141,11 +132,6 @@ func FetchId(urlData string) (int, error) {
    }
    // 3. Convert string to integer
    return strconv.Atoi(idStr)
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
 
 type MediaLink struct {
