@@ -74,6 +74,7 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
+
 func (c *client) do_address() error {
    playable_id, err := draken.FetchPlayableId(path.Base(c.address))
    if err != nil {

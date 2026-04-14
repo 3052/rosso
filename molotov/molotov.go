@@ -5,25 +5,52 @@ import (
    "encoding/json"
    "errors"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strconv"
    "strings"
 )
 
-func (a *Asset) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+func (a *Asset) ParseDash() (*url.URL, error) {
+   return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+}
+
+func FetchAuth(email, password string) (*Auth, error) {
+   body, err := json.Marshal(map[string]string{
+      "grant_type": "password",
+      "email":      email,
+      "password":   password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
+   var result struct {
+      Auth Auth
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+   return &result.Auth, nil
 }
+
+const (
+   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
+   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
+)
 
 func (e *Error) Error() string {
    var data strings.Builder
@@ -39,28 +66,15 @@ type Error struct {
    UserMessage      string `json:"user_message"`
 }
 
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Error  *Error
-   Stream struct {
-      Url string // MPD
-   }
-}
-
-type Url struct {
-   Program int
-   Channel int
-}
-
-func (u *Url) FetchProgram(accessToken string) (*Program, error) {
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() (*Auth, error) {
    req := http.Request{
       URL: &url.URL{
-         Scheme:   "https",
-         Host:     "fapi.molotov.tv",
-         Path:     fmt.Sprintf("/v2/channels/%v/programs/%v/view", u.Channel, u.Program),
-         RawQuery: url.Values{"access_token": {accessToken}}.Encode(),
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
       },
       Header: http.Header{},
    }
@@ -71,7 +85,86 @@ func (u *Url) FetchProgram(accessToken string) (*Program, error) {
    }
    defer resp.Body.Close()
    var result struct {
-      Program Program
+      Auth Auth
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Auth, nil
+}
+
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseProgram(data string) (*Program, error) {
+   var found bool
+   _, data, found = strings.Cut(data, "/p/")
+   if !found {
+      return nil, errors.New("url does not contain the /p/ marker")
+   }
+   data, _, _ = strings.Cut(data, "/")
+   id, channel_id, found := strings.Cut(data, "-")
+   if !found {
+      return nil, errors.New("invalid format: hyphen not found between IDs")
+   }
+   var (
+      p   Program
+      err error
+   )
+   if p.Id, err = strconv.Atoi(id); err != nil {
+      return nil, errors.New("program ID is not a valid integer")
+   }
+   if p.ChannelId, err = strconv.Atoi(channel_id); err != nil {
+      return nil, errors.New("channel ID is not a valid integer")
+   }
+   return &p, nil
+}
+
+type Program struct {
+   Id        int
+   ChannelId int
+}
+
+type Auth struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Error  *Error
+   Stream struct {
+      Url string // MPD
+   }
+}
+
+func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path: fmt.Sprintf(
+            "/v2/channels/%v/programs/%v/view",
+            programData.ChannelId, programData.Id,
+         ),
+         RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-molotov-agent", customer_area)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Program struct {
+         Actions struct {
+            Play *Play
+         }
+      }
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
@@ -80,35 +173,24 @@ func (u *Url) FetchProgram(accessToken string) (*Program, error) {
    if result.Program.Actions.Play == nil {
       return nil, errors.New("program is not available for playback")
    }
-   return &result.Program, nil
+   return result.Program.Actions.Play, nil
 }
 
-type Program struct {
-   Actions struct {
-      Play *struct {
-         Url string // fapi.molotov.tv/v2/me/assets
-      }
-   }
+type Play struct {
+   Url string // fapi.molotov.tv/v2/me/assets
 }
 
-type Login struct {
-   Auth struct {
-      AccessToken  string `json:"access_token"`
-      RefreshToken string `json:"refresh_token"`
-   }
-}
-
-func (p Program) Asset(accessToken string) (*Asset, error) {
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
    req := http.Request{
       Header: http.Header{},
    }
    var err error
-   req.URL, err = url.Parse(p.Actions.Play.Url)
+   req.URL, err = url.Parse(playData.Url)
    if err != nil {
       return nil, err
    }
    query := req.URL.Query() // keep existing query string
-   query.Set("access_token", accessToken)
+   query.Set("access_token", a.AccessToken)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("x-forwarded-for", "138.199.15.158")
    req.Header.Set("x-molotov-agent", browser_app)
@@ -126,62 +208,6 @@ func (p Program) Asset(accessToken string) (*Asset, error) {
       return nil, result.Error
    }
    return &result, nil
-}
-
-// https://molotov.tv/fr_fr/p/15301-2328
-// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
-func ParseUrl(data string) (*Url, error) {
-   var found bool
-   _, data, found = strings.Cut(data, "/p/")
-   if !found {
-      return nil, errors.New("url does not contain the /p/ marker")
-   }
-   data, _, _ = strings.Cut(data, "/")
-   program, channel, found := strings.Cut(data, "-")
-   if !found {
-      return nil, errors.New("invalid format: hyphen not found between IDs")
-   }
-   var (
-      url_data Url
-      err      error
-   )
-   if url_data.Program, err = strconv.Atoi(program); err != nil {
-      return nil, errors.New("program ID is not a valid integer")
-   }
-   if url_data.Channel, err = strconv.Atoi(channel); err != nil {
-      return nil, errors.New("channel ID is not a valid integer")
-   }
-   return &url_data, nil
-}
-
-func FetchLogin(email, password string) (*Login, error) {
-   data, err := json.Marshal(map[string]string{
-      "grant_type": "password",
-      "email":      email,
-      "password":   password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Login{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
 
 func (a *Asset) Widevine(data []byte) ([]byte, error) {
@@ -209,35 +235,4 @@ func (a *Asset) Widevine(data []byte) ([]byte, error) {
       return nil, err
    }
    return result.License, nil
-}
-
-const (
-   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
-   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
-)
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (l *Login) Refresh() error {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + l.Auth.RefreshToken,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(l)
 }
