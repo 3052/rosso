@@ -13,41 +13,21 @@ import (
    "strings"
 )
 
-func (p *Playback) DashRequest() (*Dash, error) {
-   resp, err := http.Get(
-      strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1),
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
+      bytes.NewReader(body),
    )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
    }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-// Resource represents a relationship pointer in the JSON:API graph
-type Resource struct {
-   Id   string
-   Type string
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-///
-
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+   return io.ReadAll(resp.Body)
 }
 
 type Initiate struct {
@@ -158,11 +138,11 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    var searchResultsCollection *Entity
 
    // Combine map building and target collection searching into a single loop
-   for _, entity := range entities {
-      entitiesMap[entity.Id] = entity
+   for _, each := range entities {
+      entitiesMap[each.Id] = each
 
-      if searchResultsCollection == nil && entity.Type == "collection" && entity.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = entity
+      if searchResultsCollection == nil && each.Type == "collection" && each.Attributes.Alias == "search-page-rail-results" {
+         searchResultsCollection = each
       }
    }
 
@@ -195,6 +175,95 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
       results = append(results, mediaEntity)
    }
    return results, nil
+}
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *http.Cookie) (*Login, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com", // Refactored
+         Path:   "/authentication/linkDevice/login",
+      },
+      Header: http.Header{},
+   }
+   req.AddCookie(st)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+// Resource represents a relationship pointer in the JSON:API graph
+type Resource struct {
+   Id   string
+   Type string
+}
+
+type Scheme struct {
+   LicenseUrl string
+}
+
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+// String implements the fmt.Stringer interface to provide a clean visual
+// output for the Entity
+func (e *Entity) String() string {
+   data := &strings.Builder{}
+   if e.Attributes.MaterialType == "EPISODE" {
+      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
+   }
+   if e.Attributes.ShowType != "" {
+      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
+   } else if e.Attributes.VideoType != "" {
+      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
+   }
+   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
+   if e.Type == "video" {
+      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
+   } else {
+      fmt.Fprintf(data, "ID: %s\n", e.Id)
+   }
+   return strings.TrimSpace(data.String())
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors   []Error
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+func (p *Playback) ParseDash() (*url.URL, error) {
+   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
 }
 
 func (e *Error) Error() string {
@@ -252,48 +321,11 @@ func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
    return &result.Data.Attributes, nil
 }
 
-func (l Login) PlayReadyRequest(editId string) (*Playback, error) {
-   return l.playback_request(editId, "playready")
-}
-
-func (l Login) entity_request(endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   queryParams := endpoint.Query()
-   queryParams.Set("include", "default")
-   endpoint.RawQuery = queryParams.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+l.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors   []Error
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return result.Included, nil
-}
-
 type Login struct {
    Token string
 }
 
-func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
+func playback_request(token, edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
       "consumptionType":      "streaming",
@@ -344,7 +376,7 @@ func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
       return nil, err
    }
    req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
-   req.Header.Set("authorization", "Bearer "+l.Token)
+   req.Header.Set("authorization", "Bearer "+token)
    req.Header.Set("content-type", "application/json")
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
@@ -362,105 +394,76 @@ func (l Login) playback_request(edit_id, drm string) (*Playback, error) {
    return &result, nil
 }
 
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *http.Cookie) (*Login, error) {
+func PlayReadyRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "playready")
+}
+
+func WidevineRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "widevine")
+}
+
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
    req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com", // Refactored
-         Path:   "/authentication/linkDevice/login",
-      },
+      URL:    endpoint,
       Header: http.Header{},
    }
-   req.AddCookie(st)
+   req.Header.Set("authorization", "Bearer "+token)
    resp, err := http.DefaultClient.Do(&req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
    var result struct {
-      Data struct {
-         Attributes Login
-      }
+      Errors   []Error
+      Included []*Entity `json:"included"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return &result.Data.Attributes, nil
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   return result.Included, nil
 }
 
-func (l Login) MovieRequest(showId string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("page[items.size]", "1")
+func MovieRequest(token, showId string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("page[items.size]", "1")
    parsedUrl := &url.URL{
       Path:     "/cms/routes/movie/" + showId,
-      RawQuery: queryParams.Encode(),
+      RawQuery: values.Encode(),
    }
-   return l.entity_request(parsedUrl)
+   return entity_request(token, parsedUrl)
 }
 
-func (l Login) WidevineRequest(editId string) (*Playback, error) {
-   return l.playback_request(editId, "widevine")
-}
-
-func (l Login) SeasonRequest(showId string, seasonNumber int) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("pf[show.id]", showId)
-   queryParams.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
+func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("pf[show.id]", showId)
+   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
    parsedUrl := &url.URL{
       Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: queryParams.Encode(),
+      RawQuery: values.Encode(),
    }
-   return l.entity_request(parsedUrl)
+   return entity_request(token, parsedUrl)
 }
 
-func (l Login) SearchRequest(query string) ([]*Entity, error) {
-   queryParams := url.Values{}
-   queryParams.Set("contentFilter[query]", query)
+func SearchRequest(token, query string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("contentFilter[query]", query)
    parsedUrl := &url.URL{
       Path:     "/cms/routes/search/result",
-      RawQuery: queryParams.Encode(),
+      RawQuery: values.Encode(),
    }
-   return l.entity_request(parsedUrl)
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   []Error
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
+   return entity_request(token, parsedUrl)
 }
 
 func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
