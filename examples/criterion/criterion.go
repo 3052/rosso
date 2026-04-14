@@ -15,22 +15,17 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //----------------------------------------------------------
    email := maya.StringFlag(&c.email, "e", "email")
    password := maya.StringFlag(&c.password, "p", "password")
    //------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
    }
    if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if threads.IsSet {
       return cache.Write(c)
    }
    if email.IsSet {
@@ -41,15 +36,14 @@ func (c *client) do() error {
    if address.IsSet {
       return with_cache(c.do_address)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
-      {threads},
       {email, password},
       {address},
-      {dash_id},
+      {dash},
    })
 }
 
@@ -64,10 +58,8 @@ func main() {
 
 var cache maya.Cache
 
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.File.FetchWidevine,
-   )
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.File.FetchWidevine)
 }
 
 func (c *client) do_email_password() error {
@@ -84,33 +76,35 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   item, err := c.Token.FetchItem(path.Base(c.address))
+   files_href, err := criterion.FetchFilesHref(
+      c.Token.AccessToken, path.Base(c.address),
+   )
    if err != nil {
       return err
    }
-   files, err := c.Token.FetchFiles(item.Links.Files.Href)
+   files, err := criterion.FetchFiles(c.Token.AccessToken, files_href)
    if err != nil {
       return err
    }
-   c.File, err = files.GetDash()
+   c.File, err = criterion.GetDash(files)
    if err != nil {
       return err
    }
-   c.Dash, err = c.File.FetchDash()
+   dash, err := c.File.ParseDash()
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 type client struct {
-   Dash  *criterion.Dash
    File  *criterion.File
    Token *criterion.Token
+   Dash  *maya.Dash
    //------------------------
    Job maya.Job
    //------------------------
@@ -118,6 +112,4 @@ type client struct {
    password string
    //------------------------
    address string
-   //------------------------
-   dash_id string
 }

@@ -11,17 +11,8 @@ import (
    "strings"
 )
 
-func (p *Playback) Dash() (*Dash, error) {
-   resp, err := http.Get(p.Playlist)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func ParseDash(playlist string) (*url.URL, error) {
+   return url.Parse(playlist)
 }
 
 type Playback struct {
@@ -32,68 +23,13 @@ type Playback struct {
    Playlist string // MPD
 }
 
-func (p *Playback) Widevine(loginToken string, body []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, loginToken)
-   setPlaybackHeaders(req)
-   req.Header.Set("magine-play-session", p.Headers.MaginePlaySession)
-   req.Header.Set("magine-play-entitlementId", p.Headers.MaginePlayEntitlementId)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-type Viewer struct {
-   ViewableCustomId *struct {
-      DefaultPlayable struct {
-         Id string
-      }
-   }
-}
-
-func (v Viewer) Entitlement(loginToken string) (*Entitlement, error) {
+func FetchPlayback(loginToken, playableId, entitlementId string) (*Playback, error) {
    req := http.Request{
       Method: "POST",
       URL: &url.URL{
          Scheme: "https",
          Host:   "client-api.magine.com",
-         Path:   "/api/entitlement/v2/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
-      },
-      Header: http.Header{},
-   }
-   setBaseHeaders(&req, loginToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
-}
-
-func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "client-api.magine.com",
-         Path:   "/api/playback/v1/preflight/asset/" + v.ViewableCustomId.DefaultPlayable.Id,
+         Path:   "/api/playback/v1/preflight/asset/" + playableId,
       },
       Header: http.Header{},
    }
@@ -115,44 +51,6 @@ func (v Viewer) Playback(loginToken, entitlementId string) (*Playback, error) {
    return result, nil
 }
 
-func FetchViewer(customId string) (*Viewer, error) {
-   body, err := json.Marshal(map[string]any{
-      "query":     get_custom_id_full_movie,
-      "variables": map[string]string{"customId": customId},
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/apiql/v2",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, "") // No login token for this request
-   // this value is important, with the wrong value you get random failures
-   req.Header.Set("x-forwarded-for", "95.192.0.0")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Viewer Viewer
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Data.Viewer.ViewableCustomId == nil {
-      return nil, errors.New("ViewableCustomId")
-   }
-   return &result.Data.Viewer, nil
-}
-
 //go:embed GetCustomIdFullMovie.gql
 var get_custom_id_full_movie string
 
@@ -172,11 +70,6 @@ func setBaseHeaders(req *http.Request, loginToken string) {
    if loginToken != "" {
       req.Header.Set("authorization", "Bearer "+loginToken)
    }
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
 
 type Entitlement struct {
@@ -233,4 +126,95 @@ func FetchLogin(identity, accessKey string) (*Login, error) {
 type Login struct {
    Message string
    Token   string
+}
+
+func FetchPlayableId(customId string) (string, error) {
+   body, err := json.Marshal(map[string]any{
+      "query":     get_custom_id_full_movie,
+      "variables": map[string]string{"customId": customId},
+   })
+   if err != nil {
+      return "", err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/apiql/v2",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return "", err
+   }
+   setBaseHeaders(req, "") // No login token for this request
+   // this value is important, with the wrong value you get random failures
+   req.Header.Set("x-forwarded-for", "95.192.0.0")
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Viewer struct {
+            ViewableCustomId *struct {
+               DefaultPlayable struct {
+                  Id string
+               }
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return "", err
+   }
+   if result.Data.Viewer.ViewableCustomId == nil {
+      return "", errors.New("ViewableCustomId")
+   }
+   return result.Data.Viewer.ViewableCustomId.DefaultPlayable.Id, nil
+}
+
+func FetchEntitlement(loginToken, playableId string) (*Entitlement, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "client-api.magine.com",
+         Path:   "/api/entitlement/v2/asset/" + playableId,
+      },
+      Header: http.Header{},
+   }
+   setBaseHeaders(&req, loginToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
+}
+
+func (p *Playback) FetchWidevine(loginToken string, body []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   setBaseHeaders(req, loginToken)
+   setPlaybackHeaders(req)
+   req.Header.Set("magine-play-session", p.Headers.MaginePlaySession)
+   req.Header.Set("magine-play-entitlementId", p.Headers.MaginePlayEntitlementId)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }
