@@ -6,6 +6,34 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Asset.FetchWidevine)
+}
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Asset *molotov.Asset
+   Dash  *maya.Dash
+   Auth  *molotov.Auth
+   //------------------
+   Job maya.Job
+   //-------------
+   email    string
+   password string
+   //-------------
+   address string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/molotov.xml")
    if err != nil {
@@ -19,7 +47,7 @@ func (c *client) do() error {
    //------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -35,20 +63,20 @@ func (c *client) do() error {
    if address.IsSet {
       return with_cache(c.do_address)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
       {address},
-      {dash_id},
+      {dash},
    })
 }
 
 func (c *client) do_email_password() error {
    var err error
-   c.Login, err = molotov.FetchLogin(c.email, c.password)
+   c.Auth, err = molotov.FetchAuth(c.email, c.password)
    if err != nil {
       return err
    }
@@ -56,61 +84,29 @@ func (c *client) do_email_password() error {
 }
 
 func (c *client) do_address() error {
-   url, err := molotov.ParseUrl(c.address)
+   program, err := molotov.ParseProgram(c.address)
    if err != nil {
       return err
    }
-   err = c.Login.Refresh()
+   c.Auth, err = c.Auth.Refresh()
    if err != nil {
       return err
    }
-   program, err := url.FetchProgram(c.Login.Auth.AccessToken)
+   play, err := c.Auth.FetchPlay(program)
    if err != nil {
       return err
    }
-   c.Asset, err = program.Asset(c.Login.Auth.AccessToken)
+   c.Asset, err = c.Auth.FetchAsset(play)
    if err != nil {
       return err
    }
-   c.Dash, err = c.Asset.Dash()
+   dash, err := c.Asset.ParseDash()
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Asset.Widevine,
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   maya.SetProxy("", "*.m4s")
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Asset *molotov.Asset
-   Dash  *molotov.Dash
-   Login *molotov.Login
-   //------------------
-   Job maya.Job
-   //-------------
-   email    string
-   password string
-   //-------------
-   address string
-   //------------
-   dash_id string
+   return cache.Write(c)
 }
