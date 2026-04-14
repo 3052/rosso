@@ -6,8 +6,13 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
+}
+
 func (c *client) do_address() error {
-   err := c.Device.TokenRefresh()
+   var err error
+   c.Device, err = c.Device.TokenRefresh()
    if err != nil {
       return err
    }
@@ -19,15 +24,15 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Dash, err = c.Playlist.Dash()
+   dash, err := c.Playlist.ParseDash()
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 func main() {
@@ -49,7 +54,7 @@ func (c *client) do_email_password() error {
 }
 
 type client struct {
-   Dash     *hulu.Dash
+   Dash     *maya.Dash
    Playlist *hulu.Playlist
    Device   *hulu.Device
    //--------------------
@@ -59,8 +64,6 @@ type client struct {
    password string
    //--------------------
    address string
-   //--------------------
-   dash_id string
 }
 
 var cache maya.Cache
@@ -78,7 +81,7 @@ func (c *client) do() error {
    //------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -94,19 +97,13 @@ func (c *client) do() error {
    if address.IsSet {
       return with_cache(c.do_address)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
       {email, password},
       {address},
-      {dash_id},
+      {dash},
    })
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Playlist.PlayReady,
-   )
 }

@@ -7,46 +7,13 @@ import (
    "log"
 )
 
-func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
-   if err != nil {
-      return err
-   }
-   subs, err := crave.FetchSubscriptions(c.Account.AccessToken)
-   if err != nil {
-      return err
-   }
-   for i, sub := range subs {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&sub)
-   }
-   return cache.Write(c)
-}
-
 func main() {
+   maya.SetProxy("", "*.m4v")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Account        *crave.Account
-   ContentPackage *crave.ContentPackage
-   Media          *crave.Media
-   Dash           *maya.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
 }
 
 func (c *client) do() error {
@@ -69,7 +36,6 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   maya.SetProxy("", "*.m4v")
    if playReady.IsSet {
       return cache.Write(c)
    }
@@ -160,3 +126,37 @@ func (c *client) do_address() error {
 }
 
 var cache maya.Cache
+
+func (c *client) do_profile() error {
+   err := c.Account.Login(c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := crave.FetchSubscriptions(c.Account.AccessToken)
+   if err != nil {
+      return err
+   }
+   for i, sub := range subs {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&sub)
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   Account        *crave.Account
+   ContentPackage *crave.ContentPackage
+   Media          *crave.Media
+   Dash           *maya.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
+}

@@ -14,6 +14,37 @@ import (
    "strings"
 )
 
+func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   "/contents/" + strconv.Itoa(contentId),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-playback-language", Language)
+   // platform_jasper_html
+   req.Header.Set("x-client-platform", "platform_jasper_web")
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+      Error          string // 2026-04-14
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result.ContentPackage, nil
+}
+
 func FetchSubscriptions(accessToken string) ([]Subscription, error) {
    req := http.Request{
       URL: &url.URL{
@@ -387,31 +418,4 @@ func ParseDash(playback string) (*url.URL, error) {
 type Manifest struct {
    Message  string
    Playback string
-}
-
-func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   "/contents/" + strconv.Itoa(contentId),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-playback-language", Language)
-   // platform_jasper_html
-   req.Header.Set("x-client-platform", "platform_jasper_web")
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.ContentPackage, nil
 }

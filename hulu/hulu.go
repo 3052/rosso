@@ -10,6 +10,60 @@ import (
    "path"
 )
 
+func (p *Playlist) FetchPlayReady(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.DashPrServer, "", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return data, nil
+}
+
+func (p *Playlist) FetchWidevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      p.WvServer, "application/x-protobuf", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+func ParseId(urlData string) string {
+   part := path.Base(urlData)
+   len_part := len(part)
+   const len_uuid = 36
+   if len_part > len_uuid {
+      if part[len_part-len_uuid-1] == '-' {
+         return part[len_part-len_uuid:]
+      }
+   }
+   return part
+}
+
+func (p *Playlist) ParseDash() (*url.URL, error) {
+   return url.Parse(p.StreamUrl)
+}
+
 func FetchDevice(email, password string) (*Device, error) {
    resp, err := http.PostForm(
       "https://auth.hulu.com/v2/livingroom/password/authenticate", url.Values{
@@ -200,10 +254,6 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
    return &result, nil
 }
 
-func (p *Playlist) ParseDash() (*url.URL, error) {
-   return url.Parse(p.StreamUrl)
-}
-
 type Playlist struct {
    DashPrServer string `json:"dash_pr_server"`
    Message      string
@@ -261,54 +311,4 @@ var deejay = []struct {
       device_id:   109,
       key_version: 1,
    },
-}
-
-func (p *Playlist) FetchPlayReady(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.DashPrServer, "", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return data, nil
-}
-
-func (p *Playlist) FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.WvServer, "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-func ParseId(urlData string) string {
-   part := path.Base(urlData)
-   len_part := len(part)
-   const len_uuid = 36
-   if len_part > len_uuid {
-      if part[len_part-len_uuid-1] == '-' {
-         return part[len_part-len_uuid:]
-      }
-   }
-   return part
 }
