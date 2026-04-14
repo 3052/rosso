@@ -11,6 +11,56 @@ import (
    "strings"
 )
 
+func FetchWidevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(
+      "https://service-concierge.clusters.pluto.tv/v1/wv/alt",
+      "application/x-protobuf", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Series struct {
+   SessionToken string
+   Vod          []Vod
+}
+
+func buildStitcherUrl(session_token, path string) *url.URL {
+   stitcher := &url.URL{
+      Host:   stitcherHost,
+      Path:   "/v2" + path,
+      Scheme: stitcherScheme,
+   }
+   values := url.Values{}
+   values.Set("jwt", session_token)
+   stitcher.RawQuery = values.Encode()
+   return stitcher
+}
+
+// It assumes Vod and Stitched.Paths always have at least one entry
+func (s *Series) GetMovieUrl() *url.URL {
+   // Directly access the required path based on the data guarantees
+   return buildStitcherUrl(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
+}
+
+func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
+   // Iterate through all seasons and episodes to find the matching ID
+   for _, season := range s.Vod[0].Seasons {
+      for _, episode := range season.Episodes {
+         if episode.Id == episodeId {
+            // Directly access the path based on the data guarantees
+            return buildStitcherUrl(
+               s.SessionToken, episode.Stitched.Paths[0].Path,
+            ), nil
+         }
+      }
+   }
+   return nil, errors.New("episode not found")
+}
+
 // Define constants for the hardcoded URL parts
 const (
    stitcherScheme = "https"
@@ -110,54 +160,4 @@ func (v *Vod) String() string {
       }
    }
    return data.String()
-}
-
-func FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      "https://service-concierge.clusters.pluto.tv/v1/wv/alt",
-      "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-type Series struct {
-   SessionToken string
-   Vod          []Vod
-}
-
-func buildStitcherUrl(session_token, path string) *url.URL {
-   stitcher := &url.URL{
-      Host:   stitcherHost,
-      Path:   "/v2" + path,
-      Scheme: stitcherScheme,
-   }
-   values := url.Values{}
-   values.Set("jwt", session_token)
-   stitcher.RawQuery = values.Encode()
-   return stitcher
-}
-
-// It assumes Vod and Stitched.Paths always have at least one entry
-func (s *Series) GetMovieUrl() *url.URL {
-   // Directly access the required path based on the data guarantees
-   return buildStitcherUrl(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
-}
-
-func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
-   // Iterate through all seasons and episodes to find the matching ID
-   for _, season := range s.Vod[0].Seasons {
-      for _, episode := range season.Episodes {
-         if episode.Id == episodeId {
-            // Directly access the path based on the data guarantees
-            return buildStitcherUrl(
-               s.SessionToken, episode.Stitched.Paths[0].Path,
-            ), nil
-         }
-      }
-   }
-   return nil, errors.New("episode not found")
 }

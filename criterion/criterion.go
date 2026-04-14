@@ -10,39 +10,22 @@ import (
    "net/url"
 )
 
-func (f *File) FetchDash() (*Dash, error) {
-   resp, err := http.Get(f.Links.Source.Href)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func (f *File) ParseDash() (*url.URL, error) {
+   return url.Parse(f.Links.Source.Href)
 }
 
-func (f *File) FetchWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href string // MPD
+      }
+   } `json:"_links"`
+   Method string
 }
 
-type Files []File
-
-func (f Files) GetDash() (*File, error) {
-   for _, file_data := range f {
+func GetDash(files []File) (*File, error) {
+   for _, file_data := range files {
       if file_data.Method == "dash" {
          return &file_data, nil
       }
@@ -56,60 +39,6 @@ type Item struct {
          Href string // https://api.vhx.tv/videos/3460957/files
       }
    } `json:"_links"`
-}
-
-func (t *Token) FetchItem(slug string) (*Item, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []Item
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Embedded.Items[0], nil
-}
-
-func (t *Token) FetchFiles(filesHref string) (Files, error) {
-   req := http.Request{
-      Header: http.Header{},
-   }
-   var err error
-   req.URL, err = url.Parse(filesHref)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result Files
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
 
 func FetchToken(username, password string) (*Token, error) {
@@ -134,13 +63,6 @@ func FetchToken(username, password string) (*Token, error) {
    return &result, nil
 }
 
-type Token struct {
-   AccessToken      string `json:"access_token"`
-   Error            string
-   ErrorDescription string `json:"error_description"`
-   RefreshToken     string `json:"refresh_token"`
-}
-
 // AsError returns a standard Go error if the token response was an error,
 // otherwise it returns nil.
 func (t *Token) AsError() error {
@@ -148,6 +70,59 @@ func (t *Token) AsError() error {
       return nil
    }
    return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
+}
+
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
+
+func (f *File) FetchWidevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Token struct {
+   AccessToken      string `json:"access_token"`
+   Error            string
+   ErrorDescription string `json:"error_description"`
+   RefreshToken     string `json:"refresh_token"`
+}
+
+func FetchItem(accessToken, slug string) (*Item, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "api.vhx.com",
+         Path:     fmt.Sprintf("/collections/%v/items", slug),
+         RawQuery: "site_id=59054",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Embedded struct {
+         Items []Item
+      } `json:"_embedded"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Embedded.Items[0], nil
 }
 
 func (t *Token) Refresh() error {
@@ -167,19 +142,28 @@ func (t *Token) Refresh() error {
    return t.AsError()
 }
 
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href string // MPD
-      }
-   } `json:"_links"`
-   Method string
+func FetchFiles(accessToken, filesHref string) ([]File, error) {
+   req := http.Request{
+      Header: http.Header{},
+   }
+   var err error
+   req.URL, err = url.Parse(filesHref)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   var result []File
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
 }

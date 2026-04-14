@@ -50,6 +50,7 @@ type client struct {
    //-------------------
    edit string
 }
+
 func (c *client) do() error {
    err := cache.Setup("rosso/hboMax.xml")
    if err != nil {
@@ -111,6 +112,7 @@ func (c *client) do() error {
 }
 
 var cache maya.Cache
+
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Playback.PlayReadyRequest)
 }
@@ -123,6 +125,7 @@ func (c *client) do_login() error {
    }
    return cache.Write(c)
 }
+
 func (c *client) do_search() error {
    results, err := hboMax.SearchRequest(c.Login.Token, c.search)
    if err != nil {
@@ -140,6 +143,7 @@ func (c *client) do_search() error {
    }
    return nil
 }
+
 func (c *client) do_show() error {
    var (
       results []*hboMax.Entity

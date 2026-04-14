@@ -22,7 +22,7 @@ func (c *client) do() error {
    //----------------------------------------------------------
    episode := maya.StringFlag(&c.episode, "e", "episode ID")
    //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -36,7 +36,7 @@ func (c *client) do() error {
       return c.do_show()
    case episode.IsSet:
       return with_cache(c.do_episode)
-   case dash_id.IsSet:
+   case dash.IsSet:
       return with_cache(c.do_dash_id)
    }
    return maya.PrintFlags([][]*maya.Flag{{
@@ -44,33 +44,29 @@ func (c *client) do() error {
       movie,
       show,
       episode,
-      dash_id,
+      dash,
    }})
 }
 
 func (c *client) do_episode() error {
-   url, err := c.Series.GetEpisodeUrl(c.episode)
+   dash, err := c.Series.GetEpisodeUrl(c.episode)
    if err != nil {
       return err
    }
-   c.Dash, err = pluto.FetchDash(url)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, pluto.Widevine)
+   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -84,15 +80,11 @@ func (c *client) do_movie() error {
    if err != nil {
       return err
    }
-   c.Dash, err = pluto.FetchDash(series.GetMovieUrl())
+   c.Dash, err = maya.ListDash(series.GetMovieUrl())
    if err != nil {
       return err
    }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 func (c *client) do_show() error {
@@ -106,8 +98,8 @@ func (c *client) do_show() error {
 }
 
 type client struct {
-   Dash   *pluto.Dash
    Series *pluto.Series
+   Dash   *maya.Dash
    //------------------
    Job maya.Job
    //------------------
@@ -116,6 +108,4 @@ type client struct {
    show string
    //------------------
    episode string
-   //------------------
-   dash_id string
 }
