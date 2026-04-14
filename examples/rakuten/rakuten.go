@@ -13,11 +13,7 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
@@ -26,21 +22,14 @@ func (c *client) do() error {
    language := maya.StringFlag(&c.Language, "A", "audio language")
    episode := maya.StringFlag(&c.Episode, "e", "episode ID")
    //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
    }
-   err = maya.SetProxy(c.Proxy, "*.isma", "*.ismv")
-   if err != nil {
-      return err
-   }
+   maya.SetProxy("", "*.isma", "*.ismv")
    switch {
-   case threads.IsSet:
-      return cache.Write(c)
    case widevine.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
       return cache.Write(c)
    case address.IsSet:
       return c.do_address()
@@ -48,17 +37,15 @@ func (c *client) do() error {
       return with_cache(c.do_season)
    case language.IsSet:
       return with_cache(c.do_language)
-   case dash_id.IsSet:
-      return with_cache(c.do_dash_id)
+   case dash.IsSet:
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
-      {threads},
       {widevine},
-      {proxy},
       {address},
       {season},
       {language, episode},
-      {dash_id},
+      {dash},
    })
 }
 
@@ -102,31 +89,31 @@ func (c *client) do_season() error {
 }
 
 func (c *client) do_language() error {
-   stream, err := c.Content.Stream(
+   stream, err := c.Content.FetchStreamInfo(
       c.Episode, c.Language, rakuten.Widevine, rakuten.Fhd,
    )
    if err != nil {
       return err
    }
-   c.Dash, err = stream.Dash()
+   dash, err := stream.ParseDash()
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
-func (c *client) do_dash_id() error {
-   stream, err := c.Content.Stream(
+func (c *client) do_dash() error {
+   stream, err := c.Content.FetchStreamInfo(
       c.Episode, c.Language, rakuten.Widevine, rakuten.Hd,
    )
    if err != nil {
       return err
    }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, stream.Widevine)
+   return c.Dash.Download(&c.Job, stream.FetchWidevine)
 }
 
 func main() {
@@ -139,11 +126,9 @@ func main() {
 
 type client struct {
    Content *rakuten.Content
-   Dash    *rakuten.Dash
+   Dash    *maya.Dash
    //-------------------
    Job maya.Job
-   //-------------------
-   Proxy string
    //-------------------
    address string
    //-------------------
@@ -151,6 +136,4 @@ type client struct {
    //-------------------
    Language string
    Episode  string
-   //-------------------
-   dash_id string
 }
