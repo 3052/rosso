@@ -13,6 +13,14 @@ import (
    "strings"
 )
 
+func (p *Playback) ParseDash() (*url.URL, error) {
+   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
+}
+
+type Login struct {
+   Token string
+}
+
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
@@ -262,10 +270,6 @@ type Playback struct {
    }
 }
 
-func (p *Playback) ParseDash() (*url.URL, error) {
-   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
-}
-
 func (e *Error) Error() string {
    var data strings.Builder
    // 1. print code
@@ -319,10 +323,6 @@ func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
       return nil, err
    }
    return &result.Data.Attributes, nil
-}
-
-type Login struct {
-   Token string
 }
 
 func playback_request(token, edit_id, drm string) (*Playback, error) {
