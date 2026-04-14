@@ -20,7 +20,7 @@ func (c *client) do() error {
    //----------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -36,28 +36,28 @@ func (c *client) do() error {
    if address.IsSet {
       return with_cache(c.do_address)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
       {address},
-      {dash_id},
+      {dash},
    })
 }
 
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id,
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job,
       func(data []byte) ([]byte, error) {
-         return c.Playback.Widevine(c.Login.Token, data)
+         return c.Playback.FetchWidevine(c.Login.Token, data)
       },
    )
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -74,35 +74,36 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
-
 func (c *client) do_address() error {
-   viewer, err := draken.FetchViewer(path.Base(c.address))
+   playable_id, err := draken.FetchPlayableId(path.Base(c.address))
    if err != nil {
       return err
    }
-   entitlement, err := viewer.Entitlement(c.Login.Token)
+   entitlement, err := draken.FetchEntitlement(c.Login.Token, playable_id)
    if err != nil {
       return err
    }
-   c.Playback, err = viewer.Playback(c.Login.Token, entitlement.Token)
+   c.Playback, err = draken.FetchPlayback(
+      c.Login.Token, playable_id, entitlement.Token,
+   )
    if err != nil {
       return err
    }
-   c.Dash, err = c.Playback.Dash()
+   dash, err := draken.ParseDash(c.Playback.Playlist)
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 type client struct {
-   Dash     *draken.Dash
    Login    *draken.Login
    Playback *draken.Playback
+   Dash     *maya.Dash
    //-----------------------
    Job maya.Job
    //-----------------------
@@ -110,6 +111,4 @@ type client struct {
    password string
    //-----------------------
    address string
-   //-----------------------
-   dash_id string
 }

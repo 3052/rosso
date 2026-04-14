@@ -22,7 +22,6 @@ type Playback struct {
    }
    Playlist string // MPD
 }
-
 func FetchPlayback(loginToken, playableId, entitlementId string) (*Playback, error) {
    req := http.Request{
       Method: "POST",
@@ -127,7 +126,6 @@ type Login struct {
    Message string
    Token   string
 }
-
 func FetchPlayableId(customId string) (string, error) {
    body, err := json.Marshal(map[string]any{
       "query":     get_custom_id_full_movie,
@@ -171,7 +169,6 @@ func FetchPlayableId(customId string) (string, error) {
    }
    return result.Data.Viewer.ViewableCustomId.DefaultPlayable.Id, nil
 }
-
 func FetchEntitlement(loginToken, playableId string) (*Entitlement, error) {
    req := http.Request{
       Method: "POST",
@@ -198,7 +195,6 @@ func FetchEntitlement(loginToken, playableId string) (*Entitlement, error) {
    }
    return &result, nil
 }
-
 func (p *Playback) FetchWidevine(loginToken string, body []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
