@@ -17,120 +17,8 @@ import (
    "time"
 )
 
-func (e *Endpoint) FetchDash() (*Dash, error) {
-   resp, err := http.Get(e.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
-   body, err := json.Marshal(map[string]any{
-      "device": map[string]any{
-         "capabilities": []any{
-            map[string]string{
-               "acodec":     "AAC",
-               "container":  "ISOBMFF",
-               "protection": "WIDEVINE",
-               "transport":  "DASH",
-               "vcodec":     "H264",
-            },
-         },
-         "maxVideoFormat": "HD",
-      },
-      "personaParentalControlRating": 9,
-      // "contentId": "GMO_00000000261361_02_HDSDR",
-      "providerVariantId": variantId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://ovp.peacocktv.com/video/playouts/vod",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // `application/json` fails
-   req.Header.Set("content-type", "application/vnd.playvod.v1+json")
-   req.Header.Set("x-skyott-usertoken", t.UserToken)
-   req.Header.Set(
-      "x-sky-signature",
-      generate_sky_ott(req.Method, req.URL.Path, req.Header, body),
-   )
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playout
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Description != "" {
-      return nil, errors.New(result.Description)
-   }
-   return &result, nil
-}
-
-var Territory = "US"
-
-func FetchIdSession(user, password string) (*http.Cookie, error) {
-   data := url.Values{
-      "userIdentifier": {user},
-      "password":       {password},
-   }.Encode()
-   req, err := http.NewRequest(
-      "POST", "https://rango.id.peacocktv.com/signin/service/international",
-      strings.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("x-skyott-proposition", "NBCUOTT")
-   req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("x-skyott-territory", Territory)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Properties struct {
-         Errors struct {
-            CategoryErrors []struct {
-               Code string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusCreated {
-      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
-   }
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "idsession" {
-         return cookie, nil
-      }
-   }
-   return nil, http.ErrNoCookie
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+func (e *Endpoint) ParseDash() (*url.URL, error) {
+   return url.Parse(e.Url)
 }
 
 func (p *Playout) GetFastly() (*Endpoint, error) {
@@ -307,4 +195,102 @@ func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
+}
+
+func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
+   body, err := json.Marshal(map[string]any{
+      "device": map[string]any{
+         "capabilities": []any{
+            map[string]string{
+               "acodec":     "AAC",
+               "container":  "ISOBMFF",
+               "protection": "WIDEVINE",
+               "transport":  "DASH",
+               "vcodec":     "H264",
+            },
+         },
+         "maxVideoFormat": "HD",
+      },
+      "personaParentalControlRating": 9,
+      // "contentId": "GMO_00000000261361_02_HDSDR",
+      "providerVariantId": variantId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://ovp.peacocktv.com/video/playouts/vod",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   // `application/json` fails
+   req.Header.Set("content-type", "application/vnd.playvod.v1+json")
+   req.Header.Set("x-skyott-usertoken", t.UserToken)
+   req.Header.Set(
+      "x-sky-signature",
+      generate_sky_ott(req.Method, req.URL.Path, req.Header, body),
+   )
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playout
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Description != "" {
+      return nil, errors.New(result.Description)
+   }
+   return &result, nil
+}
+
+var Territory = "US"
+
+func FetchIdSession(user, password string) (*http.Cookie, error) {
+   data := url.Values{
+      "userIdentifier": {user},
+      "password":       {password},
+   }.Encode()
+   req, err := http.NewRequest(
+      "POST", "https://rango.id.peacocktv.com/signin/service/international",
+      strings.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.Header.Set("x-skyott-proposition", "NBCUOTT")
+   req.Header.Set("x-skyott-provider", "NBCU")
+   req.Header.Set("x-skyott-territory", Territory)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Properties struct {
+         Errors struct {
+            CategoryErrors []struct {
+               Code string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusCreated {
+      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
+   }
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "idsession" {
+         return cookie, nil
+      }
+   }
+   return nil, http.ErrNoCookie
 }
