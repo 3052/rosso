@@ -16,6 +16,89 @@ import (
    "time"
 )
 
+func (p *Player) ParseDash() (*url.URL, error) {
+   return url.Parse(p.Url)
+}
+
+type Episode struct {
+   Desc   string
+   Id     string
+   Params struct {
+      SeriesEpisode int
+   }
+   Title string
+}
+
+type Login struct {
+   Label    string
+   Message  string
+   SsoToken string // this last one day
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label = ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage = ")
+   data.WriteString(l.Message)
+   return data.String()
+}
+
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
+func get_client(url_data *url.URL, body []byte) (string, error) {
+   encoding := base64.RawURLEncoding
+   // 1. base64 raw URL decode secret key
+   decoded_key, err := encoding.DecodeString(secret_key)
+   if err != nil {
+      return "", err
+   }
+   // Prepare timestamp as string immediately
+   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+   body_checksum := sha256.Sum256(body)
+   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
+   // 2. hmac.New(sha256.New, secret key)
+   hash := hmac.New(sha256.New, decoded_key)
+   // 3, 4, 5. Write components to the hasher
+   io.WriteString(hash, url_data.String())
+   io.WriteString(hash, encoded_body_hash)
+   io.WriteString(hash, timestamp)
+   // 6. base64 raw URL encode the hmac sum
+   signature := encoding.EncodeToString(hash.Sum(nil))
+   // Construct final result string using strings.Builder
+   var data strings.Builder
+   data.WriteString("Client key=")
+   data.WriteString(client_key)
+   data.WriteString(",time=")
+   data.WriteString(timestamp)
+   data.WriteString(",sig=")
+   data.WriteString(signature)
+   return data.String(), nil
+}
+
+func (e *Episode) String() string {
+   data := &strings.Builder{}
+   fmt.Fprintln(data, "episode =", e.Params.SeriesEpisode)
+   fmt.Fprintln(data, "title =", e.Title)
+   fmt.Fprintln(data, "desc =", e.Desc)
+   fmt.Fprint(data, "tracking = ", e.Id)
+   return data.String()
+}
+
+func (p *Player) Widevine(data []byte) ([]byte, error) {
+   resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
 func (s *Session) Search(query string) ([]Collection, error) {
    req := http.Request{
       URL: &url.URL{
@@ -65,19 +148,6 @@ type Asset struct {
 
 type Collection struct {
    Assets []Asset
-}
-
-func (p *Player) Dash() (*Dash, error) {
-   resp, err := http.Get(p.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
 }
 
 type Session struct {
@@ -185,8 +255,6 @@ func (s *Session) Player(tracking string) (*Player, error) {
    return &result, nil
 }
 
-///
-
 func FetchTicket() (*Ticket, error) {
    data, err := json.Marshal(map[string]any{
       "deviceInfo": map[string]string{
@@ -284,89 +352,4 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
 type Ticket struct {
    Message string
    Ticket  string
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-type Episode struct {
-   Desc   string
-   Id     string
-   Params struct {
-      SeriesEpisode int
-   }
-   Title string
-}
-
-type Login struct {
-   Label    string
-   Message  string
-   SsoToken string // this last one day
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label = ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage = ")
-   data.WriteString(l.Message)
-   return data.String()
-}
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)
-
-func get_client(url_data *url.URL, body []byte) (string, error) {
-   encoding := base64.RawURLEncoding
-   // 1. base64 raw URL decode secret key
-   decoded_key, err := encoding.DecodeString(secret_key)
-   if err != nil {
-      return "", err
-   }
-   // Prepare timestamp as string immediately
-   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-   body_checksum := sha256.Sum256(body)
-   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
-   // 2. hmac.New(sha256.New, secret key)
-   hash := hmac.New(sha256.New, decoded_key)
-   // 3, 4, 5. Write components to the hasher
-   io.WriteString(hash, url_data.String())
-   io.WriteString(hash, encoded_body_hash)
-   io.WriteString(hash, timestamp)
-   // 6. base64 raw URL encode the hmac sum
-   signature := encoding.EncodeToString(hash.Sum(nil))
-   // Construct final result string using strings.Builder
-   var data strings.Builder
-   data.WriteString("Client key=")
-   data.WriteString(client_key)
-   data.WriteString(",time=")
-   data.WriteString(timestamp)
-   data.WriteString(",sig=")
-   data.WriteString(signature)
-   return data.String(), nil
-}
-
-func (e *Episode) String() string {
-   data := &strings.Builder{}
-   fmt.Fprintln(data, "episode =", e.Params.SeriesEpisode)
-   fmt.Fprintln(data, "title =", e.Title)
-   fmt.Fprintln(data, "desc =", e.Desc)
-   fmt.Fprint(data, "tracking = ", e.Id)
-   return data.String()
-}
-
-func (p *Player) Widevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
