@@ -7,6 +7,52 @@ import (
    "log"
 )
 
+func (c *client) do_language() error {
+   stream, err := c.Content.FetchStreamInfo(
+      c.Episode, c.Language, rakuten.Widevine, rakuten.Fhd,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   stream, err := c.Content.FetchStreamInfo(
+      c.Episode, c.Language, rakuten.Widevine, rakuten.Hd,
+   )
+   if err != nil {
+      return err
+   }
+   return c.Dash.Download(&c.Job, stream.FetchWidevine)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Content *rakuten.Content
+   Dash    *maya.Dash
+   //-------------------
+   Job maya.Job
+   //-------------------
+   address string
+   //-------------------
+   season string
+   //-------------------
+   Language string
+   Episode  string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/rakuten.xml")
    if err != nil {
@@ -86,54 +132,4 @@ func (c *client) do_season() error {
       fmt.Println(&episode)
    }
    return nil
-}
-
-func (c *client) do_language() error {
-   stream, err := c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.Widevine, rakuten.Fhd,
-   )
-   if err != nil {
-      return err
-   }
-   dash, err := stream.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   stream, err := c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.Widevine, rakuten.Hd,
-   )
-   if err != nil {
-      return err
-   }
-   return c.Dash.Download(&c.Job, stream.FetchWidevine)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Content *rakuten.Content
-   Dash    *maya.Dash
-   //-------------------
-   Job maya.Job
-   //-------------------
-   address string
-   //-------------------
-   season string
-   //-------------------
-   Language string
-   Episode  string
 }

@@ -11,6 +11,10 @@ import (
    "strings"
 )
 
+func (s *StreamInfo) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Url)
+}
+
 func (s *StreamInfo) FetchWidevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       s.LicenseUrl, "application/x-protobuf", bytes.NewReader(data),
@@ -20,10 +24,6 @@ func (s *StreamInfo) FetchWidevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-func (s *StreamInfo) ParseDash() (*url.URL, error) {
-   return url.Parse(s.Url)
 }
 
 // For TV Shows, 'id' should be the Episode ID.

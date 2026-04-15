@@ -4,15 +4,8 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/plex"
    "log"
+   "net/url"
 )
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job,
-      func(data []byte) ([]byte, error) {
-         return c.Part.FetchWidevine(c.User.AuthToken, data)
-      },
-   )
-}
 
 func (c *client) do_address() error {
    var err error
@@ -36,7 +29,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(c.Part.GetDash(c.User.AuthToken))
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return c.Part.GetManifest(c.User.AuthToken), nil
+   })
    if err != nil {
       return err
    }
@@ -92,4 +87,12 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job,
+      func(data []byte) ([]byte, error) {
+         return c.Part.FetchWidevine(c.User.AuthToken, data)
+      },
+   )
 }

@@ -10,7 +10,7 @@ import (
    "strings"
 )
 
-func (p *Part) GetDash(token string) *url.URL {
+func (p *Part) GetManifest(token string) *url.URL {
    return &url.URL{
       Scheme:   "https",
       Host:     "vod.provider.plex.tv",
@@ -44,6 +44,7 @@ func FetchUser() (*User, error) {
    }
    return result, nil
 }
+
 type User struct {
    AuthToken string
 }

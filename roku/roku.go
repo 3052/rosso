@@ -10,6 +10,19 @@ import (
    "strings"
 )
 
+func (p *Playback) GetManifest() (*url.URL, error) {
+   return url.Parse(p.Url)
+}
+
+type Playback struct {
+   Drm struct {
+      Widevine struct {
+         LicenseServer string
+      }
+   }
+   Url string // MPD
+}
+
 func FormatActivation(code string) string {
    var data strings.Builder
    data.WriteString("1 Visit the URL\n")
@@ -118,15 +131,6 @@ func FetchToken(codeToken string) (*Token, error) {
    return result, nil
 }
 
-type Playback struct {
-   Drm struct {
-      Widevine struct {
-         LicenseServer string
-      }
-   }
-   Url string // MPD
-}
-
 func FetchWidevine(licenseServer string, data []byte) ([]byte, error) {
    resp, err := http.Post(
       licenseServer, "application/x-protobuf", bytes.NewReader(data),
@@ -139,10 +143,6 @@ func FetchWidevine(licenseServer string, data []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-func ParseDash(playbackUrl string) (*url.URL, error) {
-   return url.Parse(playbackUrl)
 }
 
 // /api/v3/playback

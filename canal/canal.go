@@ -99,6 +99,7 @@ func (p *Player) Widevine(data []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
+
 func (s *Session) Search(query string) ([]Collection, error) {
    req := http.Request{
       URL: &url.URL{

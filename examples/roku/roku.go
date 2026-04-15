@@ -7,6 +7,61 @@ import (
    "log"
 )
 
+func (c *client) do_roku_id() error {
+   var code_token string
+   if c.get_code.IsSet {
+      code_token = c.Code.Token
+   }
+   var err error
+   c.Token, err = roku.FetchToken(code_token)
+   if err != nil {
+      return err
+   }
+   c.Playback, err = roku.FetchPlayback(c.Token.AuthToken, c.roku_id)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_set_code() error {
+   var err error
+   c.Code, err = roku.FetchCode(c.Token.AuthToken, c.Activation.Code)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_token() error {
+   var err error
+   c.Token, err = roku.FetchToken("")
+   if err != nil {
+      return err
+   }
+   c.Activation, err = roku.FetchActivation(c.Token.AuthToken)
+   if err != nil {
+      return err
+   }
+   fmt.Println(roku.FormatActivation(c.Activation.Code))
+   return cache.Write(c)
+}
+
+var cache maya.Cache
+
+func main() {
+   maya.SetProxy("", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/roku.xml")
    if err != nil {
@@ -71,63 +126,4 @@ type client struct {
    //--------------------
    roku_id  string
    get_code *maya.Flag
-}
-
-func (c *client) do_roku_id() error {
-   var code_token string
-   if c.get_code.IsSet {
-      code_token = c.Code.Token
-   }
-   var err error
-   c.Token, err = roku.FetchToken(code_token)
-   if err != nil {
-      return err
-   }
-   c.Playback, err = roku.FetchPlayback(c.Token.AuthToken, c.roku_id)
-   if err != nil {
-      return err
-   }
-   dash, err := roku.ParseDash(c.Playback.Url)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_set_code() error {
-   var err error
-   c.Code, err = roku.FetchCode(c.Token.AuthToken, c.Activation.Code)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_token() error {
-   var err error
-   c.Token, err = roku.FetchToken("")
-   if err != nil {
-      return err
-   }
-   c.Activation, err = roku.FetchActivation(c.Token.AuthToken)
-   if err != nil {
-      return err
-   }
-   fmt.Println(roku.FormatActivation(c.Activation.Code))
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-func main() {
-   maya.SetProxy("", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }

@@ -35,7 +35,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(c.Manifest)
+   c.Dash, err = maya.ListDash(c.Manifest.GetManifest)
    if err != nil {
       return err
    }
@@ -109,6 +109,7 @@ func (c *client) do_email_password() error {
    }
    return cache.Write(c)
 }
+
 type client struct {
    Login    *kanopy.Login
    Manifest *kanopy.Manifest

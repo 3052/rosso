@@ -12,7 +12,7 @@ func (c *client) do_tubi() error {
       return err
    }
    c.VideoResource = &content.VideoResources[0]
-   c.Dash, err = maya.ListDash(c.VideoResource)
+   c.Dash, err = maya.ListDash(c.VideoResource.GetManifest)
    if err != nil {
       return err
    }
