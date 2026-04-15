@@ -12,17 +12,8 @@ import (
    "strings"
 )
 
-func FetchDash(manifest string) (*Dash, error) {
-   resp, err := http.Get(strings.Replace(manifest, "/best/", "/ultimate/", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func ParseDash(manifest string) (*url.URL, error) {
+   return url.Parse(strings.Replace(manifest, "/best/", "/ultimate/", 1))
 }
 
 type Playback struct {
@@ -229,9 +220,4 @@ func (a *AxisContent) Manifest(play *Playback) (string, error) {
       return "", err
    }
    return data.String(), nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
