@@ -7,13 +7,52 @@ import (
    "log"
 )
 
-func (c *client) do_dash_id() error {
+func (c *client) do_episode() error {
+   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   c.Source, err = playback.Data.DashSource()
+   if err != nil {
+      return err
+   }
+   c.BcovAuth = playback.BcovAuth
+   dash, err := c.Source.ParseDash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(dash)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   AuthData *amc.AuthData
+   BcovAuth string
+   Dash     *maya.Dash
+   Source   *amc.Source
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   series int
+   //------------------------
+   season int
+   //------------------------
+   episode int
+}
+
+func (c *client) do_dash() error {
    fetch := func(data []byte) ([]byte, error) {
       return amc.License(
          c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
       )
    }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, fetch)
+   return c.Dash.Download(&c.Job, fetch)
 }
 
 func (c *client) do() error {
@@ -35,7 +74,7 @@ func (c *client) do() error {
    //----------------------------------------------------------
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
    //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -60,8 +99,8 @@ func (c *client) do() error {
    if episode.IsSet {
       return with_cache(c.do_episode)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
@@ -70,7 +109,7 @@ func (c *client) do() error {
       {series},
       {season},
       {episode},
-      {dash_id},
+      {dash},
    })
 }
 
@@ -133,45 +172,4 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
-}
-
-func (c *client) do_episode() error {
-   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   c.Source, err = playback.Data.DashSource()
-   if err != nil {
-      return err
-   }
-   c.BcovAuth = playback.BcovAuth
-   c.Dash, err = c.Source.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-type client struct {
-   AuthData *amc.AuthData
-   BcovAuth string
-   Dash     *amc.Dash
-   Source   *amc.Source
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-   //------------------------
-   dash_id string
 }
