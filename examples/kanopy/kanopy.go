@@ -7,19 +7,6 @@ import (
    "log"
 )
 
-type client struct {
-   Login    *kanopy.Login
-   Manifest *kanopy.Manifest
-   //-------------------------------
-   Dash *maya.Dash
-   Job  maya.Job
-   //-------------------------------
-   email    string
-   password string
-   //-------------------------------
-   address string
-}
-
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {
@@ -48,11 +35,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := c.Manifest.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(c.Manifest)
    if err != nil {
       return err
    }
@@ -125,4 +108,16 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
+}
+type client struct {
+   Login    *kanopy.Login
+   Manifest *kanopy.Manifest
+   //-------------------------------
+   Dash *maya.Dash
+   Job  maya.Job
+   //-------------------------------
+   email    string
+   password string
+   //-------------------------------
+   address string
 }

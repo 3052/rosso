@@ -12,7 +12,7 @@ import (
    "strings"
 )
 
-func (m *Manifest) ParseDash() (*url.URL, error) {
+func (m *Manifest) GetManifest() (*url.URL, error) {
    return url.Parse(m.Url)
 }
 

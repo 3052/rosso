@@ -10,6 +10,10 @@ import (
    "strconv"
 )
 
+func (v *VideoResource) GetManifest() (*url.URL, error) {
+   return url.Parse(v.Manifest.Url)
+}
+
 func (v *VideoResource) FetchWidevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       v.LicenseServer.Url, "application/x-protobuf", bytes.NewReader(data),
@@ -19,10 +23,6 @@ func (v *VideoResource) FetchWidevine(data []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-func (v *VideoResource) ParseDash() (*url.URL, error) {
-   return url.Parse(v.Manifest.Url)
 }
 
 type VideoResource struct {

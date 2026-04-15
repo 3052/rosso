@@ -10,6 +10,40 @@ import (
    "strings"
 )
 
+func (p *Part) GetDash(token string) *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "vod.provider.plex.tv",
+      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
+      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
+   }
+}
+
+func FetchUser() (*User, error) {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "plex.tv",
+         Path:   "/api/v2/users/anonymous",
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("accept", "application/json")
+   req.Header.Set("x-plex-product", "Plex Mediaverse")
+   req.Header.Set("x-plex-client-identifier", "!")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &User{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
 type User struct {
    AuthToken string
 }
@@ -143,39 +177,4 @@ func (m *Metadata) GetDash() (*Part, error) {
    }
    // Failure: No "dash" protocol was found.
    return nil, errors.New("DASH media part not found")
-}
-
-func (p *Part) GetDash(token string) *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "vod.provider.plex.tv",
-      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
-      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
-   }
-}
-
-func FetchUser() (*User, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "plex.tv",
-         Path:   "/api/v2/users/anonymous",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("accept", "application/json")
-   req.Header.Set("x-plex-product", "Plex Mediaverse")
-   req.Header.Set("x-plex-client-identifier", "!")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &User{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
