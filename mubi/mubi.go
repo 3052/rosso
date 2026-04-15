@@ -6,139 +6,55 @@ import (
    "encoding/json"
    "errors"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strings"
 )
 
-func (s *SecureUrl) FetchDash() (*Dash, error) {
+func (s *SecureUrl) ParseDash() (*url.URL, error) {
    s.Url = strings.NewReplacer(
       ".AVC1", "",
       ".ex-eac3", "",
       ".ex-vtt", "",
    ).Replace(s.Url)
-   resp, err := http.Get(s.Url)
+   return url.Parse(s.Url)
+}
+
+func (l *LinkCode) FetchSession() (*Session, error) {
+   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
    if err != nil {
       return nil, err
    }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Session struct {
-   Token string
-   User  struct {
-      Id int
-   }
-}
-
-func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
-   // final slash is needed
    req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(body),
+      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
    )
    if err != nil {
       return nil, err
    }
-   data, err := json.Marshal(map[string]any{
-      "merchant":  "mubi",
-      "sessionId": s.Token,
-      "userId":    s.User.Id,
-   })
-   if err != nil {
-      return nil, err
-   }
-
-   req.Header.Set("dt-custom-data", base64.StdEncoding.EncodeToString(data))
-
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("content-type", "application/json")
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   // Check if the response is not a 200 OK
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected HTTP error %v", resp.StatusCode)
-   }
-   var result struct {
-      License []byte
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
+   result := &Session{}
+   err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
    }
-   return result.License, nil
+   return result, nil
 }
 
-// to get the MPD you have to call this or view video on the website. request
-// is hard geo blocked only the first time
-func (s *Session) FetchViewing(id int) error {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing", id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      UserMessage string `json:"user_message"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   if result.UserMessage != "" {
-      return errors.New(result.UserMessage)
-   }
-   return nil
+type SecureUrl struct {
+   TextTrackUrls []struct {
+      Id  string
+      Url string
+   } `json:"text_track_urls"`
+   Url         string // MPD
+   UserMessage string `json:"user_message"`
 }
-
-func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   req.Header.Set("user-agent", "Firefox")
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SecureUrl
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.UserMessage != "" {
-      return nil, errors.New(result.UserMessage)
-   }
-   return &result, nil
-}
-
-///
 
 type LinkCode struct {
    AuthToken string `json:"auth_token"`
@@ -250,43 +166,110 @@ func FetchFilm(slug string) (*Film, error) {
    return result, nil
 }
 
-type Dash struct {
-   Body []byte
-   Url  *url.URL
+type Session struct {
+   Token string
+   User  struct {
+      Id int
+   }
 }
 
-func (l *LinkCode) FetchSession() (*Session, error) {
-   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
-   if err != nil {
-      return nil, err
-   }
+func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
+   // final slash is needed
    req, err := http.NewRequest(
-      "POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body),
+      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
+      bytes.NewReader(body),
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("client", client)
-   req.Header.Set("client-country", ClientCountry)
-   req.Header.Set("content-type", "application/json")
+   data, err := json.Marshal(map[string]any{
+      "merchant":  "mubi",
+      "sessionId": s.Token,
+      "userId":    s.User.Id,
+   })
+   if err != nil {
+      return nil, err
+   }
+
+   req.Header.Set("dt-custom-data", base64.StdEncoding.EncodeToString(data))
+
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   result := &Session{}
-   err = json.NewDecoder(resp.Body).Decode(result)
+   // Check if the response is not a 200 OK
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected HTTP error %v", resp.StatusCode)
+   }
+   var result struct {
+      License []byte
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return result, nil
+   return result.License, nil
 }
 
-type SecureUrl struct {
-   TextTrackUrls []struct {
-      Id  string
-      Url string
-   } `json:"text_track_urls"`
-   Url         string // MPD
-   UserMessage string `json:"user_message"`
+// to get the MPD you have to call this or view video on the website. request
+// is hard geo blocked only the first time
+func (s *Session) FetchViewing(id int) error {
+   req := http.Request{
+      Method: "POST",
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing", id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      UserMessage string `json:"user_message"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   if result.UserMessage != "" {
+      return errors.New(result.UserMessage)
+   }
+   return nil
+}
+
+func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("user-agent", "Firefox")
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SecureUrl
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.UserMessage != "" {
+      return nil, errors.New(result.UserMessage)
+   }
+   return &result, nil
 }
