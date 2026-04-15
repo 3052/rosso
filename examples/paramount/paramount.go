@@ -8,40 +8,7 @@ import (
    "net/http"
 )
 
-func main() {
-   maya.SetProxy("", "*.m4s", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_paramount() error {
-   app, err := paramount.GetApp(c.App)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = session.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
+func (c *client) do_dash() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
       return err
@@ -54,14 +21,14 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   return c.Job.DownloadDash(c.Dash.Body, c.Dash.Url, c.dash_id, session.Fetch)
+   return c.Dash.Download(&c.Job, session.Fetch)
 }
 
 var cache maya.Cache
 
 type client struct {
    CbsCom *http.Cookie
-   Dash   *paramount.Dash
+   Dash   *maya.Dash
    //--------------------
    Job maya.Job
    //--------------------
@@ -73,8 +40,6 @@ type client struct {
    cookie *maya.Flag
    //--------------------
    ParamountId string
-   //--------------------
-   dash_id string
 }
 
 func (c *client) do_username_password() error {
@@ -105,7 +70,7 @@ func (c *client) do() error {
    paramount_id := maya.StringFlag(&c.ParamountId, "p", "paramount ID")
    c.cookie = maya.BoolFlag("c", "cookie")
    //--------------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -124,14 +89,47 @@ func (c *client) do() error {
    if paramount_id.IsSet {
       return with_cache(c.do_paramount)
    }
-   if dash_id.IsSet {
-      return with_cache(c.do_dash_id)
+   if dash.IsSet {
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
       {app},
       {username, password},
       {paramount_id, c.cookie},
-      {dash_id, c.cookie},
+      {dash, c.cookie},
    })
+}
+
+func main() {
+   maya.SetProxy("", "*.m4s", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_paramount() error {
+   app, err := paramount.GetApp(c.App)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   dash, err := session.ParseDash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(dash)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

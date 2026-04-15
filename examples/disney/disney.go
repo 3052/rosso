@@ -7,6 +7,40 @@ import (
    "log"
 )
 
+func (c *client) do_hls_id() error {
+   return c.Hls.Download(&c.Job, c.Token.FetchPlayReady)
+}
+
+var cache maya.Cache
+
+func main() {
+   maya.SetProxy("", "*.mp4", "*.mp4a")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Hls   *maya.Hls
+   Token *disney.Token
+   //-----------------
+   Job maya.Job
+   //-----------------
+   Email string
+   //-----------------
+   passcode string
+   //-----------------
+   profile string
+   //-----------------
+   address string
+   //-----------------
+   season string
+   //-----------------
+   media string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/disney.xml")
    if err != nil {
@@ -14,10 +48,6 @@ func (c *client) do() error {
    }
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
-   //--------------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
    //--------------------------------------------------------------
    email := maya.StringFlag(&c.Email, "e", "email")
    //--------------------------------------------------------------
@@ -33,21 +63,13 @@ func (c *client) do() error {
    //--------------------------------------------------------------
    media := maya.StringFlag(&c.media, "m", "media ID")
    //--------------------------------------------------------------
-   hls_id := maya.IntFlag(&c.hls_id, "h", "HLS ID")
+   hls := maya.IntFlag(&c.Job.Hls, "h", "HLS ID")
    err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy, "*.mp4", "*.mp4a")
    if err != nil {
       return err
    }
    switch {
    case playReady.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
-      return cache.Write(c)
-   case threads.IsSet:
       return cache.Write(c)
    case email.IsSet:
       return c.do_email()
@@ -63,13 +85,11 @@ func (c *client) do() error {
       return with_cache(c.do_season_id)
    case media.IsSet:
       return with_cache(c.do_media_id)
-   case hls_id.IsSet:
+   case hls.IsSet:
       return with_cache(c.do_hls_id)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       playReady,
-      proxy,
-      threads,
       email,
       passcode,
       profile,
@@ -77,7 +97,7 @@ func (c *client) do() error {
       address,
       season,
       media,
-      hls_id,
+      hls,
    }})
 }
 
@@ -148,15 +168,15 @@ func (c *client) do_media_id() error {
    if err != nil {
       return err
    }
-   c.Hls, err = stream.FetchHls()
+   hls, err := stream.ParseHls()
    if err != nil {
       return err
    }
-   err = cache.Write(c)
+   c.Hls, err = maya.ListHls(hls)
    if err != nil {
       return err
    }
-   return maya.ListHls(c.Hls.Body, c.Hls.Url)
+   return cache.Write(c)
 }
 
 func (c *client) do_refresh() error {
@@ -165,43 +185,4 @@ func (c *client) do_refresh() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_hls_id() error {
-   return c.Job.DownloadHls(
-      c.Hls.Body, c.Hls.Url, c.hls_id, c.Token.FetchPlayReady,
-   )
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Hls   *disney.Hls
-   Token *disney.Token
-   //-----------------
-   Job maya.Job
-   //-----------------
-   Proxy string
-   //-----------------
-   Email string
-   //-----------------
-   passcode string
-   //-----------------
-   profile string
-   //-----------------
-   address string
-   //-----------------
-   season string
-   //-----------------
-   media string
-   //-----------------
-   hls_id int
 }

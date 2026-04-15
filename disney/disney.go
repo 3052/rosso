@@ -11,6 +11,10 @@ import (
    "strings"
 )
 
+func (s *Stream) ParseHls() (*url.URL, error) {
+   return url.Parse(s.Sources[0].Complete.Url)
+}
+
 // request: Account
 func (t *Token) FetchPage(entity string) (*Page, error) {
    if err := t.assert("Account"); err != nil {
@@ -330,11 +334,6 @@ type AuthenticateWithOtp struct {
    ActionGrant string
 }
 
-type Hls struct {
-   Body []byte
-   Url  *url.URL
-}
-
 type Login struct {
    Account struct {
       Profiles []Profile
@@ -404,22 +403,6 @@ type Stream struct {
          Url string
       }
    }
-}
-
-func (s *Stream) FetchHls() (*Hls, error) {
-   resp, err := http.Get(s.Sources[0].Complete.Url)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
 }
 
 // Response: Device

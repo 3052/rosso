@@ -18,17 +18,8 @@ import (
    "strings"
 )
 
-func (s *Session) FetchDash() (*Dash, error) {
-   resp, err := http.Get(s.StreamingUrl)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
+func (s *Session) ParseDash() (*url.URL, error) {
+   return url.Parse(s.StreamingUrl)
 }
 
 func (s *Session) Fetch(body []byte) ([]byte, error) {
@@ -231,11 +222,6 @@ func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session
       return nil, errors.New("streamingUrl (MPD) is missing")
    }
    return result, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
 }
 
 type Session struct {
