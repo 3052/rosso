@@ -14,6 +14,15 @@ import (
    "strings"
 )
 
+func (m *Manifest) GetManifest() (*url.URL, error) {
+   return url.Parse(m.Playback)
+}
+
+type Manifest struct {
+   Message  string
+   Playback string
+}
+
 func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
    req := http.Request{
       URL: &url.URL{
@@ -409,13 +418,4 @@ func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platfo
    }
 
    return &result, nil
-}
-
-func ParseDash(playback string) (*url.URL, error) {
-   return url.Parse(playback)
-}
-
-type Manifest struct {
-   Message  string
-   Playback string
 }

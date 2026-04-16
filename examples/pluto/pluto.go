@@ -5,8 +5,72 @@ import (
    "41.neocities.org/rosso/pluto"
    "fmt"
    "log"
+   "net/url"
    "path"
 )
+
+func (c *client) do_episode() error {
+   var err error
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return c.Series.GetEpisodeUrl(c.episode)
+   })
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_movie() error {
+   series, err := pluto.FetchSeries(path.Base(c.movie))
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return series.GetMovieUrl(), nil
+   })
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash_id() error {
+   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
+}
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+func (c *client) do_show() error {
+   var err error
+   c.Series, err = pluto.FetchSeries(path.Base(c.show))
+   if err != nil {
+      return err
+   }
+   fmt.Println(&c.Series.Vod[0])
+   return cache.Write(c)
+}
+
+type client struct {
+   Series *pluto.Series
+   Dash   *maya.Dash
+   //------------------
+   Job maya.Job
+   //------------------
+   movie string
+   //------------------
+   show string
+   //------------------
+   episode string
+}
 
 func (c *client) do() error {
    err := cache.Setup("rosso/pluto.xml")
@@ -46,66 +110,4 @@ func (c *client) do() error {
       episode,
       dash,
    }})
-}
-
-func (c *client) do_episode() error {
-   dash, err := c.Series.GetEpisodeUrl(c.episode)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
-}
-
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-func (c *client) do_movie() error {
-   series, err := pluto.FetchSeries(path.Base(c.movie))
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(series.GetMovieUrl())
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_show() error {
-   var err error
-   c.Series, err = pluto.FetchSeries(path.Base(c.show))
-   if err != nil {
-      return err
-   }
-   fmt.Println(&c.Series.Vod[0])
-   return cache.Write(c)
-}
-
-type client struct {
-   Series *pluto.Series
-   Dash   *maya.Dash
-   //------------------
-   Job maya.Job
-   //------------------
-   movie string
-   //------------------
-   show string
-   //------------------
-   episode string
 }

@@ -7,6 +7,73 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   var err error
+   c.Media, err = crave.ParseMedia(c.address)
+   if err != nil {
+      return err
+   }
+   if c.Media.FirstContent.Id == 0 {
+      c.Media, err = crave.FetchMedia(c.Media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   c.ContentPackage, err = crave.FetchContentPackage(
+      c.Account.AccessToken, c.Media.FirstContent.Id,
+   )
+   if err != nil {
+      return err
+   }
+   manifest, err := c.ContentPackage.ManifestPlayReady(
+      c.Media.FirstContent.Id, c.Account.AccessToken,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(manifest.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache
+
+func (c *client) do_profile() error {
+   err := c.Account.Login(c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := crave.FetchSubscriptions(c.Account.AccessToken)
+   if err != nil {
+      return err
+   }
+   for i, sub := range subs {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&sub)
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   Account        *crave.Account
+   ContentPackage *crave.ContentPackage
+   Media          *crave.Media
+   Dash           *maya.Dash
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
+}
+
 func main() {
    maya.SetProxy("", "*.m4v")
    log.SetFlags(log.Ltime)
@@ -88,75 +155,4 @@ func (c *client) do_dash() error {
       )
    }
    return c.Dash.Download(&c.Job, fetch)
-}
-
-func (c *client) do_address() error {
-   var err error
-   c.Media, err = crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if c.Media.FirstContent.Id == 0 {
-      c.Media, err = crave.FetchMedia(c.Media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   c.ContentPackage, err = crave.FetchContentPackage(
-      c.Account.AccessToken, c.Media.FirstContent.Id,
-   )
-   if err != nil {
-      return err
-   }
-   manifest, err := c.ContentPackage.ManifestPlayReady(
-      c.Media.FirstContent.Id, c.Account.AccessToken,
-   )
-   if err != nil {
-      return err
-   }
-   dash, err := crave.ParseDash(manifest.Playback)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
-   if err != nil {
-      return err
-   }
-   subs, err := crave.FetchSubscriptions(c.Account.AccessToken)
-   if err != nil {
-      return err
-   }
-   for i, sub := range subs {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&sub)
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   Account        *crave.Account
-   ContentPackage *crave.ContentPackage
-   Media          *crave.Media
-   Dash           *maya.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
 }

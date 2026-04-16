@@ -11,6 +11,27 @@ import (
    "strings"
 )
 
+// It assumes Vod and Stitched.Paths always have at least one entry
+func (s *Series) GetMovieUrl() *url.URL {
+   // Directly access the required path based on the data guarantees
+   return build_stitcher(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
+}
+
+func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
+   // Iterate through all seasons and episodes to find the matching ID
+   for _, season := range s.Vod[0].Seasons {
+      for _, episode := range season.Episodes {
+         if episode.Id == episodeId {
+            // Directly access the path based on the data guarantees
+            return build_stitcher(
+               s.SessionToken, episode.Stitched.Paths[0].Path,
+            ), nil
+         }
+      }
+   }
+   return nil, errors.New("episode not found")
+}
+
 func FetchWidevine(data []byte) ([]byte, error) {
    resp, err := http.Post(
       "https://service-concierge.clusters.pluto.tv/v1/wv/alt",
@@ -28,7 +49,7 @@ type Series struct {
    Vod          []Vod
 }
 
-func buildStitcherUrl(session_token, path string) *url.URL {
+func build_stitcher(session_token, path string) *url.URL {
    stitcher := &url.URL{
       Host:   stitcherHost,
       Path:   "/v2" + path,
@@ -38,27 +59,6 @@ func buildStitcherUrl(session_token, path string) *url.URL {
    values.Set("jwt", session_token)
    stitcher.RawQuery = values.Encode()
    return stitcher
-}
-
-// It assumes Vod and Stitched.Paths always have at least one entry
-func (s *Series) GetMovieUrl() *url.URL {
-   // Directly access the required path based on the data guarantees
-   return buildStitcherUrl(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
-}
-
-func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
-   // Iterate through all seasons and episodes to find the matching ID
-   for _, season := range s.Vod[0].Seasons {
-      for _, episode := range season.Episodes {
-         if episode.Id == episodeId {
-            // Directly access the path based on the data guarantees
-            return buildStitcherUrl(
-               s.SessionToken, episode.Stitched.Paths[0].Path,
-            ), nil
-         }
-      }
-   }
-   return nil, errors.New("episode not found")
 }
 
 // Define constants for the hardcoded URL parts
