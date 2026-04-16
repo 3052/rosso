@@ -7,20 +7,27 @@ import (
    "net/http"
 )
 
-// GetWidevineLicense submits the CDM challenge to the DRM endpoint and returns the Widevine License payload.
-func (c *Client) GetWidevineLicense(drmLicenseID string, challenge []byte) ([]byte, error) {
-   url := fmt.Sprintf("%s/kapi/licenses/widevine/%s", BaseURL, drmLicenseID)
+// GetWidevineLicense submits the binary CDM challenge to the Widevine DRM endpoint.
+// It explicitly requires a Manifest (obtained from CreatePlay) to extract the DrmLicenseID.
+func (s *Session) GetWidevineLicense(manifest *Manifest, challenge []byte) ([]byte, error) {
+   if manifest == nil {
+      return nil, fmt.Errorf("a valid stream manifest is required to request a DRM license")
+   }
+   if manifest.DrmLicenseID == "" {
+      return nil, fmt.Errorf("manifest does not contain a DRM license ID")
+   }
+
+   url := fmt.Sprintf("%s/kapi/licenses/widevine/%s", BaseURL, manifest.DrmLicenseID)
 
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(challenge))
    if err != nil {
       return nil, err
    }
 
-   req.Header.Set("Authorization", "Bearer "+c.Token)
-   req.Header.Set("User-Agent", c.UserAgent)
-   req.Header.Set("X-Version", c.XVersion)
+   req.Header.Set("Authorization", "Bearer "+s.JWT)
+   req.Header.Set("User-Agent", UserAgent)
+   req.Header.Set("X-Version", XVersion)
 
-   // Explicitly using http.DefaultClient
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err

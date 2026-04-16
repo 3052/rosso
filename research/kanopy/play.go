@@ -30,12 +30,20 @@ type PlayResponse struct {
    Manifests []Manifest `json:"manifests"`
 }
 
-// CreatePlay registers a play event and returns structured manifests and DRM details.
-func (c *Client) CreatePlay(domainID, userID, videoID int) (*PlayResponse, error) {
+// CreatePlay registers a playback event using the DomainID from a Membership
+// and the VideoID from a VideoResponse.
+func (s *Session) CreatePlay(membership *Membership, video *VideoResponse) (*PlayResponse, error) {
+   if membership == nil {
+      return nil, fmt.Errorf("membership context is required to create a play")
+   }
+   if video == nil {
+      return nil, fmt.Errorf("video context is required to create a play")
+   }
+
    payload := PlayRequest{
-      DomainID: domainID,
-      UserID:   userID,
-      VideoID:  videoID,
+      DomainID: membership.DomainID,
+      UserID:   s.UserID,
+      VideoID:  video.Video.VideoID,
    }
 
    body, err := json.Marshal(payload)
@@ -48,10 +56,10 @@ func (c *Client) CreatePlay(domainID, userID, videoID int) (*PlayResponse, error
       return nil, err
    }
 
-   req.Header.Set("X-Version", c.XVersion)
-   req.Header.Set("Authorization", "Bearer "+c.Token)
+   req.Header.Set("X-Version", XVersion)
+   req.Header.Set("Authorization", "Bearer "+s.JWT)
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("User-Agent", c.UserAgent)
+   req.Header.Set("User-Agent", UserAgent)
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {

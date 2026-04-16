@@ -16,13 +16,8 @@ type LoginRequest struct {
    } `json:"emailUser"`
 }
 
-type LoginResponse struct {
-   JWT    string `json:"jwt"`
-   UserID int    `json:"userId"`
-}
-
-// Login authenticates the user and returns the login response containing the JWT and UserID.
-func (c *Client) Login(email, password string) (*LoginResponse, error) {
+// Login authenticates the user and returns an initialized Session.
+func Login(email, password string) (*Session, error) {
    payload := LoginRequest{
       CredentialType: "email",
    }
@@ -40,9 +35,8 @@ func (c *Client) Login(email, password string) (*LoginResponse, error) {
    }
 
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("User-Agent", c.UserAgent)
+   req.Header.Set("User-Agent", UserAgent)
 
-   // Explicitly using http.DefaultClient
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
@@ -58,14 +52,10 @@ func (c *Client) Login(email, password string) (*LoginResponse, error) {
       return nil, err
    }
 
-   var loginResp LoginResponse
-   if err := json.Unmarshal(respBody, &loginResp); err != nil {
+   var session Session
+   if err := json.Unmarshal(respBody, &session); err != nil {
       return nil, err
    }
 
-   if loginResp.JWT != "" {
-      c.SetToken(loginResp.JWT)
-   }
-
-   return &loginResp, nil
+   return &session, nil
 }

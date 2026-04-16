@@ -22,8 +22,8 @@ type VideoResponse struct {
    } `json:"video"`
 }
 
-// GetVideo fetches and parses video metadata using the movie alias.
-func (c *Client) GetVideo(alias string) (*VideoResponse, error) {
+// GetVideo fetches video metadata using the movie alias.
+func (s *Session) GetVideo(alias string) (*VideoResponse, error) {
    url := fmt.Sprintf("%s/kapi/videos/alias/%s", BaseURL, alias)
 
    req, err := http.NewRequest("GET", url, nil)
@@ -31,8 +31,8 @@ func (c *Client) GetVideo(alias string) (*VideoResponse, error) {
       return nil, err
    }
 
-   req.Header.Set("X-Version", c.XVersion)
-   req.Header.Set("Authorization", "Bearer "+c.Token)
+   req.Header.Set("X-Version", XVersion)
+   req.Header.Set("Authorization", "Bearer "+s.JWT)
    req.Header.Set("User-Agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)

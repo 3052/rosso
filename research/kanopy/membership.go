@@ -23,18 +23,18 @@ type MembershipsResponse struct {
    List []Membership `json:"list"`
 }
 
-// GetMemberships fetches and parses the library memberships/domains associated with the user.
-func (c *Client) GetMemberships(userID int) (*MembershipsResponse, error) {
-   url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseURL, userID)
+// GetMemberships fetches the library memberships associated with the session's UserID.
+func (s *Session) GetMemberships() (*MembershipsResponse, error) {
+   url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseURL, s.UserID)
 
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err
    }
 
-   req.Header.Set("User-Agent", c.UserAgent)
-   req.Header.Set("X-Version", c.XVersion)
-   req.Header.Set("Authorization", "Bearer "+c.Token)
+   req.Header.Set("User-Agent", UserAgent)
+   req.Header.Set("X-Version", XVersion)
+   req.Header.Set("Authorization", "Bearer "+s.JWT)
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
