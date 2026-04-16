@@ -14,8 +14,24 @@ type PlayRequest struct {
    VideoID  int `json:"videoId"`
 }
 
-// CreatePlay registers a play event to retrieve stream manifests and DRM license IDs.
-func (c *Client) CreatePlay(domainID, userID, videoID int) ([]byte, error) {
+type Manifest struct {
+   ManifestType string `json:"manifestType"`
+   URL          string `json:"url"`
+   DrmType      string `json:"drmType"`
+   DrmLicenseID string `json:"drmLicenseID"`
+   StudioDrm    struct {
+      AuthXML      string `json:"authXml"`
+      DrmLicenseID string `json:"drmLicenseId"`
+   } `json:"studioDrm"`
+}
+
+type PlayResponse struct {
+   PlayID    string     `json:"playId"`
+   Manifests []Manifest `json:"manifests"`
+}
+
+// CreatePlay registers a play event and returns structured manifests and DRM details.
+func (c *Client) CreatePlay(domainID, userID, videoID int) (*PlayResponse, error) {
    payload := PlayRequest{
       DomainID: domainID,
       UserID:   userID,
@@ -37,7 +53,6 @@ func (c *Client) CreatePlay(domainID, userID, videoID int) ([]byte, error) {
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("User-Agent", c.UserAgent)
 
-   // Explicitly using http.DefaultClient
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
@@ -48,5 +63,15 @@ func (c *Client) CreatePlay(domainID, userID, videoID int) ([]byte, error) {
       return nil, fmt.Errorf("create play failed with status: %d", resp.StatusCode)
    }
 
-   return io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   var playResp PlayResponse
+   if err := json.Unmarshal(respBody, &playResp); err != nil {
+      return nil, err
+   }
+
+   return &playResp, nil
 }
