@@ -11,7 +11,7 @@ import (
 type PlayRequest struct {
    DomainID int `json:"domainId"`
    UserID   int `json:"userId"`
-   VideoID  int `json:"videoId"`
+   VideoId  int `json:"videoId"`
 }
 
 type Manifest struct {
@@ -31,8 +31,7 @@ type PlayResponse struct {
 }
 
 // CreatePlay registers a playback event using the DomainID from a Membership
-// and the VideoID from a VideoResponse.
-func (s *Session) CreatePlay(membership *Membership, video *VideoResponse) (*PlayResponse, error) {
+func (s *Session) CreatePlay(membership *Membership, video *Video) (*PlayResponse, error) {
    if membership == nil {
       return nil, fmt.Errorf("membership context is required to create a play")
    }
@@ -43,7 +42,7 @@ func (s *Session) CreatePlay(membership *Membership, video *VideoResponse) (*Pla
    payload := PlayRequest{
       DomainID: membership.DomainID,
       UserID:   s.UserID,
-      VideoID:  video.Video.VideoID,
+      VideoId:  video.VideoId,
    }
 
    body, err := json.Marshal(payload)
