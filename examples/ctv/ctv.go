@@ -4,6 +4,7 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/ctv"
    "log"
+   "net/url"
 )
 
 func (c *client) do_address() error {
@@ -27,11 +28,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := ctv.ParseDash(manifest)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return ctv.GetManifest(manifest)
+   })
    if err != nil {
       return err
    }

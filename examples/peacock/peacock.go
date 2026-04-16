@@ -8,10 +8,6 @@ import (
    "path"
 )
 
-func (c *client) do_dash_id() error {
-   return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
-}
-
 func (c *client) do_address() error {
    token, err := peacock.FetchToken(c.IdSession)
    if err != nil {
@@ -25,11 +21,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := endpoint.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(endpoint.GetManifest)
    if err != nil {
       return err
    }
@@ -107,4 +99,8 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash_id() error {
+   return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
 }

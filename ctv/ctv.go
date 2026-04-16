@@ -12,8 +12,39 @@ import (
    "strings"
 )
 
-func ParseDash(manifest string) (*url.URL, error) {
+func GetManifest(manifest string) (*url.URL, error) {
    return url.Parse(strings.Replace(manifest, "/best/", "/ultimate/", 1))
+}
+
+func (a *AxisContent) Manifest(play *Playback) (string, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "capi.9c9media.com",
+         Path: fmt.Sprint(
+            "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
+            "/platforms/desktop/playback/contents/", a.AxisId,
+            "/contentPackages/", play.ContentPackages[0].Id,
+            "/manifest.mpd",
+         ),
+         RawQuery: "action=reference",
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return "", errors.New(resp.Status)
+   }
+   var data strings.Builder
+   _, err = io.Copy(&data, resp.Body)
+   if err != nil {
+      return "", err
+   }
+   return data.String(), nil
 }
 
 type Playback struct {
@@ -189,35 +220,4 @@ func (a *AxisContent) Playback() (*Playback, error) {
       return nil, err
    }
    return result, nil
-}
-
-func (a *AxisContent) Manifest(play *Playback) (string, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprint(
-            "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
-            "/platforms/desktop/playback/contents/", a.AxisId,
-            "/contentPackages/", play.ContentPackages[0].Id,
-            "/manifest.mpd",
-         ),
-         RawQuery: "action=reference",
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return "", errors.New(resp.Status)
-   }
-   var data strings.Builder
-   _, err = io.Copy(&data, resp.Body)
-   if err != nil {
-      return "", err
-   }
-   return data.String(), nil
 }

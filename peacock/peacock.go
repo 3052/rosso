@@ -17,7 +17,7 @@ import (
    "time"
 )
 
-func (e *Endpoint) ParseDash() (*url.URL, error) {
+func (e *Endpoint) GetManifest() (*url.URL, error) {
    return url.Parse(e.Url)
 }
 
