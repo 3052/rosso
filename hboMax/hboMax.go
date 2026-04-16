@@ -13,7 +13,7 @@ import (
    "strings"
 )
 
-func (p *Playback) ParseDash() (*url.URL, error) {
+func (p *Playback) GetManifest() (*url.URL, error) {
    return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
 }
 

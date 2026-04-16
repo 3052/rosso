@@ -14,11 +14,7 @@ func (c *client) do_edit() error {
    if err != nil {
       return err
    }
-   dash, err := c.Playback.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
    if err != nil {
       return err
    }
@@ -26,6 +22,7 @@ func (c *client) do_edit() error {
 }
 
 func main() {
+   maya.SetProxy("", "*.mp4")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
@@ -76,7 +73,6 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   maya.SetProxy("", "*.mp4")
    if playReady.IsSet {
       return cache.Write(c)
    }

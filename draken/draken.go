@@ -11,8 +11,8 @@ import (
    "strings"
 )
 
-func ParseDash(playlist string) (*url.URL, error) {
-   return url.Parse(playlist)
+func (p *Playback) GetManifest() (*url.URL, error) {
+   return url.Parse(p.Playlist)
 }
 
 type Playback struct {

@@ -7,6 +7,45 @@ import (
    "path"
 )
 
+func (c *client) do_address() error {
+   err := c.Token.Refresh()
+   if err != nil {
+      return err
+   }
+   files_href, err := criterion.FetchFilesHref(
+      c.Token.AccessToken, path.Base(c.address),
+   )
+   if err != nil {
+      return err
+   }
+   files, err := criterion.FetchFiles(c.Token.AccessToken, files_href)
+   if err != nil {
+      return err
+   }
+   c.File, err = criterion.GetDash(files)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.File.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   File  *criterion.File
+   Token *criterion.Token
+   Dash  *maya.Dash
+   //------------------------
+   Job maya.Job
+   //------------------------
+   email    string
+   password string
+   //------------------------
+   address string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/criterion.xml")
    if err != nil {
@@ -48,8 +87,8 @@ func (c *client) do() error {
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.mp4")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -69,47 +108,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   err := c.Token.Refresh()
-   if err != nil {
-      return err
-   }
-   files_href, err := criterion.FetchFilesHref(
-      c.Token.AccessToken, path.Base(c.address),
-   )
-   if err != nil {
-      return err
-   }
-   files, err := criterion.FetchFiles(c.Token.AccessToken, files_href)
-   if err != nil {
-      return err
-   }
-   c.File, err = criterion.GetDash(files)
-   if err != nil {
-      return err
-   }
-   dash, err := c.File.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   File  *criterion.File
-   Token *criterion.Token
-   Dash  *maya.Dash
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   address string
 }

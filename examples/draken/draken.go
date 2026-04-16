@@ -7,6 +7,41 @@ import (
    "path"
 )
 
+func (c *client) do_address() error {
+   playable_id, err := draken.FetchPlayableId(path.Base(c.address))
+   if err != nil {
+      return err
+   }
+   entitlement, err := draken.FetchEntitlement(c.Login.Token, playable_id)
+   if err != nil {
+      return err
+   }
+   c.Playback, err = draken.FetchPlayback(
+      c.Login.Token, playable_id, entitlement.Token,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+type client struct {
+   Login    *draken.Login
+   Playback *draken.Playback
+   Dash     *maya.Dash
+   //-----------------------
+   Job maya.Job
+   //-----------------------
+   email    string
+   password string
+   //-----------------------
+   address string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/draken.xml")
    if err != nil {
@@ -73,43 +108,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   playable_id, err := draken.FetchPlayableId(path.Base(c.address))
-   if err != nil {
-      return err
-   }
-   entitlement, err := draken.FetchEntitlement(c.Login.Token, playable_id)
-   if err != nil {
-      return err
-   }
-   c.Playback, err = draken.FetchPlayback(
-      c.Login.Token, playable_id, entitlement.Token,
-   )
-   if err != nil {
-      return err
-   }
-   dash, err := draken.ParseDash(c.Playback.Playlist)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   Login    *draken.Login
-   Playback *draken.Playback
-   Dash     *maya.Dash
-   //-----------------------
-   Job maya.Job
-   //-----------------------
-   email    string
-   password string
-   //-----------------------
-   address string
 }

@@ -11,6 +11,10 @@ import (
    "strings"
 )
 
+func (a *Asset) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
+}
+
 func (a *Asset) FetchWidevine(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
@@ -201,10 +205,6 @@ func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
 
 type Play struct {
    Url string // fapi.molotov.tv/v2/me/assets
-}
-
-func (a *Asset) ParseDash() (*url.URL, error) {
-   return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
 }
 
 func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {

@@ -6,6 +6,30 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   program, err := molotov.ParseProgram(c.address)
+   if err != nil {
+      return err
+   }
+   c.Auth, err = c.Auth.Refresh()
+   if err != nil {
+      return err
+   }
+   play, err := c.Auth.FetchPlay(program)
+   if err != nil {
+      return err
+   }
+   c.Asset, err = c.Auth.FetchAsset(play)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Asset.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Asset.FetchWidevine)
 }
@@ -77,34 +101,6 @@ func (c *client) do() error {
 func (c *client) do_email_password() error {
    var err error
    c.Auth, err = molotov.FetchAuth(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   program, err := molotov.ParseProgram(c.address)
-   if err != nil {
-      return err
-   }
-   c.Auth, err = c.Auth.Refresh()
-   if err != nil {
-      return err
-   }
-   play, err := c.Auth.FetchPlay(program)
-   if err != nil {
-      return err
-   }
-   c.Asset, err = c.Auth.FetchAsset(play)
-   if err != nil {
-      return err
-   }
-   dash, err := c.Asset.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
    if err != nil {
       return err
    }

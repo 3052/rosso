@@ -10,7 +10,7 @@ import (
    "net/url"
 )
 
-func (f *File) ParseDash() (*url.URL, error) {
+func (f *File) GetManifest() (*url.URL, error) {
    return url.Parse(f.Links.Source.Href)
 }
 
