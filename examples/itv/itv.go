@@ -7,6 +7,46 @@ import (
    "log"
 )
 
+func (c *client) do_playlist() error {
+   playlist, err := itv.FetchWidevine(c.playlist)
+   if err != nil {
+      return err
+   }
+   c.MediaFile, err = playlist.Get1080()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.MediaFile.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.MediaFile.FetchKeyService)
+}
+
+func main() {
+   maya.SetProxy("", "*.dash")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Dash      *maya.Dash
+   MediaFile *itv.MediaFile
+   //----------------------
+   Job maya.Job
+   //----------------------
+   address string
+   //----------------------
+   playlist string
+}
+
 func (c *client) do() error {
    err := cache.Setup("rosso/itv.xml")
    if err != nil {
@@ -15,39 +55,30 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
-   //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
    playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
    //----------------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy, "*.dash")
    if err != nil {
       return err
    }
    switch {
    case widevine.IsSet:
       return cache.Write(c)
-   case proxy.IsSet:
-      return cache.Write(c)
    case address.IsSet:
       return c.do_address()
    case playlist.IsSet:
       return c.do_playlist()
-   case dash_id.IsSet:
-      return with_cache(c.do_dash_id)
+   case dash.IsSet:
+      return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
-      proxy,
       address,
       playlist,
-      dash_id,
+      dash,
    }})
 }
 
@@ -65,53 +96,4 @@ func (c *client) do_address() error {
       fmt.Println(&title)
    }
    return nil
-}
-
-func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.playlist)
-   if err != nil {
-      return err
-   }
-   c.MediaFile, err = playlist.Get1080()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = c.MediaFile.FetchDash()
-   if err != nil {
-      return err
-   }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.MediaFile.FetchKeyService,
-   )
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Dash      *itv.Dash
-   MediaFile *itv.MediaFile
-   //----------------------
-   Job maya.Job
-   //----------------------
-   Proxy string
-   //----------------------
-   address string
-   //----------------------
-   playlist string
-   //----------------------
-   dash_id string
 }

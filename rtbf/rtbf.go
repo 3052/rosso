@@ -10,74 +10,19 @@ import (
    "net/url"
 )
 
-func (f *FormatItem) Dash() (*Dash, error) {
-   resp, err := http.Get(f.MediaLocator)
+func (f *Format) GetManifest() (*url.URL, error) {
+   return url.Parse(f.MediaLocator)
+}
+
+func GetPath(urlData string) (string, error) {
+   url_parse, err := url.Parse(urlData)
    if err != nil {
-      return nil, err
+      return "", err
    }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
+   if url_parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
    }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Entitlement struct {
-   AssetId   string
-   Formats   []FormatItem
-   Message   string
-   PlayToken string
-}
-
-type FormatItem struct {
-   Format       string
-   MediaLocator string // MPD
-}
-
-// Dash finds the "DASH" format in the Entitlement's formats.
-// It returns the FormatItem if found, otherwise it returns an error.
-func (e *Entitlement) Dash() (*FormatItem, error) {
-   for _, format := range e.Formats {
-      if format.Format == "DASH" {
-         return &format, nil
-      }
-   }
-   return nil, errors.New("DASH format not found")
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path: fmt.Sprintf(
-            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
-         ),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-forwarded-for", "91.90.123.17")
-   req.Header.Set("authorization", "Bearer "+s.SessionToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
+   return url_parse.Path, nil
 }
 
 type Account struct {
@@ -162,17 +107,6 @@ type Session struct {
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
-func GetPath(rawUrl string) (string, error) {
-   u, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   if u.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return u.Path, nil
-}
-
 func FetchAssetId(path string) (string, error) {
    resp, err := http.Get(
       "https://bff-service.rtbf.be/auvio/v1.23/pages" + path,
@@ -251,4 +185,54 @@ func FetchAccount(id, password string) (*Account, error) {
       return nil, errors.New(result.ErrorMessage)
    }
    return &result, nil
+}
+
+type Entitlement struct {
+   AssetId   string
+   Formats   []Format
+   Message   string
+   PlayToken string
+}
+
+type Format struct {
+   Format       string
+   MediaLocator string // MPD
+}
+
+func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "exposure.api.redbee.live",
+         Path: fmt.Sprintf(
+            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
+         ),
+      },
+      Header: http.Header{},
+   }
+   req.Header.Set("x-forwarded-for", "91.90.123.17")
+   req.Header.Set("authorization", "Bearer "+s.SessionToken)
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func (e *Entitlement) GetDash() (*Format, error) {
+   for _, format_data := range e.Formats {
+      if format_data.Format == "DASH" {
+         return &format_data, nil
+      }
+   }
+   return nil, errors.New("DASH format not found")
 }
