@@ -11,7 +11,7 @@ import (
    "strings"
 )
 
-func (s *SecureUrl) ParseDash() (*url.URL, error) {
+func (s *SecureUrl) GetManifest() (*url.URL, error) {
    s.Url = strings.NewReplacer(
       ".AVC1", "",
       ".ex-eac3", "",

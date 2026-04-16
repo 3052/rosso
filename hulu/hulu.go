@@ -10,6 +10,10 @@ import (
    "path"
 )
 
+func (p *Playlist) GetManifest() (*url.URL, error) {
+   return url.Parse(p.StreamUrl)
+}
+
 func (p *Playlist) FetchPlayReady(data []byte) ([]byte, error) {
    resp, err := http.Post(
       p.DashPrServer, "", bytes.NewReader(data),
@@ -58,10 +62,6 @@ func ParseId(urlData string) string {
       }
    }
    return part
-}
-
-func (p *Playlist) ParseDash() (*url.URL, error) {
-   return url.Parse(p.StreamUrl)
 }
 
 func FetchDevice(email, password string) (*Device, error) {

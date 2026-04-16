@@ -17,11 +17,7 @@ func (c *client) do_episode() error {
       return err
    }
    c.BcovAuth = playback.BcovAuth
-   dash, err := c.Source.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(c.Source.GetManifest)
    if err != nil {
       return err
    }

@@ -20,11 +20,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := link.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(link.GetManifest)
    if err != nil {
       return err
    }
@@ -32,8 +28,8 @@ func (c *client) do_address() error {
 }
 
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)

@@ -18,7 +18,7 @@ import (
    "strings"
 )
 
-func (s *Session) ParseDash() (*url.URL, error) {
+func (s *Session) GetManifest() (*url.URL, error) {
    return url.Parse(s.StreamingUrl)
 }
 

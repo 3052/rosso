@@ -8,6 +8,26 @@ import (
    "net/http"
 )
 
+func (c *client) do_paramount() error {
+   app, err := paramount.GetApp(c.App)
+   if err != nil {
+      return err
+   }
+   var cbs_com *http.Cookie
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(session.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_dash() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
@@ -108,28 +128,4 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-func (c *client) do_paramount() error {
-   app, err := paramount.GetApp(c.App)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   dash, err := session.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }

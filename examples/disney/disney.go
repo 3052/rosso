@@ -7,6 +7,26 @@ import (
    "log"
 )
 
+func (c *client) do_media_id() error {
+   stream, err := c.Token.FetchStream(c.media)
+   if err != nil {
+      return err
+   }
+   c.Hls, err = maya.ListHls(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_refresh() error {
+   err := c.Token.Refresh()
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_hls_id() error {
    return c.Hls.Download(&c.Job, c.Token.FetchPlayReady)
 }
@@ -161,28 +181,4 @@ func (c *client) do_season_id() error {
    }
    fmt.Println(season)
    return nil
-}
-
-func (c *client) do_media_id() error {
-   stream, err := c.Token.FetchStream(c.media)
-   if err != nil {
-      return err
-   }
-   hls, err := stream.ParseHls()
-   if err != nil {
-      return err
-   }
-   c.Hls, err = maya.ListHls(hls)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_refresh() error {
-   err := c.Token.Refresh()
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }

@@ -11,7 +11,7 @@ import (
    "strings"
 )
 
-func (s *Stream) ParseHls() (*url.URL, error) {
+func (s *Stream) GetManifest() (*url.URL, error) {
    return url.Parse(s.Sources[0].Complete.Url)
 }
 

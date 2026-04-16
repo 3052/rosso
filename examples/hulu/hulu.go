@@ -6,10 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
-}
-
 func (c *client) do_address() error {
    var err error
    c.Device, err = c.Device.TokenRefresh()
@@ -24,11 +20,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := c.Playlist.ParseDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(dash)
+   c.Dash, err = maya.ListDash(c.Playlist.GetManifest)
    if err != nil {
       return err
    }
@@ -106,4 +98,8 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
 }

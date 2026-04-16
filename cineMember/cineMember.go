@@ -10,7 +10,7 @@ import (
    "strings"
 )
 
-func (m *MediaLink) ParseDash() (*url.URL, error) {
+func (m *MediaLink) GetManifest() (*url.URL, error) {
    return url.Parse(m.Url)
 }
 
