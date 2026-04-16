@@ -29,7 +29,7 @@ func Login(email, password string) (*Session, error) {
       return nil, err
    }
 
-   req, err := http.NewRequest("POST", BaseURL+"/kapi/login", bytes.NewBuffer(body))
+   req, err := http.NewRequest("POST", BaseUrl+"/kapi/login", bytes.NewBuffer(body))
    if err != nil {
       return nil, err
    }

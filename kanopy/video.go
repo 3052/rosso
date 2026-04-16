@@ -48,7 +48,7 @@ func ParseVideo(urlData string) (*Video, error) {
 }
 
 type Term struct {
-   TermID int    `json:"termId"`
+   TermId int    `json:"termId"`
    Name   string `json:"name"`
 }
 
@@ -77,7 +77,7 @@ type TrackLabel struct {
 type Video struct {
    VideoId         int    `json:"videoId"`
    Title           string `json:"title"`
-   DescriptionHTML string `json:"descriptionHtml"`
+   DescriptionHtml string `json:"descriptionHtml"`
    Images          struct {
       Landscapes ImageSizes `json:"landscapes"`
       Posters    ImageSizes `json:"posters"`
@@ -106,7 +106,7 @@ type Video struct {
    IsRequestable              bool                 `json:"isRequestable"`
    AncestorVideoIds           []int                `json:"ancestorVideoIds"`
    Alias                      string               `json:"alias"`
-   FeedID                     int                  `json:"feedId"`
+   FeedId                     int                  `json:"feedId"`
    NeedsTitleTreatment        bool                 `json:"needsTitleTreatment"`
    IsSilent                   bool                 `json:"isSilent"`
    CaptionLabels              []TrackLabel         `json:"captionLabels"`
@@ -116,15 +116,15 @@ type Video struct {
 
 // GetVideo fetches comprehensive video metadata and returns the inner Video object directly.
 func (s *Session) GetVideo(alias string) (*Video, error) {
-   url := fmt.Sprintf("%s/kapi/videos/alias/%s", BaseURL, alias)
+   url := fmt.Sprintf("%s/kapi/videos/alias/%s", BaseUrl, alias)
 
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err
    }
 
-   req.Header.Set("X-Version", XVersion)
-   req.Header.Set("Authorization", "Bearer "+s.JWT)
+   req.Header.Set("X-Version", Xversion)
+   req.Header.Set("Authorization", "Bearer "+s.Jwt)
    req.Header.Set("User-Agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
@@ -142,7 +142,6 @@ func (s *Session) GetVideo(alias string) (*Video, error) {
       return nil, err
    }
 
-   // Use an anonymous struct to strip the root wrapper
    var wrapper struct {
       Video Video `json:"video"`
    }

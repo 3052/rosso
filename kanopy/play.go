@@ -9,28 +9,39 @@ import (
 )
 
 type PlayRequest struct {
-   DomainID int `json:"domainId"`
-   UserID   int `json:"userId"`
+   DomainId int `json:"domainId"`
+   UserId   int `json:"userId"`
    VideoId  int `json:"videoId"`
 }
 
 type Manifest struct {
    ManifestType string `json:"manifestType"`
-   URL          string `json:"url"`
+   Url          string `json:"url"`
    DrmType      string `json:"drmType"`
-   DrmLicenseID string `json:"drmLicenseID"`
+   DrmLicenseId string `json:"drmLicenseID"`
    StudioDrm    struct {
-      AuthXML      string `json:"authXml"`
-      DrmLicenseID string `json:"drmLicenseId"`
+      AuthXml      string `json:"authXml"`
+      DrmLicenseId string `json:"drmLicenseId"`
    } `json:"studioDrm"`
 }
 
 type PlayResponse struct {
-   PlayID    string     `json:"playId"`
-   Manifests []Manifest `json:"manifests"`
+   PlayId    string      `json:"playId"`
+   Manifests []*Manifest `json:"manifests"`
 }
 
-// CreatePlay registers a playback event using the DomainID from a Membership
+// DashManifest returns the manifest with type "dash" or an error if it is not found.
+func (p *PlayResponse) DashManifest() (*Manifest, error) {
+   for _, manifest := range p.Manifests {
+      if manifest.ManifestType == "dash" {
+         return manifest, nil
+      }
+   }
+   return nil, fmt.Errorf("dash manifest not found in play response")
+}
+
+// CreatePlay registers a playback event using the DomainId from a Membership
+// and the VideoId from a Video.
 func (s *Session) CreatePlay(membership *Membership, video *Video) (*PlayResponse, error) {
    if membership == nil {
       return nil, fmt.Errorf("membership context is required to create a play")
@@ -40,8 +51,8 @@ func (s *Session) CreatePlay(membership *Membership, video *Video) (*PlayRespons
    }
 
    payload := PlayRequest{
-      DomainID: membership.DomainID,
-      UserID:   s.UserID,
+      DomainId: membership.DomainId,
+      UserId:   s.UserId,
       VideoId:  video.VideoId,
    }
 
@@ -50,13 +61,13 @@ func (s *Session) CreatePlay(membership *Membership, video *Video) (*PlayRespons
       return nil, err
    }
 
-   req, err := http.NewRequest("POST", BaseURL+"/kapi/plays", bytes.NewBuffer(body))
+   req, err := http.NewRequest("POST", BaseUrl+"/kapi/plays", bytes.NewBuffer(body))
    if err != nil {
       return nil, err
    }
 
-   req.Header.Set("X-Version", XVersion)
-   req.Header.Set("Authorization", "Bearer "+s.JWT)
+   req.Header.Set("X-Version", Xversion)
+   req.Header.Set("Authorization", "Bearer "+s.Jwt)
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("User-Agent", UserAgent)
 

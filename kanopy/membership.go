@@ -8,9 +8,9 @@ import (
 )
 
 type Membership struct {
-   IdentityID         int    `json:"identityId"`
-   DomainID           int    `json:"domainId"`
-   UserID             int    `json:"userId"`
+   IdentityId         int    `json:"identityId"`
+   DomainId           int    `json:"domainId"`
+   UserId             int    `json:"userId"`
    Status             string `json:"status"`
    IsDefault          bool   `json:"isDefault"`
    Sitename           string `json:"sitename"`
@@ -23,9 +23,9 @@ type MembershipsResponse struct {
    List []Membership `json:"list"`
 }
 
-// GetMemberships fetches the library memberships associated with the session's UserID.
+// GetMemberships fetches the library memberships associated with the session's UserId.
 func (s *Session) GetMemberships() (*MembershipsResponse, error) {
-   url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseURL, s.UserID)
+   url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseUrl, s.UserId)
 
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
@@ -33,8 +33,8 @@ func (s *Session) GetMemberships() (*MembershipsResponse, error) {
    }
 
    req.Header.Set("User-Agent", UserAgent)
-   req.Header.Set("X-Version", XVersion)
-   req.Header.Set("Authorization", "Bearer "+s.JWT)
+   req.Header.Set("X-Version", Xversion)
+   req.Header.Set("Authorization", "Bearer "+s.Jwt)
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
