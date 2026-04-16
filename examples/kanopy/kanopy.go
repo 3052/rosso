@@ -7,41 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_address() error {
-   video, err := kanopy.ParseVideo(c.address)
-   if err != nil {
-      return err
-   }
-   if video.VideoId == 0 {
-      video, err = c.Login.FetchVideo(video.Alias)
-      if err != nil {
-         return err
-      }
-   }
-   membership, err := c.Login.FetchMembership()
-   if err != nil {
-      return err
-   }
-   plays, err := c.Login.FetchPlays(membership.DomainId, video.VideoId)
-   if err != nil {
-      return err
-   }
-   for _, caption := range plays.Captions {
-      for _, file := range caption.Files {
-         fmt.Println(file.Url)
-      }
-   }
-   c.Manifest, err = plays.GetDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.Manifest.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
 func main() {
    maya.SetProxy("", "*.m4s")
    log.SetFlags(log.Ltime)
@@ -121,4 +86,39 @@ type client struct {
    password string
    //-------------------------------
    address string
+}
+
+func (c *client) do_address() error {
+   video, err := kanopy.ParseVideo(c.address)
+   if err != nil {
+      return err
+   }
+   if video.VideoId == 0 {
+      video, err = c.Login.FetchVideo(video.Alias)
+      if err != nil {
+         return err
+      }
+   }
+   membership, err := c.Login.FetchMembership()
+   if err != nil {
+      return err
+   }
+   plays, err := c.Login.FetchPlays(membership.DomainId, video.VideoId)
+   if err != nil {
+      return err
+   }
+   for _, caption := range plays.Captions {
+      for _, file := range caption.Files {
+         fmt.Println(file.Url)
+      }
+   }
+   c.Manifest, err = plays.GetDash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Manifest.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

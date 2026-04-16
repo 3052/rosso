@@ -13,7 +13,7 @@ streaming API authentication, metadata, and DRM playback
 | Titles | Country | Provider |
 |---|---|---|
 | 4275 | us | [kanopy] |
-| 4077 | us | [tubi-tv] |
+| 4078 | us | [tubi-tv] |
 | 2790 | us | [plex] |
 | 2722 | uk | [rakuten-tv] |
 | 2335 | us | [the-roku-channel] |
@@ -22,20 +22,20 @@ streaming API authentication, metadata, and DRM playback
 | 1000 | us | [hbo-max] |
 | 931 | us | [criterion-channel] |
 | 665 | se | [draken-films] |
-| 629 | fr | [molotov-tv] |
+| 630 | fr | [molotov-tv] |
 | 612 | us | [hulu] |
 | 551 | nl | [cinemember] |
 | 461 | us | [amc-plus] |
 | 383 | us | [disney-plus] |
 | 333 | us | [paramount-plus-premium] |
-| 252 | us | [mubi] |
+| 253 | us | [mubi] |
 | 251 | ca | [ctv] |
 | 249 | us | [peacock] |
 | 249 | cz | [canal-plus] |
 | 241 | br | [oldflix] |
-| 238 | uk | [itvx] |
+| 235 | uk | [itvx] |
 | 156 | be | [rtbf-auvio] |
-| 3 | us | [nbc] |
+| 6 | us | [nbc] |
 
 [kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=80
 [tubi-tv]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=80
