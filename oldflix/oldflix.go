@@ -10,17 +10,8 @@ import (
    "strings"
 )
 
-func (w *Watch) FetchHls() (*Hls, error) {
-   resp, err := http.Get(w.Playlist[0].File)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Hls{Body: body, Url: resp.Request.URL}, nil
+func (w *Watch) GetManifest() (*url.URL, error) {
+   return url.Parse(w.Playlist[0].File)
 }
 
 type Watch struct {
@@ -79,11 +70,6 @@ type Browse struct {
       Id     string
       Tracks []Track
    }
-}
-
-type Hls struct {
-   Body []byte
-   Url  *url.URL
 }
 
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513

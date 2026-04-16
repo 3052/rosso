@@ -13,6 +13,10 @@ import (
    "strings"
 )
 
+func (m *MediaFile) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
+}
+
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
 func FetchPlayReady(urlData string) (*Playlist, error) {
    return fetchPlaylist(urlData, "playready", "SL3000")
