@@ -6,9 +6,13 @@ import (
    "log"
 )
 
+func (c *client) do_dash_id() error {
+   return c.Dash.Download(&c.Job, c.Entitlement.FetchWidevine)
+}
+
 func main() {
-   log.SetFlags(log.Ltime)
    maya.SetProxy("")
+   log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
@@ -19,7 +23,7 @@ var cache maya.Cache
 
 type client struct {
    Account     *rtbf.Account
-   Dash        *rtbf.Dash
+   Dash        *maya.Dash
    Entitlement *rtbf.Entitlement
    //---------------------------
    Job maya.Job
@@ -28,8 +32,6 @@ type client struct {
    password string
    //---------------------------
    address string
-   //---------------------------
-   dash_id string
 }
 
 func (c *client) do() error {
@@ -45,7 +47,7 @@ func (c *client) do() error {
    //------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
-   dash_id := maya.StringFlag(&c.dash_id, "d", "DASH ID")
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
    err = maya.ParseFlags()
    if err != nil {
       return err
@@ -61,14 +63,14 @@ func (c *client) do() error {
    if address.IsSet {
       return with_cache(c.do_address)
    }
-   if dash_id.IsSet {
+   if dash.IsSet {
       return with_cache(c.do_dash_id)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
       {address},
-      {dash_id},
+      {dash},
    })
 }
 
@@ -93,19 +95,15 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   format, err := c.Entitlement.Dash()
+   format, err := c.Entitlement.GetDash()
    if err != nil {
       return err
    }
-   c.Dash, err = format.Dash()
+   c.Dash, err = maya.ListDash(format.GetManifest)
    if err != nil {
       return err
    }
-   err = cache.Write(c)
-   if err != nil {
-      return err
-   }
-   return maya.ListDash(c.Dash.Body, c.Dash.Url)
+   return cache.Write(c)
 }
 
 func (c *client) do_email_password() error {
@@ -115,10 +113,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Job.DownloadDash(
-      c.Dash.Body, c.Dash.Url, c.dash_id, c.Entitlement.Widevine,
-   )
 }

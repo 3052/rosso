@@ -10,29 +10,7 @@ import (
    "net/url"
 )
 
-func (f *Format) GetManifest() (*url.URL, error) {
-   return url.Parse(f.MediaLocator)
-}
-
-func GetPath(urlData string) (string, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   if url_parse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return url_parse.Path, nil
-}
-
-type Account struct {
-   ErrorMessage string
-   SessionInfo  struct {
-      CookieValue string
-   }
-}
-
-func (e *Entitlement) Widevine(data []byte) ([]byte, error) {
+func (e *Entitlement) FetchWidevine(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       "POST", "https://exposure.api.redbee.live", bytes.NewReader(data),
    )
@@ -235,4 +213,26 @@ func (e *Entitlement) GetDash() (*Format, error) {
       }
    }
    return nil, errors.New("DASH format not found")
+}
+
+func (f *Format) GetManifest() (*url.URL, error) {
+   return url.Parse(f.MediaLocator)
+}
+
+func GetPath(urlData string) (string, error) {
+   url_parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   if url_parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return url_parse.Path, nil
+}
+
+type Account struct {
+   ErrorMessage string
+   SessionInfo  struct {
+      CookieValue string
+   }
 }

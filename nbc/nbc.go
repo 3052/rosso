@@ -17,100 +17,17 @@ import (
    "time"
 )
 
-func (s Stream) Dash() (*Dash, error) {
-   resp, err := http.Get(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   return &Dash{Body: body, Url: resp.Request.URL}, nil
-}
-
-type Dash struct {
-   Body []byte
-   Url  *url.URL
-}
-
-//go:embed page.gql
-var query_page string
-
-func (m *Metadata) Stream() (*Stream, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "lemonade.nbc.com",
-         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
-         RawQuery: url.Values{
-            "platform":        {"web"},
-            "programmingType": {m.ProgrammingType},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   result := &Stream{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
-
-func playReady() *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-      Path:     "/drm-proxy/license/playready",
-      RawQuery: buildAuthQuery("playready"),
-   }
-}
-
-func Widevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://drmproxy.digitalsvc.apps.nbcuni.com",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-
-   req.URL.Path = "/drm-proxy/license/widevine"
-   req.URL.RawQuery = buildAuthQuery("widevine")
-   req.Header.Set("Content-Type", "application/octet-stream")
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-type Stream struct {
-   PlaybackUrl string // MPD
+func (s Stream) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
 }
 
 // https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
-func GetName(rawUrl string) (string, error) {
-   parsed, err := url.Parse(rawUrl)
+func GetName(urlData string) (string, error) {
+   url_parse, err := url.Parse(urlData)
    if err != nil {
       return "", err
    }
-   return strings.TrimPrefix(parsed.Path, "/"), nil
+   return strings.TrimPrefix(url_parse.Path, "/"), nil
 }
 
 func FetchMetadata(name string) (*Metadata, error) {
@@ -164,8 +81,7 @@ type Metadata struct {
    ProgrammingType string
 }
 
-// buildAuthQuery generates the signed query parameters (hash, time, device).
-func buildAuthQuery(drmType string) string {
+func build_query(drmType string) string {
    timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
    mac := hmac.New(sha256.New, []byte(drmProxySecret))
    // Use io.WriteString to write string data directly to the Writer
@@ -177,4 +93,73 @@ func buildAuthQuery(drmType string) string {
       "hash":   {hash},
       "time":   {timestamp},
    }.Encode()
+}
+
+//go:embed page.gql
+var query_page string
+
+func (m *Metadata) Stream() (*Stream, error) {
+   req := http.Request{
+      URL: &url.URL{
+         Scheme: "https",
+         Host:   "lemonade.nbc.com",
+         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
+         RawQuery: url.Values{
+            "platform":        {"web"},
+            "programmingType": {m.ProgrammingType},
+         }.Encode(),
+      },
+      Header: http.Header{},
+   }
+   resp, err := http.DefaultClient.Do(&req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+   result := &Stream{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
+
+func playReady() *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
+      Path:     "/drm-proxy/license/playready",
+      RawQuery: build_query("playready"),
+   }
+}
+
+type Stream struct {
+   PlaybackUrl string // MPD
+}
+
+func FetchWidevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", "https://drmproxy.digitalsvc.apps.nbcuni.com",
+      bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+
+   req.URL.Path = "/drm-proxy/license/widevine"
+   req.URL.RawQuery = build_query("widevine")
+   req.Header.Set("Content-Type", "application/octet-stream")
+
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
 }
