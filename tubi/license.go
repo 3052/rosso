@@ -10,11 +10,11 @@ import (
 
 // PostLicenseChallenge sends the Widevine DRM challenge using the URL from the LicenseServer descendant.
 func PostLicenseChallenge(server *LicenseServer, payload []byte) ([]byte, error) {
-   if server == nil || server.URL == "" {
+   if server == nil || server.Url == "" {
       return nil, fmt.Errorf("invalid or missing server URL")
    }
 
-   request, err := http.NewRequest("POST", server.URL, bytes.NewReader(payload))
+   request, err := http.NewRequest("POST", server.Url, bytes.NewReader(payload))
    if err != nil {
       return nil, fmt.Errorf("failed to create request: %w", err)
    }

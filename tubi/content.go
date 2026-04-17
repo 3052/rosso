@@ -6,7 +6,23 @@ import (
    "fmt"
    "net/http"
    "net/url"
+   "strconv"
 )
+
+func (v *VideoResource) GetManifest() (*url.URL, error) {
+   return url.Parse(v.Manifest.Url)
+}
+
+type VideoResource struct {
+   Codec            string        `json:"codec"`
+   GeneratorVersion string        `json:"generator_version"`
+   LicenseServer    LicenseServer `json:"license_server"`
+   Manifest         Manifest      `json:"manifest"`
+   Resolution       string        `json:"resolution"`
+   SsaiVersion      string        `json:"ssai_version"`
+   TitanVersion     string        `json:"titan_version"`
+   Type             string        `json:"type"`
+}
 
 // Content represents the exact structure of the provided content.json, omitting interface and null fields.
 type Content struct {
@@ -16,7 +32,7 @@ type Content struct {
    AvailabilityEnds     string          `json:"availability_ends"`
    AvailabilityStarts   string          `json:"availability_starts"`
    Backgrounds          []string        `json:"backgrounds"`
-   CanonicalID          string          `json:"canonical_id"`
+   CanonicalId          string          `json:"canonical_id"`
    ContentOrientation   string          `json:"content_orientation"`
    Country              string          `json:"country"`
    CreditCuepoints      CreditCuepoints `json:"credit_cuepoints"`
@@ -24,13 +40,13 @@ type Content struct {
    DetailedType         string          `json:"detailed_type"`
    Directors            []string        `json:"directors"`
    Duration             int             `json:"duration"`
-   GracenoteID          string          `json:"gracenote_id"`
+   GracenoteId          string          `json:"gracenote_id"`
    HasSubtitle          bool            `json:"has_subtitle"`
    HasTrailer           bool            `json:"has_trailer"`
    HeroImages           []string        `json:"hero_images"`
-   ID                   string          `json:"id"`
-   ImdbID               string          `json:"imdb_id"`
-   ImportID             string          `json:"import_id"`
+   Id                   string          `json:"id"`
+   ImdbId               string          `json:"imdb_id"`
+   ImportId             string          `json:"import_id"`
    InternalTags         []string        `json:"internal_tags"`
    IsCdc                bool            `json:"is_cdc"`
    IsReplay             bool            `json:"is_replay"`
@@ -42,7 +58,7 @@ type Content struct {
    PlayerType           string          `json:"player_type"`
    PolicyMatch          bool            `json:"policy_match"`
    Posterarts           []string        `json:"posterarts"`
-   PublisherID          string          `json:"publisher_id"`
+   PublisherId          string          `json:"publisher_id"`
    Ratings              []Rating        `json:"ratings"`
    Subtitles            []Subtitle      `json:"subtitles"`
    Tags                 []string        `json:"tags"`
@@ -51,12 +67,12 @@ type Content struct {
    Trailers             []Trailer       `json:"trailers"`
    Type                 string          `json:"type"`
    UpdatedAt            string          `json:"updated_at"`
-   URL                  string          `json:"url"`
+   Url                  string          `json:"url"`
    ValidDuration        int             `json:"valid_duration"`
    Version              int             `json:"version"`
-   VersionID            string          `json:"version_id"`
+   VersionId            string          `json:"version_id"`
    VideoMetadata        []VideoMetadata `json:"video_metadata"`
-   VideoPreviewURL      string          `json:"video_preview_url"`
+   VideoPreviewUrl      string          `json:"video_preview_url"`
    VideoPreviews        []VideoPreview  `json:"video_previews"`
    VideoResources       []VideoResource `json:"video_resources"`
    Year                 int             `json:"year"`
@@ -88,13 +104,13 @@ type Subtitle struct {
    Lang            string `json:"lang"`
    LangAlpha3      string `json:"lang_alpha3"`
    LangTranslation string `json:"lang_translation"`
-   URL             string `json:"url"`
+   Url             string `json:"url"`
 }
 
 type Trailer struct {
    Duration int    `json:"duration"`
-   ID       string `json:"id"`
-   URL      string `json:"url"`
+   Id       string `json:"id"`
+   Url      string `json:"url"`
 }
 
 type VideoMetadata struct {
@@ -105,54 +121,42 @@ type VideoMetadata struct {
 
 type VideoPreview struct {
    Source string `json:"source"`
-   URL    string `json:"url"`
-   UUID   string `json:"uuid"`
-}
-
-type VideoResource struct {
-   Codec            string        `json:"codec"`
-   GeneratorVersion string        `json:"generator_version"`
-   LicenseServer    LicenseServer `json:"license_server"`
-   Manifest         Manifest      `json:"manifest"`
-   Resolution       string        `json:"resolution"`
-   SsaiVersion      string        `json:"ssai_version"`
-   TitanVersion     string        `json:"titan_version"`
-   Type             string        `json:"type"`
+   Url    string `json:"url"`
+   Uuid   string `json:"uuid"`
 }
 
 type LicenseServer struct {
    AuthHeaderKey   string `json:"auth_header_key"`
    AuthHeaderValue string `json:"auth_header_value"`
    HdcpVersion     string `json:"hdcp_version"`
-   URL             string `json:"url"`
+   Url             string `json:"url"`
 }
 
 type Manifest struct {
    Duration int    `json:"duration"`
-   URL      string `json:"url"`
+   Url      string `json:"url"`
 }
 
-// GetContent constructs the request URL, fetches the CMS data,
-// and returns the fully parsed Content struct.
-func GetContent() (*Content, error) {
-   endpoint, err := url.Parse("https://uapi.adrise.tv/cms/content")
-   if err != nil {
-      return nil, fmt.Errorf("failed to parse base URL: %w", err)
-   }
-
-   query := endpoint.Query()
-   query.Set("content_id", "610572")
+func GetContent(contentId int) (*Content, error) {
+   query := make(url.Values)
+   query.Set("content_id", strconv.Itoa(contentId))
    query.Set("deviceId", "!")
    query.Add("limit_resolutions[]", "h264_1080p")
    query.Add("limit_resolutions[]", "h265_1080p")
    query.Set("platform", "web")
    query.Add("video_resources[]", "dash")
    query.Add("video_resources[]", "dash_widevine")
-   endpoint.RawQuery = query.Encode()
 
-   req, err := http.NewRequest("GET", endpoint.String(), nil)
-   if err != nil {
-      return nil, fmt.Errorf("failed to create request: %w", err)
+   req := &http.Request{
+      Method: http.MethodGet,
+      URL: &url.URL{
+         Scheme:   "https",
+         Host:     "uapi.adrise.tv",
+         Path:     "/cms/content",
+         RawQuery: query.Encode(),
+      },
+      Header: make(http.Header),
+      Host:   "uapi.adrise.tv",
    }
 
    req.Header.Set("user-agent", "Go-http-client/2.0")
