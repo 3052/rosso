@@ -6,30 +6,8 @@ import (
    "log"
 )
 
-func main() {
-   maya.SetProxy("", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_tubi() error {
-   content, err := tubi.FetchContent(c.tubi_id)
-   if err != nil {
-      return err
-   }
-   c.VideoResource = &content.VideoResources[0]
-   c.Dash, err = maya.ListDash(c.VideoResource.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.VideoResource.FetchWidevine)
+   return c.Dash.Download(&c.Job, c.VideoResource.LicenseServer.PostLicense)
 }
 
 var cache maya.Cache
@@ -72,4 +50,24 @@ func (c *client) do() error {
       tubi_id,
       dash,
    }})
+}
+func main() {
+   maya.SetProxy("", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+func (c *client) do_tubi() error {
+   content, err := tubi.GetContent(c.tubi_id)
+   if err != nil {
+      return err
+   }
+   c.VideoResource = &content.VideoResources[0]
+   c.Dash, err = maya.ListDash(c.VideoResource.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

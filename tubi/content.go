@@ -159,8 +159,6 @@ func GetContent(contentId int) (*Content, error) {
       Host:   "uapi.adrise.tv",
    }
 
-   req.Header.Set("user-agent", "Go-http-client/2.0")
-
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, fmt.Errorf("request failed: %w", err)

@@ -7,6 +7,15 @@ import (
    "net/url"
 )
 
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_address() error {
    var err error
    c.User, err = plex.FetchUser()
@@ -36,15 +45,6 @@ func (c *client) do_address() error {
       return err
    }
    return cache.Write(c)
-}
-
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 var cache maya.Cache

@@ -8,31 +8,30 @@ import (
    "net/http"
 )
 
-// PostLicenseChallenge sends the Widevine DRM challenge using the URL from the LicenseServer descendant.
-func PostLicenseChallenge(server *LicenseServer, payload []byte) ([]byte, error) {
-   if server == nil || server.Url == "" {
+func (s *LicenseServer) PostLicense(payload []byte) ([]byte, error) {
+   if s == nil || s.Url == "" {
       return nil, fmt.Errorf("invalid or missing server URL")
    }
 
-   request, err := http.NewRequest("POST", server.Url, bytes.NewReader(payload))
+   req, err := http.NewRequest("POST", s.Url, bytes.NewReader(payload))
    if err != nil {
       return nil, fmt.Errorf("failed to create request: %w", err)
    }
 
-   request.Header.Set("content-type", "application/x-protobuf")
-   request.Header.Set("user-agent", "Go-http-client/2.0")
+   req.Header.Set("content-type", "application/x-protobuf")
+   req.Header.Set("user-agent", "Go-http-client/2.0")
 
-   response, err := http.DefaultClient.Do(request)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, fmt.Errorf("request failed: %w", err)
    }
-   defer response.Body.Close()
+   defer resp.Body.Close()
 
-   if response.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected status code: %d", response.StatusCode)
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
-   body, err := io.ReadAll(response.Body)
+   body, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, fmt.Errorf("failed to read response body: %w", err)
    }
