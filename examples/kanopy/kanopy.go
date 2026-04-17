@@ -7,23 +7,10 @@ import (
    "log"
 )
 
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job,
-      func(data []byte) ([]byte, error) {
-         return c.Login.FetchWidevine(c.Manifest.DrmLicenseId, data)
-      },
-   )
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return c.Session.GetWidevine(c.Manifest, data)
+   })
 }
 
 func (c *client) do() error {
@@ -68,7 +55,7 @@ func (c *client) do() error {
 
 func (c *client) do_email_password() error {
    var err error
-   c.Login, err = kanopy.FetchLogin(c.email, c.password)
+   c.Session, err = kanopy.Login(c.email, c.password)
    if err != nil {
       return err
    }
@@ -76,7 +63,7 @@ func (c *client) do_email_password() error {
 }
 
 type client struct {
-   Login    *kanopy.Login
+   Session  *kanopy.Session
    Manifest *kanopy.Manifest
    //-------------------------------
    Dash *maya.Dash
@@ -94,25 +81,25 @@ func (c *client) do_address() error {
       return err
    }
    if video.VideoId == 0 {
-      video, err = c.Login.FetchVideo(video.Alias)
+      video, err = c.Session.GetVideo(video.Alias)
       if err != nil {
          return err
       }
    }
-   membership, err := c.Login.FetchMembership()
+   memberships, err := c.Session.GetMemberships()
    if err != nil {
       return err
    }
-   plays, err := c.Login.FetchPlays(membership.DomainId, video.VideoId)
+   play, err := c.Session.CreatePlay(&memberships[0], video)
    if err != nil {
       return err
    }
-   for _, caption := range plays.Captions {
+   for _, caption := range play.Captions {
       for _, file := range caption.Files {
          fmt.Println(file.Url)
       }
    }
-   c.Manifest, err = plays.GetDash()
+   c.Manifest, err = play.DashManifest()
    if err != nil {
       return err
    }
@@ -122,3 +109,14 @@ func (c *client) do_address() error {
    }
    return cache.Write(c)
 }
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache

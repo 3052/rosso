@@ -19,12 +19,9 @@ type Membership struct {
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-type MembershipsResponse struct {
-   List []Membership `json:"list"`
-}
-
-// GetMemberships fetches the library memberships associated with the session's UserId.
-func (s *Session) GetMemberships() (*MembershipsResponse, error) {
+// GetMemberships fetches the library memberships associated with the session's UserId
+// and returns the list of memberships directly.
+func (s *Session) GetMemberships() ([]Membership, error) {
    url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseUrl, s.UserId)
 
    req, err := http.NewRequest("GET", url, nil)
@@ -51,10 +48,13 @@ func (s *Session) GetMemberships() (*MembershipsResponse, error) {
       return nil, err
    }
 
-   var memResp MembershipsResponse
-   if err := json.Unmarshal(respBody, &memResp); err != nil {
+   var wrapper struct {
+      List []Membership `json:"list"`
+   }
+
+   if err := json.Unmarshal(respBody, &wrapper); err != nil {
       return nil, err
    }
 
-   return &memResp, nil
+   return wrapper.List, nil
 }

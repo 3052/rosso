@@ -7,8 +7,7 @@ import (
    "net/http"
 )
 
-// GetWidevineLicense submits the binary CDM challenge to the Widevine DRM endpoint.
-func (s *Session) GetWidevineLicense(manifest *Manifest, challenge []byte) ([]byte, error) {
+func (s *Session) GetWidevine(manifest *Manifest, challenge []byte) ([]byte, error) {
    if manifest == nil {
       return nil, fmt.Errorf("a valid stream manifest is required to request a DRM license")
    }

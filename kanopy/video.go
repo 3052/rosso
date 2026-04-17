@@ -47,74 +47,27 @@ func ParseVideo(urlData string) (*Video, error) {
    return v, nil
 }
 
-type Term struct {
-   TermId int    `json:"termId"`
-   Name   string `json:"name"`
-}
-
-type ImageSizes struct {
-   Small  string `json:"small"`
-   Medium string `json:"medium"`
-   Large  string `json:"large"`
-}
-
-type AgeRating struct {
-   AgeRatingCountry string `json:"ageRatingCountry"`
-   AgeRating        string `json:"ageRating"`
-   AgeRatingIconSvg string `json:"ageRatingIconSvg"`
-   AgeRatingIconPng string `json:"ageRatingIconPng"`
-   AgeRatingIconJpg string `json:"ageRatingIconJpg"`
-   AgeRatingAria    string `json:"ageRatingAria"`
-}
-
-type TrackLabel struct {
-   Language string `json:"language"`
-   Label    string `json:"label"`
-   Type     string `json:"type"`
-}
-
-// Video represents the core video metadata object.
+// Video represents the flattened video metadata, omitting truncated nested objects.
 type Video struct {
-   VideoId         int    `json:"videoId"`
-   Title           string `json:"title"`
-   DescriptionHtml string `json:"descriptionHtml"`
-   Images          struct {
-      Landscapes ImageSizes `json:"landscapes"`
-      Posters    ImageSizes `json:"posters"`
-   } `json:"images"`
-   HasBurntInCaptions bool     `json:"hasBurntInCaptions"`
-   HasCaptions        bool     `json:"hasCaptions"`
-   CaptionLanguages   []string `json:"captionLanguages"`
-   ProductionYear     int      `json:"productionYear"`
-   Taxonomies         struct {
-      Subjects   []Term `json:"subjects"`
-      Tags       []Term `json:"tags"`
-      Filmmakers []Term `json:"filmmakers"`
-      Cast       []Term `json:"cast"`
-      Languages  []Term `json:"languages"`
-      Supplier   Term   `json:"supplier"`
-   } `json:"taxonomies"`
-   StarRating struct {
-      Count   int `json:"count"`
-      Average int `json:"average"`
-   } `json:"starRating"`
-   IsKids                     bool                 `json:"isKids"`
-   DurationSeconds            int                  `json:"durationSeconds"`
-   HasPublicPerformanceRights bool                 `json:"hasPublicPerformanceRights"`
-   AgeClassificationByCountry map[string]AgeRating `json:"ageClassificationByCountry"`
-   IsFree                     bool                 `json:"isFree"`
-   IsRequestable              bool                 `json:"isRequestable"`
-   AncestorVideoIds           []int                `json:"ancestorVideoIds"`
-   Alias                      string               `json:"alias"`
-   FeedId                     int                  `json:"feedId"`
-   NeedsTitleTreatment        bool                 `json:"needsTitleTreatment"`
-   IsSilent                   bool                 `json:"isSilent"`
-   CaptionLabels              []TrackLabel         `json:"captionLabels"`
-   AudioTrackLabels           []TrackLabel         `json:"audioTrackLabels"`
-   SubtextLabels              []TrackLabel         `json:"subtextLabels"`
+   Alias                      string `json:"alias"`
+   AncestorVideoIds           []int  `json:"ancestorVideoIds"`
+   DescriptionHtml            string `json:"descriptionHtml"`
+   DurationSeconds            int    `json:"durationSeconds"`
+   FeedId                     int    `json:"feedId"`
+   HasBurntInCaptions         bool   `json:"hasBurntInCaptions"`
+   HasCaptions                bool   `json:"hasCaptions"`
+   HasPublicPerformanceRights bool   `json:"hasPublicPerformanceRights"`
+   IsFree                     bool   `json:"isFree"`
+   IsKids                     bool   `json:"isKids"`
+   IsRequestable              bool   `json:"isRequestable"`
+   IsSilent                   bool   `json:"isSilent"`
+   NeedsTitleTreatment        bool   `json:"needsTitleTreatment"`
+   ProductionYear             int    `json:"productionYear"`
+   Title                      string `json:"title"`
+   VideoId                    int    `json:"videoId"`
 }
 
-// GetVideo fetches comprehensive video metadata and returns the inner Video object directly.
+// GetVideo fetches video metadata and strips the outer wrapper to return the Video object.
 func (s *Session) GetVideo(alias string) (*Video, error) {
    url := fmt.Sprintf("%s/kapi/videos/alias/%s", BaseUrl, alias)
 

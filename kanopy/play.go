@@ -6,6 +6,7 @@ import (
    "fmt"
    "io"
    "net/http"
+   "net/url"
 )
 
 type PlayRequest struct {
@@ -14,20 +15,45 @@ type PlayRequest struct {
    VideoId  int `json:"videoId"`
 }
 
+type CaptionFile struct {
+   Type string `json:"type"`
+   Url  string `json:"url"`
+}
+
+type Caption struct {
+   Files    []CaptionFile `json:"files"`
+   Label    string        `json:"label"`
+   Language string        `json:"language"`
+}
+
+type Dva struct {
+   U int `json:"u"`
+}
+
+type StudioDrm struct {
+   AuthXml      string `json:"authXml"`
+   DrmLicenseId string `json:"drmLicenseId"`
+}
+
+func (m *Manifest) GetManifest() (*url.URL, error) {
+   return url.Parse(m.Url)
+}
+
 type Manifest struct {
-   ManifestType string `json:"manifestType"`
-   Url          string `json:"url"`
-   DrmType      string `json:"drmType"`
-   DrmLicenseId string `json:"drmLicenseID"`
-   StudioDrm    struct {
-      AuthXml      string `json:"authXml"`
-      DrmLicenseId string `json:"drmLicenseId"`
-   } `json:"studioDrm"`
+   Cdn            string    `json:"cdn"`
+   DrmLicenseId   string    `json:"drmLicenseID"`
+   DrmType        string    `json:"drmType"`
+   ManifestType   string    `json:"manifestType"`
+   StorageService string    `json:"storageService"`
+   StudioDrm      StudioDrm `json:"studioDrm"`
+   Url            string    `json:"url"`
 }
 
 type PlayResponse struct {
-   PlayId    string      `json:"playId"`
+   Captions  []Caption   `json:"captions"`
+   Dva       Dva         `json:"dva"`
    Manifests []*Manifest `json:"manifests"`
+   PlayId    string      `json:"playId"`
 }
 
 // DashManifest returns the manifest with type "dash" or an error if it is not found.
