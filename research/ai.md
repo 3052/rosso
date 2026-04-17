@@ -1,7 +1,18 @@
 # ai
 
 1. Go language
-2. code "package plex"
-3. use http.DefaultClient
-4. one file per request
-5. user will provide widevine payload
+2. use http.DefaultClient
+3. one file per request
+4. user will provide license payload
+5. no double capitals
+6. send only changed files
+7. do not ignore errors
+8. receiver variable can be single byte, all others must be one or more words
+9. any headers must be set by method
+
+10. do not use net/url.Parse if the URL is known at compile time
+11. do not use http.NoBody
+12. do not use net/http.NewRequest or NewRequestWithContext unless the request
+   has a body
+13. do not use named return
+
