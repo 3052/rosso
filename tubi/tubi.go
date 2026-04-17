@@ -25,6 +25,8 @@ func (v *VideoResource) GetManifest() (*url.URL, error) {
    return url.Parse(v.Manifest.Url)
 }
 
+///
+
 type VideoResource struct {
    LicenseServer *struct {
       Url string
