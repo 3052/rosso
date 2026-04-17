@@ -1,14 +1,26 @@
 package plex
 
 import (
+   "encoding/json"
    "fmt"
-   "io"
    "net/http"
    "net/url"
 )
 
-// GetDiscoverMatches retrieves library matches for a given URL path (e.g., "/movie/vicky-cristina-barcelona")
-func GetDiscoverMatches(movieURLPath, plexToken string) ([]byte, error) {
+type DiscoverMatchesResponse struct {
+   MediaContainer struct {
+      Metadata []struct {
+         RatingKey string `json:"ratingKey"`
+         Title     string `json:"title"`
+         Type      string `json:"type"`
+         Guid      string `json:"guid"`
+      } `json:"Metadata"`
+   } `json:"MediaContainer"`
+}
+
+// GetDiscoverMatches returns the parsed metadata including the critical ratingKey
+// needed to fetch the VOD playback details.
+func GetDiscoverMatches(movieURLPath, plexToken string) (*DiscoverMatchesResponse, error) {
    baseURL, _ := url.Parse("https://discover.provider.plex.tv/library/metadata/matches")
 
    q := baseURL.Query()
@@ -33,5 +45,10 @@ func GetDiscoverMatches(movieURLPath, plexToken string) ([]byte, error) {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
-   return io.ReadAll(resp.Body)
+   var result DiscoverMatchesResponse
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+
+   return &result, nil
 }

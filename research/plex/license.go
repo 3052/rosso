@@ -8,7 +8,8 @@ import (
    "net/url"
 )
 
-// GetWidevineLicense submits the CDM challenge/payload to Plex's license server
+// GetWidevineLicense submits the Widevine CDM payload using the DASH partID
+// (e.g., "62d04a01700e44e5863792a9-dash") and returns the raw binary license bytes.
 func GetWidevineLicense(partID, plexToken string, payload []byte) ([]byte, error) {
    baseURL, _ := url.Parse(fmt.Sprintf("https://vod.provider.plex.tv/library/parts/%s/license", partID))
 
@@ -17,7 +18,6 @@ func GetWidevineLicense(partID, plexToken string, payload []byte) ([]byte, error
    q.Set("x-plex-token", plexToken)
    baseURL.RawQuery = q.Encode()
 
-   // Use bytes.NewReader to automatically allow http.NewRequest to set Content-Length
    req, err := http.NewRequest("POST", baseURL.String(), bytes.NewReader(payload))
    if err != nil {
       return nil, err

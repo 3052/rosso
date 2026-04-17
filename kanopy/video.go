@@ -78,7 +78,6 @@ func (s *Session) GetVideo(alias string) (*Video, error) {
 
    req.Header.Set("X-Version", Xversion)
    req.Header.Set("Authorization", "Bearer "+s.Jwt)
-   req.Header.Set("User-Agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {

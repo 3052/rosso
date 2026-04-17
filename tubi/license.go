@@ -19,7 +19,6 @@ func (s *LicenseServer) PostLicense(payload []byte) ([]byte, error) {
    }
 
    req.Header.Set("content-type", "application/x-protobuf")
-   req.Header.Set("user-agent", "Go-http-client/2.0")
 
    resp, err := http.DefaultClient.Do(req)
    if err != nil {

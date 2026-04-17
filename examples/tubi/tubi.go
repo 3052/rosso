@@ -51,6 +51,7 @@ func (c *client) do() error {
       dash,
    }})
 }
+
 func main() {
    maya.SetProxy("", "*.mp4")
    log.SetFlags(log.Ltime)
@@ -59,6 +60,7 @@ func main() {
       log.Fatal(err)
    }
 }
+
 func (c *client) do_tubi() error {
    content, err := tubi.GetContent(c.tubi_id)
    if err != nil {
