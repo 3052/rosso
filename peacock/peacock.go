@@ -9,7 +9,6 @@ import (
    "encoding/json"
    "errors"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "slices"
@@ -38,66 +37,6 @@ type Playout struct {
    Protection  struct {
       LicenceAcquisitionUrl string
    }
-}
-
-func FetchToken(idSession *http.Cookie) (*Token, error) {
-   body, err := json.Marshal(map[string]any{
-      "auth": map[string]string{
-         "authScheme":        "MESSO",
-         "proposition":       "NBCUOTT",
-         "provider":          "NBCU",
-         "providerTerritory": Territory,
-      },
-      "device": map[string]string{
-         // if empty /drm/widevine/acquirelicense will fail with
-         // {
-         //    "errorCode": "OVP_00306",
-         //    "description": "Security failure"
-         // }
-         "drmDeviceId": "UNKNOWN",
-         // if incorrect /video/playouts/vod will fail with
-         // {
-         //    "errorCode": "OVP_00311",
-         //    "description": "Unknown deviceId"
-         // }
-         // changing this too often will result in a four hour block
-         // {
-         //    "errorCode": "OVP_00014",
-         //    "description": "Maximum number of streaming devices exceeded"
-         // }
-         "id":       "PC",
-         "platform": "ANDROIDTV",
-         "type":     "TV",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://ovp.peacocktv.com/auth/tokens", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.AddCookie(idSession)
-   req.Header.Set("content-type", "application/vnd.tokens.v1+json")
-   req.Header.Set(
-      "x-sky-signature", generate_sky_ott(req.Method, req.URL.Path, nil, body),
-   )
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Token
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Description != "" {
-      return nil, errors.New(result.Description)
-   }
-   return &result, nil
 }
 
 type Endpoint struct {
@@ -172,29 +111,6 @@ func generate_sky_ott(method, path string, headers http.Header, body []byte) str
 type Token struct {
    Description string
    UserToken   string
-}
-
-// L3 max 1080p
-func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", p.Protection.LicenceAcquisitionUrl, bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set(
-      "x-sky-signature",
-      generate_sky_ott(req.Method, req.URL.Path, req.Header, body),
-   )
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
 }
 
 func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
