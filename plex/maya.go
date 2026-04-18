@@ -5,14 +5,44 @@ import (
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
 )
 
+func (m *Metadata) Fetch(token string) (*Metadata, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "vod.provider.plex.tv",
+         Path:   "/library/metadata/" + m.RatingKey,
+      },
+      map[string]string{
+         "accept":       "application/json",
+         "x-plex-token": token,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      MediaContainer struct {
+         Metadata []Metadata
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.MediaContainer.Metadata[0], nil
+}
+
 // /movie/memento-2000
 func FetchMatch(token, path string) (*Metadata, error) {
-   req := http.Request{
-      URL: &url.URL{
+   resp, err := maya.Get(
+      &url.URL{
          Scheme: "https",
          Host:   "discover.provider.plex.tv",
          Path:   "/library/metadata/matches",
@@ -21,10 +51,8 @@ func FetchMatch(token, path string) (*Metadata, error) {
             "x-plex-token": {token},
          }.Encode(),
       },
-      Header: http.Header{},
-   }
-   req.Header.Set("accept", "application/json")
-   resp, err := http.DefaultClient.Do(&req)
+      map[string]string{"accept": "application/json"},
+   )
    if err != nil {
       return nil, err
    }

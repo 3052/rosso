@@ -1,9 +1,7 @@
 package plex
 
 import (
-   "encoding/json"
    "errors"
-   "net/http"
    "net/url"
    "strings"
 )
@@ -49,37 +47,6 @@ func ParsePath(rawUrl string) (string, error) {
    }
    // Return the slice from the start of the marker to the end of the string.
    return rawUrl[startIndex:], nil
-}
-
-func (m *Metadata) Fetch(token string) (*Metadata, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "vod.provider.plex.tv",
-         Path:   "/library/metadata/" + m.RatingKey,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("accept", "application/json")
-   req.Header.Set("x-plex-token", token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      MediaContainer struct {
-         Metadata []Metadata
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.MediaContainer.Metadata[0], nil
 }
 
 func (m *Metadata) GetDash() (*Part, error) {
