@@ -5,31 +5,94 @@ import (
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
    "strconv"
 )
 
-// Season fetches episodes for a specific season (GET).
-func (c *Content) Season(seasonId string) (*Season, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + seasonId,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
+func (c *Content) Movie() (*MovieOrEpisode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gizmo.rakuten.tv",
+         Path:   "/v3/movies/" + c.Id,
+         RawQuery: url.Values{
+            "classification_id": {strconv.Itoa(c.ClassificationId)},
+            "device_identifier": {DeviceId},
+            "market_code":       {c.MarketCode},
+         }.Encode(),
+      },
+      nil,
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data MovieOrEpisode
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+func (c *Content) TvShow() (*TvShow, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gizmo.rakuten.tv",
+         Path:   "/v3/tv_shows/" + c.Id,
+         RawQuery: url.Values{
+            "classification_id": {strconv.Itoa(c.ClassificationId)},
+            "device_identifier": {DeviceId},
+            "market_code":       {c.MarketCode},
+         }.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data TvShow
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+// Season fetches episodes for a specific season (GET).
+func (c *Content) Season(seasonId string) (*Season, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gizmo.rakuten.tv",
+         Path:   "/v3/seasons/" + seasonId,
+         RawQuery: url.Values{
+            "classification_id": {strconv.Itoa(c.ClassificationId)},
+            "device_identifier": {DeviceId},
+            "market_code":       {c.MarketCode},
+         }.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
 

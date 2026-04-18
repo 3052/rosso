@@ -1,11 +1,9 @@
 package pluto
 
 import (
-   "bytes"
    "encoding/json"
    "errors"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strings"
@@ -30,18 +28,6 @@ func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
       }
    }
    return nil, errors.New("episode not found")
-}
-
-func FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      "https://service-concierge.clusters.pluto.tv/v1/wv/alt",
-      "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 type Series struct {

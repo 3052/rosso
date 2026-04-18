@@ -1,11 +1,8 @@
 package rakuten
 
 import (
-   "encoding/json"
    "errors"
-   "net/http"
    "net/url"
-   "strconv"
    "strings"
 )
 
@@ -165,66 +162,4 @@ func (c *Content) IsMovie() bool {
 
 func (c *Content) IsTvShow() bool {
    return c.Type == "tv_shows"
-}
-
-func (c *Content) TvShow() (*TvShow, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/tv_shows/" + c.Id,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data TvShow
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-func (c *Content) Movie() (*MovieOrEpisode, error) {
-   urlData := url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/movies/" + c.Id,
-      RawQuery: url.Values{
-         "classification_id": {strconv.Itoa(c.ClassificationId)},
-         "device_identifier": {DeviceId},
-         "market_code":       {c.MarketCode},
-      }.Encode(),
-   }
-
-   resp, err := http.Get(urlData.String())
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data MovieOrEpisode
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
 }
