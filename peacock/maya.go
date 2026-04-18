@@ -12,7 +12,6 @@ import (
    "fmt"
    "io"
    "maps"
-   "net/http"
    "net/url"
    "slices"
    "strings"
@@ -40,26 +39,20 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://ovp.peacocktv.com/video/playouts/vod",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
+   target := url.URL{
+      Scheme: "https",
+      Host:   "ovp.peacocktv.com",
+      Path:   "/video/playouts/vod",
    }
-   // `application/json` fails
    header := map[string]string{
+      // `application/json` fails
       "content-type":       "application/vnd.playvod.v1+json",
       "x-skyott-usertoken": t.UserToken,
    }
-   for key, value := range header {
-      req.Header.Set(key, value)
-   }
-   req.Header.Set(
-      "x-sky-signature",
-      generate_sky_ott(req.Method, req.URL.Path, header, body),
+   header["x-sky-signature"] = generate_sky_ott(
+      "POST", target.Path, header, body,
    )
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := maya.Post(&target, header, body)
    if err != nil {
       return nil, err
    }
