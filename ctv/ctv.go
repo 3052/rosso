@@ -1,13 +1,8 @@
 package ctv
 
 import (
-   "bytes"
    _ "embed"
-   "encoding/json"
    "errors"
-   "fmt"
-   "io"
-   "net/http"
    "net/url"
    "strings"
 )
@@ -40,48 +35,6 @@ func (r *ResolvedPath) get_id() string {
    return r.LastSegment.Content.Id
 }
 
-func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
-   data, err := json.Marshal(map[string]any{
-      "query": query_axis_content,
-      "variables": map[string]string{
-         "id": r.get_id(),
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://www.ctv.ca/space-graphql/apq/graphql",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   // you need this for the first request, then can omit
-   req.Header.Set("graphql-client-platform", "entpay_web")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         AxisContent AxisContent
-      }
-      Errors []struct {
-         Message string
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Message)
-   }
-   return &result.Data.AxisContent, nil
-}
-
 //go:embed resolvePath.gql
 var query_resolve_path string
 
@@ -100,50 +53,9 @@ func GetPath(urlData string) (string, error) {
    return urlParse.Path, nil
 }
 
-func FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      "https://license.9c9media.ca/widevine", "application/x-protobuf",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
 type AxisContent struct {
    AxisId                int
    AxisPlaybackLanguages []struct {
       DestinationCode string
    }
-}
-
-func (a *AxisContent) Playback() (*Playback, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprintf(
-            "/destinations/%v/platforms/desktop/contents/%v",
-            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
-         ),
-         RawQuery: "$include=[ContentPackages]",
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Playback{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
