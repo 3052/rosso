@@ -1,13 +1,6 @@
-// request_cms_content.go
 package tubi
 
-import (
-   "encoding/json"
-   "fmt"
-   "net/http"
-   "net/url"
-   "strconv"
-)
+import "net/url"
 
 func (v *VideoResource) GetManifest() (*url.URL, error) {
    return url.Parse(v.Manifest.Url)
@@ -135,44 +128,4 @@ type LicenseServer struct {
 type Manifest struct {
    Duration int    `json:"duration"`
    Url      string `json:"url"`
-}
-
-func GetContent(contentId int) (*Content, error) {
-   query := make(url.Values)
-   query.Set("content_id", strconv.Itoa(contentId))
-   query.Set("deviceId", "!")
-   query.Add("limit_resolutions[]", "h264_1080p")
-   query.Add("limit_resolutions[]", "h265_1080p")
-   query.Set("platform", "web")
-   query.Add("video_resources[]", "dash")
-   query.Add("video_resources[]", "dash_widevine")
-
-   req := &http.Request{
-      Method: http.MethodGet,
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "uapi.adrise.tv",
-         Path:     "/cms/content",
-         RawQuery: query.Encode(),
-      },
-      Header: make(http.Header),
-      Host:   "uapi.adrise.tv",
-   }
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, fmt.Errorf("request failed: %w", err)
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   var content Content
-   if err := json.NewDecoder(resp.Body).Decode(&content); err != nil {
-      return nil, fmt.Errorf("failed to decode JSON response: %w", err)
-   }
-
-   return &content, nil
 }
