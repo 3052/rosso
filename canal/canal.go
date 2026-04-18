@@ -16,15 +16,6 @@ import (
    "time"
 )
 
-func (p *Player) FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(p.Drm.LicenseUrl, "", bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
 func (s *Session) Search(query string) ([]Collection, error) {
    req := http.Request{
       URL: &url.URL{

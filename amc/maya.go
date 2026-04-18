@@ -5,8 +5,92 @@ import (
    _ "embed"
    "encoding/json"
    "fmt"
+   "io"
    "net/url"
 )
+
+func Refresh(refreshToken string) (*AuthData, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + refreshToken},
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+func License(licenseUrl, bcovAuth string, challengePayload []byte) ([]byte, error) {
+   target, err := url.Parse(licenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"bcov-auth": bcovAuth}, challengePayload,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path: fmt.Sprint(
+            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/",
+            seasonId,
+         ),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
 
 func Unauth() (*AuthData, error) {
    resp, err := maya.Post(
