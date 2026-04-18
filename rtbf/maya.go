@@ -4,17 +4,83 @@ import (
    "41.neocities.org/maya"
    "encoding/json"
    "errors"
+   "fmt"
    "io"
-   "net/http"
    "net/url"
 )
 
-func (a *Account) Identity() (*Identity, error) {
-   resp, err := http.PostForm(
-      "https://login.auvio.rtbf.be/accounts.getJWT", url.Values{
-         "APIKey":      {api_key},
-         "login_token": {a.SessionInfo.CookieValue},
+func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "exposure.api.redbee.live",
+         Path: fmt.Sprintf(
+            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
+         ),
       },
+      map[string]string{
+         "authorization":   "Bearer " + s.SessionToken,
+         "x-forwarded-for": "91.90.123.17",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func FetchAccount(id, password string) (*Account, error) {
+   body := url.Values{
+      "APIKey":   {api_key},
+      "loginID":  {id},
+      "password": {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "login.auvio.rtbf.be",
+         Path:   "/accounts.login",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Account
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.ErrorMessage != "" {
+      return nil, errors.New(result.ErrorMessage)
+   }
+   return &result, nil
+}
+
+func (a *Account) Identity() (*Identity, error) {
+   body := url.Values{
+      "APIKey":      {api_key},
+      "login_token": {a.SessionInfo.CookieValue},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "login.auvio.rtbf.be",
+         Path:   "/accounts.getJWT",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
    )
    if err != nil {
       return nil, err
@@ -44,7 +110,7 @@ func FetchAssetId(path string) (string, error) {
       return "", err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
       return "", errors.New(resp.Status)
    }
    var page struct {

@@ -1,10 +1,7 @@
 package rtbf
 
 import (
-   "encoding/json"
    "errors"
-   "fmt"
-   "net/http"
    "net/url"
 )
 
@@ -20,29 +17,6 @@ type Session struct {
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
-func FetchAccount(id, password string) (*Account, error) {
-   resp, err := http.PostForm(
-      "https://login.auvio.rtbf.be/accounts.login", url.Values{
-         "APIKey":   {api_key},
-         "loginID":  {id},
-         "password": {password},
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Account
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.ErrorMessage != "" {
-      return nil, errors.New(result.ErrorMessage)
-   }
-   return &result, nil
-}
-
 type Entitlement struct {
    AssetId   string
    Formats   []Format
@@ -53,35 +27,6 @@ type Entitlement struct {
 type Format struct {
    Format       string
    MediaLocator string // MPD
-}
-
-func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path: fmt.Sprintf(
-            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
-         ),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-forwarded-for", "91.90.123.17")
-   req.Header.Set("authorization", "Bearer "+s.SessionToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
 
 func (e *Entitlement) GetDash() (*Format, error) {
