@@ -1,13 +1,41 @@
 package paramount
 
 import (
+   "41.neocities.org/maya"
    "errors"
    "io"
-   "net/http"
    "net/url"
    "testing"
    "time"
 )
+
+func brands(host, app_secret string) error {
+   at, err := get_at(app_secret)
+   if err != nil {
+      return err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     host,
+         Path:     "/apps-api/v3.0/androidphone/brands/.json",
+         RawQuery: url.Values{"at": {at}}.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   if err != nil {
+      return err
+   }
+   if resp.StatusCode != 200 {
+      return errors.New(resp.Status)
+   }
+   return nil
+}
 
 func TestDexParamount(t *testing.T) {
    results, err := ExtractDexHexBytes("base.apk")
@@ -39,35 +67,6 @@ func TestDexCbs(t *testing.T) {
       }
       t.Log(brands("www.cbs.com", result), result)
    }
-}
-
-func brands(host, app_secret string) error {
-   at, err := get_at(app_secret)
-   if err != nil {
-      return err
-   }
-   var req http.Request
-   req.Header = http.Header{}
-   req.URL = &url.URL{}
-   req.URL.Host = host
-   req.URL.Path = "/apps-api/v3.0/androidphone/brands/.json"
-   value := url.Values{}
-   value["at"] = []string{at}
-   req.URL.RawQuery = value.Encode()
-   req.URL.Scheme = "https"
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   _, err = io.Copy(io.Discard, resp.Body)
-   if err != nil {
-      return err
-   }
-   if resp.StatusCode != http.StatusOK {
-      return errors.New(resp.Status)
-   }
-   return nil
 }
 
 func TestVideos(t *testing.T) {
