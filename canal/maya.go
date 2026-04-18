@@ -2,17 +2,15 @@ package canal
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
-   "net/http"
    "net/url"
 )
 
 func (t *Ticket) Login(username, password string) (*Login, error) {
-   data, err := json.Marshal(map[string]any{
+   body, err := json.Marshal(map[string]any{
       "ticket": t.Ticket,
       "userInput": map[string]string{
          "username": username,
@@ -22,19 +20,21 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://m7cp.login.solocoo.tv/login", bytes.NewReader(data),
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
    )
-   if err != nil {
-      return nil, err
-   }
-   client, err := get_client(req.URL, data)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", client)
-   req.Header.Set("user-agent", user_agent)
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
@@ -44,7 +44,7 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
       return nil, &result
    }
    return &result, nil
