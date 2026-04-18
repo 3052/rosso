@@ -135,12 +135,12 @@ type ContentPackage struct {
 
 // SL2000 max 2160p
 func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 48, "playready")
+   return c.fetchLicense(contentId, accessToken, payload, 48, "/playready")
 }
 
 // L3 max 720p
 func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 1, "widevine")
+   return c.fetchLicense(contentId, accessToken, payload, 1, "/widevine")
 }
 
 func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {

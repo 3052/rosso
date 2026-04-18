@@ -2,18 +2,16 @@ package crave
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/base64"
    "encoding/json"
    "errors"
    "fmt"
    "io"
-   "net/http"
    "net/url"
 )
 
 func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
-   data, err := json.Marshal(map[string]any{
+   body, err := json.Marshal(map[string]any{
       "payload": payload,
       "playbackContext": map[string]any{
          "contentId":        contentId,
@@ -26,36 +24,32 @@ func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload
    if err != nil {
       return nil, err
    }
-
-   req, err := http.NewRequest(
-      "POST", "https://license.9c9media.com/"+path, bytes.NewBuffer(data),
+   resp, err := maya.Post(
+      &url.URL{Scheme: "https", Host: "license.9c9media.com", Path: path},
+      nil,
+      body,
    )
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   data, err = io.ReadAll(resp.Body)
+   body, err = io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
       var result struct {
          Message string
       }
-      err = json.Unmarshal(data, &result)
+      err = json.Unmarshal(body, &result)
       if err != nil {
          return nil, err
       }
       return nil, errors.New(result.Message)
    }
 
-   return data, nil
+   return body, nil
 }
 
 func Login(username, password string) (*Account, error) {

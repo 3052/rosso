@@ -23,28 +23,6 @@ func GetDash(files []File) (*File, error) {
    return nil, errors.New("DASH media file not found")
 }
 
-func FetchToken(username, password string) (*Token, error) {
-   resp, err := http.PostForm("https://auth.vhx.com/v1/oauth/token", url.Values{
-      "client_id":  {client_id},
-      "grant_type": {"password"},
-      "password":   {password},
-      "username":   {username},
-   })
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Token
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if err := result.AsError(); err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
 // AsError returns a standard Go error if the token response was an error,
 // otherwise it returns nil.
 func (t *Token) AsError() error {
@@ -64,66 +42,6 @@ type File struct {
       }
    } `json:"_links"`
    Method string
-}
-
-func FetchFilesHref(accessToken, slug string) (string, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []struct {
-            Links struct {
-               Files struct {
-                  Href string // https://api.vhx.tv/videos/3460957/files
-               }
-            } `json:"_links"`
-         }
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return "", err
-   }
-   return result.Embedded.Items[0].Links.Files.Href, nil
-}
-
-func FetchFiles(accessToken, filesHref string) ([]File, error) {
-   req := http.Request{
-      Header: http.Header{},
-   }
-   var err error
-   req.URL, err = url.Parse(filesHref)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result []File
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
 
 func (f *File) FetchWidevine(data []byte) ([]byte, error) {
