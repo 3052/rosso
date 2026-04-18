@@ -7,17 +7,41 @@ import (
    "encoding/base64"
    "encoding/binary"
    "encoding/hex"
-   "encoding/json"
    "errors"
    "fmt"
    "io"
    "maps"
-   "net/http"
    "net/url"
    "regexp"
    "slices"
    "strings"
 )
+
+func (a *App) FetchWidevine(contentId, cbsCom string) (*Session, error) {
+   return a.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (a *App) FetchPlayReady(contentId, cbsCom string) (*Session, error) {
+   return a.fetch_session("xboxone", contentId, cbsCom)
+}
+
+func (a *App) FetchStreamingUrl(contentId, cbsCom string) (*Session, error) {
+   result, err := a.fetch_session("androidphone", contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
+}
+
+type Session struct {
+   LsSession    string `json:"ls_session"`
+   Message      string
+   StreamingUrl string // MPD
+   Url          string // License Server
+}
 
 var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)
 
@@ -124,45 +148,6 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    return data
 }
 
-func (a *App) fetch_session(platform, contentId string, cbs_com *http.Cookie) (*Session, error) {
-   at, err := get_at(a.Secret)
-   if err != nil {
-      return nil, err
-   }
-   endpoint := "anonymous-session-token.json"
-   if cbs_com != nil {
-      endpoint = "session-token.json"
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   a.Host,
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   if cbs_com != nil {
-      req.AddCookie(cbs_com)
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
 type App struct {
    Host    string
    Version string
@@ -175,30 +160,4 @@ func GetApp(key string) (*App, error) {
       return nil, fmt.Errorf("app not found: %s", key)
    }
    return &app, nil
-}
-
-func (a *App) FetchWidevine(contentId string, cbsCom *http.Cookie) (*Session, error) {
-   return a.fetch_session("androidphone", contentId, cbsCom)
-}
-
-func (a *App) FetchPlayReady(contentId string, cbsCom *http.Cookie) (*Session, error) {
-   return a.fetch_session("xboxone", contentId, cbsCom)
-}
-
-func (a *App) FetchStreamingUrl(contentId string, cbsCom *http.Cookie) (*Session, error) {
-   result, err := a.fetch_session("androidphone", contentId, cbsCom)
-   if err != nil {
-      return nil, err
-   }
-   if result.StreamingUrl == "" {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-   return result, nil
-}
-
-type Session struct {
-   LsSession    string `json:"ls_session"`
-   Message      string
-   StreamingUrl string // MPD
-   Url          string // License Server
 }
