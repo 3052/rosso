@@ -6,7 +6,6 @@ import (
    "errors"
    "fmt"
    "io"
-   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -14,7 +13,11 @@ import (
 
 // extracts the numeric ID and converts it to an integer
 func FetchId(urlData string) (int, error) {
-   resp, err := http.Get(urlData)
+   target, err := url.Parse(urlData)
+   if err != nil {
+      return 0, err
+   }
+   resp, err := maya.Get(target, nil)
    if err != nil {
       return 0, err
    }
