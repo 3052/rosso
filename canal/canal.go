@@ -16,36 +16,6 @@ import (
    "time"
 )
 
-func (s *Session) Search(query string) ([]Collection, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "tvapi-hlm2.solocoo.tv",
-         Path:     "/v1/search",
-         RawQuery: url.Values{"query": {query}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Collection []Collection
-      Message    string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return result.Collection, nil
-}
-
 func (a *Asset) String() string {
    var data strings.Builder
    data.WriteString("title = ")
@@ -71,67 +41,6 @@ type Session struct {
    Message  string
    SsoToken string
    Token    string // this last one hour
-}
-
-func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   "/v1/assets",
-         RawQuery: url.Values{
-            "limit": {"99"},
-            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+s.Token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Assets  []Episode
-      Message string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return result.Assets, nil
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   data, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.Post(
-      "https://tvapi-hlm2.solocoo.tv/v1/session", "", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
