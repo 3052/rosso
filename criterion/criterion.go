@@ -1,12 +1,8 @@
 package criterion
 
 import (
-   "bytes"
-   "encoding/json"
    "errors"
    "fmt"
-   "io"
-   "net/http"
    "net/url"
 )
 
@@ -44,42 +40,9 @@ type File struct {
    Method string
 }
 
-func (f *File) FetchWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://drm.vhx.com/v2/widevine", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.RawQuery = url.Values{"token": {f.DrmAuthorizationToken}}.Encode()
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
 type Token struct {
    AccessToken      string `json:"access_token"`
    Error            string
    ErrorDescription string `json:"error_description"`
    RefreshToken     string `json:"refresh_token"`
-}
-
-func (t *Token) Refresh() error {
-   resp, err := http.PostForm("https://auth.vhx.com/v1/oauth/token", url.Values{
-      "client_id":     {client_id},
-      "grant_type":    {"refresh_token"},
-      "refresh_token": {t.RefreshToken},
-   })
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   err = json.NewDecoder(resp.Body).Decode(t)
-   if err != nil {
-      return err
-   }
-   return t.AsError()
 }

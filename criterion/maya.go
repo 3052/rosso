@@ -5,26 +5,67 @@ import (
    "encoding/json"
    "errors"
    "fmt"
-   "net/http"
+   "io"
    "net/url"
 )
 
-func FetchFiles(accessToken, filesHref string) ([]File, error) {
-   req := http.Request{
-      Header: http.Header{},
-   }
-   var err error
-   req.URL, err = url.Parse(filesHref)
+func (t *Token) Refresh() error {
+   body := url.Values{
+      "client_id":     {client_id},
+      "grant_type":    {"refresh_token"},
+      "refresh_token": {t.RefreshToken},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.vhx.com",
+         Path:   "/v1/oauth/token",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
    if err != nil {
-      return nil, err
+      return err
    }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := http.DefaultClient.Do(&req)
+   defer resp.Body.Close()
+   err = json.NewDecoder(resp.Body).Decode(t)
+   if err != nil {
+      return err
+   }
+   return t.AsError()
+}
+
+func (f *File) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "drm.vhx.com",
+         Path:     "/v2/widevine",
+         RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
+      },
+      nil,
+      body,
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
+   return io.ReadAll(resp.Body)
+}
+
+func FetchFiles(accessToken, filesHref string) ([]File, error) {
+   target, err := url.Parse(filesHref)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      target, map[string]string{"authorization": "Bearer " + accessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
    var result []File
