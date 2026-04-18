@@ -2,17 +2,15 @@ package roku
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
 )
 
 // /api/v3/playback
 func FetchPlayback(authToken, rokuId string) (*Playback, error) {
-   data, err := json.Marshal(map[string]string{
+   body, err := json.Marshal(map[string]string{
       "mediaFormat": "DASH",
       "providerId":  "rokuavod",
       "rokuId":      rokuId,
@@ -20,22 +18,24 @@ func FetchPlayback(authToken, rokuId string) (*Playback, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://googletv.web.roku.com/api/v3/playback",
-      bytes.NewReader(data),
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "googletv.web.roku.com",
+         Path:   "/api/v3/playback",
+      },
+      map[string]string{
+         "content-type":         "application/json",
+         "user-agent":           user_agent,
+         "x-roku-content-token": authToken,
+      },
+      body,
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("user-agent", user_agent)
-   req.Header.Set("x-roku-content-token", authToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
    result := &Playback{}

@@ -9,10 +9,6 @@
 7. do not ignore errors
 8. receiver variable can be single byte, all others must be one or more words
 9. any headers must be set by method
-
 10. do not use net/url.Parse if the URL is known at compile time
 11. do not use http.NoBody
-12. do not use net/http.NewRequest or NewRequestWithContext unless the request
-   has a body
-13. do not use named return
 
