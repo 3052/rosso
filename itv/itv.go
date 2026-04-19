@@ -1,13 +1,9 @@
 package itv
 
 import (
-   "bytes"
    _ "embed"
-   "encoding/json"
    "errors"
    "fmt"
-   "io"
-   "net/http"
    "net/url"
    "path"
    "strings"
@@ -27,50 +23,6 @@ func FetchWidevine(urlData string) (*Playlist, error) {
    return fetchPlaylist(urlData, "widevine", "L3")
 }
 
-// fetchPlaylist is the common underlying function doing the heavy lifting
-func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
-   data, err := json.Marshal(map[string]any{
-      "client": map[string]string{
-         "id": "browser",
-      },
-      "variantAvailability": map[string]any{
-         "drm": map[string]string{
-            "maxSupported": maxSupported,
-            "system":       drmSystem,
-         },
-         "featureset": []string{ // need all these to get 720p
-            "hd",
-            "mpeg-dash",
-            "single-track",
-            drmSystem, // Injects "playready" or "widevine"
-         },
-         "platformTag": "ctv", // 1080p
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest("POST", urlData, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("accept", "application/vnd.itv.vod.playlist.v4+json")
-   req.Header.Set("user-agent", "!")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playlist
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
-}
-
 //go:embed ProgrammePage.gql
 var programme_page string
 
@@ -81,19 +33,6 @@ func ParseLegacyId(urlData string) string {
    parts := strings.Split(base, "a")
    // 3. Join them back together with '/'
    return strings.Join(parts, "/")
-}
-
-func (m *MediaFile) FetchKeyService(data []byte) ([]byte, error) {
-   req, err := http.NewRequest("POST", m.KeyServiceUrl, bytes.NewReader(data))
-   if err != nil {
-      return nil, err
-   }
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 type MediaFile struct {
@@ -142,41 +81,4 @@ func (t *Title) String() string {
    }
    fmt.Fprint(data, "playlist = ", t.LatestAvailableVersion.PlaylistUrl)
    return data.String()
-}
-
-func FetchTitles(legacyId string) ([]Title, error) {
-   var data strings.Builder
-   err := json.NewEncoder(&data).Encode(map[string]string{
-      "brandLegacyId": legacyId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "content-inventory.prd.oasvc.itv.com",
-         Path:   "/discovery",
-         RawQuery: url.Values{
-            "query":     {programme_page},
-            "variables": {data.String()},
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Titles []Title
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Data.Titles, nil
 }
