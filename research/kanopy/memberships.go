@@ -1,50 +1,52 @@
+// memberships.go
 package kanopy
 
 import (
    "encoding/json"
-   "fmt"
-   "io"
    "net/url"
+   "strconv"
 
    "41.neocities.org/maya"
 )
 
 type Membership struct {
-   DomainId int    `json:"domainId"`
-   UserId   int    `json:"userId"`
-   Status   string `json:"status"`
+   IdentityID         int    `json:"identityId"`
+   DomainID           int    `json:"domainId"`
+   UserID             int    `json:"userId"`
+   Status             string `json:"status"`
+   IsDefault          bool   `json:"isDefault"`
+   Sitename           string `json:"sitename"`
+   Subdomain          string `json:"subdomain"`
+   TicketsAvailable   int    `json:"ticketsAvailable"`
+   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
 type MembershipsResponse struct {
    List []Membership `json:"list"`
 }
 
-func GetMemberships(userId int, jwt string) (*MembershipsResponse, error) {
-   targetUrl, err := url.Parse(fmt.Sprintf("https://www.kanopy.com/kapi/memberships?userId=%d", userId))
+func GetMemberships(jwt string, userId int) (*MembershipsResponse, error) {
+   targetUrl, err := url.Parse("https://www.kanopy.com/kapi/memberships?userId=" + strconv.Itoa(userId))
    if err != nil {
       return nil, err
    }
 
-   requestHeaders := map[string]string{
+   headers := map[string]string{
       "authorization": "Bearer " + jwt,
+      "x-version":     "!/!/!/!",
    }
 
-   response, err := maya.Get(targetUrl, requestHeaders)
+   resp, err := maya.Get(targetUrl, headers)
    if err != nil {
       return nil, err
    }
-   defer response.Body.Close()
+   defer resp.Body.Close()
 
-   responseBytes, err := io.ReadAll(response.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var membershipsResponse MembershipsResponse
-   err = json.Unmarshal(responseBytes, &membershipsResponse)
+   var membershipsResp MembershipsResponse
+   err = json.NewDecoder(resp.Body).Decode(&membershipsResp)
    if err != nil {
       return nil, err
    }
 
-   return &membershipsResponse, nil
+   return &membershipsResp, nil
 }

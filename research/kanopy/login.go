@@ -1,68 +1,66 @@
+// login.go
 package kanopy
 
 import (
    "encoding/json"
-   "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-type LoginRequestEmailUser struct {
+type EmailUser struct {
    Email    string `json:"email"`
    Password string `json:"password"`
 }
 
 type LoginRequest struct {
-   CredentialType string                `json:"credentialType"`
-   EmailUser      LoginRequestEmailUser `json:"emailUser"`
+   CredentialType string    `json:"credentialType"`
+   EmailUser      EmailUser `json:"emailUser"`
 }
 
 type LoginResponse struct {
-   JWT       string `json:"jwt"`
-   VisitorId string `json:"visitorId"`
-   UserId    int    `json:"userId"`
+   JWT               string `json:"jwt"`
+   VisitorID         string `json:"visitorId"`
+   UserID            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopID         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
 }
 
-func Login(email string, password string) (*LoginResponse, error) {
+func Login(email, password string) (*LoginResponse, error) {
+   reqData := LoginRequest{
+      CredentialType: "email",
+      EmailUser: EmailUser{
+         Email:    email,
+         Password: password,
+      },
+   }
+   body, err := json.Marshal(reqData)
+   if err != nil {
+      return nil, err
+   }
+
    targetUrl, err := url.Parse("https://www.kanopy.com/kapi/login")
    if err != nil {
       return nil, err
    }
 
-   requestPayload := LoginRequest{
-      CredentialType: "email",
-      EmailUser: LoginRequestEmailUser{
-         Email:    email,
-         Password: password,
-      },
-   }
-
-   bodyBytes, err := json.Marshal(requestPayload)
-   if err != nil {
-      return nil, err
-   }
-
-   requestHeaders := map[string]string{
+   headers := map[string]string{
       "content-type": "application/json",
    }
 
-   response, err := maya.Post(targetUrl, requestHeaders, bodyBytes)
+   resp, err := maya.Post(targetUrl, headers, body)
    if err != nil {
       return nil, err
    }
-   defer response.Body.Close()
+   defer resp.Body.Close()
 
-   responseBytes, err := io.ReadAll(response.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var loginResponse LoginResponse
-   err = json.Unmarshal(responseBytes, &loginResponse)
+   var loginResp LoginResponse
+   err = json.NewDecoder(resp.Body).Decode(&loginResp)
    if err != nil {
       return nil, err
    }
 
-   return &loginResponse, nil
+   return &loginResp, nil
 }
