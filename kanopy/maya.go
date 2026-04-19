@@ -2,39 +2,42 @@ package kanopy
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "fmt"
    "io"
-   "net/http"
    "net/url"
 )
 
-func (s *Session) GetWidevine(manifest *Manifest, challenge []byte) ([]byte, error) {
-   if manifest == nil {
-      return nil, fmt.Errorf("a valid stream manifest is required to request a DRM license")
-   }
-   if manifest.DrmLicenseId == "" {
-      return nil, fmt.Errorf("manifest does not contain a DRM license ID")
-   }
-   const BaseUrl = "https://www.kanopy.com"
-   url := fmt.Sprintf("%s/kapi/licenses/widevine/%s", BaseUrl, manifest.DrmLicenseId)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(challenge))
-   if err != nil {
-      return nil, err
-   }
+type Manifest struct {
+   Cdn            string    `json:"cdn"`
+   DrmLicenseId   string    `json:"drmLicenseID"`
+   DrmType        string    `json:"drmType"`
+   ManifestType   string    `json:"manifestType"`
+   StorageService string    `json:"storageService"`
+   StudioDrm      StudioDrm `json:"studioDrm"`
+   Url            string    `json:"url"`
+}
 
-   req.Header.Set("Authorization", "Bearer "+s.Jwt)
-   req.Header.Set("User-Agent", UserAgent)
-   req.Header.Set("X-Version", Xversion)
-
-   resp, err := http.DefaultClient.Do(req)
+func (s *Session) GetWidevine(manifest *Manifest, body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   host,
+         Path:   "/kapi/licenses/widevine/" + manifest.DrmLicenseId,
+      },
+      map[string]string{
+         "authorization": "Bearer " + s.Jwt,
+         "user-agent":    UserAgent,
+         "x-version":     Xversion,
+      },
+      body,
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
+   if resp.StatusCode != 200 {
       return nil, fmt.Errorf("widevine license request failed with status: %d", resp.StatusCode)
    }
 

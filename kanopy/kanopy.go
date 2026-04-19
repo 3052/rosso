@@ -96,16 +96,6 @@ func (m *Manifest) GetManifest() (*url.URL, error) {
    return url.Parse(m.Url)
 }
 
-type Manifest struct {
-   Cdn            string    `json:"cdn"`
-   DrmLicenseId   string    `json:"drmLicenseID"`
-   DrmType        string    `json:"drmType"`
-   ManifestType   string    `json:"manifestType"`
-   StorageService string    `json:"storageService"`
-   StudioDrm      StudioDrm `json:"studioDrm"`
-   Url            string    `json:"url"`
-}
-
 type PlayResponse struct {
    Captions  []Caption   `json:"captions"`
    Dva       Dva         `json:"dva"`
