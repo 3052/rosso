@@ -9,35 +9,6 @@ import (
    "path"
 )
 
-func (c *client) do_episode() error {
-   var err error
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return c.Series.GetEpisodeUrl(c.episode)
-   })
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_movie() error {
-   series, err := pluto.FetchSeries(path.Base(c.movie))
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return series.GetMovieUrl(), nil
-   })
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
-}
-
 func main() {
    maya.SetProxy("", "*.m4s")
    log.SetFlags(log.Ltime)
@@ -110,4 +81,33 @@ func (c *client) do() error {
       episode,
       dash,
    }})
+}
+
+func (c *client) do_episode() error {
+   var err error
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return c.Series.GetEpisodeUrl(c.episode)
+   })
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_movie() error {
+   series, err := pluto.FetchSeries(path.Base(c.movie))
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return series.GetMovieUrl(), nil
+   })
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash_id() error {
+   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
 }

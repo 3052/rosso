@@ -1,7 +1,6 @@
 package disney
 
 import (
-   "bytes"
    _ "embed"
    "encoding/json"
    "errors"
@@ -213,95 +212,6 @@ func (t *Token) assert(expected string) error {
       return errors.New("expected token type " + expected)
    }
    return nil
-}
-
-// request: Device
-func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOtp, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_authenticate_with_otp,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "email":    email,
-            "passcode": passcode,
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/v1/public/graphql",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         AuthenticateWithOtp AuthenticateWithOtp
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.AuthenticateWithOtp, nil
-}
-
-// request: Device
-// response: AccountWithoutActiveProfile
-func (t *Token) LoginWithActionGrant(actionGrant string) (*LoginWithActionGrant, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_login_with_action_grant,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "actionGrant": actionGrant,
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/v1/public/graphql",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         LoginWithActionGrant LoginWithActionGrant
-      }
-      Extensions struct {
-         Sdk struct {
-            Token Token
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   *t = result.Extensions.Sdk.Token
-   return &result.Data.LoginWithActionGrant, nil
 }
 
 // request: Account
