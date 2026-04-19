@@ -4,7 +4,6 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/peacock"
    "log"
-   "net/http"
    "path"
 )
 
@@ -26,39 +25,6 @@ func (c *client) do_address() error {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Dash      *maya.Dash
-   IdSession *http.Cookie
-   Playout   *peacock.Playout
-   //----------------------
-   Job maya.Job
-   //----------------------
-   email    string
-   password string
-   //----------------------
-   address string
 }
 
 func (c *client) do() error {
@@ -103,4 +69,37 @@ func (c *client) do() error {
 
 func (c *client) do_dash_id() error {
    return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
+}
+
+var cache maya.Cache
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Dash      *maya.Dash
+   Playout   *peacock.Playout
+   IdSession string
+   //----------------------
+   Job maya.Job
+   //----------------------
+   email    string
+   password string
+   //----------------------
+   address string
+}
+
+func (c *client) do_email_password() error {
+   var err error
+   c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

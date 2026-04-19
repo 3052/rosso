@@ -5,35 +5,14 @@ import (
    "41.neocities.org/rosso/paramount"
    "fmt"
    "log"
-   "net/http"
 )
-
-func (c *client) do_paramount() error {
-   app, err := paramount.GetApp(c.App)
-   if err != nil {
-      return err
-   }
-   var cbs_com *http.Cookie
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(session.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
 
 func (c *client) do_dash() error {
    app, err := paramount.GetApp(c.App)
    if err != nil {
       return err
    }
-   var cbs_com *http.Cookie
+   var cbs_com string
    if c.cookie.IsSet {
       cbs_com = c.CbsCom
    }
@@ -44,23 +23,16 @@ func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, session.Fetch)
 }
 
-var cache maya.Cache
-
-type client struct {
-   CbsCom *http.Cookie
-   Dash   *maya.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
-   App string
-   //--------------------
-   username string
-   password string
-   //--------------------
-   cookie *maya.Flag
-   //--------------------
-   ParamountId string
+func main() {
+   maya.SetProxy("", "*.m4s", "*.mp4")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
+
+var cache maya.Cache
 
 func (c *client) do_username_password() error {
    app, err := paramount.GetApp(c.App)
@@ -72,6 +44,22 @@ func (c *client) do_username_password() error {
       return err
    }
    return cache.Write(c)
+}
+
+type client struct {
+   Dash   *maya.Dash
+   CbsCom string
+   //--------------------
+   Job maya.Job
+   //--------------------
+   App string
+   //--------------------
+   username string
+   password string
+   //--------------------
+   cookie *maya.Flag
+   //--------------------
+   ParamountId string
 }
 
 func (c *client) do() error {
@@ -121,11 +109,22 @@ func (c *client) do() error {
    })
 }
 
-func main() {
-   maya.SetProxy("", "*.m4s", "*.mp4")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
+func (c *client) do_paramount() error {
+   app, err := paramount.GetApp(c.App)
    if err != nil {
-      log.Fatal(err)
+      return err
    }
+   var cbs_com string
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   session, err := app.FetchStreamingUrl(c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(session.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

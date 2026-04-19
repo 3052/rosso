@@ -4,67 +4,19 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/cineMember"
    "log"
-   "net/http"
 )
-
-func (c *client) do_address() error {
-   id, err := cineMember.FetchId(c.address)
-   if err != nil {
-      return err
-   }
-   stream, err := cineMember.FetchStream(c.Session, id)
-   if err != nil {
-      return err
-   }
-   link, err := stream.Dash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(link.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
 
 func (c *client) do_email_password() error {
    var err error
-   c.Session, err = cineMember.FetchSession()
+   c.PhpSessId, err = cineMember.PhpSessId()
    if err != nil {
       return err
    }
-   err = cineMember.FetchLogin(c.Session, c.email, c.password)
+   err = cineMember.FetchLogin(c.PhpSessId, c.email, c.password)
    if err != nil {
       return err
    }
    return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, nil)
-}
-
-type client struct {
-   Dash    *maya.Dash
-   Session *http.Cookie
-   //---------------------
-   Job maya.Job
-   //-------------
-   email    string
-   password string
-   //-------------
-   address string
 }
 
 func (c *client) do() error {
@@ -99,4 +51,51 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, nil)
+}
+
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Dash      *maya.Dash
+   PhpSessId string
+   //---------------------
+   Job maya.Job
+   //-------------
+   email    string
+   password string
+   //-------------
+   address string
+}
+
+func (c *client) do_address() error {
+   id, err := cineMember.FetchId(c.address)
+   if err != nil {
+      return err
+   }
+   stream, err := cineMember.FetchStream(c.PhpSessId, id)
+   if err != nil {
+      return err
+   }
+   link, err := stream.Dash()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(link.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }

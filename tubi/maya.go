@@ -18,15 +18,12 @@ func GetContent(contentId int) (*Content, error) {
    query.Set("platform", "web")
    query.Add("video_resources[]", "dash")
    query.Add("video_resources[]", "dash_widevine")
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "uapi.adrise.tv",
-         Path:     "/cms/content",
-         RawQuery: query.Encode(),
-      },
-      nil,
-   )
+   resp, err := maya.Get(&url.URL{
+      Scheme:   "https",
+      Host:     "uapi.adrise.tv",
+      Path:     "/cms/content",
+      RawQuery: query.Encode(),
+   }, nil)
    if err != nil {
       return nil, fmt.Errorf("request failed: %w", err)
    }
