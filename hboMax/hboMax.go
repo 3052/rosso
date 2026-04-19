@@ -21,23 +21,6 @@ type Login struct {
    Token string
 }
 
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl, "text/xml",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
 type Initiate struct {
    LinkingCode string
    TargetUrl   string
@@ -57,31 +40,6 @@ var Markets = []string{
    "apac",
    "emea",
    "latam",
-}
-
-func StRequest() (*http.Cookie, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com", // Refactored
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-device-info", device_info)
-   req.Header.Set("x-disco-client", disco_client)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "st" {
-         return cookie, nil
-      }
-   }
-   return nil, http.ErrNoCookie
 }
 
 func MovieResults(entities []*Entity) []*Entity {
@@ -185,37 +143,6 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    return results, nil
 }
 
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *http.Cookie) (*Login, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com", // Refactored
-         Path:   "/authentication/linkDevice/login",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
 // Resource represents a relationship pointer in the JSON:API graph
 type Resource struct {
    Id   string
@@ -291,38 +218,6 @@ type Error struct {
    Code    string // 2026-04-10
    Detail  string // 2026-04-10
    Message string // 2026-04-10
-}
-
-func InitiateRequest(st *http.Cookie, market string) (*Initiate, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      Header: http.Header{},
-   }
-   req.AddCookie(st)
-   req.Header.Set("x-device-info", device_info)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
 }
 
 func playback_request(token, edit_id, drm string) (*Playback, error) {
