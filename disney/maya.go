@@ -4,9 +4,104 @@ import (
    "41.neocities.org/maya"
    "bytes"
    "encoding/json"
+   "errors"
+   "io"
    "net/http"
    "net/url"
 )
+
+// expires: 4 hours
+// request: Account
+func (t *Token) Refresh() error {
+   if err := t.assert("Account"); err != nil {
+      return err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_refresh_token,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "refreshToken": t.RefreshToken,
+         },
+      },
+   })
+   if err != nil {
+      return err
+   }
+   req, err := http.NewRequest(
+      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
+      bytes.NewReader(body),
+   )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("authorization", "Bearer "+client_api_key)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Extensions struct {
+         Sdk struct {
+            Token Token
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   *t = result.Extensions.Sdk.Token
+   return nil
+}
+
+// L3 max: 720p
+// request: Account
+func (t *Token) FetchWidevine(body []byte) ([]byte, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         Path:   "/widevine/v1/obtain-license",
+      },
+      map[string]string{"authorization": t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// SL2000 max: 720p
+// SL3000 max: 2160p
+// request: Account
+func (t *Token) FetchPlayReady(body []byte) ([]byte, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         Path:   "/playready/v1/obtain-license.asmx",
+      },
+      map[string]string{"authorization": t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
 
 // request: Account
 func (t *Token) FetchStream(mediaId string) (*Stream, error) {
@@ -38,23 +133,25 @@ func (t *Token) FetchStream(mediaId string) (*Stream, error) {
    if err != nil {
       return nil, err
    }
-   // /v7/playback/ctr-high
-   // /v7/playback/tv-drm-ctr-h265-atmos
-   req, err := http.NewRequest(
-      "POST", "https://disney.playback.edge.bamgrid.com/v7/playback/ctr-regular",
-      bytes.NewReader(body),
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         // /v7/playback/ctr-high
+         // /v7/playback/tv-drm-ctr-h265-atmos
+         Path: "/v7/playback/ctr-regular",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + t.AccessToken,
+         "content-type":            "application/json",
+         "x-application-version":   "",
+         "x-bamsdk-client-id":      "",
+         "x-bamsdk-platform":       "",
+         "x-bamsdk-version":        "",
+         "x-dss-feature-filtering": "true",
+      },
+      body,
    )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("x-application-version", "")
-   req.Header.Set("x-bamsdk-client-id", "")
-   req.Header.Set("x-bamsdk-platform", "")
-   req.Header.Set("x-bamsdk-version", "")
-   req.Header.Set("x-dss-feature-filtering", "true")
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

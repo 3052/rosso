@@ -5,7 +5,6 @@ import (
    _ "embed"
    "encoding/json"
    "errors"
-   "io"
    "net/http"
    "net/url"
    "strings"
@@ -69,56 +68,6 @@ type Error struct {
    Description string // 2026-04-05
 }
 
-// SL2000 max: 720p
-// SL3000 max: 2160p
-// request: Account
-func (t *Token) FetchPlayReady(body []byte) ([]byte, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      "https://disney.playback.edge.bamgrid.com/playready/v1/obtain-license.asmx",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-// L3 max: 720p
-// request: Account
-func (t *Token) FetchWidevine(body []byte) ([]byte, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST",
-      "https://disney.playback.edge.bamgrid.com/widevine/v1/obtain-license",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
 func (t *Token) String() string {
    var data strings.Builder
    data.WriteString("type = ")
@@ -136,51 +85,6 @@ type Token struct {
    AccessTokenType string
    AccessToken     string
    RefreshToken    string
-}
-
-// expires: 4 hours
-// request: Account
-func (t *Token) Refresh() error {
-   if err := t.assert("Account"); err != nil {
-      return err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_refresh_token,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "refreshToken": t.RefreshToken,
-         },
-      },
-   })
-   if err != nil {
-      return err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/graph/v1/device/graphql",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("authorization", "Bearer "+client_api_key)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Extensions struct {
-         Sdk struct {
-            Token Token
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   *t = result.Extensions.Sdk.Token
-   return nil
 }
 
 // ZGlzbmV5JmJyb3dzZXImMS4wLjA
