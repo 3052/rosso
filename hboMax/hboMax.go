@@ -3,7 +3,6 @@ package hboMax
 import (
    "bytes"
    "cmp"
-   "encoding/json"
    "errors"
    "fmt"
    "io"
@@ -220,114 +219,12 @@ type Error struct {
    Message string // 2026-04-10
 }
 
-func playback_request(token, edit_id, drm string) (*Playback, error) {
-   body, err := json.Marshal(map[string]any{
-      "editId":               edit_id,
-      "consumptionType":      "streaming",
-      "appBundle":            "",         // required
-      "applicationSessionId": "",         // required
-      "firstPlay":            false,      // required
-      "gdpr":                 false,      // required
-      "playbackSessionId":    "",         // required
-      "userPreferences":      struct{}{}, // required
-      "capabilities": map[string]any{
-         "contentProtection": map[string]any{
-            "contentDecryptionModules": []any{
-               map[string]string{
-                  "drmKeySystem": drm,
-               },
-            },
-         },
-         "manifests": map[string]any{
-            "formats": map[string]any{
-               "dash": struct{}{}, // required
-            }, // required
-         }, // required
-      }, // required
-      "deviceInfo": map[string]any{
-         "player": map[string]any{
-            "mediaEngine": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-            "playerView": map[string]int{
-               "height": 0, // required
-               "width":  0, // required
-            }, // required
-            "sdk": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-         }, // required
-      }, // required
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://default.prd.api.hbomax.com", bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.URL.Path = "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo"
-   req.Header.Set("authorization", "Bearer "+token)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return &result, nil
-}
-
 func PlayReadyRequest(token, editId string) (*Playback, error) {
    return playback_request(token, editId, "playready")
 }
 
 func WidevineRequest(token, editId string) (*Playback, error) {
    return playback_request(token, editId, "widevine")
-}
-
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+token)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors   []Error
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   return result.Included, nil
 }
 
 func MovieRequest(token, showId string) ([]*Entity, error) {
