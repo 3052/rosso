@@ -2,13 +2,102 @@ package disney
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
 )
+
+// request: Device
+func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_request_otp,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":  email,
+            "reason": "Login",
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         RequestOtp RequestOtp
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.RequestOtp, nil
+}
+
+// request: Device
+// response: AccountWithoutActiveProfile
+func (t *Token) FetchLogin(email, password string) (*Login, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_login,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":    email,
+            "password": password,
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Login Login
+      }
+      Extensions struct {
+         Sdk struct {
+            Token Token
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   *t = result.Extensions.Sdk.Token
+   return &result.Data.Login, nil
+}
 
 // THIS REQUEST SETS THE LOCATION BASED ON YOUR IP
 // request: AccountWithoutActiveProfile
@@ -28,15 +117,15 @@ func (t *Token) SwitchProfile(profileId string) error {
    if err != nil {
       return err
    }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/v1/public/graphql",
-      bytes.NewReader(body),
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
    )
-   if err != nil {
-      return err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return err
    }
