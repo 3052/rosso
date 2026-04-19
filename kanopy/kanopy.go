@@ -68,12 +68,6 @@ type Video struct {
    VideoId                    int    `json:"videoId"`
 }
 
-type PlayRequest struct {
-   DomainId int `json:"domainId"`
-   UserId   int `json:"userId"`
-   VideoId  int `json:"videoId"`
-}
-
 type CaptionFile struct {
    Type string `json:"type"`
    Url  string `json:"url"`
@@ -125,60 +119,6 @@ func (p *PlayResponse) DashManifest() (*Manifest, error) {
    return nil, fmt.Errorf("dash manifest not found in play response")
 }
 
-// CreatePlay registers a playback event using the DomainId from a Membership
-// and the VideoId from a Video.
-func (s *Session) CreatePlay(membership *Membership, video *Video) (*PlayResponse, error) {
-   if membership == nil {
-      return nil, fmt.Errorf("membership context is required to create a play")
-   }
-   if video == nil {
-      return nil, fmt.Errorf("video context is required to create a play")
-   }
-
-   payload := PlayRequest{
-      DomainId: membership.DomainId,
-      UserId:   s.UserId,
-      VideoId:  video.VideoId,
-   }
-
-   body, err := json.Marshal(payload)
-   if err != nil {
-      return nil, err
-   }
-
-   req, err := http.NewRequest("POST", BaseUrl+"/kapi/plays", bytes.NewBuffer(body))
-   if err != nil {
-      return nil, err
-   }
-
-   req.Header.Set("X-Version", Xversion)
-   req.Header.Set("Authorization", "Bearer "+s.Jwt)
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("User-Agent", UserAgent)
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("create play failed with status: %d", resp.StatusCode)
-   }
-
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var playResp PlayResponse
-   if err := json.Unmarshal(respBody, &playResp); err != nil {
-      return nil, err
-   }
-
-   return &playResp, nil
-}
-
 type Membership struct {
    IdentityId         int    `json:"identityId"`
    DomainId           int    `json:"domainId"`
@@ -189,46 +129,6 @@ type Membership struct {
    Subdomain          string `json:"subdomain"`
    TicketsAvailable   int    `json:"ticketsAvailable"`
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
-}
-
-// GetMemberships fetches the library memberships associated with the session's UserId
-// and returns the list of memberships directly.
-func (s *Session) GetMemberships() ([]Membership, error) {
-   url := fmt.Sprintf("%s/kapi/memberships?userId=%d", BaseUrl, s.UserId)
-
-   req, err := http.NewRequest("GET", url, nil)
-   if err != nil {
-      return nil, err
-   }
-
-   req.Header.Set("User-Agent", UserAgent)
-   req.Header.Set("X-Version", Xversion)
-   req.Header.Set("Authorization", "Bearer "+s.Jwt)
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("get memberships failed with status: %d", resp.StatusCode)
-   }
-
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var wrapper struct {
-      List []Membership `json:"list"`
-   }
-
-   if err := json.Unmarshal(respBody, &wrapper); err != nil {
-      return nil, err
-   }
-
-   return wrapper.List, nil
 }
 
 type LoginRequest struct {
@@ -251,7 +151,7 @@ func Login(email, password string) (*Session, error) {
    if err != nil {
       return nil, err
    }
-
+   const BaseUrl = "https://www.kanopy.com"
    req, err := http.NewRequest("POST", BaseUrl+"/kapi/login", bytes.NewBuffer(body))
    if err != nil {
       return nil, err
@@ -290,9 +190,8 @@ func (s *Session) GetWidevine(manifest *Manifest, challenge []byte) ([]byte, err
    if manifest.DrmLicenseId == "" {
       return nil, fmt.Errorf("manifest does not contain a DRM license ID")
    }
-
+   const BaseUrl = "https://www.kanopy.com"
    url := fmt.Sprintf("%s/kapi/licenses/widevine/%s", BaseUrl, manifest.DrmLicenseId)
-
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(challenge))
    if err != nil {
       return nil, err
@@ -316,7 +215,7 @@ func (s *Session) GetWidevine(manifest *Manifest, challenge []byte) ([]byte, err
 }
 
 const (
-   BaseUrl   = "https://www.kanopy.com"
+   host      = "www.kanopy.com"
    UserAgent = "!"
    Xversion  = "!/!/!/!"
 )
