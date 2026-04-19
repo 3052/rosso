@@ -1,9 +1,7 @@
 package molotov
 
 import (
-   "encoding/json"
    "errors"
-   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -80,34 +78,4 @@ type Asset struct {
 
 type Play struct {
    Url string // fapi.molotov.tv/v2/me/assets
-}
-
-func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
-   req := http.Request{
-      Header: http.Header{},
-   }
-   var err error
-   req.URL, err = url.Parse(playData.Url)
-   if err != nil {
-      return nil, err
-   }
-   query := req.URL.Query() // keep existing query string
-   query.Set("access_token", a.AccessToken)
-   req.URL.RawQuery = query.Encode()
-   req.Header.Set("x-forwarded-for", "138.199.15.158")
-   req.Header.Set("x-molotov-agent", browser_app)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Asset
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
 }

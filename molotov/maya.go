@@ -8,6 +8,36 @@ import (
    "net/url"
 )
 
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
+   target, err := url.Parse(playData.Url)
+   if err != nil {
+      return nil, err
+   }
+   query := target.Query() // keep existing query string
+   query.Set("access_token", a.AccessToken)
+   target.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      target,
+      map[string]string{
+         "x-forwarded-for": "138.199.15.158",
+         "x-molotov-agent": browser_app,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Asset
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
+}
+
 func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
    resp, err := maya.Get(
       &url.URL{
