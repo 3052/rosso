@@ -1,10 +1,8 @@
 package molotov
 
 import (
-   "bytes"
    "encoding/json"
    "errors"
-   "fmt"
    "net/http"
    "net/url"
    "strconv"
@@ -13,38 +11,6 @@ import (
 
 func (a *Asset) GetManifest() (*url.URL, error) {
    return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
-}
-
-func FetchAuth(email, password string) (*Auth, error) {
-   body, err := json.Marshal(map[string]string{
-      "grant_type": "password",
-      "email":      email,
-      "password":   password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest(
-      "POST", "https://fapi.molotov.tv/v3.1/auth/login",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Auth Auth
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Auth, nil
 }
 
 const (
@@ -64,34 +30,6 @@ func (e *Error) Error() string {
 type Error struct {
    DeveloperMessage string `json:"developer_message"`
    UserMessage      string `json:"user_message"`
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() (*Auth, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Auth Auth
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Auth, nil
 }
 
 // https://molotov.tv/fr_fr/p/15301-2328
@@ -138,42 +76,6 @@ type Asset struct {
    Stream struct {
       Url string // MPD
    }
-}
-
-func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path: fmt.Sprintf(
-            "/v2/channels/%v/programs/%v/view",
-            programData.ChannelId, programData.Id,
-         ),
-         RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("x-molotov-agent", customer_area)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Program struct {
-         Actions struct {
-            Play *Play
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Program.Actions.Play == nil {
-      return nil, errors.New("program is not available for playback")
-   }
-   return result.Program.Actions.Play, nil
 }
 
 type Play struct {

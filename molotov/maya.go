@@ -1,27 +1,118 @@
 package molotov
 
 import (
-   "bytes"
+   "41.neocities.org/maya"
    "encoding/json"
    "errors"
-   "net/http"
+   "fmt"
+   "net/url"
 )
 
-func (a *Asset) FetchWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(data),
+func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path: fmt.Sprintf(
+            "/v2/channels/%v/programs/%v/view",
+            programData.ChannelId, programData.Id,
+         ),
+         RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
+      },
+      map[string]string{"x-molotov-agent": customer_area},
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("x-dt-auth-token", a.Drm.Token)
-   resp, err := http.DefaultClient.Do(req)
+   defer resp.Body.Close()
+   var result struct {
+      Program struct {
+         Actions struct {
+            Play *Play
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Program.Actions.Play == nil {
+      return nil, errors.New("program is not available for playback")
+   }
+   return result.Program.Actions.Play, nil
+}
+
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() (*Auth, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
+   var result struct {
+      Auth Auth
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Auth, nil
+}
+
+func FetchAuth(email, password string) (*Auth, error) {
+   body, err := json.Marshal(map[string]string{
+      "grant_type": "password",
+      "email":      email,
+      "password":   password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "fapi.molotov.tv", Path: "/v3.1/auth/login",
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Auth Auth
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Auth, nil
+}
+
+func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "lic.drmtoday.com",
+         Path:   "/license-proxy-widevine/cenc/",
+      },
+      map[string]string{"x-dt-auth-token": a.Drm.Token},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
    var result struct {
