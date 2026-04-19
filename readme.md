@@ -12,29 +12,29 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 4275 | us | [kanopy] |
-| 4078 | us | [tubi-tv] |
+| 4203 | us | [kanopy] |
+| 4089 | us | [tubi-tv] |
 | 2790 | us | [plex] |
-| 2722 | uk | [rakuten-tv] |
-| 2335 | us | [the-roku-channel] |
-| 1192 | ca | [crave] |
+| 2724 | uk | [rakuten-tv] |
+| 2330 | us | [the-roku-channel] |
+| 1196 | ca | [crave] |
+| 1002 | us | [hbo-max] |
 | 1001 | us | [pluto-tv] |
-| 1000 | us | [hbo-max] |
 | 931 | us | [criterion-channel] |
 | 665 | se | [draken-films] |
-| 630 | fr | [molotov-tv] |
-| 612 | us | [hulu] |
+| 641 | fr | [molotov-tv] |
+| 608 | us | [hulu] |
 | 551 | nl | [cinemember] |
-| 461 | us | [amc-plus] |
-| 383 | us | [disney-plus] |
+| 462 | us | [amc-plus] |
+| 384 | us | [disney-plus] |
 | 333 | us | [paramount-plus-premium] |
-| 253 | us | [mubi] |
+| 254 | us | [mubi] |
 | 251 | ca | [ctv] |
-| 249 | us | [peacock] |
-| 249 | cz | [canal-plus] |
+| 250 | us | [peacock] |
+| 250 | cz | [canal-plus] |
 | 241 | br | [oldflix] |
-| 235 | uk | [itvx] |
-| 156 | be | [rtbf-auvio] |
+| 234 | uk | [itvx] |
+| 158 | be | [rtbf-auvio] |
 | 6 | us | [nbc] |
 
 [kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=80
@@ -43,8 +43,8 @@ streaming API authentication, metadata, and DRM playback
 [rakuten-tv]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=80
 [the-roku-channel]:https://justwatch.com/us/provider/the-roku-channel?tomatoMeter=80
 [crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=80
-[pluto-tv]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=80
 [hbo-max]:https://justwatch.com/us/provider/hbo-max?tomatoMeter=80
+[pluto-tv]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=80
 [criterion-channel]:https://justwatch.com/us/provider/criterion-channel?tomatoMeter=80
 [draken-films]:https://justwatch.com/se/leverant%C3%B6r/draken-films?tomatoMeter=80
 [molotov-tv]:https://justwatch.com/fr/plateforme/molotov-tv?tomatoMeter=80
