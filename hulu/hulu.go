@@ -4,7 +4,6 @@ import (
    "bytes"
    "encoding/json"
    "errors"
-   "io"
    "net/http"
    "net/url"
    "path"
@@ -12,42 +11,6 @@ import (
 
 func (p *Playlist) GetManifest() (*url.URL, error) {
    return url.Parse(p.StreamUrl)
-}
-
-func (p *Playlist) FetchPlayReady(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.DashPrServer, "", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return data, nil
-}
-
-func (p *Playlist) FetchWidevine(data []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.WvServer, "application/x-protobuf", bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 // https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
@@ -62,32 +25,6 @@ func ParseId(urlData string) string {
       }
    }
    return part
-}
-
-func FetchDevice(email, password string) (*Device, error) {
-   resp, err := http.PostForm(
-      "https://auth.hulu.com/v2/livingroom/password/authenticate", url.Values{
-         "friendly_name": {"!"},
-         "password":      {password},
-         "serial_number": {"!"},
-         "user_email":    {email},
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data Device
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
 }
 
 // returns user_token only

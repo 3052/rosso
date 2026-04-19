@@ -1,12 +1,8 @@
 package hboMax
 
 import (
-   "bytes"
    "cmp"
-   "errors"
    "fmt"
-   "io"
-   "net/http"
    "net/url"
    "slices"
    "strings"
@@ -256,19 +252,4 @@ func SearchRequest(token, query string) ([]*Entity, error) {
       RawQuery: values.Encode(),
    }
    return entity_request(token, parsedUrl)
-}
-
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := http.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl, "application/x-protobuf",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
 }

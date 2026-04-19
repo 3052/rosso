@@ -6,9 +6,26 @@ import (
    "errors"
    "fmt"
    "io"
-   "net/http"
    "net/url"
 )
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   target, err := url.Parse(p.Drm.Schemes.Widevine.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
 
 func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    // Scheme
@@ -19,12 +36,9 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    query := endpoint.Query()
    query.Set("include", "default")
    endpoint.RawQuery = query.Encode()
-   req := http.Request{
-      URL:    endpoint,
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+token)
-   resp, err := http.DefaultClient.Do(&req)
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
    if err != nil {
       return nil, err
    }
