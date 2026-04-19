@@ -5,7 +5,6 @@ import (
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
    "strings"
 )
@@ -18,8 +17,8 @@ func FetchTitles(legacyId string) ([]Title, error) {
    if err != nil {
       return nil, err
    }
-   req := http.Request{
-      URL: &url.URL{
+   resp, err := maya.Get(
+      &url.URL{
          Scheme: "https",
          Host:   "content-inventory.prd.oasvc.itv.com",
          Path:   "/discovery",
@@ -28,9 +27,8 @@ func FetchTitles(legacyId string) ([]Title, error) {
             "variables": {data.String()},
          }.Encode(),
       },
-      Header: http.Header{},
-   }
-   resp, err := http.DefaultClient.Do(&req)
+      nil,
+   )
    if err != nil {
       return nil, err
    }

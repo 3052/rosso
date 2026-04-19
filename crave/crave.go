@@ -2,10 +2,8 @@ package crave
 
 import (
    _ "embed"
-   "encoding/json"
    "errors"
    "fmt"
-   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -149,43 +147,4 @@ func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*M
 
 func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
    return c.fetchManifest(contentId, accessToken, 48)
-}
-
-func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
-   req := http.Request{
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
-            contentId, c.Id, c.DestinationId, platformId,
-         ),
-         RawQuery: url.Values{
-            "filter": {"ff"}, // 2160p HEVC
-            "format": {"mpd"},
-            "hd":     {"true"}, // 1080p H.264
-            "mcv":    {"true"}, // H.264 + HEVC
-            "uhd":    {"true"}, // 2160p HEVC
-         }.Encode(),
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+accessToken)
-
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result Manifest
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-
-   return &result, nil
 }

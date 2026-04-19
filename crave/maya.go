@@ -10,6 +10,42 @@ import (
    "net/url"
 )
 
+func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
+            contentId, c.Id, c.DestinationId, platformId,
+         ),
+         RawQuery: url.Values{
+            "filter": {"ff"}, // 2160p HEVC
+            "format": {"mpd"},
+            "hd":     {"true"}, // 1080p H.264
+            "mcv":    {"true"}, // H.264 + HEVC
+            "uhd":    {"true"}, // 2160p HEVC
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + accessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+
+   return &result, nil
+}
+
 func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
    body, err := json.Marshal(map[string]any{
       "payload": payload,
