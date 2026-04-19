@@ -2,11 +2,9 @@ package hulu
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
 )
 
@@ -88,15 +86,18 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://play.hulu.com/v6/playlist", bytes.NewReader(body),
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "play.hulu.com",
+         Path:   "/v6/playlist",
+      },
+      map[string]string{
+         "authorization": "Bearer " + d.UserToken,
+         "content-type":  "application/json",
+      },
+      body,
    )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+d.UserToken)
-   req.Header.Set("content-type", "application/json")
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

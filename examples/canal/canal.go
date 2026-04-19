@@ -5,10 +5,29 @@ import (
    "41.neocities.org/rosso/canal"
    "fmt"
    "log"
-   "net/http"
+   "net/url"
    "os"
    "path"
 )
+
+func get(address string) error {
+   target, err := url.Parse(address)
+   if err != nil {
+      return err
+   }
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Player.FetchWidevine)
@@ -49,21 +68,6 @@ func (c *client) do_subtitles() error {
       }
    }
    return nil
-}
-
-func get(address string) error {
-   resp, err := http.Get(address)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
 }
 
 var cache maya.Cache

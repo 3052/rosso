@@ -5,7 +5,6 @@ import (
    "41.neocities.org/rosso/hboMax"
    "fmt"
    "log"
-   "net/http"
 )
 
 func (c *client) do_edit() error {
@@ -31,10 +30,10 @@ func main() {
 }
 
 type client struct {
+   Dash     *maya.Dash
    Login    *hboMax.Login
    Playback *hboMax.Playback
-   St       *http.Cookie
-   Dash     *maya.Dash
+   St       string
    //-------------------
    Job maya.Job
    //-------------------
