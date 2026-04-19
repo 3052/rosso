@@ -3,6 +3,7 @@ package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
 
    "41.neocities.org/maya"
@@ -19,24 +20,12 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-   JWT               string `json:"jwt"`
-   VisitorID         string `json:"visitorId"`
-   UserID            int    `json:"userId"`
-   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
-   WebshopID         int    `json:"webshopId"`
-   WebshopCode       string `json:"webshopCode"`
-   UserRole          string `json:"userRole"`
+   JWT    string `json:"jwt"`
+   UserId int    `json:"userId"`
 }
 
-func Login(email, password string) (*LoginResponse, error) {
-   reqData := LoginRequest{
-      CredentialType: "email",
-      EmailUser: EmailUser{
-         Email:    email,
-         Password: password,
-      },
-   }
-   body, err := json.Marshal(reqData)
+func Login(req *LoginRequest) (*LoginResponse, error) {
+   reqBody, err := json.Marshal(req)
    if err != nil {
       return nil, err
    }
@@ -50,15 +39,19 @@ func Login(email, password string) (*LoginResponse, error) {
       "content-type": "application/json",
    }
 
-   resp, err := maya.Post(targetUrl, headers, body)
+   resp, err := maya.Post(targetUrl, headers, reqBody)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var loginResp LoginResponse
-   err = json.NewDecoder(resp.Body).Decode(&loginResp)
+   respBody, err := io.ReadAll(resp.Body)
    if err != nil {
+      return nil, err
+   }
+
+   var loginResp LoginResponse
+   if err := json.Unmarshal(respBody, &loginResp); err != nil {
       return nil, err
    }
 

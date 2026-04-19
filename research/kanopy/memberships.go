@@ -3,37 +3,34 @@ package kanopy
 
 import (
    "encoding/json"
+   "fmt"
+   "io"
    "net/url"
-   "strconv"
 
    "41.neocities.org/maya"
 )
 
 type Membership struct {
-   IdentityID         int    `json:"identityId"`
-   DomainID           int    `json:"domainId"`
-   UserID             int    `json:"userId"`
-   Status             string `json:"status"`
-   IsDefault          bool   `json:"isDefault"`
-   Sitename           string `json:"sitename"`
-   Subdomain          string `json:"subdomain"`
-   TicketsAvailable   int    `json:"ticketsAvailable"`
-   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
+   DomainId int `json:"domainId"`
+   UserId   int `json:"userId"`
 }
 
-type MembershipsResponse struct {
+type GetMembershipsResponse struct {
    List []Membership `json:"list"`
 }
 
-func GetMemberships(jwt string, userId int) (*MembershipsResponse, error) {
-   targetUrl, err := url.Parse("https://www.kanopy.com/kapi/memberships?userId=" + strconv.Itoa(userId))
+func GetMemberships(userId int, authorization string) (*GetMembershipsResponse, error) {
+   targetUrl, err := url.Parse("https://www.kanopy.com/kapi/memberships")
    if err != nil {
       return nil, err
    }
 
+   queryParams := targetUrl.Query()
+   queryParams.Set("userId", fmt.Sprintf("%d", userId))
+   targetUrl.RawQuery = queryParams.Encode()
+
    headers := map[string]string{
-      "authorization": "Bearer " + jwt,
-      "x-version":     "!/!/!/!",
+      "authorization": authorization,
    }
 
    resp, err := maya.Get(targetUrl, headers)
@@ -42,9 +39,13 @@ func GetMemberships(jwt string, userId int) (*MembershipsResponse, error) {
    }
    defer resp.Body.Close()
 
-   var membershipsResp MembershipsResponse
-   err = json.NewDecoder(resp.Body).Decode(&membershipsResp)
+   respBody, err := io.ReadAll(resp.Body)
    if err != nil {
+      return nil, err
+   }
+
+   var membershipsResp GetMembershipsResponse
+   if err := json.Unmarshal(respBody, &membershipsResp); err != nil {
       return nil, err
    }
 
