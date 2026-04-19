@@ -2,23 +2,76 @@ package mubi
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/base64"
    "encoding/json"
+   "errors"
    "fmt"
-   "net/http"
    "net/url"
 )
 
-func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
-   // final slash is needed
-   req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(body),
+func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
+      },
+      map[string]string{
+         "authorization":  "Bearer " + s.Token,
+         "client":         client,
+         "client-country": ClientCountry,
+         "user-agent":     "Firefox",
+      },
    )
    if err != nil {
       return nil, err
    }
+   defer resp.Body.Close()
+   var result SecureUrl
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.UserMessage != "" {
+      return nil, errors.New(result.UserMessage)
+   }
+   return &result, nil
+}
+
+// to get the MPD you have to call this or view video on the website. request
+// is hard geo blocked only the first time
+func (s *Session) FetchViewing(id int) error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing", id),
+      },
+      map[string]string{
+         "authorization":  "Bearer " + s.Token,
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      UserMessage string `json:"user_message"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   if result.UserMessage != "" {
+      return errors.New(result.UserMessage)
+   }
+   return nil
+}
+
+func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    data, err := json.Marshal(map[string]any{
       "merchant":  "mubi",
       "sessionId": s.Token,
@@ -27,17 +80,23 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    if err != nil {
       return nil, err
    }
-
-   req.Header.Set("dt-custom-data", base64.StdEncoding.EncodeToString(data))
-
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "lic.drmtoday.com",
+         Path:   "/license-proxy-widevine/cenc/", // final slash is needed
+      },
+      map[string]string{
+         "dt-custom-data": base64.StdEncoding.EncodeToString(data),
+      },
+      body,
+   )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   // Check if the response is not a 200 OK
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected HTTP error %v", resp.StatusCode)
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
    }
    var result struct {
       License []byte

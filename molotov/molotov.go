@@ -15,33 +15,6 @@ func (a *Asset) GetManifest() (*url.URL, error) {
    return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
 }
 
-func (a *Asset) FetchWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
-      bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-dt-auth-token", a.Drm.Token)
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      License []byte
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.License, nil
-}
-
 func FetchAuth(email, password string) (*Auth, error) {
    body, err := json.Marshal(map[string]string{
       "grant_type": "password",
