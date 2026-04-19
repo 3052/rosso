@@ -7,6 +7,16 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
       return c.Session.GetWidevine(c.Manifest, data)
@@ -109,14 +119,3 @@ func (c *client) do_address() error {
    }
    return cache.Write(c)
 }
-
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
