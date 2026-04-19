@@ -2,13 +2,41 @@ package disney
 
 import (
    "41.neocities.org/maya"
-   "bytes"
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
 )
+
+// request: Account
+func (t *Token) FetchSeason(id string) (*Season, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/season/" + id,
+         RawQuery: "limit=99",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Season Season
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Season, nil
+}
 
 // request: Device
 // response: AccountWithoutActiveProfile
@@ -27,15 +55,15 @@ func (t *Token) LoginWithActionGrant(actionGrant string) (*LoginWithActionGrant,
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://disney.api.edge.bamgrid.com/v1/public/graphql",
-      bytes.NewReader(body),
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
    )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

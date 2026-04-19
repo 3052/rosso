@@ -2,9 +2,7 @@ package disney
 
 import (
    _ "embed"
-   "encoding/json"
    "errors"
-   "net/http"
    "net/url"
    "strings"
 )
@@ -212,36 +210,4 @@ func (t *Token) assert(expected string) error {
       return errors.New("expected token type " + expected)
    }
    return nil
-}
-
-// request: Account
-func (t *Token) FetchSeason(id string) (*Season, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   req := http.Request{
-      URL: &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/season/" + id,
-         RawQuery: "limit=99",
-      },
-      Header: http.Header{},
-   }
-   req.Header.Set("authorization", "Bearer "+t.AccessToken)
-   resp, err := http.DefaultClient.Do(&req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Season Season
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Season, nil
 }

@@ -1,14 +1,14 @@
 package draken
 
 import (
-   "bytes"
    _ "embed"
    "encoding/json"
    "errors"
    "io"
-   "net/http"
    "net/url"
    "strings"
+
+   "41.neocities.org/maya"
 )
 
 func (p *Playback) GetManifest() (*url.URL, error) {
@@ -24,21 +24,19 @@ type Playback struct {
 }
 
 func FetchPlayback(loginToken, playableId, entitlementId string) (*Playback, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "client-api.magine.com",
-         Path:   "/api/playback/v1/preflight/asset/" + playableId,
-      },
-      Header: http.Header{},
+   headers := map[string]string{
+      "magine-play-entitlementid": entitlementId,
+      // this value is important, with the wrong value you get random failures
+      "x-forwarded-for": "95.192.0.0",
    }
-   setBaseHeaders(&req, loginToken)
-   setPlaybackHeaders(&req)
-   req.Header.Set("magine-play-entitlementid", entitlementId)
-   // this value is important, with the wrong value you get random failures
-   req.Header.Set("x-forwarded-for", "95.192.0.0")
-   resp, err := http.DefaultClient.Do(&req)
+   setBaseHeaders(headers, loginToken)
+   setPlaybackHeaders(headers)
+
+   resp, err := maya.Post(&url.URL{
+      Scheme: "https",
+      Host:   "client-api.magine.com",
+      Path:   "/api/playback/v1/preflight/asset/" + playableId,
+   }, headers, nil)
    if err != nil {
       return nil, err
    }
@@ -55,20 +53,20 @@ func FetchPlayback(loginToken, playableId, entitlementId string) (*Playback, err
 var get_custom_id_full_movie string
 
 // setPlaybackHeaders adds the headers specific to playback functionality.
-func setPlaybackHeaders(req *http.Request) {
-   req.Header.Set("magine-play-deviceid", "!")
-   req.Header.Set("magine-play-devicemodel", "firefox 111.0 / windows 10")
-   req.Header.Set("magine-play-deviceplatform", "firefox")
-   req.Header.Set("magine-play-devicetype", "web")
-   req.Header.Set("magine-play-drm", "widevine")
-   req.Header.Set("magine-play-protocol", "dashs")
+func setPlaybackHeaders(headers map[string]string) {
+   headers["magine-play-deviceid"] = "!"
+   headers["magine-play-devicemodel"] = "firefox 111.0 / windows 10"
+   headers["magine-play-deviceplatform"] = "firefox"
+   headers["magine-play-devicetype"] = "web"
+   headers["magine-play-drm"] = "widevine"
+   headers["magine-play-protocol"] = "dashs"
 }
 
 // setBaseHeaders adds the common authentication and access tokens to a request.
-func setBaseHeaders(req *http.Request, loginToken string) {
-   req.Header.Set("magine-accesstoken", "22cc71a2-8b77-4819-95b0-8c90f4cf5663")
+func setBaseHeaders(headers map[string]string, loginToken string) {
+   headers["magine-accesstoken"] = "22cc71a2-8b77-4819-95b0-8c90f4cf5663"
    if loginToken != "" {
-      req.Header.Set("authorization", "Bearer "+loginToken)
+      headers["authorization"] = "Bearer " + loginToken
    }
 }
 
@@ -99,15 +97,14 @@ func FetchLogin(identity, accessKey string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/login/v2/auth/email",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   setBaseHeaders(req, "") // No login token for this request
-   resp, err := http.DefaultClient.Do(req)
+   headers := make(map[string]string)
+   setBaseHeaders(headers, "") // No login token for this request
+
+   resp, err := maya.Post(&url.URL{
+      Scheme: "https",
+      Host:   "client-api.magine.com",
+      Path:   "/api/login/v2/auth/email",
+   }, headers, body)
    if err != nil {
       return nil, err
    }
@@ -136,17 +133,17 @@ func FetchPlayableId(customId string) (string, error) {
    if err != nil {
       return "", err
    }
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/apiql/v2",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return "", err
+   headers := map[string]string{
+      // this value is important, with the wrong value you get random failures
+      "x-forwarded-for": "95.192.0.0",
    }
-   setBaseHeaders(req, "") // No login token for this request
-   // this value is important, with the wrong value you get random failures
-   req.Header.Set("x-forwarded-for", "95.192.0.0")
-   resp, err := http.DefaultClient.Do(req)
+   setBaseHeaders(headers, "") // No login token for this request
+
+   resp, err := maya.Post(&url.URL{
+      Scheme: "https",
+      Host:   "client-api.magine.com",
+      Path:   "/api/apiql/v2",
+   }, headers, body)
    if err != nil {
       return "", err
    }
@@ -173,17 +170,14 @@ func FetchPlayableId(customId string) (string, error) {
 }
 
 func FetchEntitlement(loginToken, playableId string) (*Entitlement, error) {
-   req := http.Request{
-      Method: "POST",
-      URL: &url.URL{
-         Scheme: "https",
-         Host:   "client-api.magine.com",
-         Path:   "/api/entitlement/v2/asset/" + playableId,
-      },
-      Header: http.Header{},
-   }
-   setBaseHeaders(&req, loginToken)
-   resp, err := http.DefaultClient.Do(&req)
+   headers := make(map[string]string)
+   setBaseHeaders(headers, loginToken)
+
+   resp, err := maya.Post(&url.URL{
+      Scheme: "https",
+      Host:   "client-api.magine.com",
+      Path:   "/api/entitlement/v2/asset/" + playableId,
+   }, headers, nil)
    if err != nil {
       return nil, err
    }
@@ -200,18 +194,18 @@ func FetchEntitlement(loginToken, playableId string) (*Entitlement, error) {
 }
 
 func (p *Playback) FetchWidevine(loginToken string, body []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", "https://client-api.magine.com/api/playback/v1/widevine/license",
-      bytes.NewReader(body),
-   )
-   if err != nil {
-      return nil, err
+   headers := map[string]string{
+      "magine-play-session":       p.Headers.MaginePlaySession,
+      "magine-play-entitlementId": p.Headers.MaginePlayEntitlementId,
    }
-   setBaseHeaders(req, loginToken)
-   setPlaybackHeaders(req)
-   req.Header.Set("magine-play-session", p.Headers.MaginePlaySession)
-   req.Header.Set("magine-play-entitlementId", p.Headers.MaginePlayEntitlementId)
-   resp, err := http.DefaultClient.Do(req)
+   setBaseHeaders(headers, loginToken)
+   setPlaybackHeaders(headers)
+
+   resp, err := maya.Post(&url.URL{
+      Scheme: "https",
+      Host:   "client-api.magine.com",
+      Path:   "/api/playback/v1/widevine/license",
+   }, headers, body)
    if err != nil {
       return nil, err
    }
