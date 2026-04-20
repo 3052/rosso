@@ -1,57 +1,46 @@
-// video.go
+// File: get_video.go
 package kanopy
 
 import (
    "encoding/json"
-   "fmt"
-   "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-type Video struct {
-   VideoID     int    `json:"videoId"`
-   Title       string `json:"title"`
-   Description string `json:"descriptionHtml"`
-}
-
 type VideoResponse struct {
    Type  string `json:"type"`
-   Video Video  `json:"video"`
+   Video struct {
+      VideoID     int    `json:"videoId"`
+      Title       string `json:"title"`
+      Description string `json:"descriptionHtml"`
+      IsFree      bool   `json:"isFree"`
+      Alias       string `json:"alias"`
+   } `json:"video"`
 }
 
-func GetVideo(alias string, authorization string) (*VideoResponse, error) {
-   targetURL, err := url.Parse(fmt.Sprintf("https://www.kanopy.com/kapi/videos/alias/%s", alias))
+func GetVideo(alias string, token string) (*VideoResponse, error) {
+   reqURL, err := url.Parse("https://www.kanopy.com/kapi/videos/alias/" + alias)
    if err != nil {
       return nil, err
    }
 
    headers := map[string]string{
+      "authorization": "Bearer " + token,
       "x-version":     "!/!/!/!",
-      "authorization": authorization,
       "user-agent":    "Go-http-client/2.0",
    }
 
-   resp, err := maya.Get(targetURL, headers)
+   resp, err := maya.Get(reqURL, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
+   var result VideoResponse
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
 
-   var videoResp VideoResponse
-   if err := json.Unmarshal(respBody, &videoResp); err != nil {
-      return nil, err
-   }
-
-   return &videoResp, nil
+   return &result, nil
 }
