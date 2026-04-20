@@ -1,8 +1,9 @@
-// File: get_memberships.go
+// file: memberships.go
 package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
    "strconv"
 
@@ -25,32 +26,35 @@ type MembershipsResponse struct {
    List []Membership `json:"list"`
 }
 
-func GetMemberships(userID int, token string) (*MembershipsResponse, error) {
-   reqURL, err := url.Parse("https://www.kanopy.com/kapi/memberships")
-   if err != nil {
-      return nil, err
+func (l *LoginResponse) GetMemberships() (*MembershipsResponse, error) {
+   targetUrl := &url.URL{
+      Scheme:   "https",
+      Host:     "www.kanopy.com",
+      Path:     "/kapi/memberships",
+      RawQuery: "userId=" + strconv.Itoa(l.UserID),
    }
 
-   query := reqURL.Query()
-   query.Set("userId", strconv.Itoa(userID))
-   reqURL.RawQuery = query.Encode()
-
    headers := map[string]string{
-      "authorization": "Bearer " + token,
+      "authorization": "Bearer " + l.JWT,
       "user-agent":    "!",
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Get(reqURL, headers)
+   resp, err := maya.Get(targetUrl, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var result MembershipsResponse
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
       return nil, err
    }
 
-   return &result, nil
+   var membershipsResp MembershipsResponse
+   if err := json.Unmarshal(bodyBytes, &membershipsResp); err != nil {
+      return nil, err
+   }
+
+   return &membershipsResp, nil
 }

@@ -1,8 +1,9 @@
-// File: login.go
+// file: login.go
 package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
 
    "41.neocities.org/maya"
@@ -13,7 +14,7 @@ type EmailUser struct {
    Password string `json:"password"`
 }
 
-type loginRequest struct {
+type LoginRequest struct {
    CredentialType string     `json:"credentialType"`
    EmailUser      *EmailUser `json:"emailUser"`
 }
@@ -29,17 +30,18 @@ type LoginResponse struct {
 }
 
 func Login(emailUser *EmailUser) (*LoginResponse, error) {
-   reqURL, err := url.Parse("https://www.kanopy.com/kapi/login")
-   if err != nil {
-      return nil, err
+   targetUrl := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/login",
    }
 
-   reqBody := loginRequest{
+   reqBody := LoginRequest{
       CredentialType: "email",
       EmailUser:      emailUser,
    }
 
-   payload, err := json.Marshal(reqBody)
+   jsonData, err := json.Marshal(reqBody)
    if err != nil {
       return nil, err
    }
@@ -49,16 +51,21 @@ func Login(emailUser *EmailUser) (*LoginResponse, error) {
       "user-agent":   "!",
    }
 
-   resp, err := maya.Post(reqURL, headers, payload)
+   resp, err := maya.Post(targetUrl, headers, jsonData)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var result LoginResponse
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
       return nil, err
    }
 
-   return &result, nil
+   var loginResp LoginResponse
+   if err := json.Unmarshal(bodyBytes, &loginResp); err != nil {
+      return nil, err
+   }
+
+   return &loginResp, nil
 }
