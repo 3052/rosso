@@ -3,47 +3,41 @@ package kanopy
 
 import (
    "encoding/json"
-   "fmt"
-   "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-type Video struct {
-   VideoId int `json:"videoId"`
-}
-
-type GetVideoResponse struct {
+type VideoResponse struct {
    Type  string `json:"type"`
-   Video Video  `json:"video"`
+   Video struct {
+      VideoId int    `json:"videoId"`
+      Title   string `json:"title"`
+   } `json:"video"`
 }
 
-func GetVideo(alias string, authorization string) (*GetVideoResponse, error) {
-   targetUrl, err := url.Parse(fmt.Sprintf("https://www.kanopy.com/kapi/videos/alias/%s", url.PathEscape(alias)))
-   if err != nil {
-      return nil, err
+func GetVideo(Authorization string, Alias string) (*VideoResponse, error) {
+   targetUrl, parseError := url.Parse("https://www.kanopy.com/kapi/videos/alias/" + Alias)
+   if parseError != nil {
+      return nil, parseError
    }
 
    headers := map[string]string{
-      "authorization": authorization,
+      "authorization": "Bearer " + Authorization,
+      "x-version":     "!/!/!/!",
+      "user-agent":    "Go-http-client/2.0",
    }
 
-   resp, err := maya.Get(targetUrl, headers)
-   if err != nil {
-      return nil, err
+   resp, requestError := maya.Get(targetUrl, headers)
+   if requestError != nil {
+      return nil, requestError
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
+   var videoResp VideoResponse
+   decodeError := json.NewDecoder(resp.Body).Decode(&videoResp)
+   if decodeError != nil {
+      return nil, decodeError
    }
-
-   var videoResp GetVideoResponse
-   if err := json.Unmarshal(respBody, &videoResp); err != nil {
-      return nil, err
-   }
-
    return &videoResp, nil
 }

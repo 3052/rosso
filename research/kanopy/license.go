@@ -2,33 +2,29 @@
 package kanopy
 
 import (
-   "fmt"
    "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-func GetWidevineLicense(drmLicenseID string, payload []byte, authorization string) ([]byte, error) {
-   targetUrl, err := url.Parse(fmt.Sprintf("https://www.kanopy.com/kapi/licenses/widevine/%s", url.PathEscape(drmLicenseID)))
-   if err != nil {
-      return nil, err
+func GetWidevineLicense(Authorization string, DrmLicenseID string, payload []byte) ([]byte, error) {
+   targetUrl, parseError := url.Parse("https://www.kanopy.com/kapi/licenses/widevine/" + DrmLicenseID)
+   if parseError != nil {
+      return nil, parseError
    }
 
    headers := map[string]string{
-      "authorization": authorization,
+      "authorization": "Bearer " + Authorization,
+      "x-version":     "!/!/!/!",
+      "user-agent":    "!",
    }
 
-   resp, err := maya.Post(targetUrl, headers, payload)
-   if err != nil {
-      return nil, err
+   resp, requestError := maya.Post(targetUrl, headers, payload)
+   if requestError != nil {
+      return nil, requestError
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   return respBody, nil
+   return io.ReadAll(resp.Body)
 }

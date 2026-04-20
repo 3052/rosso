@@ -3,19 +3,12 @@ package kanopy
 
 import (
    "encoding/json"
-   "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-type PlayRequest struct {
-   DomainId int `json:"domainId"`
-   UserId   int `json:"userId"`
-   VideoId  int `json:"videoId"`
-}
-
-type Manifest struct {
+type PlayManifest struct {
    ManifestType string `json:"manifestType"`
    Url          string `json:"url"`
    DrmType      string `json:"drmType"`
@@ -23,41 +16,44 @@ type Manifest struct {
 }
 
 type PlayResponse struct {
-   PlayId    string     `json:"playId"`
-   Manifests []Manifest `json:"manifests"`
+   PlayId    string         `json:"playId"`
+   Manifests []PlayManifest `json:"manifests"`
 }
 
-func CreatePlay(req *PlayRequest, authorization string) (*PlayResponse, error) {
-   reqBody, err := json.Marshal(req)
-   if err != nil {
-      return nil, err
+func CreatePlay(session *Session, VideoId int) (*PlayResponse, error) {
+   payload := map[string]int{
+      "domainId": session.DomainId,
+      "userId":   session.UserId,
+      "videoId":  VideoId,
    }
 
-   targetUrl, err := url.Parse("https://www.kanopy.com/kapi/plays")
-   if err != nil {
-      return nil, err
+   bodyBytes, marshalError := json.Marshal(payload)
+   if marshalError != nil {
+      return nil, marshalError
+   }
+
+   targetUrl, parseError := url.Parse("https://www.kanopy.com/kapi/plays")
+   if parseError != nil {
+      return nil, parseError
    }
 
    headers := map[string]string{
       "content-type":  "application/json",
-      "authorization": authorization,
+      "authorization": "Bearer " + session.Authorization,
+      "x-version":     "!/!/!/!",
+      "user-agent":    "!",
    }
 
-   resp, err := maya.Post(targetUrl, headers, reqBody)
-   if err != nil {
-      return nil, err
+   resp, requestError := maya.Post(targetUrl, headers, bodyBytes)
+   if requestError != nil {
+      return nil, requestError
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
    var playResp PlayResponse
-   if err := json.Unmarshal(respBody, &playResp); err != nil {
-      return nil, err
+   decodeError := json.NewDecoder(resp.Body).Decode(&playResp)
+   if decodeError != nil {
+      return nil, decodeError
    }
-
    return &playResp, nil
 }
