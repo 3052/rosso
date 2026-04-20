@@ -7,11 +7,10 @@ import (
    "41.neocities.org/maya"
 )
 
-func GetWidevineLicense(jwt string, drmLicenseID string, challenge []byte) ([]byte, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/licenses/widevine/" + drmLicenseID,
+func GetLicense(jwt, drmLicenseID string, payload []byte) ([]byte, error) {
+   licenseURL, err := url.Parse("https://www.kanopy.com/kapi/licenses/widevine/" + drmLicenseID)
+   if err != nil {
+      return nil, err
    }
 
    headers := map[string]string{
@@ -20,7 +19,7 @@ func GetWidevineLicense(jwt string, drmLicenseID string, challenge []byte) ([]by
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Post(target, headers, challenge)
+   resp, err := maya.Post(licenseURL, headers, payload)
    if err != nil {
       return nil, err
    }
