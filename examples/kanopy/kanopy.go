@@ -17,6 +17,7 @@ func main() {
 }
 
 var cache maya.Cache
+
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
       return c.Session.GetWidevine(c.Manifest, data)
