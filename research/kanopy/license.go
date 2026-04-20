@@ -1,4 +1,3 @@
-// file: widevine.go
 package kanopy
 
 import (
@@ -8,8 +7,8 @@ import (
    "41.neocities.org/maya"
 )
 
-func GetWidevineLicense(drmLicenseID string, jwt string, body []byte) ([]byte, error) {
-   targetUrl := &url.URL{
+func GetWidevineLicense(jwt string, drmLicenseID string, challenge []byte) ([]byte, error) {
+   target := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
       Path:   "/kapi/licenses/widevine/" + drmLicenseID,
@@ -21,16 +20,11 @@ func GetWidevineLicense(drmLicenseID string, jwt string, body []byte) ([]byte, e
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Post(targetUrl, headers, body)
+   resp, err := maya.Post(target, headers, challenge)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   bodyBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   return bodyBytes, nil
+   return io.ReadAll(resp.Body)
 }

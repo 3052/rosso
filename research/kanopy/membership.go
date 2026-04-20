@@ -1,4 +1,3 @@
-// file: memberships.go
 package kanopy
 
 import (
@@ -10,10 +9,14 @@ import (
    "41.neocities.org/maya"
 )
 
+type MembershipsResponse struct {
+   List []Membership `json:"list"`
+}
+
 type Membership struct {
-   IdentityID         int    `json:"identityId"`
-   DomainID           int    `json:"domainId"`
-   UserID             int    `json:"userId"`
+   IdentityID         int64  `json:"identityId"`
+   DomainID           int64  `json:"domainId"`
+   UserID             int64  `json:"userId"`
    Status             string `json:"status"`
    IsDefault          bool   `json:"isDefault"`
    Sitename           string `json:"sitename"`
@@ -22,37 +25,33 @@ type Membership struct {
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-type MembershipsResponse struct {
-   List []Membership `json:"list"`
-}
-
-func (l *LoginResponse) GetMemberships() (*MembershipsResponse, error) {
-   targetUrl := &url.URL{
+func GetMemberships(loginResponse *LoginResponse) (*MembershipsResponse, error) {
+   target := &url.URL{
       Scheme:   "https",
       Host:     "www.kanopy.com",
       Path:     "/kapi/memberships",
-      RawQuery: "userId=" + strconv.Itoa(l.UserID),
+      RawQuery: "userId=" + strconv.FormatInt(loginResponse.UserID, 10),
    }
 
    headers := map[string]string{
-      "authorization": "Bearer " + l.JWT,
+      "authorization": "Bearer " + loginResponse.JWT,
       "user-agent":    "!",
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Get(targetUrl, headers)
+   resp, err := maya.Get(target, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   bodyBytes, err := io.ReadAll(resp.Body)
+   respBytes, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
 
    var membershipsResp MembershipsResponse
-   if err := json.Unmarshal(bodyBytes, &membershipsResp); err != nil {
+   if err := json.Unmarshal(respBytes, &membershipsResp); err != nil {
       return nil, err
    }
 
