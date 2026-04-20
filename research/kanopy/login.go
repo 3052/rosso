@@ -3,6 +3,8 @@ package kanopy
 
 import (
    "encoding/json"
+   "fmt"
+   "io"
    "net/url"
 
    "41.neocities.org/maya"
@@ -13,30 +15,30 @@ type EmailUser struct {
    Password string `json:"password"`
 }
 
-type LoginPayload struct {
+type LoginRequest struct {
    CredentialType string    `json:"credentialType"`
    EmailUser      EmailUser `json:"emailUser"`
 }
 
 type LoginResponse struct {
-   Jwt       string `json:"jwt"`
-   VisitorId string `json:"visitorId"`
-   UserId    int    `json:"userId"`
+   JWT               string `json:"jwt"`
+   VisitorID         string `json:"visitorId"`
+   UserID            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopID         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
 }
 
-func Login(emailUser *EmailUser) (*LoginResponse, error) {
-   payload := LoginPayload{
-      CredentialType: "email",
-      EmailUser:      *emailUser,
-   }
-   bodyBytes, marshalError := json.Marshal(payload)
-   if marshalError != nil {
-      return nil, marshalError
+func Login(req *LoginRequest) (*LoginResponse, error) {
+   targetURL, err := url.Parse("https://www.kanopy.com/kapi/login")
+   if err != nil {
+      return nil, err
    }
 
-   targetUrl, parseError := url.Parse("https://www.kanopy.com/kapi/login")
-   if parseError != nil {
-      return nil, parseError
+   bodyBytes, err := json.Marshal(req)
+   if err != nil {
+      return nil, err
    }
 
    headers := map[string]string{
@@ -44,16 +46,25 @@ func Login(emailUser *EmailUser) (*LoginResponse, error) {
       "user-agent":   "!",
    }
 
-   resp, requestError := maya.Post(targetUrl, headers, bodyBytes)
-   if requestError != nil {
-      return nil, requestError
+   resp, err := maya.Post(targetURL, headers, bodyBytes)
+   if err != nil {
+      return nil, err
    }
    defer resp.Body.Close()
 
-   var loginResp LoginResponse
-   decodeError := json.NewDecoder(resp.Body).Decode(&loginResp)
-   if decodeError != nil {
-      return nil, decodeError
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
+
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   var loginResp LoginResponse
+   if err := json.Unmarshal(respBody, &loginResp); err != nil {
+      return nil, err
+   }
+
    return &loginResp, nil
 }

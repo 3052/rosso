@@ -4,9 +4,10 @@
 2. Go language 1.26
 3. one file per request
 4. Variable Naming Rules:
-   - If the name is 2 or more letters, DO NOT change it
-   - If the name is 1 letter AND is a method receiver, DO NOT change it
-   - If the name is 1 letter AND is NOT a method receiver, you MUST rename it
+   - **For names of 2 or more letters:** DO NOT change, lengthen, or expand
+      standard idiomatic Go variable names
+   - **For 1-letter method receivers:** DO NOT change them
+   - **For 1-letter names that are NOT method receivers:** You MUST rename them
      to exactly one or two words
 6. If a function requires two or more fields that come from the same struct, I
    must pass a pointer to that struct itself
