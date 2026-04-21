@@ -1,12 +1,18 @@
+// memberships.go
 package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
    "strconv"
 
    "41.neocities.org/maya"
 )
+
+type MembershipsResponse struct {
+   List []Membership `json:"list"`
+}
 
 type Membership struct {
    IdentityId         int    `json:"identityId"`
@@ -14,34 +20,44 @@ type Membership struct {
    UserId             int    `json:"userId"`
    Status             string `json:"status"`
    IsDefault          bool   `json:"isDefault"`
-   SiteName           string `json:"sitename"`
+   Sitename           string `json:"sitename"`
    Subdomain          string `json:"subdomain"`
    TicketsAvailable   int    `json:"ticketsAvailable"`
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-func GetMemberships(loginResp *LoginResponse) ([]Membership, error) {
-   membershipsUrl, err := url.Parse("https://www.kanopy.com/kapi/memberships?userId=" + strconv.Itoa(loginResp.UserId))
-   if err != nil {
-      return nil, err
+func GetMemberships(userId int, jwt string) (*MembershipsResponse, error) {
+   query := url.Values{}
+   query.Set("userId", strconv.Itoa(userId))
+
+   target := &url.URL{
+      Scheme:   "https",
+      Host:     "www.kanopy.com",
+      Path:     "/kapi/memberships",
+      RawQuery: query.Encode(),
    }
 
    headers := map[string]string{
-      "authorization": "Bearer " + loginResp.Jwt,
+      "authorization": "Bearer " + jwt,
       "user-agent":    "!",
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Get(membershipsUrl, headers)
+   resp, err := maya.Get(target, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   var result struct {
-      List []Membership `json:"list"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+   respBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
       return nil, err
    }
-   return result.List, nil
+
+   var membershipsResp MembershipsResponse
+   if err := json.Unmarshal(respBytes, &membershipsResp); err != nil {
+      return nil, err
+   }
+
+   return &membershipsResp, nil
 }

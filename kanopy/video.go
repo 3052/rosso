@@ -1,22 +1,35 @@
+// video.go
 package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
 
    "41.neocities.org/maya"
 )
 
-type Video struct {
-   VideoId int    `json:"videoId"`
-   Title   string `json:"title"`
-   Alias   string `json:"alias"`
+type VideoResponse struct {
+   Type  string `json:"type"`
+   Video Video  `json:"video"`
 }
 
-func GetVideo(alias, jwt string) (*Video, error) {
-   videoUrl, err := url.Parse("https://www.kanopy.com/kapi/videos/alias/" + alias)
-   if err != nil {
-      return nil, err
+type Video struct {
+   VideoId         int    `json:"videoId"`
+   Title           string `json:"title"`
+   DescriptionHtml string `json:"descriptionHtml"`
+   ProductionYear  int    `json:"productionYear"`
+   IsKids          bool   `json:"isKids"`
+   DurationSeconds int    `json:"durationSeconds"`
+   IsFree          bool   `json:"isFree"`
+   Alias           string `json:"alias"`
+}
+
+func GetVideo(alias string, jwt string) (*VideoResponse, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/videos/alias/" + alias,
    }
 
    headers := map[string]string{
@@ -24,17 +37,21 @@ func GetVideo(alias, jwt string) (*Video, error) {
       "authorization": "Bearer " + jwt,
    }
 
-   resp, err := maya.Get(videoUrl, headers)
+   resp, err := maya.Get(target, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   var result struct {
-      Type  string `json:"type"`
-      Video *Video `json:"video"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+   respBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
       return nil, err
    }
-   return result.Video, nil
+
+   var videoResp VideoResponse
+   if err := json.Unmarshal(respBytes, &videoResp); err != nil {
+      return nil, err
+   }
+
+   return &videoResp, nil
 }

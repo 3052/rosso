@@ -1,3 +1,4 @@
+// license.go
 package kanopy
 
 import (
@@ -7,10 +8,11 @@ import (
    "41.neocities.org/maya"
 )
 
-func GetLicense(jwt, drmLicenseId string, payload []byte) ([]byte, error) {
-   licenseUrl, err := url.Parse("https://www.kanopy.com/kapi/licenses/widevine/" + drmLicenseId)
-   if err != nil {
-      return nil, err
+func GetLicense(drmLicenseId string, body []byte, jwt string) ([]byte, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/licenses/widevine/" + drmLicenseId,
    }
 
    headers := map[string]string{
@@ -19,11 +21,16 @@ func GetLicense(jwt, drmLicenseId string, payload []byte) ([]byte, error) {
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Post(licenseUrl, headers, payload)
+   resp, err := maya.Post(target, headers, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   return io.ReadAll(resp.Body)
+   respBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   return respBytes, nil
 }
