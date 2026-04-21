@@ -105,41 +105,6 @@ type Session struct {
    VisitorId string `json:"visitorId"`
 }
 
-// Supports URLs such as:
-// - https://kanopy.com/video/6440418
-// - https://kanopy.com/video/genius-party
-// - https://kanopy.com/en/video/genius-party
-// - https://kanopy.com/en/product/genius-party
-func ParseVideo(urlData string) (*Video, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return nil, err
-   }
-   if !strings.Contains(url_parse.Host, "kanopy.com") {
-      return nil, errors.New("invalid domain")
-   }
-   // Get the directory of the path (removes the final identifier).
-   // e.g., "/en/product/genius-party" -> "/en/product"
-   dir := path.Dir(url_parse.Path)
-   // Check if the directory ends with "/video" OR "/product".
-   // This supports:
-   // - /video/{id}
-   // - /en/video/{id}
-   // - /en/product/{id}
-   if !strings.HasSuffix(dir, "/video") && !strings.HasSuffix(dir, "/product") {
-      return nil, errors.New("invalid path structure")
-   }
-   v := &Video{}
-   identifier := path.Base(url_parse.Path)
-   numericId, err := strconv.Atoi(identifier)
-   if err != nil {
-      v.Alias = identifier
-   } else {
-      v.VideoId = numericId
-   }
-   return v, nil
-}
-
 // Video represents the flattened video metadata, omitting truncated nested objects.
 type Video struct {
    Alias                      string `json:"alias"`
@@ -180,25 +145,11 @@ type StudioDrm struct {
    DrmLicenseId string `json:"drmLicenseId"`
 }
 
-func (m *Manifest) GetManifest() (*url.URL, error) {
-   return url.Parse(m.Url)
-}
-
 type PlayResponse struct {
    Captions  []Caption   `json:"captions"`
    Dva       Dva         `json:"dva"`
    Manifests []*Manifest `json:"manifests"`
    PlayId    string      `json:"playId"`
-}
-
-// DashManifest returns the manifest with type "dash" or an error if it is not found.
-func (p *PlayResponse) DashManifest() (*Manifest, error) {
-   for _, manifest := range p.Manifests {
-      if manifest.ManifestType == "dash" {
-         return manifest, nil
-      }
-   }
-   return nil, fmt.Errorf("dash manifest not found in play response")
 }
 
 type Membership struct {
@@ -218,6 +169,7 @@ const (
    UserAgent = "!"
    Xversion  = "!/!/!/!"
 )
+
 type Manifest struct {
    Cdn            string    `json:"cdn"`
    DrmLicenseId   string    `json:"drmLicenseID"`
@@ -299,6 +251,7 @@ func Login(email, password string) (*Session, error) {
 
    return &session, nil
 }
+
 // GetMemberships fetches the library memberships associated with the session's UserId
 // and returns the list of memberships directly.
 func (s *Session) GetMemberships() ([]Membership, error) {
@@ -338,4 +291,54 @@ func (s *Session) GetMemberships() ([]Membership, error) {
    }
 
    return wrapper.List, nil
+}
+
+func (m *Manifest) GetManifest() (*url.URL, error) {
+   return url.Parse(m.Url)
+}
+
+// DashManifest returns the manifest with type "dash" or an error if it is not
+// found
+func (p *PlayResponse) DashManifest() (*Manifest, error) {
+   for _, manifest := range p.Manifests {
+      if manifest.ManifestType == "dash" {
+         return manifest, nil
+      }
+   }
+   return nil, fmt.Errorf("dash manifest not found in play response")
+}
+
+// Supports URLs such as:
+// - https://kanopy.com/video/6440418
+// - https://kanopy.com/video/genius-party
+// - https://kanopy.com/en/video/genius-party
+// - https://kanopy.com/en/product/genius-party
+func ParseVideo(urlData string) (*Video, error) {
+   url_parse, err := url.Parse(urlData)
+   if err != nil {
+      return nil, err
+   }
+   if !strings.Contains(url_parse.Host, "kanopy.com") {
+      return nil, errors.New("invalid domain")
+   }
+   // Get the directory of the path (removes the final identifier).
+   // e.g., "/en/product/genius-party" -> "/en/product"
+   dir := path.Dir(url_parse.Path)
+   // Check if the directory ends with "/video" OR "/product".
+   // This supports:
+   // - /video/{id}
+   // - /en/video/{id}
+   // - /en/product/{id}
+   if !strings.HasSuffix(dir, "/video") && !strings.HasSuffix(dir, "/product") {
+      return nil, errors.New("invalid path structure")
+   }
+   v := &Video{}
+   identifier := path.Base(url_parse.Path)
+   numeric_id, err := strconv.Atoi(identifier)
+   if err != nil {
+      v.Alias = identifier
+   } else {
+      v.VideoId = numeric_id
+   }
+   return v, nil
 }

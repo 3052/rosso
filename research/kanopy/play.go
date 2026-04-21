@@ -2,6 +2,7 @@ package kanopy
 
 import (
    "encoding/json"
+   "errors"
    "net/url"
 
    "41.neocities.org/maya"
@@ -25,6 +26,15 @@ type Manifest struct {
 type PlayResponse struct {
    PlayID    string     `json:"playId"`
    Manifests []Manifest `json:"manifests"`
+}
+
+func (pr *PlayResponse) DashManifest() (*Manifest, error) {
+   for _, m := range pr.Manifests {
+      if m.ManifestType == "dash" {
+         return &m, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
 }
 
 func CreatePlay(loginResp *LoginResponse, domainID, videoID int) (*PlayResponse, error) {
