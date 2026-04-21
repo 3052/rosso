@@ -20,23 +20,26 @@ func (c *client) do_tubi() error {
    if err != nil {
       return err
    }
-   c.VideoResource = &content.VideoResources[0]
-   c.Dash, err = maya.ListDash(c.VideoResource.GetManifest)
+   video := content.VideoResources[0]
+   c.Dash, err = maya.ListDash(video.GetManifest)
    if err != nil {
       return err
    }
+   c.LicenseServer = video.LicenseServer
    return cache.Write(c)
 }
 
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.VideoResource.LicenseServer.PostLicense)
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return tubi.PostChallenge(c.LicenseServer, data)
+   })
 }
 
 var cache maya.Cache
 
 type client struct {
    Dash          *maya.Dash
-   VideoResource *tubi.VideoResource
+   LicenseServer tubi.LicenseServer
    //-------------------------------
    Job maya.Job
    //-------------------------------

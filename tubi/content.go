@@ -3,6 +3,7 @@ package tubi
 import (
    "encoding/json"
    "net/url"
+   "strconv"
 
    "41.neocities.org/maya"
 )
@@ -25,9 +26,9 @@ type LicenseServer struct {
    Url string `json:"url"`
 }
 
-func GetContent(contentId string) (*ContentResponse, error) {
+func GetContent(contentId int) (*ContentResponse, error) {
    query := url.Values{}
-   query.Set("content_id", contentId)
+   query.Set("content_id", strconv.Itoa(contentId))
    query.Set("deviceId", "!")
    query.Add("limit_resolutions[]", "h264_1080p")
    query.Add("limit_resolutions[]", "h265_1080p")
