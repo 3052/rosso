@@ -13,27 +13,27 @@ streaming API authentication, metadata, and DRM playback
 | Titles | Country | Provider |
 |---|---|---|
 | 4203 | us | [kanopy] |
-| 4089 | us | [tubi-tv] |
-| 2790 | us | [plex] |
+| 4087 | us | [tubi-tv] |
+| 2792 | us | [plex] |
 | 2724 | uk | [rakuten-tv] |
-| 2330 | us | [the-roku-channel] |
+| 2334 | us | [the-roku-channel] |
 | 1196 | ca | [crave] |
+| 1003 | us | [pluto-tv] |
 | 1002 | us | [hbo-max] |
-| 1001 | us | [pluto-tv] |
 | 931 | us | [criterion-channel] |
-| 665 | se | [draken-films] |
-| 641 | fr | [molotov-tv] |
-| 608 | us | [hulu] |
+| 666 | se | [draken-films] |
+| 640 | fr | [molotov-tv] |
+| 614 | us | [hulu] |
 | 551 | nl | [cinemember] |
-| 462 | us | [amc-plus] |
+| 461 | us | [amc-plus] |
 | 384 | us | [disney-plus] |
-| 333 | us | [paramount-plus-premium] |
+| 335 | us | [paramount-plus-premium] |
 | 254 | us | [mubi] |
+| 252 | us | [peacock] |
 | 251 | ca | [ctv] |
-| 250 | us | [peacock] |
 | 250 | cz | [canal-plus] |
 | 241 | br | [oldflix] |
-| 234 | uk | [itvx] |
+| 236 | uk | [itvx] |
 | 158 | be | [rtbf-auvio] |
 | 6 | us | [nbc] |
 
@@ -43,8 +43,8 @@ streaming API authentication, metadata, and DRM playback
 [rakuten-tv]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=80
 [the-roku-channel]:https://justwatch.com/us/provider/the-roku-channel?tomatoMeter=80
 [crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=80
-[hbo-max]:https://justwatch.com/us/provider/hbo-max?tomatoMeter=80
 [pluto-tv]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=80
+[hbo-max]:https://justwatch.com/us/provider/hbo-max?tomatoMeter=80
 [criterion-channel]:https://justwatch.com/us/provider/criterion-channel?tomatoMeter=80
 [draken-films]:https://justwatch.com/se/leverant%C3%B6r/draken-films?tomatoMeter=80
 [molotov-tv]:https://justwatch.com/fr/plateforme/molotov-tv?tomatoMeter=80
@@ -54,8 +54,8 @@ streaming API authentication, metadata, and DRM playback
 [disney-plus]:https://justwatch.com/us/provider/disney-plus?tomatoMeter=80
 [paramount-plus-premium]:https://justwatch.com/us/provider/paramount-plus-premium?tomatoMeter=80
 [mubi]:https://justwatch.com/us/provider/mubi?tomatoMeter=80
-[ctv]:https://justwatch.com/ca/provider/ctv?tomatoMeter=80
 [peacock]:https://justwatch.com/us/provider/peacock?tomatoMeter=80
+[ctv]:https://justwatch.com/ca/provider/ctv?tomatoMeter=80
 [canal-plus]:https://justwatch.com/cz/poskytovatel/canal-plus?tomatoMeter=80
 [oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=80
 [itvx]:https://justwatch.com/uk/provider/itvx?tomatoMeter=80
