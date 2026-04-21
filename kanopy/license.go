@@ -7,8 +7,8 @@ import (
    "41.neocities.org/maya"
 )
 
-func GetLicense(jwt, drmLicenseID string, payload []byte) ([]byte, error) {
-   licenseURL, err := url.Parse("https://www.kanopy.com/kapi/licenses/widevine/" + drmLicenseID)
+func GetLicense(jwt, drmLicenseId string, payload []byte) ([]byte, error) {
+   licenseUrl, err := url.Parse("https://www.kanopy.com/kapi/licenses/widevine/" + drmLicenseId)
    if err != nil {
       return nil, err
    }
@@ -19,7 +19,7 @@ func GetLicense(jwt, drmLicenseID string, payload []byte) ([]byte, error) {
       "x-version":     "!/!/!/!",
    }
 
-   resp, err := maya.Post(licenseURL, headers, payload)
+   resp, err := maya.Post(licenseUrl, headers, payload)
    if err != nil {
       return nil, err
    }

@@ -7,6 +7,49 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return kanopy.GetLicense(c.Login.Jwt, c.Manifest.DrmLicenseId, data)
+   })
+}
+
+func (c *client) do_address() error {
+   video, err := kanopy.ParseVideo(c.address)
+   if err != nil {
+      return err
+   }
+   if video.VideoId == 0 {
+      video, err = kanopy.GetVideo(video.Alias, c.Login.Jwt)
+      if err != nil {
+         return err
+      }
+   }
+   memberships, err := kanopy.GetMemberships(c.Login)
+   if err != nil {
+      return err
+   }
+   play, err := kanopy.CreatePlay(
+      c.Login, memberships[0].DomainId, video.VideoId,
+   )
+   if err != nil {
+      return err
+   }
+   for _, caption := range play.Captions {
+      for _, file := range caption.Files {
+         fmt.Println(file.Url)
+      }
+   }
+   c.Manifest, err = play.DashManifest()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Manifest.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func main() {
    maya.SetProxy("", "*.m4s")
    log.SetFlags(log.Ltime)
@@ -17,12 +60,6 @@ func main() {
 }
 
 var cache maya.Cache
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return c.Session.GetWidevine(c.Manifest, data)
-   })
-}
 
 func (c *client) do() error {
    err := cache.Setup("rosso/kanopy.xml")
@@ -64,17 +101,8 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_email_password() error {
-   var err error
-   c.Session, err = kanopy.Login(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
 type client struct {
-   Session  *kanopy.Session
+   Login    *kanopy.LoginResponse
    Manifest *kanopy.Manifest
    //-------------------------------
    Dash *maya.Dash
@@ -86,35 +114,9 @@ type client struct {
    address string
 }
 
-func (c *client) do_address() error {
-   video, err := kanopy.ParseVideo(c.address)
-   if err != nil {
-      return err
-   }
-   if video.VideoId == 0 {
-      video, err = c.Session.GetVideo(video.Alias)
-      if err != nil {
-         return err
-      }
-   }
-   memberships, err := c.Session.GetMemberships()
-   if err != nil {
-      return err
-   }
-   play, err := c.Session.CreatePlay(&memberships[0], video)
-   if err != nil {
-      return err
-   }
-   for _, caption := range play.Captions {
-      for _, file := range caption.Files {
-         fmt.Println(file.Url)
-      }
-   }
-   c.Manifest, err = play.DashManifest()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.Manifest.GetManifest)
+func (c *client) do_email_password() error {
+   var err error
+   c.Login, err = kanopy.Login(c.email, c.password)
    if err != nil {
       return err
    }

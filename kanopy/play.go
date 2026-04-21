@@ -8,28 +8,36 @@ import (
    "41.neocities.org/maya"
 )
 
-func (m *Manifest) GetManifest() (*url.URL, error) {
-   return url.Parse(m.URL)
-}
-
-type StudioDRM struct {
-   AuthXML      string `json:"authXml"`
-   DRMLicenseID string `json:"drmLicenseId"`
+type StudioDrm struct {
+   AuthXml      string `json:"authXml"`
+   DrmLicenseId string `json:"drmLicenseId"`
 }
 
 type Manifest struct {
    ManifestType   string     `json:"manifestType"`
-   URL            string     `json:"url"`
-   DRMType        string     `json:"drmType"`
-   StudioDRM      *StudioDRM `json:"studioDrm"`
+   Url            string     `json:"url"`
+   DrmType        string     `json:"drmType"`
+   StudioDrm      *StudioDrm `json:"studioDrm"`
    StorageService string     `json:"storageService"`
-   CDN            string     `json:"cdn"`
-   DRMLicenseID   string     `json:"drmLicenseID"`
+   Cdn            string     `json:"cdn"`
+   DrmLicenseId   string     `json:"drmLicenseID"`
+}
+
+type CaptionFile struct {
+   Type string `json:"type"`
+   Url  string `json:"url"`
+}
+
+type Caption struct {
+   Language string        `json:"language"`
+   Files    []CaptionFile `json:"files"`
+   Label    string        `json:"label"`
 }
 
 type PlayResponse struct {
-   PlayID    string     `json:"playId"`
+   PlayId    string     `json:"playId"`
    Manifests []Manifest `json:"manifests"`
+   Captions  []Caption  `json:"captions"`
 }
 
 func (pr *PlayResponse) DashManifest() (*Manifest, error) {
@@ -41,17 +49,17 @@ func (pr *PlayResponse) DashManifest() (*Manifest, error) {
    return nil, errors.New("dash manifest not found")
 }
 
-func CreatePlay(loginResp *LoginResponse, domainID, videoID int) (*PlayResponse, error) {
-   playsURL := &url.URL{
+func CreatePlay(loginResp *LoginResponse, domainId, videoId int) (*PlayResponse, error) {
+   playsUrl := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
       Path:   "/kapi/plays",
    }
 
    payload := map[string]int{
-      "domainId": domainID,
-      "userId":   loginResp.UserID,
-      "videoId":  videoID,
+      "domainId": domainId,
+      "userId":   loginResp.UserId,
+      "videoId":  videoId,
    }
 
    body, err := json.Marshal(payload)
@@ -63,10 +71,10 @@ func CreatePlay(loginResp *LoginResponse, domainID, videoID int) (*PlayResponse,
       "content-type":  "application/json",
       "user-agent":    "!",
       "x-version":     "!/!/!/!",
-      "authorization": "Bearer " + loginResp.JWT,
+      "authorization": "Bearer " + loginResp.Jwt,
    }
 
-   resp, err := maya.Post(playsURL, headers, body)
+   resp, err := maya.Post(playsUrl, headers, body)
    if err != nil {
       return nil, err
    }

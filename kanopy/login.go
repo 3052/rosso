@@ -8,15 +8,15 @@ import (
 )
 
 type LoginResponse struct {
-   JWT       string `json:"jwt"`
-   VisitorID string `json:"visitorId"`
-   UserID    int    `json:"userId"`
-   WebshopID int    `json:"webshopId"`
+   Jwt       string `json:"jwt"`
+   VisitorId string `json:"visitorId"`
+   UserId    int    `json:"userId"`
+   WebshopId int    `json:"webshopId"`
    UserRole  string `json:"userRole"`
 }
 
 func Login(email, password string) (*LoginResponse, error) {
-   loginURL := &url.URL{
+   loginUrl := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
       Path:   "/kapi/login",
@@ -40,7 +40,7 @@ func Login(email, password string) (*LoginResponse, error) {
       "user-agent":   "!",
    }
 
-   resp, err := maya.Post(loginURL, headers, body)
+   resp, err := maya.Post(loginUrl, headers, body)
    if err != nil {
       return nil, err
    }
