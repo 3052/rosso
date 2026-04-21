@@ -8,9 +8,9 @@ var tests = []struct {
    url        string
 }{
    {
+      url:        "https://tubitv.com/movies/610572",
       drm:        true,
       resolution: "720p",
-      url:        "https://tubitv.com/movies/617502",
    },
    {
       drm:        false,

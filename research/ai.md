@@ -14,9 +14,14 @@
 12. If multiple required values naturally originate from the same previously defined struct (such as a response struct), pass that struct directly as the argument instead of extracting its individual fields. However, if only a single field from a struct is needed, pass that specific field directly using its exact name and type instead of passing the entire struct.
 13. Never use anonymous structs. Either define an explicit named type or use a map.
 14. When constructing JSON payloads, do not mix structs and maps. Choose one approach or the other: either use a fully defined hierarchy of named structs, or use maps entirely. Do not embed a struct inside a map.
+15. Do not use any double capitals (consecutive uppercase letters) in identifiers, including acronyms (e.g., use `Url` instead of `URL`, `Id` instead of `ID`).
 
 ~~~
 func Get(targetUrl *url.URL, headers map[string]string) (*http.Response, error)
 func Head(targetUrl *url.URL, headers map[string]string) (*http.Response, error)
 func Post(targetUrl *url.URL, headers map[string]string, body []byte) (*http.Response, error)
 ~~~
+
+## done
+
+kanopy
