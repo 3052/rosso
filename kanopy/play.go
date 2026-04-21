@@ -8,6 +8,10 @@ import (
    "41.neocities.org/maya"
 )
 
+func (m *Manifest) GetManifest() (*url.URL, error) {
+   return url.Parse(m.URL)
+}
+
 type StudioDRM struct {
    AuthXML      string `json:"authXml"`
    DRMLicenseID string `json:"drmLicenseId"`
