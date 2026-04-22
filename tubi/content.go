@@ -5,6 +5,7 @@ import (
    "encoding/json"
    "io"
    "net/url"
+   "strconv"
 
    "41.neocities.org/maya"
 )
@@ -138,7 +139,7 @@ type ContentResponse struct {
    HasSubtitle          bool            `json:"has_subtitle"`
 }
 
-func GetContent(content_id string) (*ContentResponse, error) {
+func GetContent(content_id int) (*ContentResponse, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "uapi.adrise.tv",
@@ -146,7 +147,7 @@ func GetContent(content_id string) (*ContentResponse, error) {
    }
 
    query := url.Values{}
-   query.Set("content_id", content_id)
+   query.Set("content_id", strconv.Itoa(content_id))
    query.Set("deviceId", "!")
    query.Add("limit_resolutions[]", "h264_1080p")
    query.Add("limit_resolutions[]", "h265_1080p")
