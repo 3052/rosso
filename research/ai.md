@@ -6,7 +6,7 @@
 4. Unmarshal JSON responses into domain-specific struct pointers.
 5. Use `41.neocities.org/maya` for HTTP requests.
 6. Use `url.URL` struct literals for static URLs. Do not use `url.Parse` on a URL that is known at compile time. For dynamic URLs, do not combine `url.Parse` with `url.PathEscape` (use one or the other). Never construct `RawQuery` via string concatenation; always use `url.Values` and its `Encode()` method to generate query parameters safely.
-7. Do not use single-letter variables. Use a single word instead for variables. If and only if a single word is not clear, use two words. This rule applies ONLY to variables, not function names.
+7. Do not use single-letter variables, except for method receivers which should be 1-2 letters. Use a single word instead for other variables. If and only if a single word is not clear, use two words. This rule applies ONLY to variables, not function names.
 8. Never explicitly add standard or automatically generated headers like `accept-encoding` or default `user-agent` strings. Only set the `user-agent` key if its value is non-standard.
 9. Do not parameterize static, structural, dummy, or enum-like values in query parameters, headers, or JSON request bodies. Hardcode these constants directly into the request construction instead of exposing them as function arguments.
 10. Never use anonymous structs. Either define an explicit named type or use a map.
