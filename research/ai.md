@@ -12,9 +12,9 @@
 10. Never use anonymous structs. Either define an explicit named type or use a map.
 11. When constructing JSON payloads, do not mix structs and maps. Choose one approach or the other: either use a fully defined hierarchy of named structs, or use maps entirely. Do not embed a struct inside a map.
 12. Do not use any double capitals (consecutive uppercase letters) in identifiers, including acronyms.
-13. Function input variables must match the corresponding JSON/request field names exactly. If that is not possible for whatever reason (e.g., the field name is ambiguous because multiple different parent structs contain a field with the exact same name), pass the parent struct instead. Never invent combined variable names unless they match the exact field string.
+13. Function input variables must match the corresponding JSON/request field names exactly. If you can use the field directly, use it. You must only use the parent struct if the field name is not unique (ambiguous because multiple different parent structs contain a field with the exact same name). Never invent combined variable names unless they match the exact field string.
 14. If a type is not fully known based on the provided attachment (e.g., empty JSON objects like `{}` or arrays `[]` where the inner type is ambiguous), omit the field from the structs entirely.
-15. If a request's complete URL is provided within the JSON response of a previous request, the function must accept that complete URL as a single string argument and process it using `url.Parse` (adhering strictly to rule 13 for naming the argument, or passing its parent struct if the field name is ambiguous). Do not hardcode the base URL or attempt to reconstruct it by extracting and passing individual query parameters.
+15. If a request's complete URL is provided within the JSON response of a previous request, the function must accept that complete URL as a single string argument and process it using `url.Parse` (adhering strictly to rule 13 for naming the argument, or passing its parent struct if the field name is not unique). Do not hardcode the base URL or attempt to reconstruct it by extracting and passing individual query parameters.
 16. If a struct passed as a function argument has two or more fields, it must be passed as a pointer rather than by value.
 
 ~~~
