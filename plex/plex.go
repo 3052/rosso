@@ -118,14 +118,6 @@ func FetchUser() (*User, error) {
    }
    return result, nil
 }
-func (p *Part) GetManifest(token string) *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "vod.provider.plex.tv",
-      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
-      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
-   }
-}
 
 type User struct {
    AuthToken string
@@ -142,6 +134,17 @@ type Metadata struct {
 type Part struct {
    Key     string
    License string
+}
+
+///
+
+func (p *Part) GetManifest(token string) *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "vod.provider.plex.tv",
+      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
+      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
+   }
 }
 
 // https://watch.plex.tv/embed/movie/memento-2000
