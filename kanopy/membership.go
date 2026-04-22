@@ -10,10 +10,6 @@ import (
    "41.neocities.org/maya"
 )
 
-type MembershipsResponse struct {
-   List []Membership `json:"list"`
-}
-
 type Membership struct {
    IdentityId         int    `json:"identityId"`
    DomainId           int    `json:"domainId"`
@@ -26,7 +22,7 @@ type Membership struct {
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-func GetMemberships(userId int, jwt string) (*MembershipsResponse, error) {
+func GetMemberships(userId int, jwt string) ([]Membership, error) {
    query := url.Values{}
    query.Set("userId", strconv.Itoa(userId))
 
@@ -53,11 +49,11 @@ func GetMemberships(userId int, jwt string) (*MembershipsResponse, error) {
    if err != nil {
       return nil, err
    }
-
-   var membershipsResp MembershipsResponse
-   if err := json.Unmarshal(respBytes, &membershipsResp); err != nil {
+   var result struct {
+      List []Membership `json:"list"`
+   }
+   if err := json.Unmarshal(respBytes, &result); err != nil {
       return nil, err
    }
-
-   return &membershipsResp, nil
+   return result.List, nil
 }

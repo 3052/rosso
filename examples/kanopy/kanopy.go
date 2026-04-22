@@ -7,12 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return kanopy.GetLicense(c.Login.Jwt, c.Manifest.DrmLicenseId, data)
-   })
-}
-
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {
@@ -24,12 +18,12 @@ func (c *client) do_address() error {
          return err
       }
    }
-   memberships, err := kanopy.GetMemberships(c.Login)
+   memberships, err := kanopy.GetMemberships(c.Login.UserId, c.Login.Jwt)
    if err != nil {
       return err
    }
    play, err := kanopy.CreatePlay(
-      c.Login, memberships[0].DomainId, video.VideoId,
+      memberships[0].DomainId, c.Login.UserId, video.VideoId, c.Login.Jwt,
    )
    if err != nil {
       return err
@@ -121,4 +115,10 @@ func (c *client) do_email_password() error {
       return err
    }
    return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return kanopy.GetLicense(c.Manifest.DrmLicenseId, data, c.Login.Jwt)
+   })
 }

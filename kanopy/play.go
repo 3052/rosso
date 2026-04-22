@@ -3,6 +3,7 @@ package kanopy
 
 import (
    "encoding/json"
+   "errors"
    "io"
    "net/url"
 
@@ -18,6 +19,18 @@ type PlayRequest struct {
 type PlayResponse struct {
    PlayId    string     `json:"playId"`
    Manifests []Manifest `json:"manifests"`
+   Captions  []Caption  `json:"captions"`
+}
+
+type Caption struct {
+   Language string        `json:"language"`
+   Files    []CaptionFile `json:"files"`
+   Label    string        `json:"label"`
+}
+
+type CaptionFile struct {
+   Type string `json:"type"`
+   Url  string `json:"url"`
 }
 
 type Manifest struct {
@@ -33,6 +46,15 @@ type Manifest struct {
 type StudioDrm struct {
    AuthXml      string `json:"authXml"`
    DrmLicenseId string `json:"drmLicenseId"`
+}
+
+func (resp *PlayResponse) DashManifest() (*Manifest, error) {
+   for _, manifest := range resp.Manifests {
+      if manifest.ManifestType == "dash" {
+         return &manifest, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
 }
 
 func CreatePlay(domainId int, userId int, videoId int, jwt string) (*PlayResponse, error) {
