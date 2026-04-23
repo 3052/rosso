@@ -25,6 +25,3 @@ func Post(targetUrl *url.URL, headers map[string]string, body []byte) (*http.Res
 ~~~
 
 ## done
-
-1. kanopy
-2. tubi
