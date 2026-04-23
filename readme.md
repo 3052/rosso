@@ -13,28 +13,28 @@ streaming API authentication, metadata, and DRM playback
 | Titles | Country | Provider |
 |---|---|---|
 | 4203 | us | [kanopy] |
-| 4087 | us | [tubi-tv] |
+| 4092 | us | [tubi-tv] |
 | 2792 | us | [plex] |
-| 2724 | uk | [rakuten-tv] |
+| 2727 | uk | [rakuten-tv] |
 | 2334 | us | [the-roku-channel] |
 | 1196 | ca | [crave] |
-| 1003 | us | [pluto-tv] |
+| 1005 | us | [pluto-tv] |
 | 1002 | us | [hbo-max] |
 | 931 | us | [criterion-channel] |
 | 666 | se | [draken-films] |
-| 640 | fr | [molotov-tv] |
-| 614 | us | [hulu] |
-| 551 | nl | [cinemember] |
+| 642 | fr | [molotov-tv] |
+| 615 | us | [hulu] |
+| 552 | nl | [cinemember] |
 | 461 | us | [amc-plus] |
 | 384 | us | [disney-plus] |
-| 335 | us | [paramount-plus-premium] |
+| 334 | us | [paramount-plus-premium] |
 | 254 | us | [mubi] |
-| 252 | us | [peacock] |
+| 253 | us | [peacock] |
 | 251 | ca | [ctv] |
 | 250 | cz | [canal-plus] |
 | 241 | br | [oldflix] |
 | 236 | uk | [itvx] |
-| 158 | be | [rtbf-auvio] |
+| 157 | be | [rtbf-auvio] |
 | 6 | us | [nbc] |
 
 [kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=80
@@ -61,6 +61,7 @@ streaming API authentication, metadata, and DRM playback
 [itvx]:https://justwatch.com/uk/provider/itvx?tomatoMeter=80
 [rtbf-auvio]:https://justwatch.com/be/plateforme/rtbf-auvio?tomatoMeter=80
 [nbc]:https://justwatch.com/us/provider/nbc?tomatoMeter=80
+PS D:\github.com\verde\examples\justWatch-providers>
 
 ## contact
 

@@ -1,24 +1,31 @@
 # ai
 
-1. Use the requested package name and Go 1.26.
+1. Use the requested package name. You may use Go 1.26 features, but do not include version build tags in the files.
 2. One file per request.
-3. Do not use `net/http`.
+3. Do not use the standard library HTTP package. Use the specified custom library for HTTP requests. You must explicitly qualify calls to the custom HTTP library with its package name; do not assume the generated code resides in the same package.
 4. Unmarshal JSON responses into domain-specific struct pointers.
-5. Use `41.neocities.org/maya` for HTTP requests.
-6. Use `url.URL` struct literals for static URLs. Do not use `url.Parse` on a URL that is known at compile time. For dynamic URLs, do not combine `url.Parse` with `url.PathEscape` (use one or the other). Never construct `RawQuery` via string concatenation; always use `url.Values` and its `Encode()` method to generate query parameters safely.
-7. Do not use single-letter variables, except for method receivers which should be 1-2 letters. Use a single word instead for other variables. If and only if a single word is not clear, use two words. This rule applies ONLY to variables, not function names.
-8. Never explicitly add standard or automatically generated headers like `accept-encoding` or default `user-agent` strings. Only set the `user-agent` key if its value is non-standard.
-9. Do not parameterize static, structural, dummy, or enum-like values in query parameters, headers, or JSON request bodies. Hardcode these constants directly into the request construction instead of exposing them as function arguments.
-10. Never use anonymous structs. Either define an explicit named type or use a map.
-11. When constructing JSON payloads, do not mix structs and maps. Choose one approach or the other: either use a fully defined hierarchy of named structs, or use maps entirely. Do not embed a struct inside a map.
-12. Do not use any double capitals (consecutive uppercase letters) in identifiers, including acronyms.
-13. Function input variables must exactly match the corresponding JSON or request field names. If a requested input field name exists in more than one struct anywhere in the project, it is considered ambiguous. You are strictly forbidden from passing an ambiguous field directly as a primitive type. Instead, you MUST pass the parent struct that contains the field. Never invent combined, prefixed, or suffixed variable names to artificially make a field unique. Either pass the universally unique primitive field, or pass the parent struct.
-14. If a type is not fully known based on the provided attachment (e.g., empty JSON objects like `{}` or arrays `[]` where the inner type is ambiguous), omit the field from the structs entirely.
-15. If a request's complete URL is provided within the JSON response of a previous request, the function must accept that complete URL as a single string argument and process it using `url.Parse` (adhering strictly to rule 13 for naming the argument, or passing its parent struct if the field name is not unique). Do not hardcode the base URL or attempt to reconstruct it by extracting and passing individual query parameters.
-16. If a struct passed as a function argument has two or more fields, it must be passed as a pointer rather than by value.
-17. Do not alias standard library imports. Always use the default package identifier and match requested return types exactly as specified.
+5. Use URL struct literals for static URLs. Do not use parsing functions on a URL that is known at compile time. For dynamic URLs, do not combine parsing with path escaping. Never construct raw queries via string concatenation; always use the standard library's values encoding method to generate query parameters safely. When assigning to the `RawQuery` field, instantiate the standard library's values map as a separate variable on a preceding line rather than nesting it inline.
+6. Never explicitly add standard or automatically generated headers. Only set header keys if their values are non-standard. If no custom headers are required, pass `nil` to the request function instead of an initialized empty map.
+7. Do not parameterize static, structural, dummy, or enum-like values in query parameters, headers, or JSON request bodies. Hardcode these constants directly into the request construction instead of exposing them as function arguments.
+8. Never use anonymous structs. Either define an explicit named type or use a map.
+9. When constructing JSON payloads, do not mix structs and maps. Choose one approach or the other: either use a fully defined hierarchy of named structs, or use maps entirely. Do not embed a struct inside a map.
+10. Do not use any double capitals (consecutive uppercase letters) in identifiers, including acronyms. Exception: Struct fields are exempt from this rule.
+11. If a type is not fully known based on the provided attachment, omit the field from the structs entirely.
+12. Do not alias standard library imports.
+13. Identifier naming rules are strictly separated by category. Do not apply rules meant for one type of identifier to another:
+    * Variables and Parameters: Use simple, direct, idiomatic Go names. If a variable or parameter name would identically match its type name (ignoring case), you must append a full-word suffix (such as `Data`) to the variable to prevent repetition (e.g., `entityData Entity`). If the type name contains secondary descriptive words or suffixes (such as `Response` or `Session`), use only the single primary base word for the variable name (e.g., `entity EntityResponse`, `entity EntitySession`). Must not use abbreviations (e.g., never use `entityResp`).
+    * Functions: Must strictly begin with a standard data-retrieval or HTTP-aligned verb followed by the descriptive name of the entity or operation; do not invent alternative action verbs. Do not use overly brief function names consisting only of a bare verb. Must not use abbreviations.
+    * Types (Structs): The root response struct type must closely match the entity name used in the related function name. If this causes a collision with a nested struct field, either rename both the function and the root struct to align on a new concept, or append a standard suffix such as `Response` to the root struct type. Must not use abbreviations. Do not append generic suffixes unless resolving a collision.
+    * Struct Fields: Exempt from general word-choice rules. Struct field names must match the original JSON keys exactly when possible. When a struct field uses a custom type, the custom type name must match the field name if possible. Exception: If the field is a slice or collection, the custom type representing a single element must use the singular form of the specific logical entity it represents, and must not be a generic term derived from the JSON key.
+14. Only use pointers for struct fields, slice elements, or map values if there is a specific reason to do so. Default to using value types for nested structures.
+15. Unwrapped Widevine responses must always be returned as a byte slice, never as a string.
+16. If input comes from the user, use standard built-in types. If input comes from a previous response, you must pass the parent response struct directly or define a new type for the field. When passing structs as function arguments, use a pointer if the struct has two or more fields; otherwise, pass it by value.
+17. When naming the variable for a URL struct literal, use a single word. Use two words if and only if one word is ambiguous. Do not apply this rule to anything else unless it is the exact situation.
+18. When a HAR file's response content includes an encoding flag indicating base64, this indicates the capturing tool base64-encoded raw binary data to store it in JSON. The actual HTTP response body over the wire is raw binary bytes. Do not implement base64 decoding for the response body in the generated code.
+19. Always align variable names with standard library conventions and function signatures. Use `resp` instead of `res` for HTTP responses. When serializing a payload to pass as the body parameter of a request function, name the resulting byte slice variable `body` instead of `data` or `buf` to match the function signature. If constructing a struct before serialization, name the struct variable something else so the serialized byte slice can utilize the `body` identifier. When instantiating a struct to unmarshal the JSON response body, name the variable using the single primary base entity word (e.g., `entity EntityResponse`, `entity EntitySession`); if the type name is exactly the single-word base entity, append `Data` (e.g., `entityData Entity`). Do not carry over secondary descriptive words from the type name into the variable name (e.g., do not use `entitySessionData EntitySession`), and do not use stuttering or repetitively suffixed names.
 
-~~~
+~~~go
+package maya // import "41.neocities.org/maya"
 func Get(targetUrl *url.URL, headers map[string]string) (*http.Response, error)
 func Head(targetUrl *url.URL, headers map[string]string) (*http.Response, error)
 func Post(targetUrl *url.URL, headers map[string]string, body []byte) (*http.Response, error)
