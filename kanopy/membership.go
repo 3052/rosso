@@ -1,4 +1,3 @@
-// memberships.go
 package kanopy
 
 import (
@@ -22,38 +21,40 @@ type Membership struct {
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-func GetMemberships(userId int, jwt string) ([]Membership, error) {
-   query := url.Values{}
-   query.Set("userId", strconv.Itoa(userId))
+type MembershipResponse struct {
+   List []Membership `json:"list"`
+}
 
-   target := &url.URL{
-      Scheme:   "https",
-      Host:     "www.kanopy.com",
-      Path:     "/kapi/memberships",
-      RawQuery: query.Encode(),
+func GetMemberships(login *LoginResponse) (*MembershipResponse, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/memberships",
    }
+
+   query := url.Values{}
+   query.Set("userId", strconv.Itoa(login.UserId))
+   endpoint.RawQuery = query.Encode()
 
    headers := map[string]string{
-      "authorization": "Bearer " + jwt,
-      "user-agent":    "!",
-      "x-version":     "!/!/!/!",
+      "authorization": "Bearer " + login.Jwt,
    }
 
-   resp, err := maya.Get(target, headers)
+   resp, err := maya.Get(endpoint, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   respBytes, err := io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
-   var result struct {
-      List []Membership `json:"list"`
-   }
-   if err := json.Unmarshal(respBytes, &result); err != nil {
+
+   var membership MembershipResponse
+   if err := json.Unmarshal(respBody, &membership); err != nil {
       return nil, err
    }
-   return result.List, nil
+
+   return &membership, nil
 }

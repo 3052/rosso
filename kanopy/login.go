@@ -1,4 +1,3 @@
-// login.go
 package kanopy
 
 import (
@@ -9,14 +8,14 @@ import (
    "41.neocities.org/maya"
 )
 
-type LoginRequest struct {
-   CredentialType string    `json:"credentialType"`
-   EmailUser      EmailUser `json:"emailUser"`
-}
-
 type EmailUser struct {
    Email    string `json:"email"`
    Password string `json:"password"`
+}
+
+type LoginRequest struct {
+   CredentialType string    `json:"credentialType"`
+   EmailUser      EmailUser `json:"emailUser"`
 }
 
 type LoginResponse struct {
@@ -29,19 +28,14 @@ type LoginResponse struct {
    UserRole          string `json:"userRole"`
 }
 
-func Login(email string, password string) (*LoginResponse, error) {
-   target := &url.URL{
+func LoginUser(email string, password string) (*LoginResponse, error) {
+   endpoint := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
       Path:   "/kapi/login",
    }
 
-   headers := map[string]string{
-      "content-type": "application/json",
-      "user-agent":   "!",
-   }
-
-   reqBody := LoginRequest{
+   payload := LoginRequest{
       CredentialType: "email",
       EmailUser: EmailUser{
          Email:    email,
@@ -49,26 +43,26 @@ func Login(email string, password string) (*LoginResponse, error) {
       },
    }
 
-   bodyBytes, err := json.Marshal(reqBody)
+   body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
 
-   resp, err := maya.Post(target, headers, bodyBytes)
+   resp, err := maya.Post(endpoint, nil, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   respBytes, err := io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
 
-   var loginResp LoginResponse
-   if err := json.Unmarshal(respBytes, &loginResp); err != nil {
+   var login LoginResponse
+   if err := json.Unmarshal(respBody, &login); err != nil {
       return nil, err
    }
 
-   return &loginResp, nil
+   return &login, nil
 }

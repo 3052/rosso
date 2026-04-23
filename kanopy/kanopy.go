@@ -1,85 +1,12 @@
 package kanopy
 
 import (
-   "41.neocities.org/maya"
-   "encoding/json"
    "errors"
-   "io"
    "net/url"
    "path"
    "strconv"
    "strings"
 )
-
-type Video struct {
-   VideoId         int    `json:"videoId"`
-   Title           string `json:"title"`
-   DescriptionHtml string `json:"descriptionHtml"`
-   ProductionYear  int    `json:"productionYear"`
-   IsKids          bool   `json:"isKids"`
-   DurationSeconds int    `json:"durationSeconds"`
-   IsFree          bool   `json:"isFree"`
-   Alias           string `json:"alias"`
-}
-
-func GetVideo(alias string, jwt string) (*Video, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/videos/alias/" + alias,
-   }
-
-   headers := map[string]string{
-      "x-version":     "!/!/!/!",
-      "authorization": "Bearer " + jwt,
-   }
-
-   resp, err := maya.Get(target, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   respBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Type  string `json:"type"`
-      Video Video  `json:"video"`
-   }
-   if err := json.Unmarshal(respBytes, &result); err != nil {
-      return nil, err
-   }
-   return &result.Video, nil
-}
-
-func GetLicense(drmLicenseId string, body []byte, jwt string) ([]byte, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/licenses/widevine/" + drmLicenseId,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + jwt,
-      "user-agent":    "!",
-      "x-version":     "!/!/!/!",
-   }
-
-   resp, err := maya.Post(target, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   respBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   return respBytes, nil
-}
 
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418

@@ -1,3 +1,4 @@
+// video.go
 package kanopy
 
 import (
@@ -13,6 +14,7 @@ type Video struct {
    Title           string `json:"title"`
    DescriptionHtml string `json:"descriptionHtml"`
    DurationSeconds int    `json:"durationSeconds"`
+   Alias           string `json:"alias"`
 }
 
 type VideoResponse struct {
