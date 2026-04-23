@@ -7,16 +7,15 @@ import (
    "41.neocities.org/maya"
 )
 
-func PostLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
+func CreateLicense(login *LoginResponse, manifestData *Manifest, challenge []byte) ([]byte, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
-      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseID,
+      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
    }
 
    headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-      "x-version":     "!/!/!/!",
+      "authorization": "Bearer " + login.Jwt,
    }
 
    resp, err := maya.Post(endpoint, headers, challenge)

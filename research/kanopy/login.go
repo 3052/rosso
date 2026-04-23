@@ -2,6 +2,7 @@ package kanopy
 
 import (
    "encoding/json"
+   "io"
    "net/url"
 
    "41.neocities.org/maya"
@@ -17,12 +18,17 @@ type LoginRequest struct {
    EmailUser      EmailUser `json:"emailUser"`
 }
 
-type Login struct {
-   Jwt    string `json:"jwt"`
-   UserId int    `json:"userId"`
+type LoginResponse struct {
+   Jwt               string `json:"jwt"`
+   VisitorId         string `json:"visitorId"`
+   UserId            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopId         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
 }
 
-func PostLogin(email string, password string) (*Login, error) {
+func LoginUser(email string, password string) (*LoginResponse, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
@@ -48,10 +54,15 @@ func PostLogin(email string, password string) (*Login, error) {
    }
    defer resp.Body.Close()
 
-   var loginData Login
-   if err := json.NewDecoder(resp.Body).Decode(&loginData); err != nil {
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
       return nil, err
    }
 
-   return &loginData, nil
+   var login LoginResponse
+   if err := json.Unmarshal(respBody, &login); err != nil {
+      return nil, err
+   }
+
+   return &login, nil
 }
