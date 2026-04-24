@@ -1,10 +1,8 @@
-// play.go
 package kanopy
 
 import (
    "encoding/json"
    "errors"
-   "io"
    "net/url"
 
    "41.neocities.org/maya"
@@ -76,13 +74,8 @@ func CreatePlay(login *LoginResponse, membershipData *Membership, videoData *Vid
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
    var play PlayResponse
-   if err := json.Unmarshal(respBody, &play); err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&play); err != nil {
       return nil, err
    }
 
