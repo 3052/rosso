@@ -90,9 +90,9 @@ func CreatePlay(login *LoginResponse, membershipData *Membership, videoData *Vid
 }
 
 func (play *PlayResponse) GetDashManifest() (*Manifest, error) {
-   for i := range play.Manifests {
-      if play.Manifests[i].ManifestType == "dash" {
-         return &play.Manifests[i], nil
+   for _, manifestData := range play.Manifests {
+      if manifestData.ManifestType == "dash" {
+         return &manifestData, nil
       }
    }
    return nil, errors.New("dash manifest not found")
