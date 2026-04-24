@@ -1,7 +1,9 @@
+// play.go
 package kanopy
 
 import (
    "encoding/json"
+   "errors"
    "io"
    "net/url"
 
@@ -29,12 +31,24 @@ type Manifest struct {
    DrmLicenseId   string    `json:"drmLicenseID"`
 }
 
+type File struct {
+   Type string `json:"type"`
+   Url  string `json:"url"`
+}
+
+type Caption struct {
+   Language string `json:"language"`
+   Files    []File `json:"files"`
+   Label    string `json:"label"`
+}
+
 type PlayResponse struct {
    PlayId    string     `json:"playId"`
    Manifests []Manifest `json:"manifests"`
+   Captions  []Caption  `json:"captions"`
 }
 
-func CreatePlay(login *LoginResponse, membershipData *Membership, video *VideoResponse) (*PlayResponse, error) {
+func CreatePlay(login *LoginResponse, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
@@ -44,7 +58,7 @@ func CreatePlay(login *LoginResponse, membershipData *Membership, video *VideoRe
    payload := PlayRequest{
       DomainId: membershipData.DomainId,
       UserId:   login.UserId,
-      VideoId:  video.Video.VideoId,
+      VideoId:  videoData.VideoId,
    }
 
    body, err := json.Marshal(payload)
@@ -73,4 +87,13 @@ func CreatePlay(login *LoginResponse, membershipData *Membership, video *VideoRe
    }
 
    return &play, nil
+}
+
+func (play *PlayResponse) GetDashManifest() (*Manifest, error) {
+   for i := range play.Manifests {
+      if play.Manifests[i].ManifestType == "dash" {
+         return &play.Manifests[i], nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
 }

@@ -21,11 +21,7 @@ type Membership struct {
    MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
-type MembershipResponse struct {
-   List []Membership `json:"list"`
-}
-
-func GetMemberships(login *LoginResponse) (*MembershipResponse, error) {
+func GetMemberships(login *LoginResponse) ([]Membership, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "www.kanopy.com",
@@ -50,11 +46,11 @@ func GetMemberships(login *LoginResponse) (*MembershipResponse, error) {
    if err != nil {
       return nil, err
    }
-
-   var membership MembershipResponse
-   if err := json.Unmarshal(respBody, &membership); err != nil {
+   var result struct {
+      List []Membership `json:"list"`
+   }
+   if err := json.Unmarshal(respBody, &result); err != nil {
       return nil, err
    }
-
-   return &membership, nil
+   return result.List, nil
 }

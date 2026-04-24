@@ -1,6 +1,6 @@
 # ai
 
-1. Use the requested package name. You may use Go 1.26 features, but do not include version build tags in the files.
+1. Use the requested package name. You may use Go 1.26 features, but do not include version build tags in the files. Because Go 1.22+ fixes loop variable scoping, you must take the address of the `range` value variable directly instead of indexing the slice when returning a pointer from a loop.
 2. One file per request.
 3. Do not use the standard library HTTP package. Use the specified custom library for HTTP requests. You must explicitly qualify calls to the custom HTTP library with its package name; do not assume the generated code resides in the same package.
 4. Unmarshal JSON responses into domain-specific struct pointers.

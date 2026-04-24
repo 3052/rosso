@@ -1,12 +1,74 @@
 package kanopy
 
 import (
+   "41.neocities.org/maya"
+   "encoding/json"
    "errors"
+   "io"
    "net/url"
    "path"
    "strconv"
    "strings"
 )
+
+type Video struct {
+   VideoId         int    `json:"videoId"`
+   Title           string `json:"title"`
+   DescriptionHtml string `json:"descriptionHtml"`
+   DurationSeconds int    `json:"durationSeconds"`
+   Alias           string `json:"alias"`
+}
+
+func GetVideo(login *LoginResponse, alias string) (*Video, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/videos/alias/" + alias,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + login.Jwt,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Type  string `json:"type"`
+      Video Video  `json:"video"`
+   }
+   if err := json.Unmarshal(respBody, &result); err != nil {
+      return nil, err
+   }
+   return &result.Video, nil
+}
+
+func CreateLicense(login *LoginResponse, manifestData *Manifest, challenge []byte) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + login.Jwt,
+   }
+
+   resp, err := maya.Post(endpoint, headers, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
 
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418

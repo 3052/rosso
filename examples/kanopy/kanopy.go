@@ -7,24 +7,37 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return kanopy.CreateLicense(c.Login, c.Manifest, data)
+   })
+}
+
+func (c *client) do_email_password() error {
+   var err error
+   c.Login, err = kanopy.LoginUser(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_address() error {
    video, err := kanopy.ParseVideo(c.address)
    if err != nil {
       return err
    }
    if video.VideoId == 0 {
-      video, err = kanopy.GetVideo(video.Alias, c.Login.Jwt)
+      video, err = kanopy.GetVideo(c.Login, video.Alias)
       if err != nil {
          return err
       }
    }
-   memberships, err := kanopy.GetMemberships(c.Login.UserId, c.Login.Jwt)
+   memberships, err := kanopy.GetMemberships(c.Login)
    if err != nil {
       return err
    }
-   play, err := kanopy.CreatePlay(
-      memberships[0].DomainId, c.Login.UserId, video.VideoId, c.Login.Jwt,
-   )
+   play, err := kanopy.CreatePlay(c.Login, &memberships[0], video)
    if err != nil {
       return err
    }
@@ -33,7 +46,7 @@ func (c *client) do_address() error {
          fmt.Println(file.Url)
       }
    }
-   c.Manifest, err = play.DashManifest()
+   c.Manifest, err = play.GetDashManifest()
    if err != nil {
       return err
    }
@@ -106,19 +119,4 @@ type client struct {
    password string
    //-------------------------------
    address string
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.Login, err = kanopy.Login(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return kanopy.GetLicense(c.Manifest.DrmLicenseId, data, c.Login.Jwt)
-   })
 }
