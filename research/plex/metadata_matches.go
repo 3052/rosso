@@ -1,3 +1,4 @@
+// FILE: metadata_matches.go
 package plex
 
 import (
@@ -7,22 +8,19 @@ import (
    "41.neocities.org/maya"
 )
 
-type MatchesResponse struct {
-   MediaContainer MatchContainer `json:"MediaContainer"`
-}
-
 type MatchContainer struct {
    Metadata []MatchItem `json:"Metadata"`
 }
 
 type MatchItem struct {
    Guid      string `json:"guid"`
+   Key       string `json:"key"`
    RatingKey string `json:"ratingKey"`
    Title     string `json:"title"`
    Type      string `json:"type"`
 }
 
-func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchesResponse, error) {
+func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchContainer, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "discover.provider.plex.tv",
@@ -40,10 +38,12 @@ func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchesRespo
    }
    defer resp.Body.Close()
 
-   var matches MatchesResponse
-   if err := json.NewDecoder(resp.Body).Decode(&matches); err != nil {
+   var result struct {
+      MediaContainer MatchContainer `json:"MediaContainer"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
 
-   return &matches, nil
+   return &result.MediaContainer, nil
 }

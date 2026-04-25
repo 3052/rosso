@@ -9,6 +9,37 @@ import (
    "strings"
 )
 
+func (m *Metadata) Fetch(token string) (*Metadata, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "vod.provider.plex.tv",
+         Path:   "/library/metadata/" + m.RatingKey,
+      },
+      map[string]string{
+         "accept":       "application/json",
+         "x-plex-token": token,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      MediaContainer struct {
+         Metadata []Metadata
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.MediaContainer.Metadata[0], nil
+}
+
 // /movie/memento-2000
 func FetchMatch(token, path string) (*Metadata, error) {
    resp, err := maya.Get(
@@ -43,56 +74,6 @@ func FetchMatch(token, path string) (*Metadata, error) {
       return nil, errors.New(result.Error.Message)
    }
    return &result.MediaContainer.Metadata[0], nil
-}
-
-func (m *Metadata) Fetch(token string) (*Metadata, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "vod.provider.plex.tv",
-         Path:   "/library/metadata/" + m.RatingKey,
-      },
-      map[string]string{
-         "accept":       "application/json",
-         "x-plex-token": token,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      MediaContainer struct {
-         Metadata []Metadata
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.MediaContainer.Metadata[0], nil
-}
-
-func (p *Part) FetchWidevine(token string, body []byte) ([]byte, error) {
-   target, err := url.Parse(p.License)
-   if err != nil {
-      return nil, err
-   }
-   target.Scheme = "https"
-   target.Host = "vod.provider.plex.tv"
-   target.RawQuery = url.Values{
-      "x-plex-drm":   {"widevine"},
-      "x-plex-token": {token},
-   }.Encode()
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 func FetchUser() (*User, error) {
@@ -153,8 +134,6 @@ func ParsePath(rawUrl string) (string, error) {
    return rawUrl[startIndex:], nil
 }
 
-///
-
 func (m *Metadata) GetDash() (*Part, error) {
    for _, media := range m.Media {
       if media.Protocol == "dash" {
@@ -175,4 +154,23 @@ func (p *Part) GetManifest(token string) *url.URL {
       Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
       RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
    }
+}
+
+func (p *Part) FetchWidevine(token string, body []byte) ([]byte, error) {
+   target, err := url.Parse(p.License)
+   if err != nil {
+      return nil, err
+   }
+   target.Scheme = "https"
+   target.Host = "vod.provider.plex.tv"
+   target.RawQuery = url.Values{
+      "x-plex-drm":   {"widevine"},
+      "x-plex-token": {token},
+   }.Encode()
+   resp, err := maya.Post(target, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }
