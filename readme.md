@@ -21,7 +21,6 @@ streaming API authentication, metadata, and DRM playback
 | 1005 | us | [pluto-tv] |
 | 1002 | us | [hbo-max] |
 | 931 | us | [criterion-channel] |
-| 666 | se | [draken-films] |
 | 642 | fr | [molotov-tv] |
 | 615 | us | [hulu] |
 | 552 | nl | [cinemember] |
@@ -46,7 +45,6 @@ streaming API authentication, metadata, and DRM playback
 [pluto-tv]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=80
 [hbo-max]:https://justwatch.com/us/provider/hbo-max?tomatoMeter=80
 [criterion-channel]:https://justwatch.com/us/provider/criterion-channel?tomatoMeter=80
-[draken-films]:https://justwatch.com/se/leverant%C3%B6r/draken-films?tomatoMeter=80
 [molotov-tv]:https://justwatch.com/fr/plateforme/molotov-tv?tomatoMeter=80
 [hulu]:https://justwatch.com/us/provider/hulu?tomatoMeter=80
 [cinemember]:https://justwatch.com/nl/provider/cinemember?tomatoMeter=80

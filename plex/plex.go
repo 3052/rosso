@@ -136,17 +136,6 @@ type Part struct {
    License string
 }
 
-///
-
-func (p *Part) GetManifest(token string) *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "vod.provider.plex.tv",
-      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
-      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
-   }
-}
-
 // https://watch.plex.tv/embed/movie/memento-2000
 // https://watch.plex.tv/movie/memento-2000
 // https://watch.plex.tv/watch/movie/memento-2000
@@ -164,6 +153,8 @@ func ParsePath(rawUrl string) (string, error) {
    return rawUrl[startIndex:], nil
 }
 
+///
+
 func (m *Metadata) GetDash() (*Part, error) {
    for _, media := range m.Media {
       if media.Protocol == "dash" {
@@ -175,4 +166,13 @@ func (m *Metadata) GetDash() (*Part, error) {
    }
    // Failure: No "dash" protocol was found.
    return nil, errors.New("DASH media part not found")
+}
+
+func (p *Part) GetManifest(token string) *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "vod.provider.plex.tv",
+      Path:     p.Key, // /library/parts/6730016e43b96c02321d7860-dash.mpd
+      RawQuery: url.Values{"x-plex-token": {token}}.Encode(),
+   }
 }

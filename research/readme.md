@@ -32,19 +32,17 @@
    - April 20
 5. ca | ctv
    - April 29
-6. se | draken-films
-   - May 5
-7. nl | cinemember
+6. nl | cinemember
    - May 12
-8. us | criterion-channel
+7. us | criterion-channel
    - May 19
-9. uk | rakuten-tv
+8. uk | rakuten-tv
    - May 23
-10. be | rtbf-auvio
+9. be | rtbf-auvio
     - June 7
-11. us | hbo-max
+10. us | hbo-max
     - June 16
-12. uk | itvx
+11. uk | itvx
     - October 24
 
 ## 2023
