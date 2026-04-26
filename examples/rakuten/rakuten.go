@@ -7,23 +7,15 @@ import (
    "log"
 )
 
-func main() {
-   maya.SetProxy("", "*.isma", "*.ismv")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 func (c *client) do_language() error {
-   stream, err := c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.Widevine, rakuten.Fhd,
+   var err error
+   c.StreamInfo, err = c.Content.FetchStreamInfo(
+      c.Episode, c.Language, rakuten.PlayReady, rakuten.Fhd,
    )
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(stream.GetManifest)
+   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
    if err != nil {
       return err
    }
@@ -31,27 +23,7 @@ func (c *client) do_language() error {
 }
 
 func (c *client) do_dash() error {
-   stream, err := c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.Widevine, rakuten.Hd,
-   )
-   if err != nil {
-      return err
-   }
-   return c.Dash.Download(&c.Job, stream.FetchWidevine)
-}
-
-type client struct {
-   Content *rakuten.Content
-   Dash    *maya.Dash
-   //-------------------
-   Job maya.Job
-   //-------------------
-   address string
-   //-------------------
-   season string
-   //-------------------
-   Language string
-   Episode  string
+   return c.Dash.Download(&c.Job, c.StreamInfo.FetchPlayReady)
 }
 
 func (c *client) do() error {
@@ -60,7 +32,7 @@ func (c *client) do() error {
       return err
    }
    with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
@@ -75,7 +47,7 @@ func (c *client) do() error {
       return err
    }
    switch {
-   case widevine.IsSet:
+   case playReady.IsSet:
       return cache.Write(c)
    case address.IsSet:
       return c.do_address()
@@ -87,12 +59,20 @@ func (c *client) do() error {
       return with_cache(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
+      {playReady},
       {address},
       {season},
       {language, episode},
       {dash},
    })
+}
+func main() {
+   maya.SetProxy("", "*.isma", "*.ismv")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 var cache maya.Cache
@@ -132,4 +112,19 @@ func (c *client) do_season() error {
       fmt.Println(&episode)
    }
    return nil
+}
+
+type client struct {
+   Content *rakuten.Content
+   Dash    *maya.Dash
+   StreamInfo *rakuten.StreamInfo
+   //-------------------
+   Job maya.Job
+   //-------------------
+   address string
+   //-------------------
+   season string
+   //-------------------
+   Language string
+   Episode  string
 }

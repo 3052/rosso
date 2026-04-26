@@ -10,6 +10,34 @@ import (
    "strings"
 )
 
+func (s *StreamInfo) FetchPlayReady(body []byte) ([]byte, error) {
+   target, err := url.Parse(s.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(target, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (s *StreamInfo) FetchWidevine(body []byte) ([]byte, error) {
+   target, err := url.Parse(s.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
 // For TV Shows, 'id' should be the Episode ID.
 // For Movies, 'id' is ignored (uses c.Id).
 func (c *Content) FetchStreamInfo(id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
@@ -65,21 +93,6 @@ func (c *Content) FetchStreamInfo(id, audioLanguage string, playerData Player, q
       return nil, errors.New(result.Errors[0].Message)
    }
    return &result.Data.StreamInfos[0], nil
-}
-
-func (s *StreamInfo) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(s.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 func (s *StreamInfo) GetManifest() (*url.URL, error) {
@@ -239,6 +252,7 @@ func (c *Content) IsMovie() bool {
 func (c *Content) IsTvShow() bool {
    return c.Type == "tv_shows"
 }
+
 func (c *Content) Movie() (*MovieOrEpisode, error) {
    resp, err := maya.Get(
       &url.URL{
