@@ -10,110 +10,9 @@ import (
    "strings"
 )
 
-const (
-   Fhd VideoQuality = "FHD"
-   Hd  VideoQuality = "HD"
-   Uhd VideoQuality = "UHD"
-)
-
-func (s *StreamInfo) FetchPlayReady(body []byte) ([]byte, error) {
-   target, err := url.Parse(s.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (s *StreamInfo) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(s.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-// For TV Shows, 'id' should be the Episode ID.
-// For Movies, 'id' is ignored (uses c.Id).
-func (c *Content) FetchStreamInfo(id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
-   value := map[string]string{
-      "audio_language":              audioLanguage,
-      "audio_quality":               "2.0",
-      "classification_id":           strconv.Itoa(c.ClassificationId),
-      "device_identifier":           DeviceId,
-      "device_serial":               "not implemented",
-      "device_stream_video_quality": string(quality),
-      "player":                      string(playerData),
-      "subtitle_language":           "MIS",
-      "video_type":                  "stream",
-   }
-   switch c.Type {
-   case "tv_shows":
-      value["content_id"] = id
-      value["content_type"] = "episodes"
-   case "movies":
-      value["content_id"] = c.Id
-      value["content_type"] = "movies"
-   }
-   body, err := json.Marshal(value)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gizmo.rakuten.tv",
-         Path:   "/v3/avod/streamings",
-      },
-      map[string]string{"content-type": "application/json"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         StreamInfos []StreamInfo `json:"stream_infos"`
-      }
-      Errors []struct {
-         Message string // 2026-04-25
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Message)
-   }
-   return &result.Data.StreamInfos[0], nil
-}
-
-func (s *StreamInfo) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Url)
-}
-
-type StreamInfo struct {
-   LicenseUrl string `json:"license_url"`
-   Url        string `json:"url"`
-}
-
 var classificationMap = map[string]int{
    "cz": 272,
    "es": 5,
-   "fr": 23,
    "ie": 41,
    "nl": 69,
    "pl": 277,
@@ -348,4 +247,104 @@ func (c *Content) Season(seasonId string) (*Season, error) {
       return nil, err
    }
    return &result.Data, nil
+}
+
+const (
+   Fhd VideoQuality = "FHD"
+   Hd  VideoQuality = "HD"
+   Uhd VideoQuality = "UHD"
+)
+
+func (s *StreamInfo) FetchPlayReady(body []byte) ([]byte, error) {
+   target, err := url.Parse(s.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(target, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (s *StreamInfo) FetchWidevine(body []byte) ([]byte, error) {
+   target, err := url.Parse(s.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// For TV Shows, 'id' should be the Episode ID.
+// For Movies, 'id' is ignored (uses c.Id).
+func (c *Content) FetchStreamInfo(id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
+   value := map[string]string{
+      "audio_language":              audioLanguage,
+      "audio_quality":               "2.0",
+      "classification_id":           strconv.Itoa(c.ClassificationId),
+      "device_identifier":           DeviceId,
+      "device_serial":               "not implemented",
+      "device_stream_video_quality": string(quality),
+      "player":                      string(playerData),
+      "subtitle_language":           "MIS",
+      "video_type":                  "stream",
+   }
+   switch c.Type {
+   case "tv_shows":
+      value["content_id"] = id
+      value["content_type"] = "episodes"
+   case "movies":
+      value["content_id"] = c.Id
+      value["content_type"] = "movies"
+   }
+   body, err := json.Marshal(value)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gizmo.rakuten.tv",
+         Path:   "/v3/avod/streamings",
+      },
+      map[string]string{"content-type": "application/json"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         StreamInfos []StreamInfo `json:"stream_infos"`
+      }
+      Errors []struct {
+         Message string // 2026-04-25
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, errors.New(result.Errors[0].Message)
+   }
+   return &result.Data.StreamInfos[0], nil
+}
+
+func (s *StreamInfo) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Url)
+}
+
+type StreamInfo struct {
+   LicenseUrl string `json:"license_url"`
+   Url        string `json:"url"`
 }
