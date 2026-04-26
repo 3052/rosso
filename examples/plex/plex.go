@@ -7,56 +7,10 @@ import (
    "net/url"
 )
 
-func main() {
-   maya.SetProxy("", "*.m4s")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_address() error {
-   var err error
-   c.User, err = plex.FetchUser()
-   if err != nil {
-      return err
-   }
-   path, err := plex.ParsePath(c.address)
-   if err != nil {
-      return err
-   }
-   metadata, err := plex.FetchMatch(c.User.AuthToken, path)
-   if err != nil {
-      return err
-   }
-   metadata, err = metadata.Fetch(c.User.AuthToken)
-   if err != nil {
-      return err
-   }
-   c.Part, err = metadata.GetDash()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return c.Part.GetManifest(c.User.AuthToken), nil
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(body []byte) ([]byte, error) {
+      return plex.AcquireWidevineLicense(c.VodMedia, c.AnonymousUser, body)
    })
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-type client struct {
-   User *plex.User
-   Part *plex.Part
-   //------------------
-   Dash *maya.Dash
-   Job  maya.Job
-   //------------------
-   address string
 }
 
 func (c *client) do() error {
@@ -89,10 +43,54 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job,
-      func(data []byte) ([]byte, error) {
-         return c.Part.FetchWidevine(c.User.AuthToken, data)
-      },
-   )
+func main() {
+   maya.SetProxy("", "*.m4s")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_address() error {
+   var err error
+   c.AnonymousUser, err = plex.CreateAnonymousUser()
+   if err != nil {
+      return err
+   }
+   path, err := plex.ParsePath(c.address)
+   if err != nil {
+      return err
+   }
+   match, err := plex.GetMetadataMatches(path, c.AnonymousUser)
+   if err != nil {
+      return err
+   }
+   vod_metadata, err := plex.GetVodMetadata(&match.Metadata[0], c.AnonymousUser)
+   if err != nil {
+      return err
+   }
+   c.VodMedia, err = vod_metadata.GetDashMedia()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return c.VodMedia.GetMpdUrl(c.AnonymousUser)
+   })
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache
+
+type client struct {
+   AnonymousUser *plex.AnonymousUser
+   VodMedia      *plex.VodMedia
+   //------------------
+   Dash *maya.Dash
+   Job  maya.Job
+   //------------------
+   address string
 }
