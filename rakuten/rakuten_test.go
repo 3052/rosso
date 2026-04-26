@@ -15,22 +15,24 @@ var classification_tests = []struct {
       height: 1080,
    },
    {
-      url: "https://rakuten.tv/ie/movies/miss-sloane",
+      url:    "https://rakuten.tv/fr/tv_shows/une-femme-d-honneur",
+      height: 1080,
    },
    {
-      url: "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
+      url:    "https://rakuten.tv/ie?content_id=blair-witch&content_type=movies",
+      height: 2160,
    },
    {
-      url: "https://rakuten.tv/pl?content_type=movies&content_id=ad-astra",
+      url:    "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
+      height: 1080,
    },
    {
-      url: "https://rakuten.tv/pt/movies/bound",
+      url:    "https://rakuten.tv/pt/movies/bound",
+      height: 1080,
    },
    {
-      url: "https://rakuten.tv/se?content_type=movies&content_id=i-heart-huckabees",
-   },
-   {
-      url: "https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink",
+      url:    "https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink",
+      height: 1080,
    },
 }
 

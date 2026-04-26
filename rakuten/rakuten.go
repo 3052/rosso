@@ -13,11 +13,10 @@ import (
 var classificationMap = map[string]int{
    "cz": 272,
    "es": 5,
+   "fr": 23,
    "ie": 41,
    "nl": 69,
-   "pl": 277,
    "pt": 64,
-   "se": 282,
    "uk": 18,
 }
 
