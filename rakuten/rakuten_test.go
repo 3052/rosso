@@ -3,8 +3,8 @@ package rakuten
 import "testing"
 
 var classification_tests = []struct {
-   height int
    url    string
+   height int
 }{
    {
       url:    "https://rakuten.tv/cz?content_type=movies&content_id=transvulcania-the-people-s-run",

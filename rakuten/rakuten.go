@@ -10,7 +10,7 @@ import (
    "strings"
 )
 
-var classificationMap = map[string]int{
+var classification_map = map[string]int{
    "cz": 272,
    "es": 5,
    "fr": 23,
@@ -22,7 +22,7 @@ var classificationMap = map[string]int{
 
 // Parse extracts metadata from a Rakuten URL and returns a new Content struct
 func ParseContent(urlData string) (*Content, error) {
-   urlParse, err := url.Parse(urlData)
+   url_parse, err := url.Parse(urlData)
    if err != nil {
       return nil, err
    }
@@ -30,27 +30,27 @@ func ParseContent(urlData string) (*Content, error) {
    c := &Content{}
 
    // Trim prefix once and extract the market code
-   path := strings.TrimPrefix(urlParse.Path, "/")
+   path := strings.TrimPrefix(url_parse.Path, "/")
    c.MarketCode, _, _ = strings.Cut(path, "/")
 
    // Check if the market code exists in the map and set ClassificationId
    var ok bool
-   c.ClassificationId, ok = classificationMap[c.MarketCode]
+   c.ClassificationId, ok = classification_map[c.MarketCode]
    if !ok {
       return nil, errors.New("unknown market code")
    }
 
    // 1. Check Query Parameters
-   query := urlParse.Query()
-   contentType := query.Get("content_type")
-   switch contentType {
+   query := url_parse.Query()
+   content_type := query.Get("content_type")
+   switch content_type {
    case "movies":
       c.Id = query.Get("content_id")
-      c.Type = contentType
+      c.Type = content_type
       return c, nil
    case "tv_shows":
       c.Id = query.Get("tv_show_id")
-      c.Type = contentType
+      c.Type = content_type
       return c, nil
    }
 

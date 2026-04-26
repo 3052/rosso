@@ -7,6 +7,15 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "*.isma", "*.ismv")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_language() error {
    var err error
    c.StreamInfo, err = c.Content.FetchStreamInfo(
@@ -20,15 +29,6 @@ func (c *client) do_language() error {
       return err
    }
    return cache.Write(c)
-}
-
-func main() {
-   maya.SetProxy("", "*.isma", "*.ismv")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 var cache maya.Cache
