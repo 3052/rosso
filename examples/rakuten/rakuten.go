@@ -7,47 +7,25 @@ import (
    "log"
 )
 
-func main() {
-   maya.SetProxy("", "*.isma", "*.ismv")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_language() error {
-   var err error
-   c.StreamInfo, err = c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.PlayReady, rakuten.Uhd,
-   )
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
 func (c *client) do_address() error {
    var err error
    c.Content, err = rakuten.ParseContent(c.address)
    if err != nil {
       return err
    }
+   c.Classification, err = c.Content.FetchClassification()
+   if err != nil {
+      return err
+   }
    switch {
    case c.Content.IsMovie():
-      movie, err := c.Content.Movie()
+      movie, err := c.Content.Movie(c.Classification)
       if err != nil {
          return err
       }
       fmt.Println(movie)
    case c.Content.IsTvShow():
-      show, err := c.Content.TvShow()
+      show, err := c.Content.TvShow(c.Classification)
       if err != nil {
          return err
       }
@@ -57,7 +35,7 @@ func (c *client) do_address() error {
 }
 
 func (c *client) do_season() error {
-   season, err := c.Content.Season(c.season)
+   season, err := c.Content.Season(c.Classification, c.season)
    if err != nil {
       return err
    }
@@ -71,9 +49,10 @@ func (c *client) do_season() error {
 }
 
 type client struct {
-   Content    *rakuten.Content
-   Dash       *maya.Dash
-   StreamInfo *rakuten.StreamInfo
+   Content        *rakuten.Content
+   Dash           *maya.Dash
+   StreamInfo     *rakuten.StreamInfo
+   Classification *rakuten.Classification
    //-------------------
    Job maya.Job
    //-------------------
@@ -129,3 +108,29 @@ func (c *client) do() error {
       {dash},
    })
 }
+
+func main() {
+   maya.SetProxy("", "*.isma", "*.ismv")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_language() error {
+   var err error
+   c.StreamInfo, err = c.Content.FetchStreamInfo(
+      c.Classification, c.Episode, c.Language, rakuten.PlayReady, rakuten.Uhd,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache

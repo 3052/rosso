@@ -12,7 +12,7 @@ import (
 
 // For TV Shows, 'id' should be the Episode ID.
 // For Movies, 'id' is ignored (uses c.Id).
-func (c *Content) FetchStreamInfo(classificationId int, id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
+func (c *Content) FetchStreamInfo(class *Classification, id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
    value := map[string]string{
       "audio_language":              audioLanguage,
       "audio_quality":               "2.0",
@@ -23,7 +23,7 @@ func (c *Content) FetchStreamInfo(classificationId int, id, audioLanguage string
       "subtitle_language":           "MIS",
       "video_type":                  "stream",
       // does this have to be a string?
-      "classification_id": strconv.Itoa(classificationId),
+      "classification_id": strconv.Itoa(class.NumericalId),
    }
    switch c.Type {
    case "tv_shows":
@@ -235,14 +235,14 @@ func ParseContent(urlData string) (*Content, error) {
    return nil, errors.New("not a movie or tv show url")
 }
 
-func (c *Content) Movie(classificationId int) (*MovieOrEpisode, error) {
+func (c *Content) Movie(class *Classification) (*MovieOrEpisode, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "gizmo.rakuten.tv",
          Path:   "/v3/movies/" + c.Id,
          RawQuery: url.Values{
-            "classification_id": {strconv.Itoa(classificationId)},
+            "classification_id": {strconv.Itoa(class.NumericalId)},
             "device_identifier": {DeviceId},
             "market_code":       {c.MarketCode},
          }.Encode(),
@@ -267,14 +267,14 @@ func (c *Content) Movie(classificationId int) (*MovieOrEpisode, error) {
    return &result.Data, nil
 }
 
-func (c *Content) TvShow(classificationId int) (*TvShow, error) {
+func (c *Content) TvShow(class *Classification) (*TvShow, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "gizmo.rakuten.tv",
          Path:   "/v3/tv_shows/" + c.Id,
          RawQuery: url.Values{
-            "classification_id": {strconv.Itoa(classificationId)},
+            "classification_id": {strconv.Itoa(class.NumericalId)},
             "device_identifier": {DeviceId},
             "market_code":       {c.MarketCode},
          }.Encode(),
@@ -300,14 +300,14 @@ func (c *Content) TvShow(classificationId int) (*TvShow, error) {
 }
 
 // Season fetches episodes for a specific season (GET).
-func (c *Content) Season(classificationId int, seasonId string) (*Season, error) {
+func (c *Content) Season(class *Classification, seasonId string) (*Season, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "gizmo.rakuten.tv",
          Path:   "/v3/seasons/" + seasonId,
          RawQuery: url.Values{
-            "classification_id": {strconv.Itoa(classificationId)},
+            "classification_id": {strconv.Itoa(class.NumericalId)},
             "device_identifier": {DeviceId},
             "market_code":       {c.MarketCode},
          }.Encode(),
