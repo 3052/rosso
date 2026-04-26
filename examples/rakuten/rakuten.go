@@ -10,7 +10,7 @@ import (
 func (c *client) do_language() error {
    var err error
    c.StreamInfo, err = c.Content.FetchStreamInfo(
-      c.Episode, c.Language, rakuten.PlayReady, rakuten.Fhd,
+      c.Episode, c.Language, rakuten.PlayReady, rakuten.Uhd,
    )
    if err != nil {
       return err
@@ -22,50 +22,6 @@ func (c *client) do_language() error {
    return cache.Write(c)
 }
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.StreamInfo.FetchPlayReady)
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/rakuten.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //----------------------------------------------------------
-   season := maya.StringFlag(&c.season, "s", "season ID")
-   //----------------------------------------------------------
-   language := maya.StringFlag(&c.Language, "A", "audio language")
-   episode := maya.StringFlag(&c.Episode, "e", "episode ID")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   switch {
-   case playReady.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case season.IsSet:
-      return with_cache(c.do_season)
-   case language.IsSet:
-      return with_cache(c.do_language)
-   case dash.IsSet:
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {address},
-      {season},
-      {language, episode},
-      {dash},
-   })
-}
 func main() {
    maya.SetProxy("", "*.isma", "*.ismv")
    log.SetFlags(log.Ltime)
@@ -115,8 +71,8 @@ func (c *client) do_season() error {
 }
 
 type client struct {
-   Content *rakuten.Content
-   Dash    *maya.Dash
+   Content    *rakuten.Content
+   Dash       *maya.Dash
    StreamInfo *rakuten.StreamInfo
    //-------------------
    Job maya.Job
@@ -127,4 +83,49 @@ type client struct {
    //-------------------
    Language string
    Episode  string
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.StreamInfo.FetchPlayReady)
+}
+
+func (c *client) do() error {
+   err := cache.Setup("rosso/rakuten.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
+   //----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //----------------------------------------------------------
+   season := maya.StringFlag(&c.season, "s", "season ID")
+   //----------------------------------------------------------
+   language := maya.StringFlag(&c.Language, "A", "audio language")
+   episode := maya.StringFlag(&c.Episode, "e", "episode ID")
+   //----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   switch {
+   case playReady.IsSet:
+      return cache.Write(c)
+   case address.IsSet:
+      return c.do_address()
+   case season.IsSet:
+      return with_cache(c.do_season)
+   case language.IsSet:
+      return with_cache(c.do_language)
+   case dash.IsSet:
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {address},
+      {season},
+      {language, episode},
+      {dash},
+   })
 }

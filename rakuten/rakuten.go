@@ -10,6 +10,12 @@ import (
    "strings"
 )
 
+const (
+   Fhd VideoQuality = "FHD"
+   Hd  VideoQuality = "HD"
+   Uhd VideoQuality = "UHD"
+)
+
 func (s *StreamInfo) FetchPlayReady(body []byte) ([]byte, error) {
    target, err := url.Parse(s.LicenseUrl)
    if err != nil {
@@ -210,11 +216,6 @@ const DeviceId = "atvui40"
 const (
    PlayReady Player = DeviceId + ":DASH-CENC:PR"
    Widevine  Player = DeviceId + ":DASH-CENC:WVM"
-)
-
-const (
-   Fhd VideoQuality = "FHD"
-   Hd  VideoQuality = "HD"
 )
 
 type VideoQuality string
