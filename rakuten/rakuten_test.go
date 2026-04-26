@@ -2,16 +2,18 @@ package rakuten
 
 import "testing"
 
-var classification_tests = []string{
-   "https://rakuten.tv/es/movies/una-obra-maestra",
-   "https://rakuten.tv/cz?content_type=movies&content_id=transvulcania-the-people-s-run",
-   "https://rakuten.tv/fr?content_type=movies&content_id=michael-clayton",
-   "https://rakuten.tv/ie/movies/miss-sloane",
-   "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
-   "https://rakuten.tv/pl?content_type=movies&content_id=ad-astra",
-   "https://rakuten.tv/pt/movies/bound",
-   "https://rakuten.tv/se?content_type=movies&content_id=i-heart-huckabees",
-   "https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink",
+var classification_tests = map[int][]string{
+   34: {"https://rakuten.tv/pt/movies/bound"},
+   40: {"https://rakuten.tv/ie/movies/miss-sloane"},
+   45: {"https://rakuten.tv/es/movies/una-obra-maestra"},
+   60: {"https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink"},
+   61: {"https://rakuten.tv/pl?content_type=movies&content_id=ad-astra"},
+   68: {
+      "https://rakuten.tv/fr?content_type=movies&content_id=michael-clayton",
+      "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
+   },
+   70: {"https://rakuten.tv/se?content_type=movies&content_id=i-heart-huckabees"},
+   83: {"https://rakuten.tv/cz?content_type=movies&content_id=transvulcania-the-people-s-run"},
 }
 
 func TestLog(t *testing.T) {

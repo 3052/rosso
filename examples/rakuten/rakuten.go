@@ -7,6 +7,15 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "*.isma", "*.ismv")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_language() error {
    stream, err := c.Content.FetchStreamInfo(
       c.Episode, c.Language, rakuten.Widevine, rakuten.Fhd,
@@ -29,14 +38,6 @@ func (c *client) do_dash() error {
       return err
    }
    return c.Dash.Download(&c.Job, stream.FetchWidevine)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 type client struct {
@@ -73,7 +74,6 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   maya.SetProxy("", "*.isma", "*.ismv")
    switch {
    case widevine.IsSet:
       return cache.Write(c)
