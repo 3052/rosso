@@ -17,7 +17,7 @@ type Season struct {
    Id string `json:"id"`
 }
 
-func FetchTvShow(tvShowId string, rating *Classification, region *Market, deviceIdentifier string) (*TvShow, error) {
+func FetchTvShow(tvShowId string, rating *Classification, region *Market) (*TvShow, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -26,7 +26,7 @@ func FetchTvShow(tvShowId string, rating *Classification, region *Market, device
 
    query := url.Values{}
    query.Set("classification_id", strconv.Itoa(rating.NumericalId))
-   query.Set("device_identifier", deviceIdentifier)
+   query.Set("device_identifier", "atvui40")
    query.Set("market_code", region.Code)
    target.RawQuery = query.Encode()
 

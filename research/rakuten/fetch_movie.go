@@ -25,7 +25,7 @@ type Stream struct {
    AudioLanguages []Language `json:"audio_languages"`
 }
 
-func FetchMovie(movieId string, rating *Classification, region *Market, deviceIdentifier string) (*Movie, error) {
+func FetchMovie(movieId string, rating *Classification, region *Market) (*Movie, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -34,7 +34,7 @@ func FetchMovie(movieId string, rating *Classification, region *Market, deviceId
 
    query := url.Values{}
    query.Set("classification_id", strconv.Itoa(rating.NumericalId))
-   query.Set("device_identifier", deviceIdentifier)
+   query.Set("device_identifier", "atvui40")
    query.Set("market_code", region.Code)
    target.RawQuery = query.Encode()
 

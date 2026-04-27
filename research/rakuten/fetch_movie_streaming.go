@@ -30,7 +30,7 @@ type StreamingRequest struct {
    VideoType                string `json:"video_type"`
 }
 
-func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language, deviceIdentifier string) (*Streamings, error) {
+func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language) (*Streamings, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -43,7 +43,7 @@ func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language, d
       ClassificationId:         rating.NumericalId,
       ContentId:                film.Id,
       ContentType:              "movies",
-      DeviceIdentifier:         deviceIdentifier,
+      DeviceIdentifier:         "atvui40",
       DeviceSerial:             "not implemented",
       DeviceStreamVideoQuality: "UHD",
       Player:                   "atvui40:DASH-CENC:PR",

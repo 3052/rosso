@@ -7,7 +7,7 @@ import (
    "41.neocities.org/maya"
 )
 
-func FetchEpisodeStreaming(chapter *Episode, rating *Classification, audio *Language, deviceIdentifier string) (*Streamings, error) {
+func FetchEpisodeStreaming(chapter *Episode, rating *Classification, audio *Language) (*Streamings, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -20,7 +20,7 @@ func FetchEpisodeStreaming(chapter *Episode, rating *Classification, audio *Lang
       ClassificationId:         rating.NumericalId,
       ContentId:                chapter.Id,
       ContentType:              "episodes",
-      DeviceIdentifier:         deviceIdentifier,
+      DeviceIdentifier:         "atvui40",
       DeviceSerial:             "not implemented",
       DeviceStreamVideoQuality: "UHD",
       Player:                   "atvui40:DASH-CENC:PR",

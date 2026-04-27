@@ -11,6 +11,42 @@ import (
    "strings"
 )
 
+// Season fetches episodes for a specific season (GET).
+func (c *Content) Season(class *Classification, seasonId string) (*Season, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gizmo.rakuten.tv",
+         Path:   "/v3/seasons/" + seasonId,
+         RawQuery: url.Values{
+            "classification_id": {strconv.Itoa(class.NumericalId)},
+            "device_identifier": {DeviceId},
+            "market_code":       {c.MarketCode},
+         }.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data Season
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+type Classification struct {
+   NumericalId int `json:"numerical_id"`
+}
+
 //go:embed classification.json
 var classification_json []byte
 
@@ -41,10 +77,6 @@ func (c *Content) FetchClassification() (*Classification, error) {
       return nil, err
    }
    return &result.Data.Profile.Classification, nil
-}
-
-type Classification struct {
-   NumericalId int `json:"numerical_id"`
 }
 
 // For TV Shows, 'id' should be the Episode ID.
@@ -104,45 +136,9 @@ func (c *Content) FetchStreamInfo(class *Classification, id, audioLanguage strin
    return &result.Data.StreamInfos[0], nil
 }
 
-func (s *StreamInfo) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Url)
-}
-
 type StreamInfo struct {
    LicenseUrl string `json:"license_url"`
    Url        string `json:"url"`
-}
-
-// String implementation for MovieOrEpisode to pretty print details
-func (m *MovieOrEpisode) String() string {
-   seen := make(map[string]bool)
-   var data strings.Builder
-   data.WriteString("title = ")
-   data.WriteString(m.Title)
-   data.WriteString("\nid = ")
-   data.WriteString(m.Id)
-   for _, streamData := range m.ViewOptions.Private.Streams {
-      for _, language := range streamData.AudioLanguages {
-         if !seen[language.Id] {
-            seen[language.Id] = true
-            data.WriteString("\naudio language = ")
-            data.WriteString(language.Id)
-         }
-      }
-   }
-   return data.String()
-}
-
-func (t TvShow) String() string {
-   var data strings.Builder
-   for i, season := range t.Seasons {
-      if i >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("season id = ")
-      data.WriteString(season.Id)
-   }
-   return data.String()
 }
 
 // Constants for device and player configuration
@@ -179,14 +175,6 @@ type MovieOrEpisode struct {
          } `json:"streams"`
       } `json:"private"`
    } `json:"view_options"`
-}
-
-func (c *Content) IsMovie() bool {
-   return c.Type == "movies"
-}
-
-func (c *Content) IsTvShow() bool {
-   return c.Type == "tv_shows"
 }
 
 // Content represents the parsed Rakuten URL data
@@ -228,47 +216,6 @@ func (s *StreamInfo) FetchWidevine(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-// Parse extracts metadata from a Rakuten URL and returns a new Content struct
-func ParseContent(urlData string) (*Content, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return nil, err
-   }
-
-   c := &Content{}
-
-   // Trim prefix once and extract the market code
-   path := strings.TrimPrefix(url_parse.Path, "/")
-   c.MarketCode, _, _ = strings.Cut(path, "/")
-
-   // 1. Check Query Parameters
-   query := url_parse.Query()
-   content_type := query.Get("content_type")
-   switch content_type {
-   case "movies":
-      c.Id = query.Get("content_id")
-      c.Type = content_type
-      return c, nil
-   case "tv_shows":
-      c.Id = query.Get("tv_show_id")
-      c.Type = content_type
-      return c, nil
-   }
-
-   // 2. Check Path Segments
-   segments := strings.Split(path, "/")
-   for _, segment := range segments {
-      switch segment {
-      case "movies", "tv_shows":
-         c.Id = segments[len(segments)-1]
-         c.Type = segment
-         return c, nil
-      }
-   }
-
-   return nil, errors.New("not a movie or tv show url")
 }
 
 func (c *Content) Movie(class *Classification) (*MovieOrEpisode, error) {
@@ -335,34 +282,89 @@ func (c *Content) TvShow(class *Classification) (*TvShow, error) {
    return &result.Data, nil
 }
 
-// Season fetches episodes for a specific season (GET).
-func (c *Content) Season(class *Classification, seasonId string) (*Season, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gizmo.rakuten.tv",
-         Path:   "/v3/seasons/" + seasonId,
-         RawQuery: url.Values{
-            "classification_id": {strconv.Itoa(class.NumericalId)},
-            "device_identifier": {DeviceId},
-            "market_code":       {c.MarketCode},
-         }.Encode(),
-      },
-      nil,
-   )
+///
+
+func (s *StreamInfo) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Url)
+}
+
+// String implementation for MovieOrEpisode to pretty print details
+func (m *MovieOrEpisode) String() string {
+   seen := make(map[string]bool)
+   var data strings.Builder
+   data.WriteString("title = ")
+   data.WriteString(m.Title)
+   data.WriteString("\nid = ")
+   data.WriteString(m.Id)
+   for _, streamData := range m.ViewOptions.Private.Streams {
+      for _, language := range streamData.AudioLanguages {
+         if !seen[language.Id] {
+            seen[language.Id] = true
+            data.WriteString("\naudio language = ")
+            data.WriteString(language.Id)
+         }
+      }
+   }
+   return data.String()
+}
+
+func (t TvShow) String() string {
+   var data strings.Builder
+   for i, season := range t.Seasons {
+      if i >= 1 {
+         data.WriteByte('\n')
+      }
+      data.WriteString("season id = ")
+      data.WriteString(season.Id)
+   }
+   return data.String()
+}
+
+func (c *Content) IsMovie() bool {
+   return c.Type == "movies"
+}
+
+func (c *Content) IsTvShow() bool {
+   return c.Type == "tv_shows"
+}
+
+// Parse extracts metadata from a Rakuten URL and returns a new Content struct
+func ParseContent(urlData string) (*Content, error) {
+   url_parse, err := url.Parse(urlData)
    if err != nil {
       return nil, err
    }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
+
+   c := &Content{}
+
+   // Trim prefix once and extract the market code
+   path := strings.TrimPrefix(url_parse.Path, "/")
+   c.MarketCode, _, _ = strings.Cut(path, "/")
+
+   // 1. Check Query Parameters
+   query := url_parse.Query()
+   content_type := query.Get("content_type")
+   switch content_type {
+   case "movies":
+      c.Id = query.Get("content_id")
+      c.Type = content_type
+      return c, nil
+   case "tv_shows":
+      c.Id = query.Get("tv_show_id")
+      c.Type = content_type
+      return c, nil
    }
 
-   var result struct {
-      Data Season
+   // 2. Check Path Segments
+   segments := strings.Split(path, "/")
+   for _, segment := range segments {
+      switch segment {
+      case "movies", "tv_shows":
+         c.Id = segments[len(segments)-1]
+         c.Type = segment
+         return c, nil
+      }
    }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
+
+   return nil, errors.New("not a movie or tv show url")
 }

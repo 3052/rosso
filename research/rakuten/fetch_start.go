@@ -44,7 +44,7 @@ type DeviceMetadata struct {
    Year         int    `json:"year"`
 }
 
-func FetchStart(marketCode string, deviceIdentifier string) (*StartResponse, error) {
+func FetchStart(marketCode string) (*StartResponse, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -56,7 +56,7 @@ func FetchStart(marketCode string, deviceIdentifier string) (*StartResponse, err
    target.RawQuery = query.Encode()
 
    payload := StartRequest{
-      DeviceIdentifier: deviceIdentifier,
+      DeviceIdentifier: "web",
       DeviceMetadata: DeviceMetadata{
          AppVersion:   "app_version",
          Brand:        "brand",
