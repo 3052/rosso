@@ -7,17 +7,18 @@ import (
    "41.neocities.org/maya"
 )
 
-func AcquireMovieLicense(info *MovieStreamInfo, challenge []byte) ([]byte, error) {
-   link := &url.URL{
+func AcquireEpisodeLicense(uuid EpisodeLicenseUuid, challenge []byte) ([]byte, error) {
+   endpoint := url.URL{
       Scheme: "https",
       Host:   "prod-playready.rakuten.tv",
       Path:   "/v1/licensing/pr",
    }
-   values := url.Values{}
-   values.Set("uuid", string(info.Wrid))
-   link.RawQuery = values.Encode()
 
-   resp, err := maya.Post(link, nil, challenge)
+   query := url.Values{}
+   query.Set("uuid", string(uuid))
+   endpoint.RawQuery = query.Encode()
+
+   resp, err := maya.Post(&endpoint, nil, challenge)
    if err != nil {
       return nil, err
    }

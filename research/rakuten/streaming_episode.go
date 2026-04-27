@@ -7,30 +7,29 @@ import (
    "41.neocities.org/maya"
 )
 
-type MovieLicenseUuid string
+type EpisodeLicenseUuid string
 
-type MovieStreamings struct {
-   StreamInfos []MovieStreamInfo `json:"stream_infos"`
+type EpisodeStreamInfo struct {
+   Wrid EpisodeLicenseUuid `json:"wrid"`
 }
 
-type MovieStreamInfo struct {
-   Wrid MovieLicenseUuid `json:"wrid"`
-   Url  string           `json:"url"`
+type EpisodeStreaming struct {
+   StreamInfos []EpisodeStreamInfo `json:"stream_infos"`
 }
 
-func GetMovieStreamings(movie *CinemaMovie, audioLanguage string, classificationId int) (*MovieStreamings, error) {
-   link := &url.URL{
+func CreateEpisodeStreaming(contentId EpisodeContentId, classId ClassificationId, audioLang LanguageId) (*EpisodeStreaming, error) {
+   endpoint := url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
       Path:   "/v3/avod/streamings",
    }
 
    payload := map[string]any{
-      "audio_language":              audioLanguage,
+      "audio_language":              string(audioLang),
       "audio_quality":               "2.0",
-      "classification_id":           classificationId,
-      "content_id":                  movie.Id,
-      "content_type":                "movies",
+      "classification_id":           int(classId),
+      "content_id":                  string(contentId),
+      "content_type":                "episodes",
       "device_identifier":           "atvui40",
       "device_serial":               "not implemented",
       "device_stream_video_quality": "UHD",
@@ -38,6 +37,7 @@ func GetMovieStreamings(movie *CinemaMovie, audioLanguage string, classification
       "subtitle_language":           "MIS",
       "video_type":                  "stream",
    }
+
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
@@ -47,17 +47,19 @@ func GetMovieStreamings(movie *CinemaMovie, audioLanguage string, classification
       "content-type": "application/json",
    }
 
-   resp, err := maya.Post(link, headers, body)
+   resp, err := maya.Post(&endpoint, headers, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var respWrapper struct {
-      Data MovieStreamings `json:"data"`
+   var wrapper struct {
+      Data EpisodeStreaming `json:"data"`
    }
-   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+   decoder := json.NewDecoder(resp.Body)
+   if err := decoder.Decode(&wrapper); err != nil {
       return nil, err
    }
-   return &respWrapper.Data, nil
+
+   return &wrapper.Data, nil
 }

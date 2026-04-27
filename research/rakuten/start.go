@@ -7,23 +7,37 @@ import (
    "41.neocities.org/maya"
 )
 
+type MarketCode string
+type ClassificationId int
+type LanguageId string
+
+type Classification struct {
+   NumericalId ClassificationId `json:"numerical_id"`
+}
+
+type Language struct {
+   Id LanguageId `json:"id"`
+}
+
+type Profile struct {
+   Classification Classification `json:"classification"`
+   AudioLanguage  Language       `json:"audio_language"`
+}
+
 type Session struct {
-   Market Market `json:"market"`
+   Profile Profile `json:"profile"`
 }
 
-type Market struct {
-   Code string `json:"code"`
-}
-
-func StartSession(marketCode string) (*Session, error) {
-   link := &url.URL{
+func StartSession(market MarketCode) (*Session, error) {
+   endpoint := url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
       Path:   "/v3/me/start",
    }
-   values := url.Values{}
-   values.Set("market_code", marketCode)
-   link.RawQuery = values.Encode()
+
+   query := url.Values{}
+   query.Set("market_code", string(market))
+   endpoint.RawQuery = query.Encode()
 
    payload := map[string]any{
       "device_identifier": "web",
@@ -37,6 +51,7 @@ func StartSession(marketCode string) (*Session, error) {
          "year":          0,
       },
    }
+
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
@@ -46,17 +61,19 @@ func StartSession(marketCode string) (*Session, error) {
       "content-type": "application/json",
    }
 
-   resp, err := maya.Post(link, headers, body)
+   resp, err := maya.Post(&endpoint, headers, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var respWrapper struct {
+   var wrapper struct {
       Data Session `json:"data"`
    }
-   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+   decoder := json.NewDecoder(resp.Body)
+   if err := decoder.Decode(&wrapper); err != nil {
       return nil, err
    }
-   return &respWrapper.Data, nil
+
+   return &wrapper.Data, nil
 }
