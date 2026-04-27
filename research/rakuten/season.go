@@ -8,40 +8,37 @@ import (
    "41.neocities.org/maya"
 )
 
-type EpisodeContentId string
-
 type SeasonEpisode struct {
-   Id EpisodeContentId `json:"id"`
+   Id string `json:"id"`
 }
 
-type Season struct {
+type TvSeason struct {
+   Id       string          `json:"id"`
    Episodes []SeasonEpisode `json:"episodes"`
 }
 
-func GetSeason(seasonId SeasonId, classId ClassificationId, market MarketCode) (*Season, error) {
-   endpoint := url.URL{
+func FetchTvSeason(session *UserSession, showSeason *TvShowSeason) (*TvSeason, error) {
+   endpoint := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + string(seasonId),
+      Path:   "/v3/seasons/" + showSeason.Id,
    }
+   values := url.Values{}
+   values.Set("classification_id", strconv.Itoa(session.Profile.Classification.NumericalId))
+   values.Set("device_identifier", "atvui40")
+   values.Set("market_code", session.Market.Code)
+   endpoint.RawQuery = values.Encode()
 
-   query := url.Values{}
-   query.Set("classification_id", strconv.Itoa(int(classId)))
-   query.Set("device_identifier", "atvui40")
-   query.Set("market_code", string(market))
-   endpoint.RawQuery = query.Encode()
-
-   resp, err := maya.Get(&endpoint, nil)
+   resp, err := maya.Get(endpoint, nil)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
    var wrapper struct {
-      Data Season `json:"data"`
+      Data TvSeason `json:"data"`
    }
-   decoder := json.NewDecoder(resp.Body)
-   if err := decoder.Decode(&wrapper); err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
       return nil, err
    }
 
