@@ -8,28 +8,32 @@ import (
    "41.neocities.org/maya"
 )
 
-type TvShowSeason struct {
-   Id          string `json:"id"`
-   NumericalId int    `json:"numerical_id"`
-   Number      int    `json:"number"`
+type ContentId string
+type ContentType string
+
+type Season struct {
+   Id   ContentId   `json:"id"`
+   Type ContentType `json:"type"`
 }
 
-type TvShow struct {
-   Id      string         `json:"id"`
-   Seasons []TvShowSeason `json:"seasons"`
+type TvShowResponse struct {
+   Id      ContentId   `json:"id"`
+   Type    ContentType `json:"type"`
+   Seasons []*Season   `json:"seasons"`
 }
 
-func FetchTvShow(session *UserSession, tvShowId string) (*TvShow, error) {
+func GetTvShow(showId string, sessionResp *SessionResponse) (*TvShowResponse, error) {
+   query := make(url.Values)
+   query.Set("classification_id", strconv.Itoa(sessionResp.Profile.Classification.NumericalId))
+   query.Set("device_identifier", "atvui40")
+   query.Set("market_code", sessionResp.Market.Code)
+
    endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/tv_shows/" + tvShowId,
+      Scheme:   "https",
+      Host:     "gizmo.rakuten.tv",
+      Path:     "/v3/tv_shows/" + showId,
+      RawQuery: query.Encode(),
    }
-   values := url.Values{}
-   values.Set("classification_id", strconv.Itoa(session.Profile.Classification.NumericalId))
-   values.Set("device_identifier", "atvui40")
-   values.Set("market_code", session.Market.Code)
-   endpoint.RawQuery = values.Encode()
 
    resp, err := maya.Get(endpoint, nil)
    if err != nil {
@@ -38,11 +42,11 @@ func FetchTvShow(session *UserSession, tvShowId string) (*TvShow, error) {
    defer resp.Body.Close()
 
    var wrapper struct {
-      Data TvShow `json:"data"`
+      Data *TvShowResponse `json:"data"`
    }
    if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
       return nil, err
    }
 
-   return &wrapper.Data, nil
+   return wrapper.Data, nil
 }

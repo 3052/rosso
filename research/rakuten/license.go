@@ -7,17 +7,16 @@ import (
    "41.neocities.org/maya"
 )
 
-type StreamingUuid string
+func AcquireLicense(targetInfo *StreamInfo, challenge []byte) ([]byte, error) {
+   query := make(url.Values)
+   query.Set("uuid", targetInfo.Wrid)
 
-func AcquireLicense(uuid StreamingUuid, challenge []byte) ([]byte, error) {
    endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "prod-playready.rakuten.tv",
-      Path:   "/v1/licensing/pr",
+      Scheme:   "https",
+      Host:     "prod-playready.rakuten.tv",
+      Path:     "/v1/licensing/pr",
+      RawQuery: query.Encode(),
    }
-   values := url.Values{}
-   values.Set("uuid", string(uuid))
-   endpoint.RawQuery = values.Encode()
 
    resp, err := maya.Post(endpoint, nil, challenge)
    if err != nil {
@@ -25,5 +24,10 @@ func AcquireLicense(uuid StreamingUuid, challenge []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
 
-   return io.ReadAll(resp.Body)
+   licenseBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   return licenseBytes, nil
 }
