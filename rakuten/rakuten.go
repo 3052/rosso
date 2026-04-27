@@ -13,17 +13,16 @@ import (
 // For TV Shows, 'id' should be the Episode ID.
 // For Movies, 'id' is ignored (uses c.Id).
 func (c *Content) FetchStreamInfo(class *Classification, id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
-   value := map[string]string{
+   value := map[string]any{
       "audio_language":              audioLanguage,
       "audio_quality":               "2.0",
+      "classification_id":           class.NumericalId,
       "device_identifier":           DeviceId,
       "device_serial":               "not implemented",
       "device_stream_video_quality": string(quality),
       "player":                      string(playerData),
       "subtitle_language":           "MIS",
       "video_type":                  "stream",
-      // does this have to be a string?
-      "classification_id": strconv.Itoa(class.NumericalId),
    }
    switch c.Type {
    case "tv_shows":
