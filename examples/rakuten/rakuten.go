@@ -32,6 +32,7 @@ func (c *client) do_language() error {
 }
 
 var cache maya.Cache
+
 func (c *client) do_address() error {
    var err error
    c.Content, err = rakuten.ParseContent(c.address)

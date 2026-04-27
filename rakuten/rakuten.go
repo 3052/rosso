@@ -2,13 +2,13 @@ package rakuten
 
 import (
    "41.neocities.org/maya"
+   _ "embed"
    "encoding/json"
    "errors"
    "io"
    "net/url"
    "strconv"
    "strings"
-   _ "embed"
 )
 
 //go:embed classification.json
@@ -46,6 +46,7 @@ func (c *Content) FetchClassification() (*Classification, error) {
 type Classification struct {
    NumericalId int `json:"numerical_id"`
 }
+
 // For TV Shows, 'id' should be the Episode ID.
 // For Movies, 'id' is ignored (uses c.Id).
 func (c *Content) FetchStreamInfo(class *Classification, id, audioLanguage string, playerData Player, quality VideoQuality) (*StreamInfo, error) {
