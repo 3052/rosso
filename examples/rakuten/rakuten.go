@@ -7,6 +7,31 @@ import (
    "log"
 )
 
+func main() {
+   maya.SetProxy("", "*.isma", "*.ismv")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_language() error {
+   var err error
+   c.StreamInfo, err = c.Content.FetchStreamInfo(
+      c.Classification, c.Episode, c.Language, rakuten.PlayReady, rakuten.Uhd,
+   )
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache
 func (c *client) do_address() error {
    var err error
    c.Content, err = rakuten.ParseContent(c.address)
@@ -108,29 +133,3 @@ func (c *client) do() error {
       {dash},
    })
 }
-
-func main() {
-   maya.SetProxy("", "*.isma", "*.ismv")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_language() error {
-   var err error
-   c.StreamInfo, err = c.Content.FetchStreamInfo(
-      c.Classification, c.Episode, c.Language, rakuten.PlayReady, rakuten.Uhd,
-   )
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
