@@ -1,0 +1,49 @@
+package rakuten
+
+import (
+   "encoding/json"
+   "net/url"
+   "strconv"
+
+   "41.neocities.org/maya"
+)
+
+type SeasonDetails struct {
+   Id       string    `json:"id"`
+   Episodes []Episode `json:"episodes"`
+}
+
+type Episode struct {
+   Id          string      `json:"id"`
+   ViewOptions ViewOptions `json:"view_options"`
+}
+
+func FetchSeason(period *Season, rating *Classification, region *Market, deviceIdentifier string) (*SeasonDetails, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/seasons/" + period.Id,
+   }
+
+   query := url.Values{}
+   query.Set("classification_id", strconv.Itoa(rating.NumericalId))
+   query.Set("device_identifier", deviceIdentifier)
+   query.Set("market_code", region.Code)
+   target.RawQuery = query.Encode()
+
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var respWrapper struct {
+      Data SeasonDetails `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+      return nil, err
+   }
+
+   return &respWrapper.Data, nil
+}
