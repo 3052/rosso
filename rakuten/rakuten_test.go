@@ -2,37 +2,41 @@ package rakuten
 
 import "testing"
 
-var classification_tests = []struct {
-   url    string
+var tests = []struct{
    height int
+   language []string
+   url    string
+   why string
 }{
    {
-      url:    "https://rakuten.tv/cz?content_type=movies&content_id=transvulcania-the-people-s-run",
-      height: 2160,
-   },
-   {
+      height: 1080,
+      language: []string{"CAT", "ENG", "SPA"},
       url:    "https://rakuten.tv/es/movies/una-obra-maestra",
-      height: 1080,
-   },
-   {
-      url:    "https://rakuten.tv/fr/tv_shows/une-femme-d-honneur",
-      height: 1080,
+      why: "1080",
    },
    {
       url:    "https://rakuten.tv/ie?content_id=blair-witch&content_type=movies",
       height: 2160,
+      language: []string{"ENG"},
+      why: "2160",
    },
    {
-      url:    "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
       height: 1080,
+      language: []string{"DEU", "ENG", "ITA", "POL"},
+      url: "https://rakuten.tv/nl/player/movies/stream/made-in-america",
+      why: "/player/movies/stream/",
    },
    {
-      url:    "https://rakuten.tv/pt/movies/bound",
       height: 1080,
-   },
-   {
+      language: []string{"ENG"},
       url:    "https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink",
+      why: "?tv_show_id=",
+   },
+   {
       height: 1080,
+      language: []string{"FRA"},
+      url:    "https://rakuten.tv/fr/tv_shows/une-femme-d-honneur",
+      why: "/tv_shows/",
    },
 }
 
@@ -40,28 +44,3 @@ func TestLog(t *testing.T) {
    t.Log(address_tests, classification_tests)
 }
 
-var address_tests = []struct {
-   format string
-   url    string
-}{
-   {
-      format: "/movies/",
-      url:    "https://rakuten.tv/nl/movies/made-in-america",
-   },
-   {
-      format: "/player/movies/stream/",
-      url:    "https://rakuten.tv/nl/player/movies/stream/made-in-america",
-   },
-   {
-      format: "/tv_shows/",
-      url:    "https://rakuten.tv/fr/tv_shows/une-femme-d-honneur",
-   },
-   {
-      format: "?content_id=",
-      url:    "https://rakuten.tv/nl?content_type=movies&content_id=made-in-america",
-   },
-   {
-      format: "?tv_show_id=",
-      url:    "https://rakuten.tv/uk?content_type=tv_shows&tv_show_id=clink",
-   },
-}
