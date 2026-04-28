@@ -1,3 +1,4 @@
+// FILE: rakuten/fetch_streaming.go
 package rakuten
 
 import (
@@ -6,10 +7,6 @@ import (
 
    "41.neocities.org/maya"
 )
-
-type Streamings struct {
-   StreamInfos []StreamInfo `json:"stream_infos"`
-}
 
 type StreamInfo struct {
    LicenseUrl string `json:"license_url"`
@@ -30,7 +27,15 @@ type StreamingRequest struct {
    VideoType                string `json:"video_type"`
 }
 
-func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language) (*Streamings, error) {
+func FetchMovieStreaming(contentId string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
+   return fetchStreaming(contentId, "movies", rating, audioLanguage)
+}
+
+func FetchEpisodeStreaming(contentId string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
+   return fetchStreaming(contentId, "episodes", rating, audioLanguage)
+}
+
+func fetchStreaming(contentId string, contentType string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -38,11 +43,11 @@ func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language) (
    }
 
    payload := StreamingRequest{
-      AudioLanguage:            audio.Id,
+      AudioLanguage:            audioLanguage,
       AudioQuality:             "2.0",
       ClassificationId:         rating.NumericalId,
-      ContentId:                film.Id,
-      ContentType:              "movies",
+      ContentId:                contentId,
+      ContentType:              contentType,
       DeviceIdentifier:         "atvui40",
       DeviceSerial:             "not implemented",
       DeviceStreamVideoQuality: "UHD",
@@ -51,7 +56,7 @@ func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language) (
       VideoType:                "stream",
    }
 
-   reqBytes, err := json.Marshal(payload)
+   body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
@@ -60,19 +65,18 @@ func FetchMovieStreaming(film *Movie, rating *Classification, audio *Language) (
       "content-type": "application/json",
    }
 
-   resp, err := maya.Post(target, headers, reqBytes)
+   resp, err := maya.Post(target, headers, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-
-   var respWrapper struct {
-      Data Streamings `json:"data"`
+   var result struct {
+      Data struct {
+         StreamInfos []StreamInfo `json:"stream_infos"`
+      }
    }
-
-   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-
-   return &respWrapper.Data, nil
+   return &result.Data.StreamInfos[0], nil
 }

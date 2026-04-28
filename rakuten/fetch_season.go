@@ -21,11 +21,11 @@ type Episode struct {
    ViewOptions ViewOptions `json:"view_options"`
 }
 
-func FetchSeason(period *Season, rating *Classification, region *Market) (*SeasonDetails, error) {
+func FetchSeason(id string, rating *Classification, region *Market) (*SeasonDetails, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + period.Id,
+      Path:   "/v3/seasons/" + id,
    }
 
    query := url.Values{}
