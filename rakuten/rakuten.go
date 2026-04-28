@@ -177,13 +177,6 @@ type MovieOrEpisode struct {
    } `json:"view_options"`
 }
 
-// Content represents the parsed Rakuten URL data
-type Content struct {
-   Id         string
-   MarketCode string
-   Type       string
-}
-
 const (
    Fhd VideoQuality = "FHD"
    Hd  VideoQuality = "HD"
@@ -282,50 +275,15 @@ func (c *Content) TvShow(class *Classification) (*TvShow, error) {
    return &result.Data, nil
 }
 
-///
-
 func (s *StreamInfo) GetManifest() (*url.URL, error) {
    return url.Parse(s.Url)
 }
 
-// String implementation for MovieOrEpisode to pretty print details
-func (m *MovieOrEpisode) String() string {
-   seen := make(map[string]bool)
-   var data strings.Builder
-   data.WriteString("title = ")
-   data.WriteString(m.Title)
-   data.WriteString("\nid = ")
-   data.WriteString(m.Id)
-   for _, streamData := range m.ViewOptions.Private.Streams {
-      for _, language := range streamData.AudioLanguages {
-         if !seen[language.Id] {
-            seen[language.Id] = true
-            data.WriteString("\naudio language = ")
-            data.WriteString(language.Id)
-         }
-      }
-   }
-   return data.String()
-}
-
-func (t TvShow) String() string {
-   var data strings.Builder
-   for i, season := range t.Seasons {
-      if i >= 1 {
-         data.WriteByte('\n')
-      }
-      data.WriteString("season id = ")
-      data.WriteString(season.Id)
-   }
-   return data.String()
-}
-
-func (c *Content) IsMovie() bool {
-   return c.Type == "movies"
-}
-
-func (c *Content) IsTvShow() bool {
-   return c.Type == "tv_shows"
+// Content represents the parsed Rakuten URL data
+type Content struct {
+   Id         string
+   MarketCode string
+   Type       string
 }
 
 // Parse extracts metadata from a Rakuten URL and returns a new Content struct
@@ -367,4 +325,46 @@ func ParseContent(urlData string) (*Content, error) {
    }
 
    return nil, errors.New("not a movie or tv show url")
+}
+
+///
+
+// String implementation for MovieOrEpisode to pretty print details
+func (m *MovieOrEpisode) String() string {
+   seen := make(map[string]bool)
+   var data strings.Builder
+   data.WriteString("title = ")
+   data.WriteString(m.Title)
+   data.WriteString("\nid = ")
+   data.WriteString(m.Id)
+   for _, streamData := range m.ViewOptions.Private.Streams {
+      for _, language := range streamData.AudioLanguages {
+         if !seen[language.Id] {
+            seen[language.Id] = true
+            data.WriteString("\naudio language = ")
+            data.WriteString(language.Id)
+         }
+      }
+   }
+   return data.String()
+}
+
+func (t TvShow) String() string {
+   var data strings.Builder
+   for i, season := range t.Seasons {
+      if i >= 1 {
+         data.WriteByte('\n')
+      }
+      data.WriteString("season id = ")
+      data.WriteString(season.Id)
+   }
+   return data.String()
+}
+
+func (c *Content) IsMovie() bool {
+   return c.Type == "movies"
+}
+
+func (c *Content) IsTvShow() bool {
+   return c.Type == "tv_shows"
 }
