@@ -1,12 +1,77 @@
 package rakuten
 
 import (
+   "41.neocities.org/maya"
    "encoding/json"
    "errors"
+   "io"
    "net/url"
-
-   "41.neocities.org/maya"
+   "strconv"
+   "strings"
 )
+
+type TvShow struct {
+   Id      string   `json:"id"`
+   Title   string   `json:"title"`
+   Seasons []Season `json:"seasons"`
+}
+
+func FetchTvShow(tvShowId string, userClassification Classification, targetMarket Market) (*TvShow, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/tv_shows/" + tvShowId,
+   }
+
+   query := url.Values{}
+   query.Set("classification_id", strconv.Itoa(userClassification.NumericalId))
+   query.Set("device_identifier", "atvui40")
+   query.Set("market_code", targetMarket.Code)
+   target.RawQuery = query.Encode()
+
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var apiResp struct {
+      Data TvShow `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+      return nil, err
+   }
+
+   return &apiResp.Data, nil
+}
+
+func (show *TvShow) String() string {
+   var builder strings.Builder
+   for index, currentSeason := range show.Seasons {
+      if index >= 1 {
+         builder.WriteByte('\n')
+      }
+      builder.WriteString("season id = ")
+      builder.WriteString(currentSeason.Id)
+   }
+   return builder.String()
+}
+
+func (info *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
+   target, err := url.Parse(info.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(target, nil, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
 
 type StreamInfo struct {
    LicenseUrl string `json:"license_url"`
@@ -27,15 +92,15 @@ type StreamingRequest struct {
    VideoType                string `json:"video_type"`
 }
 
-func FetchMovieStreaming(contentId string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
+func FetchMovieStreaming(contentId string, userClassification Classification, audioLanguage string) (*StreamInfo, error) {
    return fetchStreaming(contentId, "movies", userClassification, audioLanguage)
 }
 
-func FetchEpisodeStreaming(contentId string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
+func FetchEpisodeStreaming(contentId string, userClassification Classification, audioLanguage string) (*StreamInfo, error) {
    return fetchStreaming(contentId, "episodes", userClassification, audioLanguage)
 }
 
-func fetchStreaming(contentId string, contentType string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
+func fetchStreaming(contentId string, contentType string, userClassification Classification, audioLanguage string) (*StreamInfo, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -43,7 +108,7 @@ func fetchStreaming(contentId string, contentType string, userClassification Cla
    }
 
    payload := StreamingRequest{
-      AudioLanguage:            audioLanguage.Id,
+      AudioLanguage:            audioLanguage,
       AudioQuality:             "2.0",
       ClassificationId:         userClassification.NumericalId,
       ContentId:                contentId,

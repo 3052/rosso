@@ -12,11 +12,11 @@ func (c *client) do_language() error {
    switch {
    case c.Url.IsMovie():
       c.StreamInfo, err = rakuten.FetchMovieStreaming(
-         c.Url.ContentId, &c.Start.Profile.Classification, c.AudioLanguage,
+         c.Url.ContentId, c.Start.Profile.Classification, c.AudioLanguage,
       )
    case c.Url.IsTvShow():
       c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
-         c.Episode, &c.Start.Profile.Classification, c.AudioLanguage,
+         c.Episode, c.Start.Profile.Classification, c.AudioLanguage,
       )
    }
    if err != nil {
@@ -87,7 +87,7 @@ func (c *client) do() error {
 
 func (c *client) do_season() error {
    season, err := rakuten.FetchSeason(
-      c.season, &c.Start.Profile.Classification, &c.Start.Market,
+      c.season, c.Start.Profile.Classification, c.Start.Market,
    )
    if err != nil {
       return err
@@ -114,7 +114,7 @@ func (c *client) do_address() error {
    switch {
    case c.Url.IsMovie():
       movie, err := rakuten.FetchMovie(
-         c.Url.ContentId, &c.Start.Profile.Classification, &c.Start.Market,
+         c.Url.ContentId, c.Start.Profile.Classification, c.Start.Market,
       )
       if err != nil {
          return err
@@ -122,7 +122,7 @@ func (c *client) do_address() error {
       fmt.Println(movie)
    case c.Url.IsTvShow():
       show, err := rakuten.FetchTvShow(
-         c.Url.ContentId, &c.Start.Profile.Classification, &c.Start.Market,
+         c.Url.ContentId, c.Start.Profile.Classification, c.Start.Market,
       )
       if err != nil {
          return err
@@ -134,7 +134,7 @@ func (c *client) do_address() error {
 
 type client struct {
    Dash       *maya.Dash
-   Start      *rakuten.StartResponse
+   Start      *rakuten.Start
    StreamInfo *rakuten.StreamInfo
    Url        *rakuten.ParsedUrl
    //-------------------
