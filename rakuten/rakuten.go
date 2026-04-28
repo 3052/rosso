@@ -10,6 +10,121 @@ import (
    "strings"
 )
 
+type ParsedUrl struct {
+   MarketCode  string
+   ContentType string
+   ContentId   string
+}
+
+func ParseUrl(targetUrl string) (*ParsedUrl, error) {
+   target, err := url.Parse(targetUrl)
+   if err != nil {
+      return nil, err
+   }
+
+   if !strings.HasSuffix(target.Host, "rakuten.tv") {
+      return nil, errors.New("invalid host")
+   }
+
+   segments := strings.Split(strings.Trim(target.Path, "/"), "/")
+   if len(segments) == 0 || segments[0] == "" {
+      return nil, errors.New("missing market code in path")
+   }
+
+   parsed := &ParsedUrl{
+      MarketCode: segments[0],
+   }
+
+   if len(segments) == 3 {
+      parsed.ContentType = segments[1]
+      parsed.ContentId = segments[2]
+   } else if len(segments) >= 5 && segments[1] == "player" {
+      parsed.ContentType = segments[2]
+      parsed.ContentId = segments[4]
+   }
+
+   query := target.Query()
+   if parsed.ContentType == "" {
+      parsed.ContentType = query.Get("content_type")
+   }
+
+   if parsed.ContentId == "" {
+      if id := query.Get("content_id"); id != "" {
+         parsed.ContentId = id
+      } else if id := query.Get("tv_show_id"); id != "" {
+         parsed.ContentId = id
+         if parsed.ContentType == "" {
+            parsed.ContentType = "tv_shows"
+         }
+      } else if id := query.Get("movie_id"); id != "" {
+         parsed.ContentId = id
+         if parsed.ContentType == "" {
+            parsed.ContentType = "movies"
+         }
+      }
+   }
+
+   if parsed.MarketCode == "" || parsed.ContentType == "" || parsed.ContentId == "" {
+      return nil, errors.New("could not extract all required components from url")
+   }
+
+   return parsed, nil
+}
+
+func (parsed *ParsedUrl) IsMovie() bool {
+   return parsed.ContentType == "movies"
+}
+
+func (parsed *ParsedUrl) IsTvShow() bool {
+   return parsed.ContentType == "tv_shows"
+}
+
+type Season struct {
+   Id       string    `json:"id"`
+   Title    string    `json:"title"`
+   Episodes []Episode `json:"episodes"`
+}
+
+type Episode struct {
+   Id          string      `json:"id"`
+   Title       string      `json:"title"`
+   ViewOptions ViewOptions `json:"view_options"`
+}
+
+func FetchSeason(seasonId string, userClassification Classification, targetMarket Market) (*Season, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/seasons/" + seasonId,
+   }
+
+   query := url.Values{}
+   query.Set("classification_id", strconv.Itoa(userClassification.NumericalId))
+   query.Set("device_identifier", "atvui40")
+   query.Set("market_code", targetMarket.Code)
+   target.RawQuery = query.Encode()
+
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var apiResp struct {
+      Data Season `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+      return nil, err
+   }
+
+   return &apiResp.Data, nil
+}
+
+func (targetEpisode *Episode) String() string {
+   return formatPlayableDetails(targetEpisode.Id, targetEpisode.Title, targetEpisode.ViewOptions.Private.Streams)
+}
+
 type TvShow struct {
    Id      string   `json:"id"`
    Title   string   `json:"title"`
