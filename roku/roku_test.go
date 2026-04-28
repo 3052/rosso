@@ -3,19 +3,24 @@ package roku
 import "testing"
 
 var tests = []struct {
-   id         string
-   type_value string
-   url        string
+   browse string
+   url    string
+   plan   bool
 }{
    {
-      id:         "597a64a4a25c5bf6af4a8c7053049a6f",
-      type_value: "movie",
-      url:        "https://therokuchannel.roku.com/watch/597a64a4a25c5bf6af4a8c7053049a6f",
+      url:    "https://therokuchannel.roku.com/details/50946a7e29d4869f9f81b77d4bdb5d42",
+      browse: "movies",
+      plan:   true,
    },
    {
-      id:         "105c41ea75775968b670fbb26978ed76",
-      type_value: "episode",
-      url:        "https://therokuchannel.roku.com/watch/105c41ea75775968b670fbb26978ed76",
+      url:    "https://therokuchannel.roku.com/details/597a64a4a25c5bf6af4a8c7053049a6f",
+      browse: "movies",
+      plan:   false,
+   },
+   {
+      url:    "https://therokuchannel.roku.com/details/105c41ea75775968b670fbb26978ed76",
+      browse: "series",
+      plan:   false,
    },
 }
 

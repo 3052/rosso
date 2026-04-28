@@ -144,6 +144,7 @@ func FetchActivation(authToken string) (*Activation, error) {
    }
    return result, nil
 }
+
 func (p *Playback) GetManifest() (*url.URL, error) {
    return url.Parse(p.Url)
 }
