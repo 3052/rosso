@@ -42,3 +42,4 @@ func Post(targetUrl *url.URL, headers map[string]string, body []byte) (*http.Res
 1. kanopy
 2. tubi
 3. plex
+4. rakuten

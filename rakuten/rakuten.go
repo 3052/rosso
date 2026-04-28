@@ -1,11 +1,110 @@
 package rakuten
 
 import (
+   "41.neocities.org/maya"
+   "encoding/json"
    "errors"
    "fmt"
+   "io"
    "net/url"
+   "strconv"
    "strings"
 )
+
+type SeasonDetails struct {
+   Id       string    `json:"id"`
+   Title    string    `json:"title"`
+   Episodes []Episode `json:"episodes"`
+}
+
+type Episode struct {
+   Id          string      `json:"id"`
+   Title       string      `json:"title"`
+   ViewOptions ViewOptions `json:"view_options"`
+}
+
+func FetchSeason(id string, rating *Classification, region *Market) (*SeasonDetails, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/seasons/" + id,
+   }
+
+   query := url.Values{}
+   query.Set("classification_id", strconv.Itoa(rating.NumericalId))
+   query.Set("device_identifier", "atvui40")
+   query.Set("market_code", region.Code)
+   target.RawQuery = query.Encode()
+
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var respWrapper struct {
+      Data SeasonDetails `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+      return nil, err
+   }
+
+   return &respWrapper.Data, nil
+}
+
+type TvShow struct {
+   Id      string   `json:"id"`
+   Title   string   `json:"title"`
+   Seasons []Season `json:"seasons"`
+}
+
+type Season struct {
+   Id string `json:"id"`
+}
+
+func FetchTvShow(tvShowId string, rating *Classification, region *Market) (*TvShow, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "gizmo.rakuten.tv",
+      Path:   "/v3/tv_shows/" + tvShowId,
+   }
+
+   query := url.Values{}
+   query.Set("classification_id", strconv.Itoa(rating.NumericalId))
+   query.Set("device_identifier", "atvui40")
+   query.Set("market_code", region.Code)
+   target.RawQuery = query.Encode()
+
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var respWrapper struct {
+      Data TvShow `json:"data"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {
+      return nil, err
+   }
+
+   return &respWrapper.Data, nil
+}
+
+func (s *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
+   target, err := url.Parse(s.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(target, nil, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
 
 func (m *Movie) String() string {
    return formatPlayableDetails(m.Id, m.Title, m.ViewOptions.Private.Streams)
