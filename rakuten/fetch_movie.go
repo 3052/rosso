@@ -1,3 +1,4 @@
+// FILE: rakuten/fetch_movie.go
 package rakuten
 
 import (
@@ -8,21 +9,29 @@ import (
    "41.neocities.org/maya"
 )
 
-type SeasonDetails struct {
-   Id       string    `json:"id"`
-   Episodes []Episode `json:"episodes"`
-}
-
-type Episode struct {
+type Movie struct {
    Id          string      `json:"id"`
+   Title       string      `json:"title"`
    ViewOptions ViewOptions `json:"view_options"`
 }
 
-func FetchSeason(period *Season, rating *Classification, region *Market) (*SeasonDetails, error) {
+type ViewOptions struct {
+   Private Private `json:"private"`
+}
+
+type Private struct {
+   Streams []Stream `json:"streams"`
+}
+
+type Stream struct {
+   AudioLanguages []Language `json:"audio_languages"`
+}
+
+func FetchMovie(movieId string, rating *Classification, region *Market) (*Movie, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + period.Id,
+      Path:   "/v3/movies/" + movieId,
    }
 
    query := url.Values{}
@@ -38,7 +47,7 @@ func FetchSeason(period *Season, rating *Classification, region *Market) (*Seaso
    defer resp.Body.Close()
 
    var respWrapper struct {
-      Data SeasonDetails `json:"data"`
+      Data Movie `json:"data"`
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&respWrapper); err != nil {

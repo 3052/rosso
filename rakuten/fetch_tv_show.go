@@ -1,3 +1,4 @@
+// FILE: rakuten/fetch_tv_show.go
 package rakuten
 
 import (
@@ -10,6 +11,7 @@ import (
 
 type TvShow struct {
    Id      string   `json:"id"`
+   Title   string   `json:"title"`
    Seasons []Season `json:"seasons"`
 }
 
