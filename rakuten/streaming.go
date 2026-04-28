@@ -1,8 +1,8 @@
-// FILE: rakuten/fetch_streaming.go
 package rakuten
 
 import (
    "encoding/json"
+   "errors"
    "net/url"
 
    "41.neocities.org/maya"
@@ -27,15 +27,15 @@ type StreamingRequest struct {
    VideoType                string `json:"video_type"`
 }
 
-func FetchMovieStreaming(contentId string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
-   return fetchStreaming(contentId, "movies", rating, audioLanguage)
+func FetchMovieStreaming(contentId string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
+   return fetchStreaming(contentId, "movies", userClassification, audioLanguage)
 }
 
-func FetchEpisodeStreaming(contentId string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
-   return fetchStreaming(contentId, "episodes", rating, audioLanguage)
+func FetchEpisodeStreaming(contentId string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
+   return fetchStreaming(contentId, "episodes", userClassification, audioLanguage)
 }
 
-func fetchStreaming(contentId string, contentType string, rating *Classification, audioLanguage string) (*StreamInfo, error) {
+func fetchStreaming(contentId string, contentType string, userClassification Classification, audioLanguage Language) (*StreamInfo, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
@@ -43,9 +43,9 @@ func fetchStreaming(contentId string, contentType string, rating *Classification
    }
 
    payload := StreamingRequest{
-      AudioLanguage:            audioLanguage,
+      AudioLanguage:            audioLanguage.Id,
       AudioQuality:             "2.0",
-      ClassificationId:         rating.NumericalId,
+      ClassificationId:         userClassification.NumericalId,
       ContentId:                contentId,
       ContentType:              contentType,
       DeviceIdentifier:         "atvui40",
@@ -70,13 +70,24 @@ func fetchStreaming(contentId string, contentType string, rating *Classification
       return nil, err
    }
    defer resp.Body.Close()
-   var result struct {
+
+   var apiResp struct {
       Data struct {
          StreamInfos []StreamInfo `json:"stream_infos"`
-      }
+      } `json:"data"`
    }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+
+   if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
       return nil, err
    }
-   return &result.Data.StreamInfos[0], nil
+
+   for _, info := range apiResp.Data.StreamInfos {
+      return &info, nil
+   }
+
+   return nil, errors.New("no stream infos found")
+}
+
+func (info *StreamInfo) GetManifest() (*url.URL, error) {
+   return url.Parse(info.Url)
 }
