@@ -81,6 +81,7 @@ type client struct {
    roku_id  string
    get_code *maya.Flag
 }
+
 func (c *client) do_roku_id() error {
    var code_token string
    if c.get_code.IsSet {

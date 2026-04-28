@@ -7,8 +7,8 @@ import (
    "41.neocities.org/maya"
 )
 
-func FetchLicense(widevineConfig Widevine, challenge []byte) ([]byte, error) {
-   endpoint, err := url.Parse(widevineConfig.LicenseServer)
+func FetchLicense(targetWidevine Widevine, body []byte) ([]byte, error) {
+   endpoint, err := url.Parse(targetWidevine.LicenseServer)
    if err != nil {
       return nil, err
    }
@@ -17,7 +17,7 @@ func FetchLicense(widevineConfig Widevine, challenge []byte) ([]byte, error) {
       "content-type": "application/x-protobuf",
    }
 
-   resp, err := maya.Post(endpoint, headers, challenge)
+   resp, err := maya.Post(endpoint, headers, body)
    if err != nil {
       return nil, err
    }

@@ -12,9 +12,10 @@ type ContentToken string
 type AccountToken struct {
    AuthToken  ContentToken `json:"authToken"`
    IsLoggedIn bool         `json:"isLoggedIn"`
+   Ip         string       `json:"ip"`
 }
 
-func FetchAccountToken(userToken ContentToken) (*AccountToken, error) {
+func FetchAccountToken(token *ContentToken) (*AccountToken, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "googletv.web.roku.com",
@@ -24,8 +25,8 @@ func FetchAccountToken(userToken ContentToken) (*AccountToken, error) {
    headers := map[string]string{
       "user-agent": "trc-googletv; production; 0",
    }
-   if userToken != "" {
-      headers["x-roku-content-token"] = string(userToken)
+   if token != nil {
+      headers["x-roku-content-token"] = string(*token)
    }
 
    resp, err := maya.Get(endpoint, headers)

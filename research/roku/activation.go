@@ -7,15 +7,17 @@ import (
    "41.neocities.org/maya"
 )
 
-type Activation struct {
-   Code string `json:"code"`
+type ActivationCode string
+
+type AccountActivation struct {
+   Code ActivationCode `json:"code"`
 }
 
-type ActivationPayload struct {
+type ActivationRequest struct {
    Platform string `json:"platform"`
 }
 
-func CreateActivation(userToken ContentToken) (*Activation, error) {
+func CreateAccountActivation(token ContentToken) (*AccountActivation, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "googletv.web.roku.com",
@@ -23,12 +25,12 @@ func CreateActivation(userToken ContentToken) (*Activation, error) {
    }
 
    headers := map[string]string{
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": string(userToken),
       "content-type":         "application/json",
+      "user-agent":           "trc-googletv; production; 0",
+      "x-roku-content-token": string(token),
    }
 
-   payload := ActivationPayload{
+   payload := ActivationRequest{
       Platform: "googletv",
    }
 
@@ -43,7 +45,7 @@ func CreateActivation(userToken ContentToken) (*Activation, error) {
    }
    defer resp.Body.Close()
 
-   var activation Activation
+   var activation AccountActivation
    if err := json.NewDecoder(resp.Body).Decode(&activation); err != nil {
       return nil, err
    }

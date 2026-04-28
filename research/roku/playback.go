@@ -7,14 +7,11 @@ import (
    "41.neocities.org/maya"
 )
 
-type Playback struct {
-   Url           string `json:"url"`
-   MediaFormat   string `json:"mediaFormat"`
-   AdPolicyName  string `json:"adPolicyName"`
-   KidsDirected  bool   `json:"kidsDirected"`
-   RokuNielsenId string `json:"rokuNielsenId"`
-   TraceId       string `json:"traceId"`
-   Drm           Drm    `json:"drm"`
+type MediaPlayback struct {
+   Url         string `json:"url"`
+   Drm         Drm    `json:"drm"`
+   MediaFormat string `json:"mediaFormat"`
+   TraceId     string `json:"traceId"`
 }
 
 type Drm struct {
@@ -25,13 +22,13 @@ type Widevine struct {
    LicenseServer string `json:"licenseServer"`
 }
 
-type PlaybackPayload struct {
+type PlaybackRequest struct {
    MediaFormat string `json:"mediaFormat"`
    ProviderId  string `json:"providerId"`
    RokuId      string `json:"rokuId"`
 }
 
-func CreatePlayback(userToken ContentToken, providerId string, rokuId string) (*Playback, error) {
+func FetchMediaPlayback(token ContentToken, targetId string) (*MediaPlayback, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "googletv.web.roku.com",
@@ -39,15 +36,15 @@ func CreatePlayback(userToken ContentToken, providerId string, rokuId string) (*
    }
 
    headers := map[string]string{
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": string(userToken),
       "content-type":         "application/json",
+      "user-agent":           "trc-googletv; production; 0",
+      "x-roku-content-token": string(token),
    }
 
-   payload := PlaybackPayload{
+   payload := PlaybackRequest{
       MediaFormat: "DASH",
-      ProviderId:  providerId,
-      RokuId:      rokuId,
+      ProviderId:  "rokuavod",
+      RokuId:      targetId,
    }
 
    body, err := json.Marshal(payload)
@@ -61,7 +58,7 @@ func CreatePlayback(userToken ContentToken, providerId string, rokuId string) (*
    }
    defer resp.Body.Close()
 
-   var playback Playback
+   var playback MediaPlayback
    if err := json.NewDecoder(resp.Body).Decode(&playback); err != nil {
       return nil, err
    }
