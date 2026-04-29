@@ -13,6 +13,40 @@ import (
    "strings"
 )
 
+func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   fmt.Sprint("/contents/", contentId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + accessToken,
+         "x-client-platform":   "platform_jasper_web", // platform_jasper_html
+         "x-playback-language": Language,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+      Error          string // 2026-04-14
+      Message string // 2026-04-29
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result.ContentPackage, nil
+}
+
 func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -243,36 +277,6 @@ func FetchSubscriptions(accessToken string) ([]Subscription, error) {
       return nil, err
    }
    return result.Subscriptions, nil
-}
-
-func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   fmt.Sprint("/content/", contentId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + accessToken,
-         "x-client-platform":   "platform_jasper_web", // platform_jasper_html
-         "x-playback-language": Language,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-      Error          string // 2026-04-14
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result.ContentPackage, nil
 }
 
 func (m *Manifest) GetManifest() (*url.URL, error) {
