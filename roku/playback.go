@@ -7,7 +7,7 @@ import (
    "41.neocities.org/maya"
 )
 
-type PlaybackConfig struct {
+type Playback struct {
    Url         string `json:"url"`
    Drm         Drm    `json:"drm"`
    MediaFormat string `json:"mediaFormat"`
@@ -22,7 +22,7 @@ type Widevine struct {
    LicenseServer string `json:"licenseServer"`
 }
 
-func GetPlaybackConfig(token *AccountToken, rokuId string) (*PlaybackConfig, error) {
+func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "googletv.web.roku.com",
@@ -49,9 +49,9 @@ func GetPlaybackConfig(token *AccountToken, rokuId string) (*PlaybackConfig, err
    }
    defer resp.Body.Close()
 
-   var config PlaybackConfig
-   if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+   var result Playback
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-   return &config, nil
+   return &result, nil
 }

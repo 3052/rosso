@@ -1,11 +1,32 @@
 package roku
 
 import (
+   "41.neocities.org/maya"
+   "io"
    "net/url"
    "strings"
 )
 
-func (p *PlaybackConfig) GetManifest() (*url.URL, error) {
+func (p *Playback) GetWidevineLicense(challenge []byte) ([]byte, error) {
+   target, err := url.Parse(p.Drm.Widevine.LicenseServer)
+   if err != nil {
+      return nil, err
+   }
+   headers := map[string]string{
+      "content-type": "application/x-protobuf",
+      "user-agent":   "Go-http-client/2.0",
+   }
+
+   resp, err := maya.Post(target, headers, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) GetManifest() (*url.URL, error) {
    return url.Parse(p.Url)
 }
 

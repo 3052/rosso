@@ -14,6 +14,7 @@ type AccountToken struct {
    Rida       string `json:"rida"`
 }
 
+// status can be nil
 func GetAccountToken(status *ActivationStatus) (*AccountToken, error) {
    target := &url.URL{
       Scheme: "https",
