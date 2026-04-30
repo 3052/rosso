@@ -35,7 +35,6 @@ func (c *client) do_dash() error {
 }
 
 func main() {
-   maya.SetProxy("", "*.m4s")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

@@ -11,7 +11,6 @@ func (c *client) do_hls_id() error {
 }
 
 func main() {
-   maya.SetProxy("", "*.ts")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

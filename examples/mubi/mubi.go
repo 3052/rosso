@@ -71,7 +71,6 @@ func (c *client) do_dash() error {
 }
 
 func main() {
-   maya.SetProxy("", "*.dash")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

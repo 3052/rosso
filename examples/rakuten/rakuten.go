@@ -36,7 +36,6 @@ func (c *client) do_dash() error {
 var cache maya.Cache
 
 func main() {
-   maya.SetProxy("", "*.isma", "*.ismv")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

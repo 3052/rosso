@@ -21,7 +21,6 @@ func (c *client) do_edit() error {
 }
 
 func main() {
-   maya.SetProxy("", "*.mp4")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

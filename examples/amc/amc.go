@@ -112,7 +112,6 @@ func (c *client) do() error {
 var cache maya.Cache
 
 func main() {
-   maya.SetProxy("", "*.m4f")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

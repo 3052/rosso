@@ -33,7 +33,7 @@ func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, er
    var result struct {
       ContentPackage ContentPackage
       Error          string // 2026-04-14
-      Message string // 2026-04-29
+      Message        string // 2026-04-29
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err

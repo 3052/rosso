@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-   maya.SetProxy("", "*.m4v")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {

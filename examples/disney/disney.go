@@ -34,7 +34,6 @@ func (c *client) do_hls_id() error {
 var cache maya.Cache
 
 func main() {
-   maya.SetProxy("", "*.mp4", "*.mp4a")
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
