@@ -143,8 +143,8 @@ func (c *client) do_profile() error {
 type client struct {
    Account        *crave.Account
    ContentPackage *crave.ContentPackage
-   Media          *crave.Media
    Dash           *maya.Dash
+   Media          *crave.Media
    //--------------------
    Job maya.Job
    //--------------------
