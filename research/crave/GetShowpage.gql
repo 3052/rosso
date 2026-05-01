@@ -1,0 +1,8 @@
+query GetShowpage($sessionContext: SessionContext!, $ids: [String!]!) {
+   medias(sessionContext: $sessionContext, ids: $ids) {
+      firstContent {
+         id
+      }
+      id
+   }
+}

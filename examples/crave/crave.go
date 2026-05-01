@@ -7,6 +7,15 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   fetch := func(data []byte) ([]byte, error) {
+      return c.ContentPackage.LicensePlayReady(
+         c.Media.FirstContent.Id, c.Account.AccessToken, data,
+      )
+   }
+   return c.Dash.Download(&c.Job, fetch)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -78,15 +87,6 @@ func (c *client) do_username_password() error {
       fmt.Println(profile)
    }
    return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   fetch := func(data []byte) ([]byte, error) {
-      return c.ContentPackage.LicensePlayReady(
-         c.Media.FirstContent.Id, c.Account.AccessToken, data,
-      )
-   }
-   return c.Dash.Download(&c.Job, fetch)
 }
 
 func (c *client) do_address() error {

@@ -1,20 +1,14 @@
 package crave
 
 import (
+   "41.neocities.org/maya"
+   _ "embed"
    "encoding/json"
    "net/url"
-
-   "41.neocities.org/maya"
 )
 
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           string       `json:"id"`
-}
-
-type FirstContent struct {
-   Id string `json:"id"`
-}
+//go:embed GetShowpage.gql
+var get_showpage string
 
 func GetMedia(showId string) ([]Media, error) {
    endpoint := &url.URL{
@@ -28,17 +22,7 @@ func GetMedia(showId string) ([]Media, error) {
    }
 
    bodyMap := map[string]interface{}{
-      "query": `query GetShowpage($sessionContext: SessionContext!, $ids: [String!]!) {
-   medias(sessionContext: $sessionContext, ids: $ids) {
-      firstContent {
-         id
-      }
-      id
-   }
-}
-
-
-`,
+      "query": get_showpage,
       "variables": map[string]interface{}{
          "ids": []string{showId},
          "sessionContext": map[string]interface{}{
@@ -69,4 +53,13 @@ func GetMedia(showId string) ([]Media, error) {
    }
 
    return wrapper.Data.Medias, nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           string       `json:"id"`
+}
+
+type FirstContent struct {
+   Id string `json:"id"`
 }

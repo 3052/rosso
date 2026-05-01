@@ -12,76 +12,6 @@ import (
    "strings"
 )
 
-func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "playback.rte-api.bellmedia.ca",
-         Path:   fmt.Sprint("/contents/", contentId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + accessToken,
-         "x-client-platform":   "platform_jasper_web", // platform_jasper_html
-         "x-playback-language": Language,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      ContentPackage ContentPackage
-      Error          string // 2026-04-14
-      Message        string // 2026-04-29
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result.ContentPackage, nil
-}
-
-func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
-            contentId, c.Id, c.DestinationId, platformId,
-         ),
-         RawQuery: url.Values{
-            "filter": {"ff"}, // 2160p HEVC
-            "format": {"mpd"},
-            "hd":     {"true"}, // 1080p H.264
-            "mcv":    {"true"}, // H.264 + HEVC
-            "uhd":    {"true"}, // 2160p HEVC
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + accessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result Manifest
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-
-   return &result, nil
-}
-
 func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
    body, err := json.Marshal(map[string]any{
       "payload": payload,
@@ -348,6 +278,84 @@ type ContentPackage struct {
    Id            int
 }
 
+func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 1)
+}
+
+func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
+   return c.fetchManifest(contentId, accessToken, 48)
+}
+
+func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "playback.rte-api.bellmedia.ca",
+         Path:   fmt.Sprint("/contents/", contentId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + accessToken,
+         "x-client-platform":   "platform_jasper_web", // platform_jasper_html
+         "x-playback-language": Language,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      ContentPackage ContentPackage
+      Error          string // 2026-04-14
+      Message        string // 2026-04-29
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result.ContentPackage, nil
+}
+
+func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
+            contentId, c.Id, c.DestinationId, platformId,
+         ),
+         RawQuery: url.Values{
+            "filter": {"ff"}, // 2160p HEVC
+            "format": {"mpd"},
+            "hd":     {"true"}, // 1080p H.264
+            "mcv":    {"true"}, // H.264 + HEVC
+            "uhd":    {"true"}, // 2160p HEVC
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + accessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+
+   return &result, nil
+}
+
 // SL2000 max 2160p
 func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
    return c.fetchLicense(contentId, accessToken, payload, 48, "/playready")
@@ -356,12 +364,4 @@ func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, pay
 // L3 max 720p
 func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
    return c.fetchLicense(contentId, accessToken, payload, 1, "/widevine")
-}
-
-func (c *ContentPackage) ManifestWidevine(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 1)
-}
-
-func (c *ContentPackage) ManifestPlayReady(contentId int, accessToken string) (*Manifest, error) {
-   return c.fetchManifest(contentId, accessToken, 48)
 }
