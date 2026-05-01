@@ -7,18 +7,19 @@ import (
    "41.neocities.org/maya"
 )
 
-type AccountToken struct {
+type ProfileToken struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id"`
-   Jti          string `json:"jti"`
+   Scope        string `json:"scope"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
 }
 
-func PerformLogin(username string, password string) (*AccountToken, error) {
+func SwitchProfile(account *AccountToken, activeProfile *Profile) (*ProfileToken, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.1",
+      Path:   "/api/login/v2.2",
    }
 
    headers := map[string]string{
@@ -27,9 +28,9 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    }
 
    values := url.Values{}
-   values.Set("grant_type", "password")
-   values.Set("password", password)
-   values.Set("username", username)
+   values.Set("grant_type", "refresh_token")
+   values.Set("profile_id", activeProfile.Id)
+   values.Set("refresh_token", account.RefreshToken)
 
    body := []byte(values.Encode())
 
@@ -39,10 +40,10 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    }
    defer resp.Body.Close()
 
-   account := &AccountToken{}
-   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
+   token := &ProfileToken{}
+   if err := json.NewDecoder(resp.Body).Decode(token); err != nil {
       return nil, err
    }
 
-   return account, nil
+   return token, nil
 }

@@ -3,45 +3,46 @@ package crave
 import (
    "encoding/json"
    "net/url"
-   "strconv"
 
    "41.neocities.org/maya"
 )
 
 type Playback struct {
-   Playback  string `json:"playback"`
-   Trickplay string `json:"trickplay"`
+   ContentId      string         `json:"contentId"`
+   DestinationId  int            `json:"destinationId"`
+   ContentPackage ContentPackage `json:"contentPackage"`
 }
 
-func GetPlayback(activeSession *Session, activeMedia *Media, available *AvailableContentPackage) (*Playback, error) {
-   endpoint := url.URL{
-      Scheme: "https",
-      Host:   "stream.video.9c9media.com",
-      Path:   "/meta/content/" + activeMedia.FirstContent.Id + "/contentpackage/" + strconv.Itoa(available.Id) + "/destination/" + strconv.Itoa(available.DestinationId) + "/platform/48",
-   }
+type ContentPackage struct {
+   Id                int    `json:"id"`
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Language          string `json:"language"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+}
 
-   values := url.Values{}
-   values.Set("filter", "ff")
-   values.Set("format", "mpd")
-   values.Set("hd", "true")
-   values.Set("mcv", "true")
-   values.Set("uhd", "true")
-   endpoint.RawQuery = values.Encode()
+func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "playback.rte-api.bellmedia.ca",
+      Path:   "/contents/" + activeMedia.FirstContent.Id,
+   }
 
    headers := map[string]string{
-      "authorization": "Bearer " + activeSession.AccessToken,
+      "x-client-platform":   "platform_jasper_web",
+      "authorization":       "Bearer " + token.AccessToken,
+      "x-playback-language": "EN",
    }
 
-   resp, err := maya.Get(&endpoint, headers)
+   resp, err := maya.Get(endpoint, headers)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   var targetPlayback Playback
-   if err := json.NewDecoder(resp.Body).Decode(&targetPlayback); err != nil {
+   activePlayback := &Playback{}
+   if err := json.NewDecoder(resp.Body).Decode(activePlayback); err != nil {
       return nil, err
    }
 
-   return &targetPlayback, nil
+   return activePlayback, nil
 }

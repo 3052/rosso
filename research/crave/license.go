@@ -1,6 +1,7 @@
 package crave
 
 import (
+   "encoding/base64"
    "encoding/json"
    "io"
    "net/url"
@@ -9,48 +10,35 @@ import (
    "41.neocities.org/maya"
 )
 
-type PlaybackContext struct {
-   ContentId        int    `json:"contentId"`
-   ContentpackageId int    `json:"contentpackageId"`
-   DestinationId    int    `json:"destinationId"`
-   Jwt              string `json:"jwt"`
-   PlatformId       int    `json:"platformId"`
-}
-
-type LicenseRequest struct {
-   Payload         string          `json:"payload"`
-   PlaybackContext PlaybackContext `json:"playbackContext"`
-}
-
-func AcquireLicense(activeSession *Session, activeMedia *Media, available *AvailableContentPackage, challenge string) ([]byte, error) {
-   endpoint := url.URL{
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
       Scheme: "https",
       Host:   "license.9c9media.com",
       Path:   "/playready",
    }
 
-   contentIdInt, err := strconv.Atoi(activeMedia.FirstContent.Id)
+   contentIdInt, err := strconv.Atoi(activePlayback.ContentId)
    if err != nil {
       return nil, err
    }
 
-   payload := LicenseRequest{
-      Payload: challenge,
-      PlaybackContext: PlaybackContext{
-         ContentId:        contentIdInt,
-         ContentpackageId: available.Id,
-         DestinationId:    available.DestinationId,
-         Jwt:              activeSession.AccessToken,
-         PlatformId:       48,
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId":        contentIdInt,
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
       },
    }
 
-   body, err := json.Marshal(payload)
+   body, err := json.Marshal(bodyMap)
    if err != nil {
       return nil, err
    }
 
-   resp, err := maya.Post(&endpoint, nil, body)
+   resp, err := maya.Post(endpoint, nil, body)
    if err != nil {
       return nil, err
    }
