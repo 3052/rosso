@@ -9,49 +9,54 @@ import (
    "fmt"
    "io"
    "net/url"
+   "strconv"
    "strings"
 )
 
-func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
-   body, err := json.Marshal(map[string]any{
-      "payload": payload,
-      "playbackContext": map[string]any{
-         "contentId":        contentId,
-         "contentpackageId": c.Id, // lower-case 'p' as per their API
-         "platformId":       platformId,
-         "destinationId":    c.DestinationId,
-         "jwt":              accessToken,
+func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "stream.video.9c9media.com",
+         Path: fmt.Sprintf(
+            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
+            contentId, c.Id, c.DestinationId, platformId,
+         ),
+         RawQuery: url.Values{
+            "filter": {"ff"}, // 2160p HEVC
+            "format": {"mpd"},
+            "hd":     {"true"}, // 1080p H.264
+            "mcv":    {"true"}, // H.264 + HEVC
+            "uhd":    {"true"}, // 2160p HEVC
+         }.Encode(),
       },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{Scheme: "https", Host: "license.9c9media.com", Path: path},
-      nil,
-      body,
+      map[string]string{"authorization": "Bearer " + accessToken},
    )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   body, err = io.ReadAll(resp.Body)
+   var result Manifest
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != 200 {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(body, &result)
-      if err != nil {
-         return nil, err
-      }
+   if result.Message != "" {
       return nil, errors.New(result.Message)
    }
 
-   return body, nil
+   return &result, nil
+}
+
+// SL2000 max 2160p
+func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 48, "/playready")
+}
+
+// L3 max 720p
+func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
+   return c.fetchLicense(contentId, accessToken, payload, 1, "/widevine")
 }
 
 func Login(username, password string) (*Account, error) {
@@ -132,6 +137,109 @@ func FetchMedia(id int) (*Media, error) {
 
 // crave-web:default
 const crave_web = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
+
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+   Id int `json:"id,string"`
+}
+
+func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
+   body, err := json.Marshal(map[string]any{
+      "payload": payload,
+      "playbackContext": map[string]any{
+         "contentId":        contentId,
+         "contentpackageId": c.Id, // lower-case 'p' as per their API
+         "platformId":       platformId,
+         "destinationId":    c.DestinationId,
+         "jwt":              accessToken,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{Scheme: "https", Host: "license.9c9media.com", Path: path},
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(body, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+
+   return body, nil
+}
+
+///
+
+/*
+https://crave.ca/en/movie/anaconda-2025-59881
+https://crave.ca/en/play/anaconda-2025-3300246
+https://crave.ca/movie/anaconda-2025-59881
+https://crave.ca/play/anaconda-2025-3300246
+https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
+*/
+func ParseMedia(rawUrl string) (*Media, error) {
+   parsedUrl, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+   // Split the path directly.
+   parts := strings.Split(parsedUrl.Path, "/")
+   if len(parts) < 3 {
+      return nil, errors.New("invalid URL path format")
+   }
+   // Anchor the URL by looking for the explicit media type
+   var typePart string
+   for _, part := range parts {
+      if part == "movie" || part == "play" {
+         typePart = part
+         break
+      }
+   }
+   if typePart == "" {
+      return nil, errors.New("missing media type (movie/play) in URL")
+   }
+   // Safely grab the last segment (the slug containing the ID)
+   lastPart := parts[len(parts)-1]
+   // Find the last dash to extract the ID
+   dashIdx := strings.LastIndex(lastPart, "-")
+   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
+      return nil, errors.New("no ID found at the end of the URL")
+   }
+   idStr := lastPart[dashIdx+1:]
+   // Convert extracted string to integer
+   id, err := strconv.Atoi(idStr)
+   if err != nil {
+      return nil, fmt.Errorf("invalid ID format: %w", err)
+   }
+   // Populate struct based on the anchored type
+   media_data := &Media{}
+   switch typePart {
+   case "movie":
+      media_data.Id = id
+   case "play":
+      media_data.FirstContent.Id = id
+   }
+   return media_data, nil
+}
 
 // 699710369328da351ac33c63
 func (a *Account) Login(profileId string) error {
@@ -318,50 +426,4 @@ func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, er
       return nil, errors.New(result.Message)
    }
    return &result.ContentPackage, nil
-}
-
-func (c *ContentPackage) fetchManifest(contentId int, accessToken string, platformId int) (*Manifest, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "stream.video.9c9media.com",
-         Path: fmt.Sprintf(
-            "/meta/content/%v/contentpackage/%v/destination/%v/platform/%v",
-            contentId, c.Id, c.DestinationId, platformId,
-         ),
-         RawQuery: url.Values{
-            "filter": {"ff"}, // 2160p HEVC
-            "format": {"mpd"},
-            "hd":     {"true"}, // 1080p H.264
-            "mcv":    {"true"}, // H.264 + HEVC
-            "uhd":    {"true"}, // 2160p HEVC
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + accessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result Manifest
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-
-   return &result, nil
-}
-
-// SL2000 max 2160p
-func (c *ContentPackage) LicensePlayReady(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 48, "/playready")
-}
-
-// L3 max 720p
-func (c *ContentPackage) LicenseWidevine(contentId int, accessToken string, payload []byte) ([]byte, error) {
-   return c.fetchLicense(contentId, accessToken, payload, 1, "/widevine")
 }
