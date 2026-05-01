@@ -2,13 +2,9 @@ package crave
 
 import (
    "41.neocities.org/maya"
-   _ "embed"
    "encoding/json"
    "net/url"
 )
-
-//go:embed GetShowpage.gql
-var get_showpage string
 
 func GetMedia(showId string) ([]Media, error) {
    endpoint := &url.URL{
