@@ -1,5 +1,17 @@
 # crave.ca
 
+~~~
+th3magpi3
+ — 
+9:30 PM
+also I said I'd share a tip
+in crave
+when you see like xbest-ultra
+and you know how you can manipulate it to giv dif resos
+change it to "all"
+you get every res available on the server ;)
+~~~
+
 ## PlayReady
 
 set user agent to Xbox One

@@ -48,6 +48,7 @@ func GetShowpage(id string) ([]Media, error) {
    }
 }
 
+
 `,
       Variables: ShowpageVariables{
          Ids: []string{id},
