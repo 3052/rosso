@@ -9,6 +9,223 @@ import (
    "path"
 )
 
+// returns user_token only
+func (d *Device) TokenRefresh() (*Device, error) {
+   body := url.Values{
+      "action":       {"token_refresh"},
+      "device_token": {d.DeviceToken},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.hulu.com",
+         Path:   "/v1/device/device_token/authenticate",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Device{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Device struct {
+   DeviceToken string `json:"device_token"`
+   UserToken   string `json:"user_token"`
+}
+
+func (d *Device) DeepLink(id string) (*DeepLink, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "discover.hulu.com",
+         Path:   "/content/v5/deeplink/playback",
+         RawQuery: url.Values{
+            "id":        {id},
+            "namespace": {"entity"},
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + d.UserToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result DeepLink
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func FetchDevice(email, password string) (*Device, error) {
+   body := url.Values{
+      "friendly_name": {"!"},
+      "password":      {password},
+      "serial_number": {"!"},
+      "user_email":    {email},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.hulu.com",
+         Path:   "/v2/livingroom/password/authenticate",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data Device
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
+   target, err := url.Parse(p.WvServer)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
+   target, err := url.Parse(p.DashPrServer)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(target, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(body, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return body, nil
+}
+
+func (p *Playlist) GetManifest() (*url.URL, error) {
+   return url.Parse(p.StreamUrl)
+}
+
+// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
+func ParseId(urlData string) string {
+   part := path.Base(urlData)
+   len_part := len(part)
+   const len_uuid = 36
+   if len_part > len_uuid {
+      if part[len_part-len_uuid-1] == '-' {
+         return part[len_part-len_uuid:]
+      }
+   }
+   return part
+}
+
+type DeepLink struct {
+   EabId   string `json:"eab_id"`
+   Message string
+}
+
+type Playlist struct {
+   DashPrServer string `json:"dash_pr_server"`
+   Message      string
+   StreamUrl    string `json:"stream_url"` // MPD
+   WvServer     string `json:"wv_server"`
+}
+
+var deejay = []struct {
+   resolution  string
+   device_id   int
+   key_version int
+}{
+   {
+      resolution:  "2160p",
+      device_id:   210,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   208,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   204,
+      key_version: 4,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   188,
+      key_version: 17,
+   },
+   {
+      resolution:  "720p",
+      device_id:   214,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   191,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   190,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   142,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   109,
+      key_version: 1,
+   },
+}
+
 // L3 max 1080p
 // SL2000 max 1080p
 // SL3000 max 2160p
@@ -112,223 +329,4 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-func (d *Device) DeepLink(id string) (*DeepLink, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "discover.hulu.com",
-         Path:   "/content/v5/deeplink/playback",
-         RawQuery: url.Values{
-            "id":        {id},
-            "namespace": {"entity"},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + d.UserToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result DeepLink
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-// returns user_token only
-func (d *Device) TokenRefresh() (*Device, error) {
-   body := url.Values{
-      "action":       {"token_refresh"},
-      "device_token": {d.DeviceToken},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.hulu.com",
-         Path:   "/v1/device/device_token/authenticate",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data Device
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-func FetchDevice(email, password string) (*Device, error) {
-   body := url.Values{
-      "friendly_name": {"!"},
-      "password":      {password},
-      "serial_number": {"!"},
-      "user_email":    {email},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.hulu.com",
-         Path:   "/v2/livingroom/password/authenticate",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data Device
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data, nil
-}
-
-func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.WvServer)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.DashPrServer)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(body, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return body, nil
-}
-
-func (p *Playlist) GetManifest() (*url.URL, error) {
-   return url.Parse(p.StreamUrl)
-}
-
-// https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-// https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
-func ParseId(urlData string) string {
-   part := path.Base(urlData)
-   len_part := len(part)
-   const len_uuid = 36
-   if len_part > len_uuid {
-      if part[len_part-len_uuid-1] == '-' {
-         return part[len_part-len_uuid:]
-      }
-   }
-   return part
-}
-
-type Device struct {
-   DeviceToken string `json:"device_token"`
-   UserToken   string `json:"user_token"`
-}
-
-type DeepLink struct {
-   EabId   string `json:"eab_id"`
-   Message string
-}
-
-type Playlist struct {
-   DashPrServer string `json:"dash_pr_server"`
-   Message      string
-   StreamUrl    string `json:"stream_url"` // MPD
-   WvServer     string `json:"wv_server"`
-}
-
-var deejay = []struct {
-   resolution  string
-   device_id   int
-   key_version int
-}{
-   {
-      resolution:  "2160p",
-      device_id:   210,
-      key_version: 1,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   208,
-      key_version: 1,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   204,
-      key_version: 4,
-   },
-   {
-      resolution:  "2160p",
-      device_id:   188,
-      key_version: 17,
-   },
-   {
-      resolution:  "720p",
-      device_id:   214,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   191,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   190,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   142,
-      key_version: 1,
-   },
-   {
-      resolution:  "720p",
-      device_id:   109,
-      key_version: 1,
-   },
 }
