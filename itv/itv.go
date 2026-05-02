@@ -12,6 +12,10 @@ import (
    "strings"
 )
 
+func graphql_compact(data string) string {
+   return strings.Join(strings.Fields(data), " ")
+}
+
 func FetchTitles(legacyId string) ([]Title, error) {
    var data strings.Builder
    err := json.NewEncoder(&data).Encode(map[string]string{
@@ -26,7 +30,7 @@ func FetchTitles(legacyId string) ([]Title, error) {
          Host:   "content-inventory.prd.oasvc.itv.com",
          Path:   "/discovery",
          RawQuery: url.Values{
-            "query":     {programme_page},
+            "query":     {graphql_compact(programme_page)},
             "variables": {data.String()},
          }.Encode(),
       },
