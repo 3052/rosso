@@ -1,27 +1,25 @@
 # Mubi
 
-## paypal.com
+## wise.com
 
-1. mubi.com/memberships
-2. enable JavaScript
-3. start your membership
+works
+
+## bankofamerica.com
+
+1. mubi.com
+2. email address
+   - tempmail.best
+3. get started
 4. mubi
 5. next
-6. email address
-   - tempmail.best
-   - mail.tm (sorry this isn't a valid email)
-   - mailsac.com (sorry this isn't a valid email)
-7. sign up
-8. agree membership terms
-9. pay with payPal
-10. agree and continue
-11. paypal.com/myaccount/autopay/connect
-12. password
-13. log in
-14. mubi
-15. stop paying with payPal
-16. stop paying with payPal (again)
-17. stop paying with payPal (again again)
+6. cardholder name
+7. card number
+8. expiry date
+9. CVV
+10. zip code
+11. start free trial
+
+Something’s not right. Please check your details and try again
 
 ## privacy.com
 
@@ -44,20 +42,25 @@
    renew
 14. start free trial
 
-## bankofamerica.com
+Please check your card has sufficient funds to complete the purchase
 
-1. mubi.com
-2. email address
+## paypal.com
+
+1. mubi.com/memberships
+   - 7 day free trial
+2. start your membership
+3. mubi
+4. next
+5. email address
    - tempmail.best
-3. get started
-4. mubi
-5. next
-6. cardholder name
-7. card number
-8. expiry date
-9. CVV
-10. zip code
-11. start free trial
+   - mail.tm (sorry this isn't a valid email)
+   - mailsac.com (sorry this isn't a valid email)
+6. sign up
+7. agree membership terms
+8. pay with payPal
+9. agree and continue
+
+This credit card is already associated with an existing account
 
 ## android
 

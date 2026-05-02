@@ -8,6 +8,64 @@ import (
    "path"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/mubi.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   //----------------------------------------------------------
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //----------------------------------------------------------
+   code := maya.BoolFlag("c", "link code")
+   //----------------------------------------------------------
+   session := maya.BoolFlag("S", "session")
+   //----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   season := maya.IntFlag(&c.season, "s", "season")
+   //----------------------------------------------------------
+   mubi_id := maya.IntFlag(&c.mubi_id, "m", "Mubi ID")
+   //----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy)
+   if err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return cache.Write(c)
+   case proxy.IsSet:
+      return cache.Write(c)
+   case code.IsSet:
+      return c.do_code()
+   case session.IsSet:
+      return with_cache(c.do_session)
+   case address.IsSet:
+      return c.do_address()
+   case mubi_id.IsSet:
+      return with_cache(c.do_mubi_id)
+   case dash.IsSet:
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {proxy},
+      {code},
+      {session},
+      {address, season},
+      {mubi_id},
+      {dash},
+   })
+}
+
+var cache maya.Cache
+
 func (c *client) do_mubi_id() error {
    err := c.Session.FetchViewing(c.mubi_id)
    if err != nil {
@@ -85,60 +143,10 @@ type client struct {
    //--------------------
    Job maya.Job
    //--------------------
+   Proxy string
+   //--------------------
    address string
    season  int
    //--------------------
    mubi_id int
 }
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/mubi.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   //----------------------------------------------------------
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   code := maya.BoolFlag("c", "link code")
-   //----------------------------------------------------------
-   session := maya.BoolFlag("S", "session")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   season := maya.IntFlag(&c.season, "s", "season")
-   //----------------------------------------------------------
-   mubi_id := maya.IntFlag(&c.mubi_id, "m", "Mubi ID")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case code.IsSet:
-      return c.do_code()
-   case session.IsSet:
-      return with_cache(c.do_session)
-   case address.IsSet:
-      return c.do_address()
-   case mubi_id.IsSet:
-      return with_cache(c.do_mubi_id)
-   case dash.IsSet:
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {code},
-      {session},
-      {address, season},
-      {mubi_id},
-      {dash},
-   })
-}
-
-var cache maya.Cache

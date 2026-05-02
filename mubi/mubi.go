@@ -10,6 +10,16 @@ import (
    "strings"
 )
 
+func (l *LinkCode) String() string {
+   var data strings.Builder
+   data.WriteString("TO LOG IN AND START WATCHING\n")
+   data.WriteString("Go to\n")
+   data.WriteString("mubi.com/en/android\n")
+   data.WriteString("and enter the code below\n")
+   data.WriteString(l.LinkCode)
+   return data.String()
+}
+
 func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -228,16 +238,6 @@ type SecureUrl struct {
 type LinkCode struct {
    AuthToken string `json:"auth_token"`
    LinkCode  string `json:"link_code"`
-}
-
-func (l *LinkCode) String() string {
-   var data strings.Builder
-   data.WriteString("TO LOG IN AND START WATCHING\n")
-   data.WriteString("Go to\n")
-   data.WriteString("mubi.com/android\n")
-   data.WriteString("and enter the code below\n")
-   data.WriteString(l.LinkCode)
-   return data.String()
 }
 
 // "android" requires headers:
