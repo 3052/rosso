@@ -15,7 +15,7 @@ type ProfileToken struct {
    ExpiresIn    int    `json:"expires_in"`
 }
 
-func SwitchProfile(account *AccountToken, activeProfile *Profile) (*ProfileToken, error) {
+func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "account.bellmedia.ca",
@@ -29,7 +29,7 @@ func SwitchProfile(account *AccountToken, activeProfile *Profile) (*ProfileToken
 
    values := url.Values{}
    values.Set("grant_type", "refresh_token")
-   values.Set("profile_id", activeProfile.Id)
+   values.Set("profile_id", profileId)
    values.Set("refresh_token", account.RefreshToken)
 
    body := []byte(values.Encode())

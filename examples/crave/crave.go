@@ -7,13 +7,31 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   fetch := func(data []byte) ([]byte, error) {
-      return c.ContentPackage.LicensePlayReady(
-         c.Media.FirstContent.Id, c.Account.AccessToken, data,
-      )
+func (c *client) do_address() error {
+   var err error
+   c.Media, err = crave.ParseMedia(c.address)
+   if err != nil {
+      return err
    }
-   return c.Dash.Download(&c.Job, fetch)
+   if c.Media.FirstContent.Id == 0 {
+      c.Media, err = crave.GetMedia(c.Media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   c.Playback, err = crave.GetPlayback(c.ProfileToken, c.Media)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(c.ProfileToken, c.Playback)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }
 
 func main() {
@@ -72,11 +90,11 @@ func (c *client) do() error {
 
 func (c *client) do_username_password() error {
    var err error
-   c.Account, err = crave.Login(c.username, c.password)
+   c.AccountToken, err = crave.PerformLogin(c.username, c.password)
    if err != nil {
       return err
    }
-   profiles, err := c.Account.FetchProfiles()
+   profiles, err := crave.GetProfiles(c.AccountToken)
    if err != nil {
       return err
    }
@@ -89,45 +107,15 @@ func (c *client) do_username_password() error {
    return cache.Write(c)
 }
 
-func (c *client) do_address() error {
-   var err error
-   c.Media, err = crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if c.Media.FirstContent.Id == 0 {
-      c.Media, err = crave.FetchMedia(c.Media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   c.ContentPackage, err = crave.FetchContentPackage(
-      c.Account.AccessToken, c.Media.FirstContent.Id,
-   )
-   if err != nil {
-      return err
-   }
-   manifest, err := c.ContentPackage.ManifestPlayReady(
-      c.Media.FirstContent.Id, c.Account.AccessToken,
-   )
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(manifest.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
 var cache maya.Cache
 
 func (c *client) do_profile() error {
-   err := c.Account.Login(c.profile)
+   var err error
+   c.ProfileToken, err = crave.SwitchProfile(c.AccountToken, c.profile)
    if err != nil {
       return err
    }
-   subs, err := crave.FetchSubscriptions(c.Account.AccessToken)
+   subs, err := crave.GetSubscriptions(c.ProfileToken)
    if err != nil {
       return err
    }
@@ -140,11 +128,18 @@ func (c *client) do_profile() error {
    return cache.Write(c)
 }
 
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
+   })
+}
+
 type client struct {
-   Account        *crave.Account
-   ContentPackage *crave.ContentPackage
-   Dash           *maya.Dash
-   Media          *crave.Media
+   AccountToken *crave.AccountToken
+   Dash         *maya.Dash
+   Media        *crave.Media
+   Playback     *crave.Playback
+   ProfileToken *crave.ProfileToken
    //--------------------
    Job maya.Job
    //--------------------

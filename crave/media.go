@@ -2,22 +2,13 @@
 package crave
 
 import (
+   "41.neocities.org/maya"
    "encoding/json"
    "net/url"
-
-   "41.neocities.org/maya"
+   "strconv"
 )
 
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
-}
-
-func GetMedia(showId string) ([]Media, error) {
+func GetMedia(showId int) (*Media, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "rte-api.bellmedia.ca",
@@ -31,7 +22,7 @@ func GetMedia(showId string) ([]Media, error) {
    bodyMap := map[string]interface{}{
       "query": get_showpage,
       "variables": map[string]interface{}{
-         "ids": []string{showId},
+         "ids": []string{strconv.Itoa(showId)},
          "sessionContext": map[string]interface{}{
             "userLanguage": "EN",
             "userMaturity": "ADULT",
@@ -50,14 +41,22 @@ func GetMedia(showId string) ([]Media, error) {
    }
    defer resp.Body.Close()
 
-   var wrapper struct {
+   var result struct {
       Data struct {
          Medias []Media `json:"medias"`
       } `json:"data"`
    }
-   if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
+   return &result.Data.Medias[0], nil
+}
 
-   return wrapper.Data.Medias, nil
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
 }
