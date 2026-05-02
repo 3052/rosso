@@ -9,6 +9,72 @@ import (
    "path"
 )
 
+// returns user_token only
+func (d *Device) TokenRefresh() error {
+   body := url.Values{
+      "action":       {"token_refresh"},
+      "device_token": {d.DeviceToken},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.hulu.com",
+         Path:   "/v1/device/device_token/authenticate",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result Device
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   if result.Message != "" {
+      return errors.New(result.Message)
+   }
+   return nil
+}
+
+type Details struct {
+   VodItems struct {
+      Focus struct {
+         Entity struct {
+            Bundle struct {
+               EabId string `json:"eab_id"`
+            }
+         }
+      }
+   } `json:"vod_items"`
+}
+
+func (d *Device) GetDetails(movie string) (*Details, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "discover.hulu.com",
+         Path:     "/content/v5/hubs/movie/" + movie,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + d.UserToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Details Details
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Details, nil
+}
+
 // L3 max 1080p
 // SL2000 max 1080p
 // SL3000 max 2160p
@@ -112,38 +178,6 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-// returns user_token only
-func (d *Device) TokenRefresh() (*Device, error) {
-   body := url.Values{
-      "action":       {"token_refresh"},
-      "device_token": {d.DeviceToken},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.hulu.com",
-         Path:   "/v1/device/device_token/authenticate",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Device{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-type Device struct {
-   DeviceToken string `json:"device_token"`
-   UserToken   string `json:"user_token"`
 }
 
 func FetchDevice(email, password string) (*Device, error) {

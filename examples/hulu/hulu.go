@@ -7,8 +7,7 @@ import (
 )
 
 func (c *client) do_address() error {
-   var err error
-   c.Device, err = c.Device.TokenRefresh()
+   err := c.Device.TokenRefresh()
    if err != nil {
       return err
    }

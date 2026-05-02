@@ -9,6 +9,24 @@ import (
    "net/url"
 )
 
+func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
+   target, err := url.Parse(licenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func Refresh(refreshToken string) (*AuthData, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -38,23 +56,7 @@ func Refresh(refreshToken string) (*AuthData, error) {
    return &envelope.Data, nil
 }
 
-func License(licenseUrl, bcovAuth string, challengePayload []byte) ([]byte, error) {
-   target, err := url.Parse(licenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"bcov-auth": bcovAuth}, challengePayload,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
-   }
-   return io.ReadAll(resp.Body)
-}
+///
 
 func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    resp, err := maya.Get(
