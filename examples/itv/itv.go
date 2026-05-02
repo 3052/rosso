@@ -7,6 +7,66 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/itv.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //----------------------------------------------------------
+   playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
+   //----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy)
+   if err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return cache.Write(c)
+   case proxy.IsSet:
+      return cache.Write(c)
+   case address.IsSet:
+      return c.do_address()
+   case playlist.IsSet:
+      return c.do_playlist()
+   case dash.IsSet:
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      proxy,
+      address,
+      playlist,
+      dash,
+   }})
+}
+
+var cache maya.Cache
+
+func (c *client) do_address() error {
+   titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address))
+   if err != nil {
+      return err
+   }
+   for i, title := range titles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&title)
+   }
+   return nil
+}
+
 func (c *client) do_playlist() error {
    playlist, err := itv.FetchWidevine(c.playlist)
    if err != nil {
@@ -41,58 +101,9 @@ type client struct {
    //----------------------
    Job maya.Job
    //----------------------
+   Proxy string
+   //----------------------
    address string
    //----------------------
    playlist string
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/itv.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //----------------------------------------------------------
-   playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case playlist.IsSet:
-      return c.do_playlist()
-   case dash.IsSet:
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-      address,
-      playlist,
-      dash,
-   }})
-}
-
-var cache maya.Cache
-
-func (c *client) do_address() error {
-   titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address))
-   if err != nil {
-      return err
-   }
-   for i, title := range titles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&title)
-   }
-   return nil
 }
