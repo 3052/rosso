@@ -11,7 +11,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Auth, err = c.Auth.Refresh()
+   err = c.Auth.Refresh()
    if err != nil {
       return err
    }

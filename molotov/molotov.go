@@ -10,34 +10,28 @@ import (
    "strings"
 )
 
-func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
-   target, err := url.Parse(playData.Url)
-   if err != nil {
-      return nil, err
-   }
-   query := target.Query() // keep existing query string
-   query.Set("access_token", a.AccessToken)
-   target.RawQuery = query.Encode()
+type Auth struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() error {
    resp, err := maya.Get(
-      target,
-      map[string]string{
-         "x-forwarded-for": "138.199.15.158",
-         "x-molotov-agent": browser_app,
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
       },
+      map[string]string{"x-molotov-agent": customer_area},
    )
    if err != nil {
-      return nil, err
+      return err
    }
    defer resp.Body.Close()
-   var result Asset
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
+   return json.NewDecoder(resp.Body).Decode(a)
 }
 
 func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
@@ -72,32 +66,6 @@ func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
       return nil, errors.New("program is not available for playback")
    }
    return result.Program.Actions.Play, nil
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() (*Auth, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
-      },
-      map[string]string{"x-molotov-agent": customer_area},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Auth Auth
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Auth, nil
 }
 
 func FetchAuth(email, password string) (*Auth, error) {
@@ -211,11 +179,6 @@ type Program struct {
    ChannelId int
 }
 
-type Auth struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-}
-
 type Asset struct {
    Drm struct {
       Token string
@@ -228,4 +191,34 @@ type Asset struct {
 
 type Play struct {
    Url string // fapi.molotov.tv/v2/me/assets
+}
+
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
+   target, err := url.Parse(playData.Url)
+   if err != nil {
+      return nil, err
+   }
+   query := target.Query() // keep existing query string
+   query.Set("access_token", a.AccessToken)
+   target.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      target,
+      map[string]string{
+         "x-forwarded-for": "138.199.15.158",
+         "x-molotov-agent": browser_app,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Asset
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != nil {
+      return nil, result.Error
+   }
+   return &result, nil
 }

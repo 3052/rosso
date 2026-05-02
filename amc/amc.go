@@ -30,6 +30,14 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
+// AuthData represents the inner payload of authentication responses.
+type AuthData struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
 // Login authenticates the user. It requires the guest token (access_token)
 // retrieved from calling the Unauth() function.
 func Login(guestToken, email, password string) (*AuthData, error) {
@@ -145,6 +153,11 @@ func Refresh(refreshToken string) (*AuthData, error) {
    return &envelope.Data, nil
 }
 
+type Callback struct {
+   Endpoint string `json:"endpoint,omitempty"`
+   Type     string `json:"type,omitempty"`
+}
+
 // EpisodesMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for playable episodes.
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
@@ -256,6 +269,15 @@ func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
+}
+
 // String implements the fmt.Stringer interface for easy printing.
 func (m *Metadata) String() string {
    if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
@@ -276,6 +298,21 @@ func (m *Metadata) String() string {
    return fmt.Sprintf("NID: %d", m.Nid)
 }
 
+type Navigation struct {
+   ClientRequest struct {
+      Endpoint string `json:"endpoint,omitempty"`
+   } `json:"client_request,omitempty"`
+   ContentID    string `json:"content_id,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   MicroAppType string `json:"micro_app_type,omitempty"`
+   Properties   struct {
+      Fullscreen bool   `json:"fullscreen,omitempty"`
+      IsLive     bool   `json:"isLive,omitempty"`
+      VideoTitle string `json:"videoTitle,omitempty"`
+   } `json:"properties,omitempty"`
+   ScreenDesignType string `json:"screenDesignType,omitempty"`
+}
+
 // DashSource finds and returns the first Source with the type "application/dash+xml".
 func (p *PlaybackData) DashSource() (*Source, error) {
    for _, src := range p.PlaybackJsonData.Sources {
@@ -284,6 +321,14 @@ func (p *PlaybackData) DashSource() (*Source, error) {
       }
    }
    return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
+// PlaybackData represents the inner streaming and DRM source data.
+type PlaybackData struct {
+   PlaybackJsonData struct {
+      VideoID string   `json:"id"`
+      Sources []Source `json:"sources"`
+   } `json:"playbackJsonData"`
 }
 
 // PlaybackResult groups the parsed playback data with the Brightcove JWT needed for DRM.
@@ -334,8 +379,6 @@ func Playback(authToken string, videoId int) (*PlaybackResult, error) {
    }, nil
 }
 
-///
-
 type Source struct {
    Codecs     string     `json:"codecs"`
    Src        string     `json:"src"` // MPD
@@ -347,13 +390,11 @@ func (s *Source) GetManifest() (*url.URL, error) {
    return url.Parse(s.Src)
 }
 
-// AuthData represents the inner payload of authentication responses.
-type AuthData struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
+type TTS struct {
+   SpeechText string `json:"speechText,omitempty"`
 }
+
+///
 
 // ContentNode represents the recursive Server-Driven UI tree used by AMC.
 type ContentNode struct {
@@ -439,45 +480,4 @@ type DownloadData struct {
    DownloadingExpireIn int       `json:"downloadingExpireIn,omitempty"`
    DownloadingEndDate  int       `json:"downloadingEndDate,omitempty"`
    Callback            *Callback `json:"callback,omitempty"`
-}
-
-type TTS struct {
-   SpeechText string `json:"speechText,omitempty"`
-}
-
-type Navigation struct {
-   ClientRequest struct {
-      Endpoint string `json:"endpoint,omitempty"`
-   } `json:"client_request,omitempty"`
-   ContentID    string `json:"content_id,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   MicroAppType string `json:"micro_app_type,omitempty"`
-   Properties   struct {
-      Fullscreen bool   `json:"fullscreen,omitempty"`
-      IsLive     bool   `json:"isLive,omitempty"`
-      VideoTitle string `json:"videoTitle,omitempty"`
-   } `json:"properties,omitempty"`
-   ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-type Callback struct {
-   Endpoint string `json:"endpoint,omitempty"`
-   Type     string `json:"type,omitempty"`
-}
-
-// PlaybackData represents the inner streaming and DRM source data.
-type PlaybackData struct {
-   PlaybackJsonData struct {
-      VideoID string   `json:"id"`
-      Sources []Source `json:"sources"`
-   } `json:"playbackJsonData"`
-}
-
-type KeySystems struct {
-   ComWidevineAlpha struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.widevine.alpha"`
-   ComMicrosoftPlayready struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.microsoft.playready"`
 }
