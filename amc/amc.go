@@ -27,6 +27,41 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
+func Unauth() (*AuthData, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/unauth",
+      },
+      map[string]string{
+         "x-amcn-network":   "amcplus",
+         "x-amcn-platform":  "web",
+         "x-amcn-tenant":    "amcn",
+         "x-amcn-device-id": "-",
+         "x-amcn-language":  "en",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
 func Refresh(refreshToken string) (*AuthData, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -55,8 +90,6 @@ func Refresh(refreshToken string) (*AuthData, error) {
    }
    return &envelope.Data, nil
 }
-
-///
 
 func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    resp, err := maya.Get(
@@ -94,40 +127,27 @@ func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
-func Unauth() (*AuthData, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/unauth",
-      },
-      map[string]string{
-         "x-amcn-network":   "amcplus",
-         "x-amcn-platform":  "web",
-         "x-amcn-tenant":    "amcn",
-         "x-amcn-device-id": "-",
-         "x-amcn-language":  "en",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
+// String implements the fmt.Stringer interface for easy printing.
+func (m *Metadata) String() string {
+   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
+      return fmt.Sprintf("%s S%02dE%02d: %s (ID: %d)", m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
    }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
+   if m.SeasonNumber > 0 {
+      if m.ShowName != "" {
+         return fmt.Sprintf("%s %s (ID: %d)", m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
    }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
+   if m.Title != "" {
+      if m.ShowName != "" && m.ShowName != m.Title {
+         return fmt.Sprintf("%s: %s (ID: %d)", m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
    }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
+   return fmt.Sprintf("NID: %d", m.Nid)
 }
+
+///
 
 func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
    resp, err := maya.Get(
@@ -460,24 +480,4 @@ func (p *PlaybackData) DashSource() (*Source, error) {
       }
    }
    return nil, fmt.Errorf("application/dash+xml source not found")
-}
-
-// String implements the fmt.Stringer interface for easy printing.
-func (m *Metadata) String() string {
-   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
-      return fmt.Sprintf("%s S%02dE%02d: %s (ID: %d)", m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-   }
-   if m.SeasonNumber > 0 {
-      if m.ShowName != "" {
-         return fmt.Sprintf("%s %s (ID: %d)", m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
-   }
-   if m.Title != "" {
-      if m.ShowName != "" && m.ShowName != m.Title {
-         return fmt.Sprintf("%s: %s (ID: %d)", m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("%s (ID: %d)", m.Title, m.Nid)
-   }
-   return fmt.Sprintf("NID: %d", m.Nid)
 }

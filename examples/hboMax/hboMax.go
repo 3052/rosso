@@ -7,6 +7,75 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/hboMax.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
+   //-------------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //-------------------------------------------------------------
+   initiate := maya.BoolFlag("i", "initiate")
+   market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
+   //-------------------------------------------------------------
+   login := maya.BoolFlag("l", "login")
+   //-------------------------------------------------------------
+   search := maya.StringFlag(&c.search, "s", "search")
+   //-------------------------------------------------------------
+   show := maya.StringFlag(&c.show, "SM", "show/movie ID")
+   season := maya.IntFlag(&c.season, "S", "season")
+   //-------------------------------------------------------------
+   edit := maya.StringFlag(&c.edit, "e", "edit ID")
+   //-------------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy)
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
+      return cache.Write(c)
+   }
+   if initiate.IsSet {
+      if market.IsSet {
+         return c.do_initiate()
+      }
+   }
+   if login.IsSet {
+      return with_cache(c.do_login)
+   }
+   if search.IsSet {
+      return with_cache(c.do_search)
+   }
+   if show.IsSet {
+      return with_cache(c.do_show)
+   }
+   if edit.IsSet {
+      return with_cache(c.do_edit)
+   }
+   if dash.IsSet {
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {proxy},
+      {initiate, market},
+      {login},
+      {search},
+      {show, season},
+      {edit},
+      {dash},
+   })
+}
+
 func (c *client) do_edit() error {
    var err error
    c.Playback, err = hboMax.PlayReadyRequest(c.Login.Token, c.edit)
@@ -36,6 +105,8 @@ type client struct {
    //-------------------
    Job maya.Job
    //-------------------
+   Proxy string
+   //-------------------
    market string
    //-------------------
    search string
@@ -44,65 +115,6 @@ type client struct {
    season int
    //-------------------
    edit string
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/hboMax.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
-   //-------------------------------------------------------------
-   initiate := maya.BoolFlag("i", "initiate")
-   market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
-   //-------------------------------------------------------------
-   login := maya.BoolFlag("l", "login")
-   //-------------------------------------------------------------
-   search := maya.StringFlag(&c.search, "s", "search")
-   //-------------------------------------------------------------
-   show := maya.StringFlag(&c.show, "SM", "show/movie ID")
-   season := maya.IntFlag(&c.season, "S", "season")
-   //-------------------------------------------------------------
-   edit := maya.StringFlag(&c.edit, "e", "edit ID")
-   //-------------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if initiate.IsSet {
-      if market.IsSet {
-         return c.do_initiate()
-      }
-   }
-   if login.IsSet {
-      return with_cache(c.do_login)
-   }
-   if search.IsSet {
-      return with_cache(c.do_search)
-   }
-   if show.IsSet {
-      return with_cache(c.do_show)
-   }
-   if edit.IsSet {
-      return with_cache(c.do_edit)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {initiate, market},
-      {login},
-      {search},
-      {show, season},
-      {edit},
-      {dash},
-   })
 }
 
 var cache maya.Cache
