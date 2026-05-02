@@ -13,6 +13,139 @@ import (
    "strings"
 )
 
+func GetMedia(showId int) (*Media, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "rte-api.bellmedia.ca",
+      Path:   "/graphql",
+   }
+
+   headers := map[string]string{
+      // { "platform": "platform_web" }
+      "authorization": "Bearer eyAicGxhdGZvcm0iOiAicGxhdGZvcm1fd2ViIiB9",
+   }
+
+   bodyMap := map[string]interface{}{
+      "query": get_showpage,
+      "variables": map[string]interface{}{
+         "ids": []string{strconv.Itoa(showId)},
+         "sessionContext": map[string]interface{}{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Data struct {
+         Medias []Media `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data.Medias[0], nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
+
+type Playback struct {
+   ContentId      int            `json:"contentId,string"`
+   DestinationId  int            `json:"destinationId"`
+   ContentPackage ContentPackage `json:"contentPackage"`
+}
+
+type ContentPackage struct {
+   Id                int    `json:"id"`
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Language          string `json:"language"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+}
+
+func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "playback.rte-api.bellmedia.ca",
+      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
+   }
+
+   headers := map[string]string{
+      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
+      "authorization":       "Bearer " + token.AccessToken,
+      "x-playback-language": "EN",
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   activePlayback := &Playback{}
+   if err := json.NewDecoder(resp.Body).Decode(activePlayback); err != nil {
+      return nil, err
+   }
+
+   return activePlayback, nil
+}
+
+type Profile struct {
+   Id                string   `json:"id"`
+   AccountId         string   `json:"accountId"`
+   Nickname          string   `json:"nickname"`
+   HasPin            bool     `json:"hasPin"`
+   Master            bool     `json:"master"`
+   Maturity          string   `json:"maturity"`
+   Onboarded         bool     `json:"onboarded"`
+   UiLanguage        string   `json:"uiLanguage"`
+   PlaybackLanguages []string `json:"playbackLanguages"`
+   LastModifiedDate  string   `json:"lastModifiedDate"`
+   AvatarUrl         string   `json:"avatarUrl"`
+}
+
+func GetProfiles(account *AccountToken) ([]Profile, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/profile/v2/account/" + account.AccountId,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + account.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var activeProfiles []Profile
+   if err := json.NewDecoder(resp.Body).Decode(&activeProfiles); err != nil {
+      return nil, err
+   }
+
+   return activeProfiles, nil
+}
+
 type ProfileToken struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
@@ -29,6 +162,7 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
    }
 
    headers := map[string]string{
+      // crave-web:default
       "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
       "content-type":  "application/x-www-form-urlencoded",
    }
@@ -111,6 +245,7 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    }
 
    headers := map[string]string{
+      // crave-web:default
       "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
       "content-type":  "application/x-www-form-urlencoded",
    }
