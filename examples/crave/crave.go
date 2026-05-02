@@ -7,6 +7,69 @@ import (
    "log"
 )
 
+func (c *client) do_username_password() error {
+   var err error
+   c.AccountToken, err = crave.PerformLogin(c.username, c.password)
+   if err != nil {
+      return err
+   }
+   profiles, err := crave.GetProfiles(c.AccountToken)
+   if err != nil {
+      return err
+   }
+   for i, profile := range profiles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&profile)
+   }
+   return cache.Write(c)
+}
+
+var cache maya.Cache
+
+func (c *client) do_profile() error {
+   var err error
+   c.ProfileToken, err = crave.SwitchProfile(c.AccountToken, c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := crave.GetSubscriptions(c.ProfileToken)
+   if err != nil {
+      return err
+   }
+   for i, sub := range subs {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&sub)
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
+   })
+}
+
+type client struct {
+   AccountToken *crave.AccountToken
+   Dash         *maya.Dash
+   Media        *crave.Media
+   Playback     *crave.Playback
+   ProfileToken *crave.ProfileToken
+   //--------------------
+   Job maya.Job
+   //--------------------
+   username string
+   password string
+   //--------------------
+   profile string
+   //--------------------
+   address string
+}
+
 func (c *client) do_address() error {
    var err error
    c.Media, err = crave.ParseMedia(c.address)
@@ -86,67 +149,4 @@ func (c *client) do() error {
       {address},
       {dash},
    })
-}
-
-func (c *client) do_username_password() error {
-   var err error
-   c.AccountToken, err = crave.PerformLogin(c.username, c.password)
-   if err != nil {
-      return err
-   }
-   profiles, err := crave.GetProfiles(c.AccountToken)
-   if err != nil {
-      return err
-   }
-   for i, profile := range profiles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(profile)
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-func (c *client) do_profile() error {
-   var err error
-   c.ProfileToken, err = crave.SwitchProfile(c.AccountToken, c.profile)
-   if err != nil {
-      return err
-   }
-   subs, err := crave.GetSubscriptions(c.ProfileToken)
-   if err != nil {
-      return err
-   }
-   for i, sub := range subs {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&sub)
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
-   })
-}
-
-type client struct {
-   AccountToken *crave.AccountToken
-   Dash         *maya.Dash
-   Media        *crave.Media
-   Playback     *crave.Playback
-   ProfileToken *crave.ProfileToken
-   //--------------------
-   Job maya.Job
-   //--------------------
-   username string
-   password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
 }
