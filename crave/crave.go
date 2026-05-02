@@ -1,13 +1,127 @@
 package crave
 
 import (
+   "41.neocities.org/maya"
    _ "embed"
+   "encoding/base64"
+   "encoding/json"
    "errors"
    "fmt"
+   "io"
    "net/url"
    "strconv"
    "strings"
 )
+
+type Stream struct {
+   Playback  string `json:"playback"`
+   Trickplay string `json:"trickplay"`
+}
+
+func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "stream.video.9c9media.com",
+      Path:   fmt.Sprintf("/meta/content/%d/contentpackage/%d/destination/%d/platform/48", activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId),
+   }
+
+   values := url.Values{}
+   values.Set("filter", "ff")
+   values.Set("format", "mpd")
+   values.Set("hd", "true")
+   values.Set("mcv", "true")
+   values.Set("uhd", "true")
+   endpoint.RawQuery = values.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + token.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   activeStream := &Stream{}
+   if err := json.NewDecoder(resp.Body).Decode(activeStream); err != nil {
+      return nil, err
+   }
+
+   return activeStream, nil
+}
+
+type AccountToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountId    string `json:"account_id"`
+   Jti          string `json:"jti"`
+}
+
+func PerformLogin(username string, password string) (*AccountToken, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.1",
+   }
+
+   headers := map[string]string{
+      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
+      "content-type":  "application/x-www-form-urlencoded",
+   }
+
+   values := url.Values{}
+   values.Set("grant_type", "password")
+   values.Set("password", password)
+   values.Set("username", username)
+
+   body := []byte(values.Encode())
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   account := &AccountToken{}
+   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
+      return nil, err
+   }
+
+   return account, nil
+}
+
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "license.9c9media.com",
+      Path:   "/playready",
+   }
+
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId":        activePlayback.ContentId,
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
 
 func (s *Subscription) String() string {
    var data strings.Builder
