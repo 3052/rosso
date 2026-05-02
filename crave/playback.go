@@ -30,7 +30,7 @@ func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
    }
 
    headers := map[string]string{
-      "x-client-platform":   "platform_jasper_web",
+      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
       "authorization":       "Bearer " + token.AccessToken,
       "x-playback-language": "EN",
    }

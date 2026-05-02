@@ -64,11 +64,11 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
       ),
    }
    values := url.Values{}
-   values.Set("filter", "ff")
+   values.Set("filter", "ff") // 2160p HEVC
    values.Set("format", "mpd")
-   values.Set("hd", "true")
-   values.Set("mcv", "true")
-   values.Set("uhd", "true")
+   values.Set("hd", "true")  // 1080p H.264
+   values.Set("mcv", "true") // H.264 + HEVC
+   values.Set("uhd", "true") // 2160p HEVC
    endpoint.RawQuery = values.Encode()
 
    headers := map[string]string{
@@ -136,6 +136,7 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    return account, nil
 }
 
+// SL2000 max 2160p
 func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -146,7 +147,8 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
    bodyMap := map[string]interface{}{
       "payload": base64.StdEncoding.EncodeToString(challenge),
       "playbackContext": map[string]interface{}{
-         "contentId":        activePlayback.ContentId,
+         "contentId": activePlayback.ContentId,
+         // lower-case 'p' as per their API
          "contentpackageId": activePlayback.ContentPackage.Id,
          "destinationId":    activePlayback.DestinationId,
          "jwt":              token.AccessToken,
