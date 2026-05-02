@@ -6,6 +6,61 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/molotov.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //----------------------------------------------------------
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //---------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   if threads.IsSet {
+      return cache.Write(c)
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash.IsSet {
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {threads},
+      {widevine},
+      {email, password},
+      {address},
+      {dash},
+   })
+}
+
+func (c *client) do_email_password() error {
+   var err error
+   c.Auth, err = molotov.FetchAuth(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do_address() error {
    program, err := molotov.ParseProgram(c.address)
    if err != nil {
@@ -55,53 +110,4 @@ type client struct {
    password string
    //-------------
    address string
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/molotov.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.Auth, err = molotov.FetchAuth(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }

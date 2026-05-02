@@ -158,6 +158,15 @@ type Callback struct {
    Type     string `json:"type,omitempty"`
 }
 
+// ContentNode represents the recursive Server-Driven UI tree used by AMC.
+type ContentNode struct {
+   Type             string        `json:"type"`
+   Properties       *Properties   `json:"properties,omitempty"`
+   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
+   Children         []ContentNode `json:"children,omitempty"`
+   Callback         *Callback     `json:"callback,omitempty"`
+}
+
 // EpisodesMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for playable episodes.
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
@@ -269,6 +278,13 @@ func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
+type DownloadData struct {
+   Downloadable        bool      `json:"downloadable,omitempty"`
+   DownloadingExpireIn int       `json:"downloadingExpireIn,omitempty"`
+   DownloadingEndDate  int       `json:"downloadingEndDate,omitempty"`
+   Callback            *Callback `json:"callback,omitempty"`
+}
+
 type KeySystems struct {
    ComWidevineAlpha struct {
       LicenseURL string `json:"license_url"`
@@ -276,6 +292,33 @@ type KeySystems struct {
    ComMicrosoftPlayready struct {
       LicenseURL string `json:"license_url"`
    } `json:"com.microsoft.playready"`
+}
+
+type Metadata struct {
+   AmcnID                   string `json:"amcnId,omitempty"`
+   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
+   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
+   SeasonNumber             int    `json:"seasonNumber,omitempty"`
+   ShowName                 string `json:"showName,omitempty"`
+   Title                    string `json:"title,omitempty"`
+   Nid                      int    `json:"nid,omitempty"`
+   PageType                 string `json:"pageType,omitempty"`
+   URL                      string `json:"url,omitempty"`
+   Action                   string `json:"action,omitempty"`
+   ElementType              string `json:"elementType,omitempty"`
+   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
+   ElementName              string `json:"elementName,omitempty"`
+   ItemText                 string `json:"itemText,omitempty"`
+   Label                    string `json:"label,omitempty"`
+   NavComponentName         string `json:"navComponentName,omitempty"`
+   NavigationTitle          string `json:"navigationTitle,omitempty"`
+   IsNavigation             bool   `json:"isNavigation,omitempty"`
+   ListTitle                string `json:"listTitle,omitempty"`
+   IsPlayback               bool   `json:"isPlayback,omitempty"`
+   ListMode                 string `json:"listMode,omitempty"`
+   SearchValue              string `json:"searchValue,omitempty"`
+   ListPosition             int    `json:"listPosition,omitempty"`
+   ComponentName            string `json:"componentName,omitempty"`
 }
 
 // String implements the fmt.Stringer interface for easy printing.
@@ -390,20 +433,17 @@ func (s *Source) GetManifest() (*url.URL, error) {
    return url.Parse(s.Src)
 }
 
+type Subheading struct {
+   ID    string `json:"id,omitempty"`
+   Title string `json:"title,omitempty"`
+   Type  string `json:"type,omitempty"`
+}
+
 type TTS struct {
    SpeechText string `json:"speechText,omitempty"`
 }
 
 ///
-
-// ContentNode represents the recursive Server-Driven UI tree used by AMC.
-type ContentNode struct {
-   Type             string        `json:"type"`
-   Properties       *Properties   `json:"properties,omitempty"`
-   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
-   Children         []ContentNode `json:"children,omitempty"`
-   Callback         *Callback     `json:"callback,omitempty"`
-}
 
 // Properties holds all possible strongly-typed properties found in the UI nodes.
 type Properties struct {
@@ -432,33 +472,6 @@ type Images struct {
    Tablet  string `json:"tablet,omitempty"`
 }
 
-type Metadata struct {
-   AmcnID                   string `json:"amcnId,omitempty"`
-   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
-   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
-   SeasonNumber             int    `json:"seasonNumber,omitempty"`
-   ShowName                 string `json:"showName,omitempty"`
-   Title                    string `json:"title,omitempty"`
-   Nid                      int    `json:"nid,omitempty"`
-   PageType                 string `json:"pageType,omitempty"`
-   URL                      string `json:"url,omitempty"`
-   Action                   string `json:"action,omitempty"`
-   ElementType              string `json:"elementType,omitempty"`
-   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
-   ElementName              string `json:"elementName,omitempty"`
-   ItemText                 string `json:"itemText,omitempty"`
-   Label                    string `json:"label,omitempty"`
-   NavComponentName         string `json:"navComponentName,omitempty"`
-   NavigationTitle          string `json:"navigationTitle,omitempty"`
-   IsNavigation             bool   `json:"isNavigation,omitempty"`
-   ListTitle                string `json:"listTitle,omitempty"`
-   IsPlayback               bool   `json:"isPlayback,omitempty"`
-   ListMode                 string `json:"listMode,omitempty"`
-   SearchValue              string `json:"searchValue,omitempty"`
-   ListPosition             int    `json:"listPosition,omitempty"`
-   ComponentName            string `json:"componentName,omitempty"`
-}
-
 type Text struct {
    Title       *TextElement `json:"title,omitempty"`
    Description *TextElement `json:"description,omitempty"`
@@ -467,17 +480,4 @@ type Text struct {
 
 type TextElement struct {
    Title string `json:"title,omitempty"`
-}
-
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type DownloadData struct {
-   Downloadable        bool      `json:"downloadable,omitempty"`
-   DownloadingExpireIn int       `json:"downloadingExpireIn,omitempty"`
-   DownloadingEndDate  int       `json:"downloadingEndDate,omitempty"`
-   Callback            *Callback `json:"callback,omitempty"`
 }
