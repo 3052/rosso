@@ -1,3 +1,4 @@
+// FILE: crave/license.go
 package crave
 
 import (
@@ -5,7 +6,6 @@ import (
    "encoding/json"
    "io"
    "net/url"
-   "strconv"
 
    "41.neocities.org/maya"
 )
@@ -17,15 +17,10 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
       Path:   "/playready",
    }
 
-   contentIdInt, err := strconv.Atoi(activePlayback.ContentId)
-   if err != nil {
-      return nil, err
-   }
-
    bodyMap := map[string]interface{}{
       "payload": base64.StdEncoding.EncodeToString(challenge),
       "playbackContext": map[string]interface{}{
-         "contentId":        contentIdInt,
+         "contentId":        activePlayback.ContentId,
          "contentpackageId": activePlayback.ContentPackage.Id,
          "destinationId":    activePlayback.DestinationId,
          "jwt":              token.AccessToken,

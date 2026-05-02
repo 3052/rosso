@@ -213,13 +213,6 @@ func FetchMedia(id int) (*Media, error) {
 // crave-web:default
 const crave_web = "Basic Y3JhdmUtd2ViOmRlZmF1bHQ="
 
-type Media struct {
-   FirstContent struct {
-      Id int `json:"id,string"`
-   }
-   Id int `json:"id,string"`
-}
-
 func (c *ContentPackage) fetchLicense(contentId int, accessToken string, payload []byte, platformId int, path string) ([]byte, error) {
    body, err := json.Marshal(map[string]any{
       "payload": payload,
@@ -340,20 +333,37 @@ func FetchContentPackage(accessToken string, contentId int) (*ContentPackage, er
    return &result.ContentPackage, nil
 }
 
-func (s *Subscription) String() string {
-   var data strings.Builder
-   data.WriteString("display name = ")
-   data.WriteString(s.Experience.DisplayName)
-   data.WriteString("\nexpiration date = ")
-   data.WriteString(s.ExpirationDate)
-   return data.String()
+type Media struct {
+   FirstContent struct {
+      Id int `json:"id,string"`
+   }
+   Id int `json:"id,string"`
 }
 
 func (m *Manifest) GetManifest() (*url.URL, error) {
    return url.Parse(m.Playback)
 }
 
-///
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   if p.Master {
+      data.WriteString("\nmaster = true")
+   } else {
+      data.WriteString("\nmaster = false")
+   }
+   data.WriteString("\nmaturity = ")
+   data.WriteString(p.Maturity)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
 
 /*
 https://crave.ca/en/movie/anaconda-2025-59881
@@ -407,23 +417,13 @@ func ParseMedia(rawUrl string) (*Media, error) {
    return media_data, nil
 }
 
-func (p *Profile) String() string {
+///
+
+func (s *Subscription) String() string {
    var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   if p.Master {
-      data.WriteString("\nmaster = true")
-   } else {
-      data.WriteString("\nmaster = false")
-   }
-   data.WriteString("\nmaturity = ")
-   data.WriteString(p.Maturity)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
+   data.WriteString("display name = ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date = ")
+   data.WriteString(s.ExpirationDate)
    return data.String()
 }

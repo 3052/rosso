@@ -1,14 +1,16 @@
+// FILE: crave/playback.go
 package crave
 
 import (
    "encoding/json"
    "net/url"
+   "strconv"
 
    "41.neocities.org/maya"
 )
 
 type Playback struct {
-   ContentId      string         `json:"contentId"`
+   ContentId      int            `json:"contentId,string"`
    DestinationId  int            `json:"destinationId"`
    ContentPackage ContentPackage `json:"contentPackage"`
 }
@@ -24,7 +26,7 @@ func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "playback.rte-api.bellmedia.ca",
-      Path:   "/contents/" + activeMedia.FirstContent.Id,
+      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
    }
 
    headers := map[string]string{

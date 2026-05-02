@@ -1,3 +1,4 @@
+// FILE: crave/stream.go
 package crave
 
 import (
@@ -17,7 +18,7 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "stream.video.9c9media.com",
-      Path:   fmt.Sprintf("/meta/content/%s/contentpackage/%d/destination/%d/platform/48", activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId),
+      Path:   fmt.Sprintf("/meta/content/%d/contentpackage/%d/destination/%d/platform/48", activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId),
    }
 
    values := url.Values{}

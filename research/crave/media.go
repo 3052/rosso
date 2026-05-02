@@ -1,10 +1,21 @@
+// FILE: crave/media.go
 package crave
 
 import (
-   "41.neocities.org/maya"
    "encoding/json"
    "net/url"
+
+   "41.neocities.org/maya"
 )
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
 
 func GetMedia(showId string) ([]Media, error) {
    endpoint := &url.URL{
@@ -49,13 +60,4 @@ func GetMedia(showId string) ([]Media, error) {
    }
 
    return wrapper.Data.Medias, nil
-}
-
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           string       `json:"id"`
-}
-
-type FirstContent struct {
-   Id string `json:"id"`
 }
