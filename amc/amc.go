@@ -9,6 +9,9 @@ import (
    "net/url"
 )
 
+//go:embed playback.json
+var playback_json []byte
+
 func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    target, err := url.Parse(licenseUrl)
    if err != nil {
@@ -25,6 +28,57 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
       return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
    }
    return io.ReadAll(resp.Body)
+}
+
+// Login authenticates the user. It requires the guest token (access_token)
+// retrieved from calling the Unauth() function.
+func Login(guestToken, email, password string) (*AuthData, error) {
+   // Body
+   body, err := json.Marshal(map[string]string{
+      "email":    email,
+      "password": password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/login",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + guestToken,
+         "content-type":            "application/json",
+         "x-amcn-language":         "en",
+         "x-amcn-network":          "amcplus",
+         "x-amcn-platform":         "web",
+         "x-amcn-service-group-id": "10",
+         "x-amcn-tenant":           "amcn",
+         "x-amcn-device-ad-id":     "-",
+         "x-amcn-device-id":        "-",
+         "x-amcn-service-id":       "amcplus",
+         "x-ccpa-do-not-sell":      "doNotPassData",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
 }
 
 func Unauth() (*AuthData, error) {
@@ -91,6 +145,81 @@ func Refresh(refreshToken string) (*AuthData, error) {
    return &envelope.Data, nil
 }
 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      if node.Type == "card" && node.Properties != nil && node.Properties.ContentType == "episode" && node.Properties.Metadata != nil {
+         metadata = append(metadata, node.Properties.Metadata)
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      // Season tabs are identified by being a tab_bar_item with a valid season number
+      if node.Type == "tab_bar_item" && node.Properties != nil && node.Properties.Metadata != nil && node.Properties.Metadata.SeasonNumber > 0 {
+         metadata = append(metadata, node.Properties.Metadata)
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path: fmt.Sprint(
+            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
+            seriesId,
+         ),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
 func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -147,46 +276,21 @@ func (m *Metadata) String() string {
    return fmt.Sprintf("NID: %d", m.Nid)
 }
 
-///
-
-func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint(
-            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
-            seriesId,
-         ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
+// DashSource finds and returns the first Source with the type "application/dash+xml".
+func (p *PlaybackData) DashSource() (*Source, error) {
+   for _, src := range p.PlaybackJsonData.Sources {
+      if src.Type == "application/dash+xml" {
+         return &src, nil
+      }
    }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
+   return nil, fmt.Errorf("application/dash+xml source not found")
 }
 
-//go:embed playback.json
-var playback_json []byte
+// PlaybackResult groups the parsed playback data with the Brightcove JWT needed for DRM.
+type PlaybackResult struct {
+   Data     PlaybackData
+   BcovAuth string
+}
 
 func Playback(authToken string, videoId int) (*PlaybackResult, error) {
    resp, err := maya.Post(
@@ -230,56 +334,7 @@ func Playback(authToken string, videoId int) (*PlaybackResult, error) {
    }, nil
 }
 
-// Login authenticates the user. It requires the guest token (access_token)
-// retrieved from calling the Unauth() function.
-func Login(guestToken, email, password string) (*AuthData, error) {
-   // Body
-   body, err := json.Marshal(map[string]string{
-      "email":    email,
-      "password": password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/login",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + guestToken,
-         "content-type":            "application/json",
-         "x-amcn-language":         "en",
-         "x-amcn-network":          "amcplus",
-         "x-amcn-platform":         "web",
-         "x-amcn-service-group-id": "10",
-         "x-amcn-tenant":           "amcn",
-         "x-amcn-device-ad-id":     "-",
-         "x-amcn-device-id":        "-",
-         "x-amcn-service-id":       "amcplus",
-         "x-ccpa-do-not-sell":      "doNotPassData",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
+///
 
 type Source struct {
    Codecs     string     `json:"codecs"`
@@ -425,59 +480,4 @@ type KeySystems struct {
    ComMicrosoftPlayready struct {
       LicenseURL string `json:"license_url"`
    } `json:"com.microsoft.playready"`
-}
-
-// PlaybackResult groups the parsed playback data with the Brightcove JWT needed for DRM.
-type PlaybackResult struct {
-   Data     PlaybackData
-   BcovAuth string
-}
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      if node.Type == "card" && node.Properties != nil && node.Properties.ContentType == "episode" && node.Properties.Metadata != nil {
-         metadata = append(metadata, node.Properties.Metadata)
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      // Season tabs are identified by being a tab_bar_item with a valid season number
-      if node.Type == "tab_bar_item" && node.Properties != nil && node.Properties.Metadata != nil && node.Properties.Metadata.SeasonNumber > 0 {
-         metadata = append(metadata, node.Properties.Metadata)
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// DashSource finds and returns the first Source with the type "application/dash+xml".
-func (p *PlaybackData) DashSource() (*Source, error) {
-   for _, src := range p.PlaybackJsonData.Sources {
-      if src.Type == "application/dash+xml" {
-         return &src, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
 }

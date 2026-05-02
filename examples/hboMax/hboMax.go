@@ -15,6 +15,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
    //-------------------------------------------------------------
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //-------------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-------------------------------------------------------------
    initiate := maya.BoolFlag("i", "initiate")
@@ -39,6 +41,9 @@ func (c *client) do() error {
       return err
    }
    if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if threads.IsSet {
       return cache.Write(c)
    }
    if proxy.IsSet {
@@ -66,6 +71,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
+      {threads},
       {proxy},
       {initiate, market},
       {login},
