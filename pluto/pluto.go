@@ -10,6 +10,25 @@ import (
    "strings"
 )
 
+func (v *Vod) String() string {
+   data := &strings.Builder{}
+   var lines bool
+   for _, season := range v.Seasons {
+      for _, episode := range season.Episodes {
+         if lines {
+            data.WriteString("\n\n")
+         } else {
+            lines = true
+         }
+         fmt.Fprintln(data, "season:", season.Number)
+         fmt.Fprintln(data, "episode:", episode.Number)
+         fmt.Fprintln(data, "name:", episode.Name)
+         fmt.Fprint(data, "id: ", episode.Id)
+      }
+   }
+   return data.String()
+}
+
 // pluto.tv/on-demand/movies/64946365c5ae350013623630
 // pluto.tv/on-demand/movies/disobedience-ca-2018-1-1
 func FetchSeries(movieShow string) (*Series, error) {
@@ -140,27 +159,4 @@ type Vod struct {
    }
    Slug     string
    Stitched *Stitched
-}
-
-func (v *Vod) String() string {
-   data := &strings.Builder{}
-   var lines bool
-   for _, season := range v.Seasons {
-      for _, episode := range season.Episodes {
-         if lines {
-            data.WriteString("\n\n")
-         } else {
-            lines = true
-         }
-         data.WriteString("season = ")
-         fmt.Fprint(data, season.Number)
-         data.WriteString("\nepisode = ")
-         fmt.Fprint(data, episode.Number)
-         data.WriteString("\nname = ")
-         data.WriteString(episode.Name)
-         data.WriteString("\nid = ")
-         data.WriteString(episode.Id)
-      }
-   }
-   return data.String()
 }
