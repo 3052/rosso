@@ -15,6 +15,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
    //--------------------------------------------------------------
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //--------------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //--------------------------------------------------------------
    email := maya.StringFlag(&c.Email, "e", "email")
@@ -43,6 +45,8 @@ func (c *client) do() error {
    switch {
    case playReady.IsSet:
       return cache.Write(c)
+   case threads.IsSet:
+      return cache.Write(c)
    case proxy.IsSet:
       return cache.Write(c)
    case email.IsSet:
@@ -64,6 +68,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{{
       playReady,
+      threads,
       proxy,
       email,
       passcode,
