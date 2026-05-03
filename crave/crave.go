@@ -93,6 +93,67 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    return account, nil
 }
 
+type ContentPackage struct {
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Id                int    `json:"id"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+   Language          string `json:"language"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
+
+func GetMedia(showId int) (*Media, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "rte-api.bellmedia.ca",
+      Path:   "/graphql",
+   }
+
+   headers := map[string]string{
+      // {"platform":"platform_web"}
+      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
+   }
+
+   bodyMap := map[string]interface{}{
+      "query": get_showpage,
+      "variables": map[string]interface{}{
+         "ids": []string{strconv.Itoa(showId)},
+         "sessionContext": map[string]interface{}{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Data struct {
+         Medias []Media `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data.Medias[0], nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
 /*
 https://crave.ca/en/movie/anaconda-2025-59881
 https://crave.ca/en/play/anaconda-2025-3300246
@@ -143,6 +204,80 @@ func ParseMedia(rawUrl string) (*Media, error) {
       media_data.FirstContent.Id = id
    }
    return media_data, nil
+}
+
+func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "playback.rte-api.bellmedia.ca",
+      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
+   }
+
+   headers := map[string]string{
+      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
+      "authorization":       "Bearer " + token.AccessToken,
+      "x-playback-language": "EN",
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result, nil
+}
+
+type Playback struct {
+   ContentId      int            `json:"contentId,string"`
+   ContentPackage ContentPackage `json:"contentPackage"`
+   DestinationId  int            `json:"destinationId"`
+   Error          string         // 2026-05-03
+}
+
+type Profile struct {
+   Id                string   `json:"id"`
+   AccountId         string   `json:"accountId"`
+   Nickname          string   `json:"nickname"`
+   HasPin            bool     `json:"hasPin"`
+   Master            bool     `json:"master"`
+   Maturity          string   `json:"maturity"`
+   Onboarded         bool     `json:"onboarded"`
+   UiLanguage        string   `json:"uiLanguage"`
+   PlaybackLanguages []string `json:"playbackLanguages"`
+   LastModifiedDate  string   `json:"lastModifiedDate"`
+   AvatarUrl         string   `json:"avatarUrl"`
+}
+
+func GetProfiles(account *AccountToken) ([]Profile, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/profile/v2/account/" + account.AccountId,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + account.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var activeProfiles []Profile
+   if err := json.NewDecoder(resp.Body).Decode(&activeProfiles); err != nil {
+      return nil, err
+   }
+
+   return activeProfiles, nil
 }
 
 func (p *Profile) String() string {
@@ -263,139 +398,4 @@ func (s *Subscription) String() string {
 
 func (s *Stream) GetManifest() (*url.URL, error) {
    return url.Parse(s.Playback)
-}
-
-func GetMedia(showId int) (*Media, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "rte-api.bellmedia.ca",
-      Path:   "/graphql",
-   }
-
-   headers := map[string]string{
-      // {"platform":"platform_web"}
-      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
-   }
-
-   bodyMap := map[string]interface{}{
-      "query": get_showpage,
-      "variables": map[string]interface{}{
-         "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]interface{}{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Data struct {
-         Medias []Media `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data.Medias[0], nil
-}
-
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
-}
-
-type ContentPackage struct {
-   Id                int    `json:"id"`
-   DurationInSeconds int    `json:"durationInSeconds"`
-   Language          string `json:"language"`
-   IsDescribedVideo  bool   `json:"isDescribedVideo"`
-}
-
-func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "playback.rte-api.bellmedia.ca",
-      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
-   }
-
-   headers := map[string]string{
-      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
-      "authorization":       "Bearer " + token.AccessToken,
-      "x-playback-language": "EN",
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
-}
-
-type Playback struct {
-   ContentId      int            `json:"contentId,string"`
-   ContentPackage ContentPackage `json:"contentPackage"`
-   DestinationId  int            `json:"destinationId"`
-   Error          string         // 2026-05-03
-}
-
-type Profile struct {
-   Id                string   `json:"id"`
-   AccountId         string   `json:"accountId"`
-   Nickname          string   `json:"nickname"`
-   HasPin            bool     `json:"hasPin"`
-   Master            bool     `json:"master"`
-   Maturity          string   `json:"maturity"`
-   Onboarded         bool     `json:"onboarded"`
-   UiLanguage        string   `json:"uiLanguage"`
-   PlaybackLanguages []string `json:"playbackLanguages"`
-   LastModifiedDate  string   `json:"lastModifiedDate"`
-   AvatarUrl         string   `json:"avatarUrl"`
-}
-
-func GetProfiles(account *AccountToken) ([]Profile, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/profile/v2/account/" + account.AccountId,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + account.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var activeProfiles []Profile
-   if err := json.NewDecoder(resp.Body).Decode(&activeProfiles); err != nil {
-      return nil, err
-   }
-
-   return activeProfiles, nil
 }
