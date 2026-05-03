@@ -7,6 +7,62 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/crave.xml")
+   if err != nil {
+      return err
+   }
+   with_cache := cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+   //-----------------------------------------------------------
+   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
+   //-----------------------------------------------------------
+   username := maya.StringFlag(&c.username, "u", "username")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //-----------------------------------------------------------
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   //-----------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //-----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   err = maya.SetProxy(c.Proxy)
+   if err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
+      return cache.Write(c)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return with_cache(c.do_profile)
+   }
+   if address.IsSet {
+      return with_cache(c.do_address)
+   }
+   if dash.IsSet {
+      return with_cache(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {proxy},
+      {username, password},
+      {profile},
+      {address},
+      {dash},
+   })
+}
+
 func (c *client) do_username_password() error {
    var err error
    c.AccountToken, err = crave.PerformLogin(c.username, c.password)
@@ -62,6 +118,8 @@ type client struct {
    //--------------------
    Job maya.Job
    //--------------------
+   Proxy string
+   //--------------------
    username string
    password string
    //--------------------
@@ -103,50 +161,4 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //-----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return with_cache(c.do_profile)
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {username, password},
-      {profile},
-      {address},
-      {dash},
-   })
 }

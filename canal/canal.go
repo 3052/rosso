@@ -15,91 +15,6 @@ import (
    "time"
 )
 
-func (t *Ticket) Login(username, password string) (*Login, error) {
-   body, err := json.Marshal(map[string]any{
-      "ticket": t.Ticket,
-      "userInput": map[string]string{
-         "username": username,
-         "password": password,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
-   client, err := get_client(target, body)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "authorization": client,
-         "user-agent":    user_agent,
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Login
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      return nil, &result
-   }
-   return &result, nil
-}
-
-func FetchTicket() (*Ticket, error) {
-   body, err := json.Marshal(map[string]any{
-      "deviceInfo": map[string]string{
-         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
-         "deviceModel":  "Firefox",
-         "deviceOem":    "Firefox",
-         "deviceSerial": device_serial,
-         "deviceType":   "PC",
-         "osVersion":    "Windows 10",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
-   client, err := get_client(target, body)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "authorization": client,
-         "user-agent":    user_agent,
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Ticket
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
 func (s *Session) Player(tracking string) (*Player, error) {
    body, err := json.Marshal(map[string]any{
       "player": map[string]any{
@@ -229,6 +144,93 @@ func (s *Session) Search(query string) ([]Collection, error) {
    }
    return result.Collection, nil
 }
+
+func (t *Ticket) Login(username, password string) (*Login, error) {
+   body, err := json.Marshal(map[string]any{
+      "ticket": t.Ticket,
+      "userInput": map[string]string{
+         "username": username,
+         "password": password,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Login
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      return nil, &result
+   }
+   return &result, nil
+}
+
+func FetchTicket() (*Ticket, error) {
+   body, err := json.Marshal(map[string]any{
+      "deviceInfo": map[string]string{
+         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
+         "deviceModel":  "Firefox",
+         "deviceOem":    "Firefox",
+         "deviceSerial": device_serial,
+         "deviceType":   "PC",
+         "osVersion":    "Windows 10",
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Ticket
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+///
 
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    target, err := url.Parse(p.Drm.LicenseUrl)

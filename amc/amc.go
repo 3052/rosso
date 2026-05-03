@@ -285,6 +285,12 @@ type DownloadData struct {
    Callback            *Callback `json:"callback,omitempty"`
 }
 
+type Images struct {
+   Default string `json:"default,omitempty"`
+   Mobile  string `json:"mobile,omitempty"`
+   Tablet  string `json:"tablet,omitempty"`
+}
+
 type KeySystems struct {
    ComWidevineAlpha struct {
       LicenseURL string `json:"license_url"`
@@ -422,29 +428,6 @@ func Playback(authToken string, videoId int) (*PlaybackResult, error) {
    }, nil
 }
 
-type Source struct {
-   Codecs     string     `json:"codecs"`
-   Src        string     `json:"src"` // MPD
-   Type       string     `json:"type"`
-   KeySystems KeySystems `json:"key_systems"`
-}
-
-func (s *Source) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Src)
-}
-
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type TTS struct {
-   SpeechText string `json:"speechText,omitempty"`
-}
-
-///
-
 // Properties holds all possible strongly-typed properties found in the UI nodes.
 type Properties struct {
    ID           string `json:"id,omitempty"`
@@ -466,10 +449,21 @@ type Properties struct {
    Navigation   *Navigation   `json:"navigation,omitempty"`
 }
 
-type Images struct {
-   Default string `json:"default,omitempty"`
-   Mobile  string `json:"mobile,omitempty"`
-   Tablet  string `json:"tablet,omitempty"`
+type Source struct {
+   Codecs     string     `json:"codecs"`
+   Src        string     `json:"src"` // MPD
+   Type       string     `json:"type"`
+   KeySystems KeySystems `json:"key_systems"`
+}
+
+func (s *Source) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Src)
+}
+
+type Subheading struct {
+   ID    string `json:"id,omitempty"`
+   Title string `json:"title,omitempty"`
+   Type  string `json:"type,omitempty"`
 }
 
 type Text struct {
@@ -480,4 +474,8 @@ type Text struct {
 
 type TextElement struct {
    Title string `json:"title,omitempty"`
+}
+
+type TTS struct {
+   SpeechText string `json:"speechText,omitempty"`
 }
