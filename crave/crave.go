@@ -13,6 +13,190 @@ import (
    "strings"
 )
 
+// SL2000 max 2160p
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "license.9c9media.com",
+      Path:   "/playready",
+   }
+
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId": activePlayback.ContentId,
+         // lower-case 'p' as per their API
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
+func (s *Subscription) String() string {
+   var data strings.Builder
+   data.WriteString("display name = ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date = ")
+   data.WriteString(s.ExpirationDate)
+   return data.String()
+}
+
+/*
+https://crave.ca/en/movie/anaconda-2025-59881
+https://crave.ca/en/play/anaconda-2025-3300246
+https://crave.ca/movie/anaconda-2025-59881
+https://crave.ca/play/anaconda-2025-3300246
+https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
+*/
+func ParseMedia(rawUrl string) (*Media, error) {
+   parsedUrl, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+   // Split the path directly.
+   parts := strings.Split(parsedUrl.Path, "/")
+   if len(parts) < 3 {
+      return nil, errors.New("invalid URL path format")
+   }
+   // Anchor the URL by looking for the explicit media type
+   var typePart string
+   for _, part := range parts {
+      if part == "movie" || part == "play" {
+         typePart = part
+         break
+      }
+   }
+   if typePart == "" {
+      return nil, errors.New("missing media type (movie/play) in URL")
+   }
+   // Safely grab the last segment (the slug containing the ID)
+   lastPart := parts[len(parts)-1]
+   // Find the last dash to extract the ID
+   dashIdx := strings.LastIndex(lastPart, "-")
+   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
+      return nil, errors.New("no ID found at the end of the URL")
+   }
+   idStr := lastPart[dashIdx+1:]
+   // Convert extracted string to integer
+   id, err := strconv.Atoi(idStr)
+   if err != nil {
+      return nil, fmt.Errorf("invalid ID format: %w", err)
+   }
+   // Populate struct based on the anchored type
+   media_data := &Media{}
+   switch typePart {
+   case "movie":
+      media_data.Id = id
+   case "play":
+      media_data.FirstContent.Id = id
+   }
+   return media_data, nil
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname = ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin = true")
+   } else {
+      data.WriteString("\nhas pin = false")
+   }
+   if p.Master {
+      data.WriteString("\nmaster = true")
+   } else {
+      data.WriteString("\nmaster = false")
+   }
+   data.WriteString("\nmaturity = ")
+   data.WriteString(p.Maturity)
+   data.WriteString("\nid = ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+//go:embed GetShowpage.gql
+var get_showpage string
+
+func (s *Stream) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Playback)
+}
+
+func GetMedia(showId int) (*Media, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "rte-api.bellmedia.ca",
+      Path:   "/graphql",
+   }
+
+   headers := map[string]string{
+      // {"platform":"platform_web"}
+      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
+   }
+
+   bodyMap := map[string]interface{}{
+      "query": get_showpage,
+      "variables": map[string]interface{}{
+         "ids": []string{strconv.Itoa(showId)},
+         "sessionContext": map[string]interface{}{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Data struct {
+         Medias []Media `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data.Medias[0], nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
+
+type ContentPackage struct {
+   Id                int    `json:"id"`
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Language          string `json:"language"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+}
+
 func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -210,188 +394,4 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    }
 
    return account, nil
-}
-
-// SL2000 max 2160p
-func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "license.9c9media.com",
-      Path:   "/playready",
-   }
-
-   bodyMap := map[string]interface{}{
-      "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]interface{}{
-         "contentId": activePlayback.ContentId,
-         // lower-case 'p' as per their API
-         "contentpackageId": activePlayback.ContentPackage.Id,
-         "destinationId":    activePlayback.DestinationId,
-         "jwt":              token.AccessToken,
-         "platformId":       48,
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-func (s *Subscription) String() string {
-   var data strings.Builder
-   data.WriteString("display name = ")
-   data.WriteString(s.Experience.DisplayName)
-   data.WriteString("\nexpiration date = ")
-   data.WriteString(s.ExpirationDate)
-   return data.String()
-}
-
-/*
-https://crave.ca/en/movie/anaconda-2025-59881
-https://crave.ca/en/play/anaconda-2025-3300246
-https://crave.ca/movie/anaconda-2025-59881
-https://crave.ca/play/anaconda-2025-3300246
-https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
-*/
-func ParseMedia(rawUrl string) (*Media, error) {
-   parsedUrl, err := url.Parse(rawUrl)
-   if err != nil {
-      return nil, err
-   }
-   // Split the path directly.
-   parts := strings.Split(parsedUrl.Path, "/")
-   if len(parts) < 3 {
-      return nil, errors.New("invalid URL path format")
-   }
-   // Anchor the URL by looking for the explicit media type
-   var typePart string
-   for _, part := range parts {
-      if part == "movie" || part == "play" {
-         typePart = part
-         break
-      }
-   }
-   if typePart == "" {
-      return nil, errors.New("missing media type (movie/play) in URL")
-   }
-   // Safely grab the last segment (the slug containing the ID)
-   lastPart := parts[len(parts)-1]
-   // Find the last dash to extract the ID
-   dashIdx := strings.LastIndex(lastPart, "-")
-   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
-      return nil, errors.New("no ID found at the end of the URL")
-   }
-   idStr := lastPart[dashIdx+1:]
-   // Convert extracted string to integer
-   id, err := strconv.Atoi(idStr)
-   if err != nil {
-      return nil, fmt.Errorf("invalid ID format: %w", err)
-   }
-   // Populate struct based on the anchored type
-   media_data := &Media{}
-   switch typePart {
-   case "movie":
-      media_data.Id = id
-   case "play":
-      media_data.FirstContent.Id = id
-   }
-   return media_data, nil
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname = ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin = true")
-   } else {
-      data.WriteString("\nhas pin = false")
-   }
-   if p.Master {
-      data.WriteString("\nmaster = true")
-   } else {
-      data.WriteString("\nmaster = false")
-   }
-   data.WriteString("\nmaturity = ")
-   data.WriteString(p.Maturity)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-//go:embed GetShowpage.gql
-var get_showpage string
-
-func (s *Stream) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Playback)
-}
-
-func GetMedia(showId int) (*Media, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "rte-api.bellmedia.ca",
-      Path:   "/graphql",
-   }
-
-   headers := map[string]string{
-      // {"platform":"platform_web"}
-      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
-   }
-
-   bodyMap := map[string]interface{}{
-      "query": get_showpage,
-      "variables": map[string]interface{}{
-         "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]interface{}{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Data struct {
-         Medias []Media `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data.Medias[0], nil
-}
-
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
-}
-
-type ContentPackage struct {
-   Id                int    `json:"id"`
-   DurationInSeconds int    `json:"durationInSeconds"`
-   Language          string `json:"language"`
-   IsDescribedVideo  bool   `json:"isDescribedVideo"`
 }
