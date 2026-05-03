@@ -15,6 +15,16 @@ import (
    "time"
 )
 
+const user_agent = "Mozilla/5.0 Windows"
+
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
 func get_client(url_data *url.URL, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
    // 1. base64 raw URL decode secret key
@@ -45,6 +55,15 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+type Episode struct {
+   Desc   string
+   Id     string
+   Params struct {
+      SeriesEpisode int
+   }
+   Title string
+}
+
 func (e *Episode) String() string {
    data := &strings.Builder{}
    fmt.Fprintln(data, "episode =", e.Params.SeriesEpisode)
@@ -52,6 +71,36 @@ func (e *Episode) String() string {
    fmt.Fprintln(data, "desc =", e.Desc)
    fmt.Fprint(data, "tracking = ", e.Id)
    return data.String()
+}
+
+type Login struct {
+   Label    string
+   Message  string
+   SsoToken string // this last one day
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label = ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage = ")
+   data.WriteString(l.Message)
+   return data.String()
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl string
+   }
+   Message   string
+   Subtitles []struct {
+      Url string
+   }
+   Url string // MPD
+}
+
+func (p *Player) GetManifest() (*url.URL, error) {
+   return url.Parse(p.Url)
 }
 
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
@@ -65,6 +114,12 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
@@ -197,6 +252,11 @@ func (s *Session) Search(query string) ([]Collection, error) {
    return result.Collection, nil
 }
 
+type Ticket struct {
+   Message string
+   Ticket  string
+}
+
 func (t *Ticket) Login(username, password string) (*Login, error) {
    body, err := json.Marshal(map[string]any{
       "ticket": t.Ticket,
@@ -304,63 +364,3 @@ type Asset struct {
 type Collection struct {
    Assets []Asset
 }
-
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
-
-const user_agent = "Mozilla/5.0 Windows"
-
-type Player struct {
-   Drm struct {
-      LicenseUrl string
-   }
-   Message   string
-   Subtitles []struct {
-      Url string
-   }
-   Url string // MPD
-}
-
-type Ticket struct {
-   Message string
-   Ticket  string
-}
-
-func (p *Player) GetManifest() (*url.URL, error) {
-   return url.Parse(p.Url)
-}
-
-type Episode struct {
-   Desc   string
-   Id     string
-   Params struct {
-      SeriesEpisode int
-   }
-   Title string
-}
-
-type Login struct {
-   Label    string
-   Message  string
-   SsoToken string // this last one day
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label = ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage = ")
-   data.WriteString(l.Message)
-   return data.String()
-}
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)

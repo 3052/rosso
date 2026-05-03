@@ -15,6 +15,8 @@ func (c *client) do() error {
    with_cache := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
    //-----------------------------------------------------------
+   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   //-----------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-----------------------------------------------------------
    username := maya.StringFlag(&c.username, "u", "username")
@@ -36,6 +38,9 @@ func (c *client) do() error {
    if playReady.IsSet {
       return cache.Write(c)
    }
+   if threads.IsSet {
+      return cache.Write(c)
+   }
    if proxy.IsSet {
       return cache.Write(c)
    }
@@ -55,12 +60,48 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
+      {threads},
       {proxy},
       {username, password},
       {profile},
       {address},
       {dash},
    })
+}
+
+func (c *client) do_address() error {
+   var err error
+   c.Media, err = crave.ParseMedia(c.address)
+   if err != nil {
+      return err
+   }
+   if c.Media.FirstContent.Id == 0 {
+      c.Media, err = crave.GetMedia(c.Media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   c.Playback, err = crave.GetPlayback(c.ProfileToken, c.Media)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(c.ProfileToken, c.Playback)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 func (c *client) do_username_password() error {
@@ -126,39 +167,4 @@ type client struct {
    profile string
    //--------------------
    address string
-}
-
-func (c *client) do_address() error {
-   var err error
-   c.Media, err = crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if c.Media.FirstContent.Id == 0 {
-      c.Media, err = crave.GetMedia(c.Media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   c.Playback, err = crave.GetPlayback(c.ProfileToken, c.Media)
-   if err != nil {
-      return err
-   }
-   stream, err := crave.GetStream(c.ProfileToken, c.Playback)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(stream.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
