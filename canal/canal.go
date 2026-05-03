@@ -15,6 +15,15 @@ import (
    "time"
 )
 
+func (e *Episode) String() string {
+   data := &strings.Builder{}
+   fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
+   fmt.Fprintln(data, "title:", e.Title)
+   fmt.Fprintln(data, "desc:", e.Desc)
+   fmt.Fprint(data, "tracking: ", e.Id)
+   return data.String()
+}
+
 func (a *Asset) String() string {
    var data strings.Builder
    data.WriteString("title: ")
@@ -92,15 +101,6 @@ type Episode struct {
       SeriesEpisode int
    }
    Title string
-}
-
-func (e *Episode) String() string {
-   data := &strings.Builder{}
-   fmt.Fprintln(data, "episode =", e.Params.SeriesEpisode)
-   fmt.Fprintln(data, "title =", e.Title)
-   fmt.Fprintln(data, "desc =", e.Desc)
-   fmt.Fprint(data, "tracking = ", e.Id)
-   return data.String()
 }
 
 type Login struct {

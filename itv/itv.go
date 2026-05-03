@@ -12,6 +12,19 @@ import (
    "strings"
 )
 
+func (t *Title) String() string {
+   data := &strings.Builder{}
+   if t.Series != nil {
+      fmt.Fprintln(data, "series:", t.Series.SeriesNumber)
+      fmt.Fprintln(data, "episode:", t.EpisodeNumber)
+   }
+   if t.Title != "" {
+      fmt.Fprintln(data, "title:", t.Title)
+   }
+   fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
+   return data.String()
+}
+
 func graphql_compact(data string) string {
    return strings.Join(strings.Fields(data), " ")
 }
@@ -173,17 +186,4 @@ type Title struct {
    }
    EpisodeNumber int
    Title         string
-}
-
-func (t *Title) String() string {
-   data := &strings.Builder{}
-   if t.Series != nil {
-      fmt.Fprintln(data, "series =", t.Series.SeriesNumber)
-      fmt.Fprintln(data, "episode =", t.EpisodeNumber)
-   }
-   if t.Title != "" {
-      fmt.Fprintln(data, "title =", t.Title)
-   }
-   fmt.Fprint(data, "playlist = ", t.LatestAvailableVersion.PlaylistUrl)
-   return data.String()
 }

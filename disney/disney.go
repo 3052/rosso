@@ -10,6 +10,44 @@ import (
    "strings"
 )
 
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/entity-" + entity,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Errors []Error // 2026-04-11
+         Page   Page
+      }
+      Errors []Error // 2026-05-03
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
+   }
+   return &result.Data.Page, nil
+}
+
 func (p *Page) String() string {
    var data strings.Builder
    if len(p.Containers[0].Seasons) >= 1 {
@@ -522,40 +560,6 @@ func (t *Token) FetchStream(mediaId string) (*Stream, error) {
       return nil, &result.Errors[0]
    }
    return &result.Stream, nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/entity-" + entity,
-         RawQuery: "limit=0",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Errors []Error // 2026-04-11
-         Page   Page
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Data.Errors) >= 1 {
-      return nil, &result.Data.Errors[0]
-   }
-   return &result.Data.Page, nil
 }
 
 func (s *Stream) GetManifest() (*url.URL, error) {

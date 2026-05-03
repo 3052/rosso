@@ -252,9 +252,9 @@ type Initiate struct {
 
 func (i *Initiate) String() string {
    var data strings.Builder
-   data.WriteString("target URL = ")
+   data.WriteString("target URL: ")
    data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code = ")
+   data.WriteString("\nlinking code: ")
    data.WriteString(i.LinkingCode)
    return data.String()
 }
@@ -424,15 +424,15 @@ type Playback struct {
 func (e *Error) Error() string {
    var data strings.Builder
    // 1. print code
-   data.WriteString("code = ")
+   data.WriteString("code: ")
    data.WriteString(e.Code)
    // 2, 3, 4. if detail print detail, if message print message, if both print
    // one
    if e.Detail != "" {
-      data.WriteString("\ndetail = ")
+      data.WriteString("\ndetail: ")
       data.WriteString(e.Detail)
    } else if e.Message != "" {
-      data.WriteString("\nmessage = ")
+      data.WriteString("\nmessage: ")
       data.WriteString(e.Message)
    }
    return data.String()
