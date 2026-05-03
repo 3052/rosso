@@ -55,6 +55,27 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+func (a *Asset) String() string {
+   var data strings.Builder
+   data.WriteString("title = ")
+   data.WriteString(a.Title)
+   data.WriteString("\ntype = ")
+   data.WriteString(a.Type)
+   data.WriteString("\nid = ")
+   data.WriteString(a.Id)
+   return data.String()
+}
+
+type Asset struct {
+   Id    string
+   Title string
+   Type  string
+}
+
+type Collection struct {
+   Assets []Asset
+}
+
 type Episode struct {
    Desc   string
    Id     string
@@ -340,27 +361,4 @@ func FetchTicket() (*Ticket, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-///
-
-func (a *Asset) String() string {
-   var data strings.Builder
-   data.WriteString("title = ")
-   data.WriteString(a.Title)
-   data.WriteString("\ntype = ")
-   data.WriteString(a.Type)
-   data.WriteString("\nid = ")
-   data.WriteString(a.Id)
-   return data.String()
-}
-
-type Asset struct {
-   Title string
-   Type  string
-   Id    string
-}
-
-type Collection struct {
-   Assets []Asset
 }
