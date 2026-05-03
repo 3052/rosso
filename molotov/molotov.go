@@ -10,6 +10,15 @@ import (
    "strings"
 )
 
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("developer message: ")
+   data.WriteString(e.DeveloperMessage)
+   data.WriteString("\nuser message: ")
+   data.WriteString(e.UserMessage)
+   return data.String()
+}
+
 type Auth struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
@@ -133,15 +142,6 @@ const (
    browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
 )
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("developer message = ")
-   data.WriteString(e.DeveloperMessage)
-   data.WriteString("\nuser message = ")
-   data.WriteString(e.UserMessage)
-   return data.String()
-}
 
 type Error struct {
    DeveloperMessage string `json:"developer_message"`

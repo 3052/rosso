@@ -10,6 +10,58 @@ import (
    "strings"
 )
 
+func (p *Page) String() string {
+   var data strings.Builder
+   if len(p.Containers[0].Seasons) >= 1 {
+      var line bool
+      for _, seasonItem := range p.Containers[0].Seasons {
+         if line {
+            data.WriteString("\n\n")
+         } else {
+            line = true
+         }
+         data.WriteString("name: ")
+         data.WriteString(seasonItem.Visuals.Name)
+         data.WriteString("\nid: ")
+         data.WriteString(seasonItem.Id)
+      }
+   } else {
+      data.WriteString(p.Actions[0].InternalTitle)
+   }
+   return data.String()
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code: ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription: ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+func (t *Token) String() string {
+   var data strings.Builder
+   data.WriteString("type: ")
+   data.WriteString(t.AccessTokenType)
+   data.WriteString("\naccess token: ")
+   data.WriteString(t.AccessToken)
+   if t.RefreshToken != "" {
+      data.WriteString("\nrefresh token: ")
+      data.WriteString(t.RefreshToken)
+   }
+   return data.String()
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name: ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid: ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
 // request: Account
 func (t *Token) FetchSeason(id string) (*Season, error) {
    if err := t.assert("Account"); err != nil {
@@ -510,27 +562,6 @@ func (s *Stream) GetManifest() (*url.URL, error) {
    return url.Parse(s.Sources[0].Complete.Url)
 }
 
-func (p *Page) String() string {
-   var data strings.Builder
-   if len(p.Containers[0].Seasons) >= 1 {
-      var line bool
-      for _, seasonItem := range p.Containers[0].Seasons {
-         if line {
-            data.WriteString("\n\n")
-         } else {
-            line = true
-         }
-         data.WriteString("name = ")
-         data.WriteString(seasonItem.Visuals.Name)
-         data.WriteString("\nid = ")
-         data.WriteString(seasonItem.Id)
-      }
-   } else {
-      data.WriteString(p.Actions[0].InternalTitle)
-   }
-   return data.String()
-}
-
 type Page struct {
    Actions []struct {
       InternalTitle string // movie
@@ -550,31 +581,9 @@ type Page struct {
    }
 }
 
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code = ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription = ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
 type Error struct {
    Code        string // 2026-04-05
    Description string // 2026-04-05
-}
-
-func (t *Token) String() string {
-   var data strings.Builder
-   data.WriteString("type = ")
-   data.WriteString(t.AccessTokenType)
-   data.WriteString("\naccess token = ")
-   data.WriteString(t.AccessToken)
-   if t.RefreshToken != "" {
-      data.WriteString("\nrefresh token = ")
-      data.WriteString(t.RefreshToken)
-   }
-   return data.String()
 }
 
 type Token struct {
@@ -643,15 +652,6 @@ type LoginWithActionGrant struct {
    Account struct {
       Profiles []Profile
    }
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name = ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid = ")
-   data.WriteString(p.Id)
-   return data.String()
 }
 
 type Profile struct {

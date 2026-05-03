@@ -15,6 +15,26 @@ import (
    "time"
 )
 
+func (a *Asset) String() string {
+   var data strings.Builder
+   data.WriteString("title: ")
+   data.WriteString(a.Title)
+   data.WriteString("\ntype: ")
+   data.WriteString(a.Type)
+   data.WriteString("\nid: ")
+   data.WriteString(a.Id)
+   return data.String()
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label: ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage: ")
+   data.WriteString(l.Message)
+   return data.String()
+}
+
 const user_agent = "Mozilla/5.0 Windows"
 
 const device_serial = "!!!!"
@@ -55,17 +75,6 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
-func (a *Asset) String() string {
-   var data strings.Builder
-   data.WriteString("title = ")
-   data.WriteString(a.Title)
-   data.WriteString("\ntype = ")
-   data.WriteString(a.Type)
-   data.WriteString("\nid = ")
-   data.WriteString(a.Id)
-   return data.String()
-}
-
 type Asset struct {
    Id    string
    Title string
@@ -98,15 +107,6 @@ type Login struct {
    Label    string
    Message  string
    SsoToken string // this last one day
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label = ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage = ")
-   data.WriteString(l.Message)
-   return data.String()
 }
 
 type Player struct {

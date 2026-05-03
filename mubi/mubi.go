@@ -10,6 +10,15 @@ import (
    "strings"
 )
 
+func (f *Film) String() string {
+   data := &strings.Builder{}
+   data.WriteString("title: ")
+   data.WriteString(f.Title)
+   data.WriteString("\nid: ")
+   fmt.Fprint(data, f.Id)
+   return data.String()
+}
+
 func (l *LinkCode) String() string {
    var data strings.Builder
    data.WriteString("TO LOG IN AND START WATCHING\n")
@@ -246,15 +255,6 @@ type LinkCode struct {
 const client = "web"
 
 var ClientCountry = "US"
-
-func (f *Film) String() string {
-   data := &strings.Builder{}
-   data.WriteString("title = ")
-   data.WriteString(f.Title)
-   data.WriteString("\nid = ")
-   fmt.Fprint(data, f.Id)
-   return data.String()
-}
 
 type Film struct {
    Title string
