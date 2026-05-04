@@ -7,48 +7,12 @@ import (
    "log"
 )
 
-func (c *client) do_language() error {
-   var err error
-   switch {
-   case c.Url.IsMovie():
-      c.StreamInfo, err = rakuten.FetchMovieStreaming(
-         c.Url.ContentId, c.Start.Profile.Classification, c.AudioLanguage,
-      )
-   case c.Url.IsTvShow():
-      c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
-         c.Episode, c.Start.Profile.Classification, c.AudioLanguage,
-      )
-   }
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 func (c *client) do() error {
    err := cache.Setup("rosso/rakuten.xml")
    if err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   cache_err := cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
@@ -63,17 +27,26 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   switch {
-   case playReady.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case season.IsSet:
-      return with_cache(c.do_season)
-   case audio_language.IsSet:
-      return with_cache(c.do_language)
-   case dash.IsSet:
-      return with_cache(c.do_dash)
+   action, use_cache := func() (func() error, bool) {
+      switch {
+      case playReady.IsSet:
+         return c.do_write, false
+      case address.IsSet:
+         return c.do_address, false
+      case season.IsSet:
+         return c.do_season, true
+      case audio_language.IsSet:
+         return c.do_language, true
+      case dash.IsSet:
+         return c.do_dash, true
+      }
+      return nil, false
+   }()
+   if action != nil {
+      if use_cache && cache_err != nil {
+         return cache_err
+      }
+      return action()
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
@@ -82,6 +55,10 @@ func (c *client) do() error {
       {audio_language, episode},
       {dash},
    })
+}
+
+func (c *client) do_write() error {
+   return cache.Write(c)
 }
 
 func (c *client) do_season() error {
@@ -128,7 +105,7 @@ func (c *client) do_address() error {
       }
       fmt.Println(show)
    }
-   return cache.Write(c)
+   return c.do_write()
 }
 
 type client struct {
@@ -145,4 +122,40 @@ type client struct {
    //-------------------
    AudioLanguage string
    Episode       string
+}
+
+func (c *client) do_language() error {
+   var err error
+   switch {
+   case c.Url.IsMovie():
+      c.StreamInfo, err = rakuten.FetchMovieStreaming(
+         c.Url.ContentId, c.Start.Profile.Classification, c.AudioLanguage,
+      )
+   case c.Url.IsTvShow():
+      c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
+         c.Episode, c.Start.Profile.Classification, c.AudioLanguage,
+      )
+   }
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
+   if err != nil {
+      return err
+   }
+   return c.do_write()
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
+}
+
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }

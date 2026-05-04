@@ -6,40 +6,12 @@ import (
    "log"
 )
 
-func (c *client) do_dash_id() error {
-   return c.Dash.Download(&c.Job, c.Entitlement.FetchWidevine)
-}
-
-func main() {
-   maya.SetProxy("")
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Account     *rtbf.Account
-   Dash        *maya.Dash
-   Entitlement *rtbf.Entitlement
-   //---------------------------
-   Job maya.Job
-   //---------------------------
-   email    string
-   password string
-   //---------------------------
-   address string
-}
-
 func (c *client) do() error {
    err := cache.Setup("rosso/rtbf.xml")
    if err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   cache_err := cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    email := maya.StringFlag(&c.email, "e", "email")
@@ -52,19 +24,27 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   if widevine.IsSet {
-      return cache.Write(c)
+   var (
+      action    func() error
+      use_cache = true
+   )
+   switch {
+   case widevine.IsSet:
+      action = c.do_write
+      use_cache = false
+   case email.IsSet && password.IsSet:
+      action = c.do_email_password
+      use_cache = false
+   case address.IsSet:
+      action = c.do_address
+   case dash.IsSet:
+      action = c.do_dash_id
    }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
+   if action != nil {
+      if use_cache && cache_err != nil {
+         return cache_err
       }
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash_id)
+      return action()
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
@@ -72,6 +52,10 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_write() error {
+   return cache.Write(c)
 }
 
 func (c *client) do_address() error {
@@ -103,7 +87,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.do_write()
 }
 
 func (c *client) do_email_password() error {
@@ -112,5 +96,33 @@ func (c *client) do_email_password() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.do_write()
+}
+
+func (c *client) do_dash_id() error {
+   return c.Dash.Download(&c.Job, c.Entitlement.FetchWidevine)
+}
+
+func main() {
+   maya.SetProxy("")
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   Account     *rtbf.Account
+   Dash        *maya.Dash
+   Entitlement *rtbf.Entitlement
+   //---------------------------
+   Job maya.Job
+   //---------------------------
+   email    string
+   password string
+   //---------------------------
+   address string
 }
