@@ -9,8 +9,7 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/mubi.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/mubi.xml"); err != nil {
       return err
    }
    cache_err := cache.Read(c)
@@ -29,37 +28,41 @@ func (c *client) do() error {
    mubi_id := maya.IntFlag(&c.mubi_id, "m", "Mubi ID")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    var (
-      action    func() error
-      use_cache = true
+      action func() error
+      skip_cache, skip_proxy bool
    )
    switch {
    case widevine.IsSet, proxy.IsSet:
       action = c.do_write_cache
-      use_cache = false
+      skip_cache = true
+      skip_proxy = true
    case code.IsSet:
       action = c.do_code
-      use_cache = false
+      skip_cache = true
    case session.IsSet:
       action = c.do_session
    case address.IsSet:
       action = c.do_address
-      use_cache = false
+      skip_cache = true
    case mubi_id.IsSet:
       action = c.do_mubi_id
    case dash.IsSet:
       action = c.do_dash
    }
    if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
+      if !skip_cache {
+         if cache_err != nil {
+            return cache_err
+         }
       }
-      if err := maya.SetProxy(c.Proxy); err != nil {
-         return err
+      if !skip_proxy {
+         if err := maya.SetProxy(c.Proxy); err != nil {
+            return err
+         }
       }
       return action()
    }
