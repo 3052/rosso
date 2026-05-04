@@ -13,9 +13,7 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   with_cache := cache.Read(c)
-   //----------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
+   cache_err := cache.Read(c)
    //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
@@ -35,30 +33,37 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
-      return err
-   }
+   var (
+      action    func() error
+      use_cache = true
+   )
    switch {
-   case threads.IsSet:
-      return cache.Write(c)
-   case widevine.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
-      return cache.Write(c)
+   case widevine.IsSet, proxy.IsSet:
+      action = c.do_write_cache
+      use_cache = false
    case code.IsSet:
-      return c.do_code()
+      action = c.do_code
+      use_cache = false
    case session.IsSet:
-      return with_cache(c.do_session)
+      action = c.do_session
    case address.IsSet:
-      return c.do_address()
+      action = c.do_address
+      use_cache = false
    case mubi_id.IsSet:
-      return with_cache(c.do_mubi_id)
+      action = c.do_mubi_id
    case dash.IsSet:
-      return with_cache(c.do_dash)
+      action = c.do_dash
+   }
+   if action != nil {
+      if use_cache && cache_err != nil {
+         return cache_err
+      }
+      if err := maya.SetProxy(c.Proxy); err != nil {
+         return err
+      }
+      return action()
    }
    return maya.PrintFlags([][]*maya.Flag{
-      {threads},
       {widevine},
       {proxy},
       {code},
@@ -67,6 +72,10 @@ func (c *client) do() error {
       {mubi_id},
       {dash},
    })
+}
+
+func (c *client) do_write_cache() error {
+   return cache.Write(c)
 }
 
 var cache maya.Cache
