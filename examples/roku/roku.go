@@ -7,6 +7,69 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   err := cache.Setup("rosso/roku.xml")
+   if err != nil {
+      return err
+   }
+   cache_err := cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   account_activation := maya.BoolFlag("a", "account activation")
+   //----------------------------------------------------------
+   activation_status := maya.BoolFlag("A", "activation status")
+   //----------------------------------------------------------
+   roku_id := maya.StringFlag(&c.roku_id, "r", "Roku ID")
+   c.use_account = maya.BoolFlag("u", "use account")
+   //----------------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   err = maya.ParseFlags()
+   if err != nil {
+      return err
+   }
+   var (
+      action    func() error
+      use_cache = true
+   )
+   if widevine.IsSet {
+      action = c.do_write_cache
+      use_cache = false
+   }
+   if account_activation.IsSet {
+      action = c.do_account_activation
+      use_cache = false
+   }
+   if activation_status.IsSet {
+      action = c.do_activation_status
+   }
+   if roku_id.IsSet {
+      action = c.do_roku_id
+      if !c.use_account.IsSet {
+         use_cache = false
+      }
+   }
+   if dash.IsSet {
+      action = c.do_dash
+   }
+   if action != nil {
+      if use_cache && cache_err != nil {
+         return cache_err
+      }
+      return action()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {account_activation},
+      {activation_status},
+      {roku_id, c.use_account},
+      {dash},
+   })
+}
+
+func (c *client) do_write_cache() error {
+   return cache.Write(c)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -78,51 +141,4 @@ func (c *client) do_roku_id() error {
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Playback.GetWidevineLicense)
-}
-
-func (c *client) do() error {
-   err := cache.Setup("rosso/roku.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   account_activation := maya.BoolFlag("a", "account activation")
-   //----------------------------------------------------------
-   activation_status := maya.BoolFlag("A", "activation status")
-   //----------------------------------------------------------
-   roku_id := maya.StringFlag(&c.roku_id, "r", "Roku ID")
-   c.use_account = maya.BoolFlag("u", "use account")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if account_activation.IsSet {
-      return c.do_account_activation()
-   }
-   if activation_status.IsSet {
-      return with_cache(c.do_activation_status)
-   }
-   if roku_id.IsSet {
-      if c.use_account.IsSet {
-         return with_cache(c.do_roku_id)
-      }
-      return c.do_roku_id()
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {account_activation},
-      {activation_status},
-      {roku_id, c.use_account},
-      {dash},
-   })
 }

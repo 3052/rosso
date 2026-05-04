@@ -11,11 +11,9 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   cache_err := cache.Read(c)
    //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //----------------------------------------------------------
    tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
    //------------------------------------------------
@@ -24,26 +22,35 @@ func (c *client) do() error {
    if err != nil {
       return err
    }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
-      return err
-   }
+   var (
+      action    func() error
+      use_cache = true
+   )
    switch {
    case widevine.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
-      return cache.Write(c)
+      action = c.do_write
+      use_cache = false
    case tubi_id.IsSet:
-      return c.do_tubi()
+      action = c.do_tubi
+      use_cache = false
    case dash.IsSet:
-      return with_cache(c.do_dash)
+      action = c.do_dash
+   }
+   if action != nil {
+      if use_cache && cache_err != nil {
+         return cache_err
+      }
+      return action()
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
-      proxy,
       tubi_id,
       dash,
    }})
+}
+
+func (c *client) do_write() error {
+   return cache.Write(c)
 }
 
 func main() {
@@ -81,8 +88,6 @@ type client struct {
    LicenseServer *tubi.LicenseServer
    //-------------------------------
    Job maya.Job
-   //-------------------------------
-   Proxy string
    //-------------------------------
    tubi_id int
 }
