@@ -8,11 +8,10 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/amc.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/amc.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    email := maya.StringFlag(&c.email, "E", "email")
@@ -27,37 +26,31 @@ func (c *client) do() error {
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
-   var (
-      action    func() error
-      use_cache = true
-   )
-   switch {
-   case widevine.IsSet:
-      action = c.do_write_cache
-      use_cache = false
-   case email.IsSet && password.IsSet:
-      action = c.do_email_password
-      use_cache = false
-   case refresh.IsSet:
-      action = c.do_refresh
-   case series.IsSet:
-      action = c.do_series
-   case season.IsSet:
-      action = c.do_season
-   case episode.IsSet:
-      action = c.do_episode
-   case dash.IsSet:
-      action = c.do_dash
+   if widevine.IsSet {
+      return cache.Write(c)
    }
-   if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
       }
-      return action()
+   }
+   if refresh.IsSet {
+      return c.run(c.do_refresh)
+   }
+   if series.IsSet {
+      return c.run(c.do_series)
+   }
+   if season.IsSet {
+      return c.run(c.do_season)
+   }
+   if episode.IsSet {
+      return c.run(c.do_episode)
+   }
+   if dash.IsSet {
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
@@ -70,8 +63,37 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_write_cache() error {
-   return cache.Write(c)
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
+}
+
+type client struct {
+   // cache
+   AuthData *amc.AuthData
+   BcovAuth string
+   Dash     *maya.Dash
+   Job      maya.Job
+   Source   *amc.Source
+   // flags
+   email    string
+   episode  int
+   password string
+   season   int
+   series   int
+   // state
+   cache_err error
+}
+
+func (c *client) do_dash() error {
+   fetch := func(data []byte) ([]byte, error) {
+      return amc.License(
+         c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
+      )
+   }
+   return c.Dash.Download(&c.Job, fetch)
 }
 
 var cache maya.Cache
@@ -82,6 +104,23 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
+}
+
+func (c *client) do_episode() error {
+   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   c.Source, err = playback.Data.DashSource()
+   if err != nil {
+      return err
+   }
+   c.BcovAuth = playback.BcovAuth
+   c.Dash, err = maya.ListDash(c.Source.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
 }
 
 func (c *client) do_email_password() error {
@@ -132,48 +171,4 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
-}
-
-func (c *client) do_episode() error {
-   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   c.Source, err = playback.Data.DashSource()
-   if err != nil {
-      return err
-   }
-   c.BcovAuth = playback.BcovAuth
-   c.Dash, err = maya.ListDash(c.Source.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   AuthData *amc.AuthData
-   BcovAuth string
-   Dash     *maya.Dash
-   Source   *amc.Source
-   //------------------------
-   Job maya.Job
-   //------------------------
-   email    string
-   password string
-   //------------------------
-   series int
-   //------------------------
-   season int
-   //------------------------
-   episode int
-}
-
-func (c *client) do_dash() error {
-   fetch := func(data []byte) ([]byte, error) {
-      return amc.License(
-         c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
-      )
-   }
-   return c.Dash.Download(&c.Job, fetch)
 }

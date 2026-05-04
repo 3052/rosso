@@ -8,11 +8,28 @@ import (
    "path"
 )
 
+var cache maya.Cache
+
+type client struct {
+   // cache
+   Job      maya.Job
+   Dash     *maya.Dash
+   Session  *mubi.Session
+   LinkCode *mubi.LinkCode
+   Proxy    string
+   // flags
+   address string
+   season  int
+   mubi_id int
+   // state
+   cache_err error
+}
+
 func (c *client) do() error {
    if err := cache.Setup("rosso/mubi.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
+   c.cache_err = cache.Read(c)
    //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
@@ -31,41 +48,28 @@ func (c *client) do() error {
    if err := maya.ParseFlags(); err != nil {
       return err
    }
-   var (
-      action func() error
-      skip_cache, skip_proxy bool
-   )
-   switch {
-   case widevine.IsSet, proxy.IsSet:
-      action = c.do_write_cache
-      skip_cache = true
-      skip_proxy = true
-   case code.IsSet:
-      action = c.do_code
-      skip_cache = true
-   case session.IsSet:
-      action = c.do_session
-   case address.IsSet:
-      action = c.do_address
-      skip_cache = true
-   case mubi_id.IsSet:
-      action = c.do_mubi_id
-   case dash.IsSet:
-      action = c.do_dash
+
+   if widevine.IsSet || proxy.IsSet {
+      return cache.Write(c)
    }
-   if action != nil {
-      if !skip_cache {
-         if cache_err != nil {
-            return cache_err
-         }
-      }
-      if !skip_proxy {
-         if err := maya.SetProxy(c.Proxy); err != nil {
-            return err
-         }
-      }
-      return action()
+   if code.IsSet {
+      c.cache_err = nil
+      return c.run(c.do_code)
    }
+   if session.IsSet {
+      return c.run(c.do_session)
+   }
+   if address.IsSet {
+      c.cache_err = nil
+      return c.run(c.do_address)
+   }
+   if mubi_id.IsSet {
+      return c.run(c.do_mubi_id)
+   }
+   if dash.IsSet {
+      return c.run(c.do_dash)
+   }
+
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {proxy},
@@ -77,11 +81,19 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_write_cache() error {
-   return cache.Write(c)
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   if err := maya.SetProxy(c.Proxy); err != nil {
+      return err
+   }
+   return action()
 }
 
-var cache maya.Cache
+// ----------------------------------------------------------------------
+// Command Handlers
+// ----------------------------------------------------------------------
 
 func (c *client) do_mubi_id() error {
    err := c.Session.FetchViewing(c.mubi_id)
@@ -145,25 +157,14 @@ func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Session.FetchWidevine)
 }
 
+// ----------------------------------------------------------------------
+// Main
+// ----------------------------------------------------------------------
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Dash     *maya.Dash
-   LinkCode *mubi.LinkCode
-   Session  *mubi.Session
-   //--------------------
-   Job maya.Job
-   //--------------------
-   Proxy string
-   //--------------------
-   address string
-   season  int
-   //--------------------
-   mubi_id int
 }
