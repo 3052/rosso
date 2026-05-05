@@ -8,16 +8,11 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/disney.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/disney.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   c.cache_err = cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //--------------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //--------------------------------------------------------------
    email := maya.StringFlag(&c.Email, "e", "email")
    //--------------------------------------------------------------
@@ -34,42 +29,31 @@ func (c *client) do() error {
    media := maya.StringFlag(&c.media, "m", "media ID")
    //--------------------------------------------------------------
    hls := maya.IntFlag(&c.Job.Hls, "h", "HLS ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    switch {
    case playReady.IsSet:
       return cache.Write(c)
-   case threads.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
-      return cache.Write(c)
    case email.IsSet:
       return c.do_email()
    case passcode.IsSet:
-      return with_cache(c.do_passcode)
+      return c.run(c.do_passcode)
    case profile.IsSet:
-      return with_cache(c.do_profile_id)
+      return c.run(c.do_profile_id)
    case refresh.IsSet:
-      return with_cache(c.do_refresh)
+      return c.run(c.do_refresh)
    case address.IsSet:
-      return with_cache(c.do_address)
+      return c.run(c.do_address)
    case season.IsSet:
-      return with_cache(c.do_season_id)
+      return c.run(c.do_season_id)
    case media.IsSet:
-      return with_cache(c.do_media_id)
+      return c.run(c.do_media_id)
    case hls.IsSet:
-      return with_cache(c.do_hls_id)
+      return c.run(c.do_hls_id)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       playReady,
-      threads,
-      proxy,
       email,
       passcode,
       profile,
@@ -79,6 +63,13 @@ func (c *client) do() error {
       media,
       hls,
    }})
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 func (c *client) do_email() error {
@@ -178,22 +169,17 @@ func main() {
 }
 
 type client struct {
-   Hls   *maya.Hls
-   Token *disney.Token
-   //-----------------
-   Job maya.Job
-   //-----------------
-   Proxy string
-   //-----------------
+   // cache
    Email string
-   //-----------------
+   Hls   *maya.Hls
+   Job   maya.Job
+   Token *disney.Token
+   // flags
+   address  string
+   media    string
    passcode string
-   //-----------------
-   profile string
-   //-----------------
-   address string
-   //-----------------
-   season string
-   //-----------------
-   media string
+   profile  string
+   season   string
+   // state
+   cache_err error
 }

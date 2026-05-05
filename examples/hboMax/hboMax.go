@@ -8,16 +8,11 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/hboMax.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/hboMax.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   c.cache_err = cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
-   //-------------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //-------------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-------------------------------------------------------------
    initiate := maya.BoolFlag("i", "initiate")
    market := maya.StringFlag(&c.market, "m", fmt.Sprint(hboMax.Markets))
@@ -32,21 +27,10 @@ func (c *client) do() error {
    edit := maya.StringFlag(&c.edit, "e", "edit ID")
    //-------------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if threads.IsSet {
-      return cache.Write(c)
-   }
-   if proxy.IsSet {
       return cache.Write(c)
    }
    if initiate.IsSet {
@@ -55,24 +39,22 @@ func (c *client) do() error {
       }
    }
    if login.IsSet {
-      return with_cache(c.do_login)
+      return c.run(c.do_login)
    }
    if search.IsSet {
-      return with_cache(c.do_search)
+      return c.run(c.do_search)
    }
    if show.IsSet {
-      return with_cache(c.do_show)
+      return c.run(c.do_show)
    }
    if edit.IsSet {
-      return with_cache(c.do_edit)
+      return c.run(c.do_edit)
    }
    if dash.IsSet {
-      return with_cache(c.do_dash)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
-      {threads},
-      {proxy},
       {initiate, market},
       {login},
       {search},
@@ -82,45 +64,11 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_edit() error {
-   var err error
-   c.Playback, err = hboMax.PlayReadyRequest(c.Login.Token, c.edit)
-   if err != nil {
-      return err
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
    }
-   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Dash     *maya.Dash
-   Login    *hboMax.Login
-   Playback *hboMax.Playback
-   St       string
-   //-------------------
-   Job maya.Job
-   //-------------------
-   Proxy string
-   //-------------------
-   market string
-   //-------------------
-   search string
-   //-------------------
-   show   string
-   season int
-   //-------------------
-   edit string
+   return action()
 }
 
 var cache maya.Cache
@@ -195,4 +143,42 @@ func (c *client) do_initiate() error {
    }
    fmt.Println(initiate)
    return cache.Write(c)
+}
+
+func (c *client) do_edit() error {
+   var err error
+   c.Playback, err = hboMax.PlayReadyRequest(c.Login.Token, c.edit)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   // cache
+   Dash     *maya.Dash
+   Job      maya.Job
+   Login    *hboMax.Login
+   Playback *hboMax.Playback
+   St       string
+   // flags
+   edit   string
+   market string
+   search string
+   season int
+   show   string
+   // state
+   cache_err error
 }
