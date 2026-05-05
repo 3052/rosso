@@ -30,7 +30,6 @@ func (c *client) do() error {
       return err
    }
    c.cache_err = cache.Read(c)
-   //----------------------------------------------------------
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
@@ -48,8 +47,10 @@ func (c *client) do() error {
    if err := maya.ParseFlags(); err != nil {
       return err
    }
-
-   if widevine.IsSet || proxy.IsSet {
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if proxy.IsSet {
       return cache.Write(c)
    }
    if code.IsSet {
