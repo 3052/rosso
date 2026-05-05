@@ -8,11 +8,10 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/roku.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/roku.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    account_activation := maya.BoolFlag("a", "account activation")
@@ -23,39 +22,26 @@ func (c *client) do() error {
    c.use_account = maya.BoolFlag("u", "use account")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
-   var (
-      action    func() error
-      use_cache = true
-   )
    if widevine.IsSet {
-      action = c.do_write_cache
-      use_cache = false
+      return cache.Write(c)
    }
    if account_activation.IsSet {
-      action = c.do_account_activation
-      use_cache = false
+      return c.do_account_activation()
    }
    if activation_status.IsSet {
-      action = c.do_activation_status
+      return c.run(c.do_activation_status)
    }
    if roku_id.IsSet {
-      action = c.do_roku_id
-      if !c.use_account.IsSet {
-         use_cache = false
+      if c.use_account.IsSet {
+         return c.run(c.do_roku_id)
       }
+      return c.do_roku_id()
    }
    if dash.IsSet {
-      action = c.do_dash
-   }
-   if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
-      }
-      return action()
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
@@ -66,8 +52,36 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_write_cache() error {
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
+}
+
+func (c *client) do_roku_id() error {
+   var status *roku.ActivationStatus
+   if c.use_account.IsSet {
+      status = c.ActivationStatus
+   }
+   var err error
+   c.AccountToken, err = roku.GetAccountToken(status)
+   if err != nil {
+      return err
+   }
+   c.Playback, err = roku.GetPlayback(c.AccountToken, c.roku_id)
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
+   if err != nil {
+      return err
+   }
    return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playback.GetWidevineLicense)
 }
 
 func main() {
@@ -106,39 +120,16 @@ func (c *client) do_activation_status() error {
 }
 
 type client struct {
-   Playback          *roku.Playback
+   // cache
+   AccountActivation *roku.AccountActivation
    AccountToken      *roku.AccountToken
    ActivationStatus  *roku.ActivationStatus
-   AccountActivation *roku.AccountActivation
    Dash              *maya.Dash
-   //--------------------
-   Job maya.Job
-   //--------------------
+   Job               maya.Job
+   Playback          *roku.Playback
+   // flags
    roku_id     string
    use_account *maya.Flag
-}
-
-func (c *client) do_roku_id() error {
-   var status *roku.ActivationStatus
-   if c.use_account.IsSet {
-      status = c.ActivationStatus
-   }
-   var err error
-   c.AccountToken, err = roku.GetAccountToken(status)
-   if err != nil {
-      return err
-   }
-   c.Playback, err = roku.GetPlayback(c.AccountToken, c.roku_id)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.Playback.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playback.GetWidevineLicense)
+   // state
+   cache_err error
 }

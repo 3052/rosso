@@ -7,40 +7,25 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/tubi.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/tubi.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
-   //----------------------------------------------------------
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
    //------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
-   var (
-      action    func() error
-      use_cache = true
-   )
    switch {
    case widevine.IsSet:
-      action = c.do_write
-      use_cache = false
+      return cache.Write(c)
    case tubi_id.IsSet:
-      action = c.do_tubi
-      use_cache = false
+      return c.do_tubi()
    case dash.IsSet:
-      action = c.do_dash
-   }
-   if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
-      }
-      return action()
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
@@ -49,8 +34,11 @@ func (c *client) do() error {
    }})
 }
 
-func (c *client) do_write() error {
-   return cache.Write(c)
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 func main() {
@@ -84,10 +72,12 @@ func (c *client) do_dash() error {
 var cache maya.Cache
 
 type client struct {
+   // cache
    Dash          *maya.Dash
+   Job           maya.Job
    LicenseServer *tubi.LicenseServer
-   //-------------------------------
-   Job maya.Job
-   //-------------------------------
+   // flags
    tubi_id int
+   // state
+   cache_err error
 }
