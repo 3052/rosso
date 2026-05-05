@@ -1,29 +1,14 @@
-// FILE: crave/subscriptions.go
 package crave
 
 import (
+   "41.neocities.org/maya"
    "encoding/json"
    "net/url"
-
-   "41.neocities.org/maya"
 )
-
-type LocalizedUrl struct {
-   Fr string `json:"fr"`
-   En string `json:"en"`
-}
-
-type ImageSet struct {
-   Small LocalizedUrl `json:"small"`
-}
 
 type Circle struct {
    Svg ImageSet `json:"svg"`
    Png ImageSet `json:"png"`
-}
-
-type Logos struct {
-   Circle Circle `json:"circle"`
 }
 
 type ContentPolicy struct {
@@ -37,6 +22,19 @@ type Experience struct {
    DisplayName     string          `json:"displayName"`
    Logos           Logos           `json:"logos"`
    ContentPolicies []ContentPolicy `json:"contentPolicies"`
+}
+
+type ImageSet struct {
+   Small LocalizedUrl `json:"small"`
+}
+
+type LocalizedUrl struct {
+   Fr string `json:"fr"`
+   En string `json:"en"`
+}
+
+type Logos struct {
+   Circle Circle `json:"circle"`
 }
 
 type Subscription struct {

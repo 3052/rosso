@@ -35,7 +35,7 @@ func (c *client) do() error {
    case audio_language.IsSet:
       return c.run(c.do_language)
    case dash.IsSet:
-      return c.run(c.do_language)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},

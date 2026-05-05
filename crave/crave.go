@@ -385,6 +385,10 @@ type Stream struct {
    Trickplay string `json:"trickplay"`
 }
 
+func (s *Stream) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Playback)
+}
+
 func (s *Subscription) String() string {
    var data strings.Builder
    data.WriteString("display name: ")
@@ -392,10 +396,4 @@ func (s *Subscription) String() string {
    data.WriteString("\nexpiration date: ")
    data.WriteString(s.ExpirationDate)
    return data.String()
-}
-
-///
-
-func (s *Stream) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Playback)
 }
