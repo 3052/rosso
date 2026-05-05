@@ -7,6 +7,51 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := cache.Setup("rosso/kanopy.xml"); err != nil {
+      return err
+   }
+   c.cache_err = cache.Read(c)
+   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
+   //----------------------------------------------------------
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //---------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return cache.Write(c)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return c.run(c.do_address)
+   }
+   if dash.IsSet {
+      return c.run(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {email, password},
+      {address},
+      {dash},
+   })
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
+}
+
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
       return kanopy.CreateLicense(c.Login, c.Manifest, data)
@@ -67,55 +112,16 @@ func main() {
 
 var cache maya.Cache
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/kanopy.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
-
 type client struct {
+   // cache
+   Dash     *maya.Dash
+   Job      maya.Job
    Login    *kanopy.LoginResponse
    Manifest *kanopy.Manifest
-   //-------------------------------
-   Dash *maya.Dash
-   Job  maya.Job
-   //-------------------------------
+   // flags
+   address  string
    email    string
    password string
-   //-------------------------------
-   address string
+   // state
+   cache_err error
 }

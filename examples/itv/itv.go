@@ -8,52 +8,43 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/itv.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/itv.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //----------------------------------------------------------
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //----------------------------------------------------------
    playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    switch {
-   case threads.IsSet:
-      return cache.Write(c)
    case widevine.IsSet:
-      return cache.Write(c)
-   case proxy.IsSet:
       return cache.Write(c)
    case address.IsSet:
       return c.do_address()
    case playlist.IsSet:
       return c.do_playlist()
    case dash.IsSet:
-      return with_cache(c.do_dash)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{{
-      threads,
       widevine,
-      proxy,
       address,
       playlist,
       dash,
    }})
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 var cache maya.Cache
@@ -101,14 +92,13 @@ func main() {
 }
 
 type client struct {
+   // cache
    Dash      *maya.Dash
+   Job       maya.Job
    MediaFile *itv.MediaFile
-   //----------------------
-   Job maya.Job
-   //----------------------
-   Proxy string
-   //----------------------
-   address string
-   //----------------------
+   // flags
+   address  string
    playlist string
+   // state
+   cache_err error
 }

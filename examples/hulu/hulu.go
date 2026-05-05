@@ -6,6 +6,55 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := cache.Setup("rosso/hulu.xml"); err != nil {
+      return err
+   }
+   c.cache_err = cache.Read(c)
+   playReady := maya.StringFlag(&c.Job.PlayReady, "P", "PlayReady")
+   //-------------------------------------------------------------
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   //------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
+   //---------------------------------------------------
+   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return cache.Write(c)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return c.run(c.do_address)
+   }
+   if dash.IsSet {
+      return c.run(c.do_dash)
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {email, password},
+      {address},
+      {dash},
+   })
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
+}
+
 func (c *client) do_address() error {
    err := c.Device.TokenRefresh()
    if err != nil {
@@ -43,61 +92,18 @@ func (c *client) do_email_password() error {
    return cache.Write(c)
 }
 
-type client struct {
-   Dash     *maya.Dash
-   Playlist *hulu.Playlist
-   Device   *hulu.Device
-   //--------------------
-   Job maya.Job
-   //--------------------
-   email    string
-   password string
-   //--------------------
-   address string
-}
-
 var cache maya.Cache
 
-func (c *client) do() error {
-   err := cache.Setup("rosso/hulu.xml")
-   if err != nil {
-      return err
-   }
-   with_cache := cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "P", "PlayReady")
-   //-------------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return with_cache(c.do_address)
-   }
-   if dash.IsSet {
-      return with_cache(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
+type client struct {
+   // cache
+   Dash     *maya.Dash
+   Device   *hulu.Device
+   Job      maya.Job
+   Playlist *hulu.Playlist
+   // flags
+   address  string
+   email    string
+   password string
+   // state
+   cache_err error
 }
