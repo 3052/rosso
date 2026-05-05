@@ -6,33 +6,18 @@ import (
    "log"
 )
 
-func (c *client) do_email_password() error {
-   var err error
-   c.PhpSessId, err = cineMember.PhpSessId()
-   if err != nil {
-      return err
-   }
-   err = cineMember.FetchLogin(c.PhpSessId, c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
 func (c *client) do() error {
-   err := cache.Setup("rosso/cineMember.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/cineMember.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   c.cache_err = cache.Read(c)
    email := maya.StringFlag(&c.email, "e", "email")
    password := maya.StringFlag(&c.password, "p", "password")
    //------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    if email.IsSet {
@@ -41,10 +26,10 @@ func (c *client) do() error {
       }
    }
    if address.IsSet {
-      return with_cache(c.do_address)
+      return c.run(c.do_address)
    }
    if dash.IsSet {
-      return with_cache(c.do_dash)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {email, password},
@@ -53,30 +38,11 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, nil)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
    }
-}
-
-var cache maya.Cache
-
-type client struct {
-   Dash      *maya.Dash
-   PhpSessId string
-   //---------------------
-   Job maya.Job
-   //-------------
-   email    string
-   password string
-   //-------------
-   address string
+   return action()
 }
 
 func (c *client) do_address() error {
@@ -97,4 +63,44 @@ func (c *client) do_address() error {
       return err
    }
    return cache.Write(c)
+}
+
+func (c *client) do_email_password() error {
+   var err error
+   c.PhpSessId, err = cineMember.PhpSessId()
+   if err != nil {
+      return err
+   }
+   err = cineMember.FetchLogin(c.PhpSessId, c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, nil)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+var cache maya.Cache
+
+type client struct {
+   // cache
+   Dash      *maya.Dash
+   Job       maya.Job
+   PhpSessId string
+   // flags
+   address  string
+   email    string
+   password string
+   // state
+   cache_err error
 }
