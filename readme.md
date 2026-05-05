@@ -12,28 +12,28 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 4203 | us | [kanopy] |
-| 4092 | us | [tubi-tv] |
-| 2792 | us | [plex] |
-| 2727 | uk | [rakuten-tv] |
-| 2334 | us | [the-roku-channel] |
-| 1196 | ca | [crave] |
-| 1005 | us | [pluto-tv] |
-| 1002 | us | [hbo-max] |
-| 931 | us | [criterion-channel] |
-| 642 | fr | [molotov-tv] |
-| 615 | us | [hulu] |
-| 552 | nl | [cinemember] |
-| 461 | us | [amc-plus] |
-| 384 | us | [disney-plus] |
-| 334 | us | [paramount-plus-premium] |
-| 254 | us | [mubi] |
-| 253 | us | [peacock] |
-| 251 | ca | [ctv] |
-| 250 | cz | [canal-plus] |
+| 4232 | us | [kanopy] |
+| 4067 | us | [tubi-tv] |
+| 2856 | us | [plex] |
+| 2748 | uk | [rakuten-tv] |
+| 2330 | us | [the-roku-channel] |
+| 1158 | ca | [crave] |
+| 1007 | us | [pluto-tv] |
+| 999 | us | [hbo-max] |
+| 910 | us | [criterion-channel] |
+| 648 | fr | [molotov-tv] |
+| 610 | us | [hulu] |
+| 549 | nl | [cinemember] |
+| 462 | us | [amc-plus] |
+| 388 | us | [disney-plus] |
+| 338 | us | [paramount-plus-premium] |
+| 255 | us | [mubi] |
+| 254 | cz | [canal-plus] |
+| 248 | ca | [ctv] |
+| 242 | us | [peacock] |
 | 241 | br | [oldflix] |
-| 236 | uk | [itvx] |
-| 157 | be | [rtbf-auvio] |
+| 239 | uk | [itvx] |
+| 165 | be | [rtbf-auvio] |
 | 6 | us | [nbc] |
 
 [kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=80
@@ -52,14 +52,13 @@ streaming API authentication, metadata, and DRM playback
 [disney-plus]:https://justwatch.com/us/provider/disney-plus?tomatoMeter=80
 [paramount-plus-premium]:https://justwatch.com/us/provider/paramount-plus-premium?tomatoMeter=80
 [mubi]:https://justwatch.com/us/provider/mubi?tomatoMeter=80
-[peacock]:https://justwatch.com/us/provider/peacock?tomatoMeter=80
-[ctv]:https://justwatch.com/ca/provider/ctv?tomatoMeter=80
 [canal-plus]:https://justwatch.com/cz/poskytovatel/canal-plus?tomatoMeter=80
+[ctv]:https://justwatch.com/ca/provider/ctv?tomatoMeter=80
+[peacock]:https://justwatch.com/us/provider/peacock?tomatoMeter=80
 [oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=80
 [itvx]:https://justwatch.com/uk/provider/itvx?tomatoMeter=80
 [rtbf-auvio]:https://justwatch.com/be/plateforme/rtbf-auvio?tomatoMeter=80
 [nbc]:https://justwatch.com/us/provider/nbc?tomatoMeter=80
-PS D:\github.com\verde\examples\justWatch-providers>
 
 ## contact
 
