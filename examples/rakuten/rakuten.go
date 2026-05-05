@@ -8,11 +8,10 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/rakuten.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/rakuten.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
+   c.cache_err = cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "p", "PlayReady")
    //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
@@ -23,30 +22,20 @@ func (c *client) do() error {
    episode := maya.StringFlag(&c.Episode, "e", "episode ID")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
-   action, use_cache := func() (func() error, bool) {
-      switch {
-      case playReady.IsSet:
-         return c.do_write, false
-      case address.IsSet:
-         return c.do_address, false
-      case season.IsSet:
-         return c.do_season, true
-      case audio_language.IsSet:
-         return c.do_language, true
-      case dash.IsSet:
-         return c.do_dash, true
-      }
-      return nil, false
-   }()
-   if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
-      }
-      return action()
+   switch {
+   case playReady.IsSet:
+      return cache.Write(c)
+   case address.IsSet:
+      return c.do_address()
+   case season.IsSet:
+      return c.run(c.do_season)
+   case audio_language.IsSet:
+      return c.run(c.do_language)
+   case dash.IsSet:
+      return c.run(c.do_language)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
@@ -57,8 +46,47 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_write() error {
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
+}
+
+func (c *client) do_language() error {
+   var err error
+   switch {
+   case c.Url.IsMovie():
+      c.StreamInfo, err = rakuten.FetchMovieStreaming(
+         c.Url.ContentId, c.Start.Profile.Classification, c.AudioLanguage,
+      )
+   case c.Url.IsTvShow():
+      c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
+         c.Episode, c.Start.Profile.Classification, c.AudioLanguage,
+      )
+   }
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
+   if err != nil {
+      return err
+   }
    return cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
+}
+
+var cache maya.Cache
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 func (c *client) do_season() error {
@@ -105,57 +133,21 @@ func (c *client) do_address() error {
       }
       fmt.Println(show)
    }
-   return c.do_write()
+   return cache.Write(c)
 }
 
 type client struct {
-   Dash       *maya.Dash
-   Start      *rakuten.Start
-   StreamInfo *rakuten.StreamInfo
-   Url        *rakuten.ParsedUrl
-   //-------------------
-   Job maya.Job
-   //-------------------
-   address string
-   //-------------------
-   season string
-   //-------------------
+   // cache
    AudioLanguage string
+   Dash          *maya.Dash
    Episode       string
-}
-
-func (c *client) do_language() error {
-   var err error
-   switch {
-   case c.Url.IsMovie():
-      c.StreamInfo, err = rakuten.FetchMovieStreaming(
-         c.Url.ContentId, c.Start.Profile.Classification, c.AudioLanguage,
-      )
-   case c.Url.IsTvShow():
-      c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
-         c.Episode, c.Start.Profile.Classification, c.AudioLanguage,
-      )
-   }
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.do_write()
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
+   Job           maya.Job
+   Start         *rakuten.Start
+   StreamInfo    *rakuten.StreamInfo
+   Url           *rakuten.ParsedUrl
+   // flags
+   address string
+   season  string
+   // state
+   cache_err error
 }

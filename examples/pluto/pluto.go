@@ -10,11 +10,10 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/pluto.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/pluto.xml"); err != nil {
       return err
    }
-   cache_err := cache.Read(c)
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    movie := maya.StringFlag(&c.movie, "m", "movie URL")
@@ -24,34 +23,20 @@ func (c *client) do() error {
    episode := maya.StringFlag(&c.episode, "e", "episode ID")
    //----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
-   var (
-      action    func() error
-      use_cache = true
-   )
    switch {
    case widevine.IsSet:
-      action = c.do_write
-      use_cache = false
+      return cache.Write(c)
    case movie.IsSet:
-      action = c.do_movie
-      use_cache = false
+      return c.do_movie()
    case show.IsSet:
-      action = c.do_show
-      use_cache = false
+      return c.do_show()
    case episode.IsSet:
-      action = c.do_episode
+      return c.run(c.do_episode)
    case dash.IsSet:
-      action = c.do_dash_id
-   }
-   if action != nil {
-      if use_cache && cache_err != nil {
-         return cache_err
-      }
-      return action()
+      return c.run(c.do_dash_id)
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
@@ -62,8 +47,11 @@ func (c *client) do() error {
    }})
 }
 
-func (c *client) do_write() error {
-   return cache.Write(c)
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 func (c *client) do_episode() error {
@@ -116,14 +104,14 @@ func (c *client) do_show() error {
 }
 
 type client struct {
-   Series *pluto.Series
+   // cache
    Dash   *maya.Dash
-   //------------------
-   Job maya.Job
-   //------------------
-   movie string
-   //------------------
-   show string
-   //------------------
+   Job    maya.Job
+   Series *pluto.Series
+   // flags
    episode string
+   movie   string
+   show    string
+   // state
+   cache_err error
 }
