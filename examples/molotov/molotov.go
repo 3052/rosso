@@ -7,13 +7,10 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/molotov.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/molotov.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //----------------------------------------------------------
+   c.cache_err = cache.Read(c)
    widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
    //----------------------------------------------------------
    email := maya.StringFlag(&c.email, "e", "email")
@@ -22,12 +19,8 @@ func (c *client) do() error {
    address := maya.StringFlag(&c.address, "a", "address")
    //---------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
-   }
-   if threads.IsSet {
-      return cache.Write(c)
    }
    if widevine.IsSet {
       return cache.Write(c)
@@ -38,18 +31,24 @@ func (c *client) do() error {
       }
    }
    if address.IsSet {
-      return with_cache(c.do_address)
+      return c.run(c.do_address)
    }
    if dash.IsSet {
-      return with_cache(c.do_dash)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
-      {threads},
       {widevine},
       {email, password},
       {address},
       {dash},
    })
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 func (c *client) do_email_password() error {
@@ -100,14 +99,15 @@ func main() {
 var cache maya.Cache
 
 type client struct {
+   // cache
    Asset *molotov.Asset
-   Dash  *maya.Dash
    Auth  *molotov.Auth
-   //------------------
-   Job maya.Job
-   //-------------
+   Dash  *maya.Dash
+   Job   maya.Job
+   // flags
+   address  string
    email    string
    password string
-   //-------------
-   address string
+   // state
+   cache_err error
 }
