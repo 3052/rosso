@@ -8,16 +8,11 @@ import (
 )
 
 func (c *client) do() error {
-   err := cache.Setup("rosso/crave.xml")
-   if err != nil {
+   if err := cache.Setup("rosso/crave.xml"); err != nil {
       return err
    }
-   with_cache := cache.Read(c)
+   c.cache_err = cache.Read(c)
    playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //-----------------------------------------------------------
-   threads := maya.IntFlag(&c.Job.Threads, "t", "threads")
-   //-----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
    //-----------------------------------------------------------
    username := maya.StringFlag(&c.username, "u", "username")
    password := maya.StringFlag(&c.password, "p", "password")
@@ -27,21 +22,10 @@ func (c *client) do() error {
    address := maya.StringFlag(&c.address, "a", "address")
    //-----------------------------------------------------------
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   err = maya.ParseFlags()
-   if err != nil {
-      return err
-   }
-   err = maya.SetProxy(c.Proxy)
-   if err != nil {
+   if err := maya.ParseFlags(); err != nil {
       return err
    }
    if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if threads.IsSet {
-      return cache.Write(c)
-   }
-   if proxy.IsSet {
       return cache.Write(c)
    }
    if username.IsSet {
@@ -50,23 +34,28 @@ func (c *client) do() error {
       }
    }
    if profile.IsSet {
-      return with_cache(c.do_profile)
+      return c.run(c.do_profile)
    }
    if address.IsSet {
-      return with_cache(c.do_address)
+      return c.run(c.do_address)
    }
    if dash.IsSet {
-      return with_cache(c.do_dash)
+      return c.run(c.do_dash)
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
-      {threads},
-      {proxy},
       {username, password},
       {profile},
       {address},
       {dash},
    })
+}
+
+func (c *client) run(action func() error) error {
+   if c.cache_err != nil {
+      return c.cache_err
+   }
+   return action()
 }
 
 func (c *client) do_address() error {
@@ -151,20 +140,18 @@ func (c *client) do_dash() error {
 }
 
 type client struct {
+   // cache
    AccountToken *crave.AccountToken
    Dash         *maya.Dash
+   Job          maya.Job
    Media        *crave.Media
    Playback     *crave.Playback
    ProfileToken *crave.ProfileToken
-   //--------------------
-   Job maya.Job
-   //--------------------
-   Proxy string
-   //--------------------
-   username string
+   // flags
+   address  string
    password string
-   //--------------------
-   profile string
-   //--------------------
-   address string
+   profile  string
+   username string
+   // state
+   cache_err error
 }
