@@ -6,6 +6,36 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/tubi"); err != nil {
+      return err
+   }
+   c.cache.Decode(&c.job)
+
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(c.job)
+   case tubi_id.IsSet:
+      return c.do_tubi()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      tubi_id,
+      dash,
+   }})
+}
+
 type client struct {
    cache   maya.Cache
    job     maya.Job
@@ -53,34 +83,4 @@ func (c *client) do_dash() error {
    return dash.Download(&c.job, func(body []byte) ([]byte, error) {
       return tubi.AcquireLicense(&server, body)
    })
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/tubi"); err != nil {
-      return err
-   }
-   c.cache.Decode(&c.job)
-
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
-
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(c.job)
-   case tubi_id.IsSet:
-      return c.do_tubi()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-      tubi_id,
-      dash,
-   }})
 }

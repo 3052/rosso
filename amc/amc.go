@@ -9,6 +9,35 @@ import (
    "net/url"
 )
 
+func (a *AuthData) Refresh() error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + a.RefreshToken},
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return err
+   }
+   *a = result.Data
+   return nil
+}
+
 //go:embed playback.json
 var playback_json []byte
 
@@ -111,35 +140,6 @@ func Unauth() (*AuthData, error) {
    defer resp.Body.Close()
    if resp.StatusCode != 200 {
       return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-func Refresh(refreshToken string) (*AuthData, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      map[string]string{"authorization": "Bearer " + refreshToken},
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
    }
    // Internal envelope to strip the first layer
    var envelope struct {

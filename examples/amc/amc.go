@@ -7,30 +7,32 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do() error {
-   if err := cache.Setup("rosso/amc.xml"); err != nil {
+   if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
    email := maya.StringFlag(&c.email, "E", "email")
    password := maya.StringFlag(&c.password, "P", "password")
-   //----------------------------------------------------------
    refresh := maya.BoolFlag("r", "refresh")
-   //----------------------------------------------------------
    series := maya.IntFlag(&c.series, "s", "series ID")
-   //----------------------------------------------------------
    season := maya.IntFlag(&c.season, "S", "season ID")
-   //----------------------------------------------------------
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   c.cache.Decode(&c.job)
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return cache.Write(c)
+      return c.cache.Encode(c.job)
    }
    if email.IsSet {
       if password.IsSet {
@@ -38,19 +40,19 @@ func (c *client) do() error {
       }
    }
    if refresh.IsSet {
-      return c.run(c.do_refresh)
+      return c.do_refresh()
    }
    if series.IsSet {
-      return c.run(c.do_series)
+      return c.do_series()
    }
    if season.IsSet {
-      return c.run(c.do_season)
+      return c.do_season()
    }
    if episode.IsSet {
-      return c.run(c.do_episode)
+      return c.do_episode()
    }
    if dash.IsSet {
-      return c.run(c.do_dash)
+      return c.do_dash()
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
@@ -63,29 +65,39 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
+func (c *client) do_email_password() error {
+   auth_data, err := amc.Unauth()
+   if err != nil {
+      return err
    }
-   return action()
+   auth_data, err = amc.Login(auth_data.AccessToken, c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
 }
 
 type client struct {
-   // cache
-   AuthData *amc.AuthData
-   BcovAuth string
-   Dash     *maya.Dash
-   Job      maya.Job
-   Source   *amc.Source
-   // flags
+   cache    maya.Cache
+   job      maya.Job
    email    string
    episode  int
    password string
    season   int
    series   int
-   // state
-   cache_err error
+   //BcovAuth string
+   //Dash     *maya.Dash
+   //Source   *amc.Source
 }
+
+func (c *client) do_refresh() error {
+   var auth_data amc.AuthData
+   return c.cache.Update(&auth_data, func() error {
+      return auth_data.Refresh()
+   })
+}
+
+///
 
 func (c *client) do_dash() error {
    fetch := func(data []byte) ([]byte, error) {
@@ -93,17 +105,7 @@ func (c *client) do_dash() error {
          c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
       )
    }
-   return c.Dash.Download(&c.Job, fetch)
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
+   return c.Dash.Download(&c.job, fetch)
 }
 
 func (c *client) do_episode() error {
@@ -120,29 +122,7 @@ func (c *client) do_episode() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.AuthData, err = amc.Unauth()
-   if err != nil {
-      return err
-   }
-   c.AuthData, err = amc.Login(c.AuthData.AccessToken, c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_refresh() error {
-   var err error
-   c.AuthData, err = amc.Refresh(c.AuthData.RefreshToken)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_series() error {
