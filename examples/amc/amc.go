@@ -7,6 +7,29 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   if c.err != nil {
+      return c.err
+   }
+   var dash maya.Dash
+   if err := c.cache.Decode(&dash); err != nil {
+      return err
+   }
+   var source amc.Source
+   if err := c.cache.Decode(&source); err != nil {
+      return err
+   }
+   var playback amc.PlaybackResult
+   if err := c.cache.Decode(&playback); err != nil {
+      return err
+   }
+   return dash.Download(&c.job, func(data []byte) ([]byte, error) {
+      return amc.License(
+         source.KeySystems.ComWidevineAlpha.LicenseURL, playback.BcovAuth, data,
+      )
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -35,9 +58,7 @@ type client struct {
    password string
    season   int
    series   int
-   //BcovAuth string
-   //Dash     *maya.Dash
-   //Source   *amc.Source
+   err      error
 }
 
 func (c *client) do_refresh() error {
@@ -66,6 +87,25 @@ func (c *client) do_series() error {
    return nil
 }
 
+func (c *client) do_season() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.EpisodesMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
@@ -76,7 +116,7 @@ func (c *client) do() error {
    series := maya.IntFlag(&c.series, "s", "series ID")
    season := maya.IntFlag(&c.season, "S", "season ID")
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   c.cache.Decode(&c.job)
+   c.err = c.cache.Decode(&c.job)
    widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
    dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
@@ -116,44 +156,29 @@ func (c *client) do() error {
    })
 }
 
-///
-
-func (c *client) do_season() error {
-   season, err := amc.SeasonEpisodes(c.AuthData.AccessToken, c.season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.EpisodesMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func (c *client) do_dash() error {
-   fetch := func(data []byte) ([]byte, error) {
-      return amc.License(
-         c.Source.KeySystems.ComWidevineAlpha.LicenseURL, c.BcovAuth, data,
-      )
-   }
-   return c.Dash.Download(&c.job, fetch)
-}
-
 func (c *client) do_episode() error {
-   playback, err := amc.Playback(c.AuthData.AccessToken, c.episode)
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
    if err != nil {
       return err
    }
-   c.Source, err = playback.Data.DashSource()
+   playback, err := amc.Playback(auth_data.AccessToken, c.episode)
    if err != nil {
       return err
    }
-   c.BcovAuth = playback.BcovAuth
-   c.Dash, err = maya.ListDash(c.Source.GetManifest)
+   if err := c.cache.Encode(playback); err != nil {
+      return err
+   }
+   source, err := playback.Data.DashSource()
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
+   if err := c.cache.Encode(source); err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(source.GetManifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
 }

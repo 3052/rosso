@@ -10,72 +10,23 @@ import (
    "path"
 )
 
-func (c *client) do() error {
-   if err := cache.Setup("rosso/canal.xml"); err != nil {
-      return err
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
    }
-   c.cache_err = cache.Read(c)
-   //----------------------------------------------------------
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   refresh := maya.BoolFlag("r", "refresh")
-   //---------------------------------------------------
-   query := maya.StringFlag(&c.query, "q", "query")
-   //---------------------------------------------------
-   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
-   season := maya.IntFlag(&c.season, "s", "season")
-   //----------------------------------------------------
-   subtitles := maya.BoolFlag("S", "subtitles")
-   //----------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if refresh.IsSet {
-      return c.run(c.do_refresh)
-   }
-   if query.IsSet {
-      return c.run(c.do_query)
-   }
-   if tracking.IsSet {
-      if season.IsSet {
-         return c.run(c.do_tracking_season)
-      }
-      return c.run(c.do_tracking)
-   }
-   if subtitles.IsSet {
-      return c.run(c.do_subtitles)
-   }
-   if dash.IsSet {
-      return c.run(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {refresh},
-      {query},
-      {tracking, season},
-      {subtitles},
-      {dash},
-   })
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
+type client struct {
+   cache    maya.Cache
+   email    string
+   err      error
+   job      maya.Job
+   password string
+   query    string
+   season   int
+   tracking string
 }
 
 func get(address string) error {
@@ -97,8 +48,64 @@ func get(address string) error {
    return err
 }
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/canal.xml"); err != nil {
+      return err
+   }
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   query := maya.StringFlag(&c.query, "q", "query")
+   refresh := maya.BoolFlag("r", "refresh")
+   season := maya.IntFlag(&c.season, "s", "season")
+   subtitles := maya.BoolFlag("S", "subtitles")
+   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
+   c.err = c.cache.Decode(&c.job)
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(c.job)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if refresh.IsSet {
+      return c.do_refresh()
+   }
+   if query.IsSet {
+      return c.do_query()
+   }
+   if tracking.IsSet {
+      if season.IsSet {
+         return c.do_tracking_season()
+      }
+      return c.do_tracking()
+   }
+   if subtitles.IsSet {
+      return c.do_subtitles()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {email, password},
+      {refresh},
+      {query},
+      {tracking, season},
+      {subtitles},
+      {dash},
+   })
+}
+
+///
+
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Player.FetchWidevine)
+   return c.Dash.Download(&c.job, c.Player.FetchWidevine)
 }
 
 func (c *client) do_tracking() error {
@@ -111,7 +118,7 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_tracking_season() error {
@@ -136,16 +143,6 @@ func (c *client) do_subtitles() error {
       }
    }
    return nil
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 func (c *client) do_query() error {
@@ -180,7 +177,7 @@ func (c *client) do_email_password() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_refresh() error {
@@ -189,21 +186,5 @@ func (c *client) do_refresh() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-type client struct {
-   // cache
-   Dash    *maya.Dash
-   Job     maya.Job
-   Player  *canal.Player
-   Session *canal.Session
-   // flags
-   email    string
-   password string
-   query    string
-   season   int
-   tracking string
-   // state
-   cache_err error
+   return c.cache.Write(c)
 }
