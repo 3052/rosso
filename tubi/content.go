@@ -3,6 +3,7 @@ package tubi
 import (
    "41.neocities.org/maya"
    "encoding/json"
+   "errors"
    "net/url"
    "strconv"
 )
@@ -87,14 +88,22 @@ func GetContent(contentId int) (*ContentResponse, error) {
    query.Add("video_resources[]", "dash")
    query.Add("video_resources[]", "dash_widevine")
    target.RawQuery = query.Encode()
+
    resp, err := maya.Get(target, nil)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var content ContentResponse
    if err := json.NewDecoder(resp.Body).Decode(&content); err != nil {
       return nil, err
    }
+
+   // Return an error if no VideoResources were found in the response
+   if len(content.VideoResources) == 0 {
+      return nil, errors.New("no video resources found for this content")
+   }
+
    return &content, nil
 }
