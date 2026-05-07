@@ -15,6 +15,43 @@ import (
    "time"
 )
 
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
+}
+
+func (s *Session) Refresh() error {
+   body, err := json.Marshal(map[string]string{
+      "brand":        "m7cp",
+      "deviceSerial": device_serial,
+      "deviceType":   "PC",
+      "ssoToken":     s.SsoToken,
+   })
+   if err != nil {
+      return err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   err = json.NewDecoder(resp.Body).Decode(s)
+   if err != nil {
+      return err
+   }
+   if s.Message != "" {
+      return errors.New(s.Message)
+   }
+   return nil
+}
+
 func (e *Episode) String() string {
    data := &strings.Builder{}
    fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
@@ -137,12 +174,6 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
-
 func (s *Session) Player(tracking string) (*Player, error) {
    body, err := json.Marshal(map[string]any{
       "player": map[string]any{
@@ -172,38 +203,6 @@ func (s *Session) Player(tracking string) (*Player, error) {
    }
    defer resp.Body.Close()
    var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
