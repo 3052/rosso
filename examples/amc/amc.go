@@ -7,20 +7,30 @@ import (
    "log"
 )
 
+func (c *client) do_refresh() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   err = auth_data.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
+}
+
 func (c *client) do_dash() error {
    if c.err != nil {
       return c.err
    }
-   var dash maya.Dash
-   if err := c.cache.Decode(&dash); err != nil {
-      return err
-   }
-   var source amc.Source
-   if err := c.cache.Decode(&source); err != nil {
-      return err
-   }
-   var playback amc.PlaybackResult
-   if err := c.cache.Decode(&playback); err != nil {
+   var (
+      dash     maya.Dash
+      playback amc.PlaybackResult
+      source   amc.Source
+   )
+   err := c.cache.Decode(&dash, &playback, &source)
+   if err != nil {
       return err
    }
    return dash.Download(&c.job, func(data []byte) ([]byte, error) {
@@ -59,13 +69,6 @@ type client struct {
    season   int
    series   int
    err      error
-}
-
-func (c *client) do_refresh() error {
-   var auth_data amc.AuthData
-   return c.cache.Update(&auth_data, func() error {
-      return auth_data.Refresh()
-   })
 }
 
 func (c *client) do_series() error {
@@ -166,19 +169,13 @@ func (c *client) do_episode() error {
    if err != nil {
       return err
    }
-   if err := c.cache.Encode(playback); err != nil {
-      return err
-   }
    source, err := playback.Data.DashSource()
    if err != nil {
-      return err
-   }
-   if err := c.cache.Encode(source); err != nil {
       return err
    }
    dash, err := maya.ListDash(source.GetManifest)
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash)
+   return c.cache.Encode(dash, playback, source)
 }

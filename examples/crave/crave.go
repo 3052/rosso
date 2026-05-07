@@ -7,9 +7,52 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   profile_token := &crave.ProfileToken{}
+   err := c.cache.Decode(profile_token)
+   if err != nil {
+      return err
+   }
+   media, err := crave.ParseMedia(c.address)
+   if err != nil {
+      return err
+   }
+   if media.FirstContent.Id == 0 {
+      media, err = crave.GetMedia(media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   playback, err := crave.GetPlayback(profile_token, media)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(profile_token, playback)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, media, playback)
+}
+
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
+   if c.err != nil {
+      return c.err
+   }
+   var (
+      dash          maya.Dash
+      playback      crave.Playback
+      profile_token crave.ProfileToken
+   )
+   err := c.cache.Decode(&dash, &playback, &profile_token)
+   if err != nil {
+      return err
+   }
+   return dash.Download(&c.job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, &profile_token, &playback)
    })
 }
 
@@ -50,8 +93,8 @@ func (c *client) do_username_password() error {
 }
 
 func (c *client) do_profile() error {
-   var account_token crave.AccountToken
-   err := c.cache.Decode(&account_token)
+   account_token := &crave.AccountToken{}
+   err := c.cache.Decode(account_token)
    if err != nil {
       return err
    }
@@ -69,50 +112,11 @@ func (c *client) do_profile() error {
       }
       fmt.Println(&sub)
    }
-   return c.cache.Encodee(profile_token)
-}
-
-func (c *client) do_address() error {
-   var profile_token crave.ProfileToken
-   err := c.cache.Decode(&profile_token)
-   if err != nil {
-      return err
-   }
-   media, err := crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if media.FirstContent.Id == 0 {
-      media, err = crave.GetMedia(media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   err = c.cache.Encode(media)
-   if err != nil {
-      return err
-   }
-   playback, err := crave.GetPlayback(profile_token, media)
-   if err != nil {
-      return err
-   }
-   err = c.cache.Encode(playback)
-   if err != nil {
-      return err
-   }
-   stream, err := crave.GetStream(profile_token, playback)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(stream.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
+   return c.cache.Encode(profile_token)
 }
 
 func (c *client) do() error {
-   if err := cache.Setup("rosso/crave"); err != nil {
+   if err := c.cache.Setup("rosso/crave"); err != nil {
       return err
    }
    address := maya.StringFlag(&c.address, "a", "address")
