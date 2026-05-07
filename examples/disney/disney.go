@@ -7,6 +7,30 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type email string
+
+type client struct {
+   address  string
+   cache maya.Cache
+   email email
+   err error
+   job   maya.Job
+   media    string
+   passcode string
+   profile  string
+   season   string
+}
+
+///
+
 func (c *client) do() error {
    if err := cache.Setup("rosso/disney.xml"); err != nil {
       return err
@@ -63,13 +87,6 @@ func (c *client) do() error {
       media,
       hls,
    }})
-}
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
 }
 
 func (c *client) do_email() error {
@@ -156,30 +173,4 @@ func (c *client) do_refresh() error {
 
 func (c *client) do_hls_id() error {
    return c.Hls.Download(&c.Job, c.Token.FetchPlayReady)
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   // cache
-   Email string
-   Hls   *maya.Hls
-   Job   maya.Job
-   Token *disney.Token
-   // flags
-   address  string
-   media    string
-   passcode string
-   profile  string
-   season   string
-   // state
-   cache_err error
 }
