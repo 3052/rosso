@@ -15,100 +15,47 @@ func main() {
    }
 }
 
-type email string
+type disney_email string
 
 type client struct {
    address  string
-   cache maya.Cache
-   email email
-   err error
-   job   maya.Job
+   cache    maya.Cache
+   email    string
+   err      error
+   job      maya.Job
    media    string
    passcode string
    profile  string
    season   string
 }
 
-///
-
-func (c *client) do() error {
-   if err := cache.Setup("rosso/disney.xml"); err != nil {
-      return err
-   }
-   c.cache_err = cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   email := maya.StringFlag(&c.Email, "e", "email")
-   //--------------------------------------------------------------
-   passcode := maya.StringFlag(&c.passcode, "p", "passcode")
-   //--------------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile ID")
-   //--------------------------------------------------------------
-   refresh := maya.BoolFlag("r", "refresh")
-   //--------------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //--------------------------------------------------------------
-   season := maya.StringFlag(&c.season, "s", "season ID")
-   //--------------------------------------------------------------
-   media := maya.StringFlag(&c.media, "m", "media ID")
-   //--------------------------------------------------------------
-   hls := maya.IntFlag(&c.Job.Hls, "h", "HLS ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   switch {
-   case playReady.IsSet:
-      return cache.Write(c)
-   case email.IsSet:
-      return c.do_email()
-   case passcode.IsSet:
-      return c.run(c.do_passcode)
-   case profile.IsSet:
-      return c.run(c.do_profile_id)
-   case refresh.IsSet:
-      return c.run(c.do_refresh)
-   case address.IsSet:
-      return c.run(c.do_address)
-   case season.IsSet:
-      return c.run(c.do_season_id)
-   case media.IsSet:
-      return c.run(c.do_media_id)
-   case hls.IsSet:
-      return c.run(c.do_hls_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{{
-      playReady,
-      email,
-      passcode,
-      profile,
-      refresh,
-      address,
-      season,
-      media,
-      hls,
-   }})
-}
-
 func (c *client) do_email() error {
-   var err error
-   c.Token, err = disney.RegisterDevice()
+   token, err := disney.RegisterDevice()
    if err != nil {
       return err
    }
-   request_otp, err := c.Token.RequestOtp(c.Email)
+   request_otp, err := token.RequestOtp(c.email)
    if err != nil {
       return err
    }
    fmt.Println(request_otp)
-   return cache.Write(c)
+   return c.cache.Encode(disney_email(c.email), token)
 }
 
 func (c *client) do_passcode() error {
-   otp, err := c.Token.AuthenticateWithOtp(c.Email, c.passcode)
+   var (
+      email disney_email
+      token disney.Token
+   )
+   err := c.cache.Decode(&email, &token)
    if err != nil {
       return err
    }
-   login, err := c.Token.LoginWithActionGrant(otp.ActionGrant)
+   otp, err := token.AuthenticateWithOtp(string(email), c.passcode)
+   if err != nil {
+      return err
+   }
+   login, err := token.LoginWithActionGrant(otp.ActionGrant)
    if err != nil {
       return err
    }
@@ -118,23 +65,46 @@ func (c *client) do_passcode() error {
       }
       fmt.Println(&profile)
    }
-   return cache.Write(c)
+   return c.cache.Encode(token)
 }
 
-func (c *client) do_profile_id() error {
-   err := c.Token.SwitchProfile(c.profile)
+func (c *client) do_profile() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   err = token.SwitchProfile(c.profile)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
+}
+
+func (c *client) do_refresh() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   err = token.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
 }
 
 func (c *client) do_address() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
    entity, err := disney.ParseEntity(c.address)
    if err != nil {
       return err
    }
-   page, err := c.Token.FetchPage(entity)
+   page, err := token.FetchPage(entity)
    if err != nil {
       return err
    }
@@ -142,7 +112,60 @@ func (c *client) do_address() error {
    return nil
 }
 
-func (c *client) do_season_id() error {
+func (c *client) do() error {
+   if err := cache.Setup("rosso/disney"); err != nil {
+      return err
+   }
+   address := maya.StringFlag(&c.address, "a", "address")
+   media := maya.StringFlag(&c.media, "m", "media ID")
+   passcode := maya.StringFlag(&c.passcode, "p", "passcode")
+   profile := maya.StringFlag(&c.profile, "P", "profile ID")
+   refresh := maya.BoolFlag("r", "refresh")
+   season := maya.StringFlag(&c.season, "s", "season ID")
+   email := maya.StringFlag(&c.email, "e", "email")
+   c.err = c.cache.Decode(&c.job)
+   hls := maya.IntFlag(&c.job.Hls, "h", "HLS ID")
+   playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   switch {
+   case playReady.IsSet:
+      return c.cache.Encode(c.job)
+   case email.IsSet:
+      return c.do_email()
+   case passcode.IsSet:
+      return c.do_passcode()
+   case profile.IsSet:
+      return c.do_profile()
+   case refresh.IsSet:
+      return c.do_refresh()
+   case address.IsSet:
+      return c.do_address()
+   case season.IsSet:
+      return c.do_season()
+   case media.IsSet:
+      return c.do_media()
+   case hls.IsSet:
+      return c.do_hls()
+   }
+   return maya.PrintFlags([][]*maya.Flag{{
+      playReady,
+      email,
+      passcode,
+      profile,
+      refresh,
+      address,
+
+      season,
+      media,
+      hls,
+   }})
+}
+
+///
+
+func (c *client) do_season() error {
    season, err := c.Token.FetchSeason(c.season)
    if err != nil {
       return err
@@ -151,7 +174,7 @@ func (c *client) do_season_id() error {
    return nil
 }
 
-func (c *client) do_media_id() error {
+func (c *client) do_media() error {
    stream, err := c.Token.FetchStream(c.media)
    if err != nil {
       return err
@@ -163,14 +186,6 @@ func (c *client) do_media_id() error {
    return cache.Write(c)
 }
 
-func (c *client) do_refresh() error {
-   err := c.Token.Refresh()
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_hls_id() error {
+func (c *client) do_hls() error {
    return c.Hls.Download(&c.Job, c.Token.FetchPlayReady)
 }

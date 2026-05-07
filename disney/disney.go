@@ -10,6 +10,48 @@ import (
    "strings"
 )
 
+// request: Device
+func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_request_otp,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":  email,
+            "reason": "Login",
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         RequestOtp RequestOtp
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.RequestOtp, nil
+}
+
 // request: Account
 func (t *Token) FetchPage(entity string) (*Page, error) {
    if err := t.assert("Account"); err != nil {
@@ -217,48 +259,6 @@ func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOt
       return nil, err
    }
    return &result.Data.AuthenticateWithOtp, nil
-}
-
-// request: Device
-func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_request_otp,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "email":  email,
-            "reason": "Login",
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.api.edge.bamgrid.com",
-         Path:   "/v1/public/graphql",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         RequestOtp RequestOtp
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.RequestOtp, nil
 }
 
 // request: Device
