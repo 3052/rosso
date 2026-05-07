@@ -15,21 +15,15 @@ import (
    "time"
 )
 
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func (s *Session) Refresh() error {
+func FetchSession(ssoToken string) (*Session, error) {
    body, err := json.Marshal(map[string]string{
       "brand":        "m7cp",
       "deviceSerial": device_serial,
       "deviceType":   "PC",
-      "ssoToken":     s.SsoToken,
+      "ssoToken":     ssoToken,
    })
    if err != nil {
-      return err
+      return nil, err
    }
    resp, err := maya.Post(
       &url.URL{
@@ -39,17 +33,23 @@ func (s *Session) Refresh() error {
       body,
    )
    if err != nil {
-      return err
+      return nil, err
    }
    defer resp.Body.Close()
-   err = json.NewDecoder(resp.Body).Decode(s)
-   if err != nil {
-      return err
+   var result Session
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
    }
-   if s.Message != "" {
-      return errors.New(s.Message)
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
    }
-   return nil
+   return &result, nil
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
 }
 
 func (e *Episode) String() string {

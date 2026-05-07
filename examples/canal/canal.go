@@ -10,6 +10,91 @@ import (
    "path"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/canal"); err != nil {
+      return err
+   }
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   query := maya.StringFlag(&c.query, "q", "query")
+   refresh := maya.BoolFlag("r", "refresh")
+   season := maya.IntFlag(&c.season, "s", "season")
+   subtitles := maya.BoolFlag("S", "subtitles")
+   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
+   c.err = c.cache.Decode(&c.job)
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(c.job)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if refresh.IsSet {
+      return c.do_refresh()
+   }
+   if query.IsSet {
+      return c.do_query()
+   }
+   if tracking.IsSet {
+      if season.IsSet {
+         return c.do_tracking_season()
+      }
+      return c.do_tracking()
+   }
+   if subtitles.IsSet {
+      return c.do_subtitles()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {email, password},
+      {refresh},
+      {query},
+      {tracking, season},
+
+      {subtitles},
+      {dash},
+   })
+}
+
+func (c *client) do_subtitles() error {
+   var player canal.Player
+   err := c.cache.Decode(&player)
+   if err != nil {
+      return err
+   }
+   for _, subtitles := range player.Subtitles {
+      err := get(subtitles.Url)
+      if err != nil {
+         return err
+      }
+   }
+   return nil
+}
+
+func (c *client) do_dash() error {
+   if c.err != nil {
+      return c.err
+   }
+   var dash maya.Dash
+   if err := c.cache.Decode(&dash); err != nil {
+      return err
+   }
+   var player canal.Player
+   if err := c.cache.Decode(&player); err != nil {
+      return err
+   }
+   return dash.Download(&c.job, player.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -65,9 +150,11 @@ func (c *client) do_email_password() error {
 }
 
 func (c *client) do_refresh() error {
-   var session canal.Session
-   return c.cache.Update(&session, func() error {
-      return session.Refresh()
+   session := &canal.Session{}
+   return c.cache.Update(session, func() error {
+      var err error
+      session, err = canal.FetchSession(session.SsoToken)
+      return err
    })
 }
 
@@ -132,75 +219,4 @@ func (c *client) do_tracking_season() error {
       fmt.Println(&episode)
    }
    return nil
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/canal.xml"); err != nil {
-      return err
-   }
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   query := maya.StringFlag(&c.query, "q", "query")
-   refresh := maya.BoolFlag("r", "refresh")
-   season := maya.IntFlag(&c.season, "s", "season")
-   subtitles := maya.BoolFlag("S", "subtitles")
-   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(c.job)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if refresh.IsSet {
-      return c.do_refresh()
-   }
-   if query.IsSet {
-      return c.do_query()
-   }
-   if tracking.IsSet {
-      if season.IsSet {
-         return c.do_tracking_season()
-      }
-      return c.do_tracking()
-   }
-   if subtitles.IsSet {
-      return c.do_subtitles()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {refresh},
-      {query},
-      {tracking, season},
-
-      {subtitles},
-      {dash},
-   })
-}
-
-///
-
-func (c *client) do_subtitles() error {
-   for _, subtitles := range c.Player.Subtitles {
-      err := get(subtitles.Url)
-      if err != nil {
-         return err
-      }
-   }
-   return nil
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.job, c.Player.FetchWidevine)
 }
