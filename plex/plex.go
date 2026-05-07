@@ -9,6 +9,46 @@ import (
    "strings"
 )
 
+type MatchContainer struct {
+   Metadata []MatchItem `json:"Metadata"`
+}
+
+type MatchItem struct {
+   Guid      string `json:"guid"`
+   Key       string `json:"key"`
+   RatingKey string `json:"ratingKey"`
+   Title     string `json:"title"`
+   Type      string `json:"type"`
+}
+
+func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchContainer, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "discover.provider.plex.tv",
+      Path:   "/library/metadata/matches",
+   }
+
+   query := url.Values{}
+   query.Set("url", urlPath)
+   query.Set("x-plex-token", anonymous.AuthToken)
+   endpoint.RawQuery = query.Encode()
+
+   resp, err := maya.Get(endpoint, nil)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      MediaContainer MatchContainer `json:"MediaContainer"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+
+   return &result.MediaContainer, nil
+}
+
 func AcquireWidevineLicense(media *VodMedia, anonymous *AnonymousUser, body []byte) ([]byte, error) {
    if len(media.Part) == 0 {
       return nil, errors.New("no media parts found")

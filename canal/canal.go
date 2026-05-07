@@ -15,6 +15,21 @@ import (
    "time"
 )
 
+func (p *Player) GetManifest() (*url.URL, error) {
+   return url.Parse(p.Url)
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl string
+   }
+   Message   string
+   Subtitles []struct {
+      Url string
+   }
+   Url string // MPD
+}
+
 func FetchSession(ssoToken string) (*Session, error) {
    body, err := json.Marshal(map[string]string{
       "brand":        "m7cp",
@@ -144,21 +159,6 @@ type Login struct {
    Label    string
    Message  string
    SsoToken string // this last one day
-}
-
-type Player struct {
-   Drm struct {
-      LicenseUrl string
-   }
-   Message   string
-   Subtitles []struct {
-      Url string
-   }
-   Url string // MPD
-}
-
-func (p *Player) GetManifest() (*url.URL, error) {
-   return url.Parse(p.Url)
 }
 
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {

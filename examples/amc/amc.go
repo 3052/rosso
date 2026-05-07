@@ -7,6 +7,27 @@ import (
    "log"
 )
 
+func (c *client) do_episode() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   playback, err := amc.Playback(auth_data.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   source, err := playback.Data.DashSource()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(source.Src.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playback, source)
+}
+
 func (c *client) do_refresh() error {
    var auth_data amc.AuthData
    err := c.cache.Decode(&auth_data)
@@ -157,25 +178,4 @@ func (c *client) do() error {
       {episode},
       {dash},
    })
-}
-
-func (c *client) do_episode() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   playback, err := amc.Playback(auth_data.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   source, err := playback.Data.DashSource()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(source.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playback, source)
 }

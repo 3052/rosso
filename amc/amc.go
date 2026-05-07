@@ -9,6 +9,41 @@ import (
    "net/url"
 )
 
+type Src struct {
+   Url *url.URL
+}
+
+func (s *Src) UnmarshalJSON(data []byte) error {
+   var (
+      urlString string
+      err       error
+   )
+   err = json.Unmarshal(data, &urlString)
+   if err != nil {
+      return err
+   }
+   s.Url, err = url.Parse(urlString)
+   return err
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        Src        // MPD
+   Type       string
+}
+
+// DashSource finds and returns the first Source with the type
+// "application/dash+xml"
+func (p *PlaybackData) DashSource() (*Source, error) {
+   for _, source_data := range p.PlaybackJsonData.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
 func (a *AuthData) Refresh() error {
    resp, err := maya.Post(
       &url.URL{
@@ -362,16 +397,6 @@ type Navigation struct {
    ScreenDesignType string `json:"screenDesignType,omitempty"`
 }
 
-// DashSource finds and returns the first Source with the type "application/dash+xml".
-func (p *PlaybackData) DashSource() (*Source, error) {
-   for _, src := range p.PlaybackJsonData.Sources {
-      if src.Type == "application/dash+xml" {
-         return &src, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
-}
-
 // PlaybackData represents the inner streaming and DRM source data.
 type PlaybackData struct {
    PlaybackJsonData struct {
@@ -447,17 +472,6 @@ type Properties struct {
    DownloadData *DownloadData `json:"downloadData,omitempty"`
    TTS          *TTS          `json:"TTS,omitempty"`
    Navigation   *Navigation   `json:"navigation,omitempty"`
-}
-
-type Source struct {
-   Codecs     string     `json:"codecs"`
-   Src        string     `json:"src"` // MPD
-   Type       string     `json:"type"`
-   KeySystems KeySystems `json:"key_systems"`
-}
-
-func (s *Source) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Src)
 }
 
 type Subheading struct {
