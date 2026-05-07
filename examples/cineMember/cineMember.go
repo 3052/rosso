@@ -6,6 +6,18 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   if c.err != nil {
+      return c.err
+   }
+   var dash maya.Dash
+   err := c.cache.Decode(&dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(&c.job, nil)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -24,7 +36,7 @@ type client struct {
 }
 
 func (c *client) do() error {
-   if err := cache.Setup("rosso/cineMember"); err != nil {
+   if err := c.cache.Setup("rosso/cineMember"); err != nil {
       return err
    }
    address := maya.StringFlag(&c.address, "a", "address")
@@ -65,14 +77,17 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(phpSessId)
 }
 
-///
-
 func (c *client) do_address() error {
+   var phpSessId cineMember.Cookie
+   err := c.cache.Decode(&phpSessId)
+   if err != nil {
+      return err
+   }
    id, err := cineMember.FetchId(c.address)
    if err != nil {
       return err
    }
-   stream, err := cineMember.FetchStream(c.PhpSessId, id)
+   stream, err := cineMember.FetchStream(phpSessId, id)
    if err != nil {
       return err
    }
@@ -80,13 +95,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(link.GetManifest)
+   dash, err := maya.ListDash(link.GetManifest)
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, nil)
+   return c.cache.Encode(dash)
 }

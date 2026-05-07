@@ -7,82 +7,10 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   if err := cache.Setup("rosso/crave.xml"); err != nil {
-      return err
-   }
-   c.cache_err = cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //-----------------------------------------------------------
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-----------------------------------------------------------
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   //-----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //-----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return cache.Write(c)
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if profile.IsSet {
-      return c.run(c.do_profile)
-   }
-   if address.IsSet {
-      return c.run(c.do_address)
-   }
-   if dash.IsSet {
-      return c.run(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {playReady},
-      {username, password},
-      {profile},
-      {address},
-      {dash},
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
    })
-}
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-func (c *client) do_address() error {
-   var err error
-   c.Media, err = crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if c.Media.FirstContent.Id == 0 {
-      c.Media, err = crave.GetMedia(c.Media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   c.Playback, err = crave.GetPlayback(c.ProfileToken, c.Media)
-   if err != nil {
-      return err
-   }
-   stream, err := crave.GetStream(c.ProfileToken, c.Playback)
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(stream.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
 }
 
 func main() {
@@ -93,13 +21,22 @@ func main() {
    }
 }
 
+type client struct {
+   cache    maya.Cache
+   job      maya.Job
+   address  string
+   password string
+   profile  string
+   username string
+   err      error
+}
+
 func (c *client) do_username_password() error {
-   var err error
-   c.AccountToken, err = crave.PerformLogin(c.username, c.password)
+   account_token, err := crave.PerformLogin(c.username, c.password)
    if err != nil {
       return err
    }
-   profiles, err := crave.GetProfiles(c.AccountToken)
+   profiles, err := crave.GetProfiles(account_token)
    if err != nil {
       return err
    }
@@ -109,18 +46,20 @@ func (c *client) do_username_password() error {
       }
       fmt.Println(&profile)
    }
-   return cache.Write(c)
+   return c.cache.Encode(account_token)
 }
 
-var cache maya.Cache
-
 func (c *client) do_profile() error {
-   var err error
-   c.ProfileToken, err = crave.SwitchProfile(c.AccountToken, c.profile)
+   var account_token crave.AccountToken
+   err := c.cache.Decode(&account_token)
    if err != nil {
       return err
    }
-   subs, err := crave.GetSubscriptions(c.ProfileToken)
+   profile_token, err := crave.SwitchProfile(account_token, c.profile)
+   if err != nil {
+      return err
+   }
+   subs, err := crave.GetSubscriptions(profile_token)
    if err != nil {
       return err
    }
@@ -130,28 +69,84 @@ func (c *client) do_profile() error {
       }
       fmt.Println(&sub)
    }
-   return cache.Write(c)
+   return c.cache.Encodee(profile_token)
 }
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, c.ProfileToken, c.Playback)
+func (c *client) do_address() error {
+   var profile_token crave.ProfileToken
+   err := c.cache.Decode(&profile_token)
+   if err != nil {
+      return err
+   }
+   media, err := crave.ParseMedia(c.address)
+   if err != nil {
+      return err
+   }
+   if media.FirstContent.Id == 0 {
+      media, err = crave.GetMedia(media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   err = c.cache.Encode(media)
+   if err != nil {
+      return err
+   }
+   playback, err := crave.GetPlayback(profile_token, media)
+   if err != nil {
+      return err
+   }
+   err = c.cache.Encode(playback)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(profile_token, playback)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(stream.GetManifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
+
+func (c *client) do() error {
+   if err := cache.Setup("rosso/crave"); err != nil {
+      return err
+   }
+   address := maya.StringFlag(&c.address, "a", "address")
+   password := maya.StringFlag(&c.password, "p", "password")
+   profile := maya.StringFlag(&c.profile, "P", "profile")
+   username := maya.StringFlag(&c.username, "u", "username")
+   c.err = c.cache.Decode(&c.job)
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return c.cache.Encode(c.job)
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if profile.IsSet {
+      return c.do_profile()
+   }
+   if address.IsSet {
+      return c.do_address()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {playReady},
+      {username, password},
+      {profile},
+      {address},
+      {dash},
    })
-}
-
-type client struct {
-   // cache
-   AccountToken *crave.AccountToken
-   Dash         *maya.Dash
-   Job          maya.Job
-   Media        *crave.Media
-   Playback     *crave.Playback
-   ProfileToken *crave.ProfileToken
-   // flags
-   address  string
-   password string
-   profile  string
-   username string
-   // state
-   cache_err error
 }
