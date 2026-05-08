@@ -12,7 +12,16 @@ import (
    "strings"
 )
 
-func StRequest() (string, error) {
+type St struct {
+   Name string
+   Value string
+}
+
+func (s *St) String() string {
+   return fmt.Sprintf("%v-%v", s.Name, s.Value)
+}
+
+func StRequest() (*St, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme:   "https",
@@ -26,15 +35,15 @@ func StRequest() (string, error) {
       },
    )
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
    for _, cookie := range resp.Cookies() {
       if cookie.Name == "st" {
-         return cookie.String(), nil
+         return &St{Name: cookie.Name, Value: cookie.Value}, nil
       }
    }
-   return "", errors.New("named cookie not present")
+   return nil, errors.New("named cookie not present")
 }
 
 func (p *Playback) GetManifest() (*url.URL, error) {
@@ -170,7 +179,7 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
    return &result, nil
 }
 
-func InitiateRequest(st, market string) (*Initiate, error) {
+func (s *St) InitiateRequest(market string) (*Initiate, error) {
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
@@ -178,7 +187,7 @@ func InitiateRequest(st, market string) (*Initiate, error) {
          Path:   "/authentication/linkDevice/initiate",
       },
       map[string]string{
-         "cookie":        st,
+         "cookie":        s.String(),
          "x-device-info": device_info,
       },
       nil,
@@ -205,14 +214,14 @@ func InitiateRequest(st, market string) (*Initiate, error) {
 // you must
 // /authentication/linkDevice/initiate
 // first or this will always fail
-func LoginRequest(st string) (*Login, error) {
+func (s *St) LoginRequest() (*Login, error) {
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
          Host:   "default.prd.api.hbomax.com",
          Path:   "/authentication/linkDevice/login",
       },
-      map[string]string{"cookie": st},
+      map[string]string{"cookie": s.String()},
       nil,
    )
    if err != nil {
