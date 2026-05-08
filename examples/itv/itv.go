@@ -7,6 +7,18 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash       maya.Dash
+      media_file itv.MediaFile
+   )
+   err := c.cache.Decode(&c.job, &dash, &media_file)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, media_file.FetchKeyService)
+}
+
 func (c *client) do_address() error {
    titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address))
    if err != nil {
@@ -66,24 +78,22 @@ func (c *client) do() error {
    }})
 }
 
-///
-
 func (c *client) do_playlist() error {
    playlist, err := itv.FetchWidevine(c.playlist)
    if err != nil {
       return err
    }
-   c.MediaFile, err = playlist.Get1080()
+   media_file, err := playlist.Get1080()
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(c.MediaFile.GetManifest)
+   manifest, err := media_file.GetManifest()
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.MediaFile.FetchKeyService)
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, media_file)
 }

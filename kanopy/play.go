@@ -8,6 +8,34 @@ import (
    "41.neocities.org/maya"
 )
 
+func (play *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range play.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
+}
+
+type PlayResponse struct {
+   PlayId    string     `json:"playId"`
+   Manifests []Manifest `json:"manifests"`
+   Captions  []Caption  `json:"captions"`
+}
+
+func (m *Manifest) GetUrl() (*url.URL, error) {
+   return url.Parse(m.Url)
+}
+
+type Manifest struct {
+   Url            string `json:"url"`
+   ManifestType   string `json:"manifestType"`
+   DrmType        string `json:"drmType"`
+   StorageService string `json:"storageService"`
+   Cdn            string `json:"cdn"`
+   DrmLicenseId   string `json:"drmLicenseID"`
+}
+
 type PlayRequest struct {
    DomainId int `json:"domainId"`
    UserId   int `json:"userId"`
@@ -19,16 +47,6 @@ type StudioDrm struct {
    DrmLicenseId string `json:"drmLicenseId"`
 }
 
-type Manifest struct {
-   ManifestType   string    `json:"manifestType"`
-   Url            string    `json:"url"`
-   DrmType        string    `json:"drmType"`
-   StudioDrm      StudioDrm `json:"studioDrm"`
-   StorageService string    `json:"storageService"`
-   Cdn            string    `json:"cdn"`
-   DrmLicenseId   string    `json:"drmLicenseID"`
-}
-
 type File struct {
    Type string `json:"type"`
    Url  string `json:"url"`
@@ -38,12 +56,6 @@ type Caption struct {
    Language string `json:"language"`
    Files    []File `json:"files"`
    Label    string `json:"label"`
-}
-
-type PlayResponse struct {
-   PlayId    string     `json:"playId"`
-   Manifests []Manifest `json:"manifests"`
-   Captions  []Caption  `json:"captions"`
 }
 
 func CreatePlay(login *LoginResponse, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
@@ -80,13 +92,4 @@ func CreatePlay(login *LoginResponse, membershipData *Membership, videoData *Vid
    }
 
    return &play, nil
-}
-
-func (play *PlayResponse) GetDashManifest() (*Manifest, error) {
-   for _, manifestData := range play.Manifests {
-      if manifestData.ManifestType == "dash" {
-         return &manifestData, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
 }
