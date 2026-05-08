@@ -6,6 +6,15 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, ctv.FetchWidevine)
+}
+
 func (c *client) do_address() error {
    path, err := ctv.GetPath(c.address)
    if err != nil {
@@ -34,18 +43,6 @@ func (c *client) do_address() error {
    return c.cache.Encode(dash)
 }
 
-func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
-   var dash maya.Dash
-   err := c.cache.Decode(&dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(&c.job, ctv.FetchWidevine)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -57,7 +54,7 @@ func main() {
 type client struct {
    address string
    cache   maya.Cache
-   err     error
+   dash    string
    job     maya.Job
 }
 
@@ -66,9 +63,8 @@ func (c *client) do() error {
       return err
    }
    address := maya.StringFlag(&c.address, "a", "address")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }

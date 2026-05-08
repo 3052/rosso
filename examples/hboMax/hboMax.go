@@ -8,18 +8,15 @@ import (
 )
 
 func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
    var (
       dash     maya.Dash
       playback hboMax.Playback
    )
-   err := c.cache.Decode(&dash, &playback)
+   err := c.cache.Decode(&c.job, &dash, &playback)
    if err != nil {
       return err
    }
-   return dash.Download(&c.job, playback.PlayReadyRequest)
+   return dash.Download(c.dash, &c.job, playback.PlayReadyRequest)
 }
 
 func main() {
@@ -28,17 +25,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   cache  maya.Cache
-   edit   string
-   err    error
-   job    maya.Job
-   market string
-   search string
-   season int
-   show   string
 }
 
 func (c *client) do_initiate() error {
@@ -119,6 +105,38 @@ func (c *client) do_show() error {
    return nil
 }
 
+func (c *client) do_edit() error {
+   var login hboMax.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   playback, err := hboMax.PlayReadyRequest(login.Token, c.edit)
+   if err != nil {
+      return err
+   }
+   manifest, err := playback.GetManifest()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playback)
+}
+
+type client struct {
+   cache  maya.Cache
+   dash   string
+   edit   string
+   job    maya.Job
+   market string
+   search string
+   season int
+   show   string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/hboMax"); err != nil {
       return err
@@ -130,9 +148,8 @@ func (c *client) do() error {
    search := maya.StringFlag(&c.search, "s", "search")
    season := maya.IntFlag(&c.season, "S", "season")
    show := maya.StringFlag(&c.show, "SM", "show/movie ID")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    playReady := maya.StringFlag(&c.job.PlayReady, "p", "PlayReady")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -168,25 +185,4 @@ func (c *client) do() error {
       {edit},
       {dash},
    })
-}
-
-func (c *client) do_edit() error {
-   var login hboMax.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   playback, err := hboMax.PlayReadyRequest(login.Token, c.edit)
-   if err != nil {
-      return err
-   }
-   manifest, err := playback.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playback)
 }

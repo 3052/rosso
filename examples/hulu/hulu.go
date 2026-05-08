@@ -6,24 +6,28 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do() error {
-   if err := cache.Setup("rosso/hulu.xml"); err != nil {
+   if err := c.cache.Setup("rosso/hulu"); err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "P", "PlayReady")
-   //-------------------------------------------------------------
+   address := maya.StringFlag(&c.address, "a", "address")
    email := maya.StringFlag(&c.email, "e", "email")
    password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   playReady := maya.StringFlag(&c.job.PlayReady, "P", "PlayReady")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    if playReady.IsSet {
-      return cache.Write(c)
+      return c.cache.Encode(c.job)
    }
    if email.IsSet {
       if password.IsSet {
@@ -31,10 +35,10 @@ func (c *client) do() error {
       }
    }
    if address.IsSet {
-      return c.run(c.do_address)
+      return c.do_address()
    }
    if dash.IsSet {
-      return c.run(c.do_dash)
+      return c.do_dash()
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
@@ -44,15 +48,24 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   job      maya.Job
+   password string
 }
 
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
+///
+
+func (c *client) do_email_password() error {
+   var err error
+   c.Device, err = hulu.FetchDevice(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Write(c)
 }
 
 func (c *client) do_address() error {
@@ -72,38 +85,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.Device, err = hulu.FetchDevice(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-type client struct {
-   // cache
-   Dash     *maya.Dash
-   Device   *hulu.Device
-   Job      maya.Job
-   Playlist *hulu.Playlist
-   // flags
-   address  string
-   email    string
-   password string
-   // state
-   cache_err error
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
 }

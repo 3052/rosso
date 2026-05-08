@@ -8,18 +8,15 @@ import (
 )
 
 func (c *client) do_hls() error {
-   if c.err != nil {
-      return c.err
-   }
    var (
       hls   maya.Hls
       token disney.Token
    )
-   err := c.cache.Decode(&hls, &token)
+   err := c.cache.Decode(&c.job, &hls, &token)
    if err != nil {
       return err
    }
-   return hls.Download(&c.job, token.FetchPlayReady)
+   return hls.Download(c.hls, &c.job, token.FetchPlayReady)
 }
 
 func main() {
@@ -31,18 +28,6 @@ func main() {
 }
 
 type disney_email string
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   email    string
-   err      error
-   job      maya.Job
-   media    string
-   passcode string
-   profile  string
-   season   string
-}
 
 func (c *client) do_email() error {
    token, err := disney.RegisterDevice()
@@ -141,6 +126,35 @@ func (c *client) do_season() error {
    return nil
 }
 
+func (c *client) do_media() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   stream, err := token.FetchStream(c.media)
+   if err != nil {
+      return err
+   }
+   hls, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(hls)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   email    string
+   hls      int
+   job      maya.Job
+   media    string
+   passcode string
+   profile  string
+   season   string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
@@ -152,9 +166,8 @@ func (c *client) do() error {
    refresh := maya.BoolFlag("r", "refresh")
    season := maya.StringFlag(&c.season, "s", "season ID")
    email := maya.StringFlag(&c.email, "e", "email")
-   c.err = c.cache.Decode(&c.job)
-   hls := maya.IntFlag(&c.job.Hls, "h", "HLS ID")
    playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
+   hls := maya.IntFlag(&c.hls, "h", "HLS ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -189,21 +202,4 @@ func (c *client) do() error {
       media,
       hls,
    }})
-}
-
-func (c *client) do_media() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(c.media)
-   if err != nil {
-      return err
-   }
-   hls, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(hls)
 }
