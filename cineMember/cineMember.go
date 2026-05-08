@@ -59,12 +59,12 @@ func (s *Stream) Dash() (*url.URL, error) {
    return nil, errors.New("DASH link not found")
 }
 
-type PhpSessId struct {
+type Cookie struct {
    Name  string
    Value string
 }
 
-func GetPhpSessId() (*PhpSessId, error) {
+func GetPhpSessId() (*Cookie, error) {
    resp, err := maya.Head(
       &url.URL{Scheme: "https", Host: "www.cinemember.nl", Path: "/nl"},
       // THIS IS NEEDED OTHERWISE SUBTITLES ARE MISSING, GOD IS DEAD
@@ -74,19 +74,19 @@ func GetPhpSessId() (*PhpSessId, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "PHPSESSID" {
-         return &PhpSessId{Name: cookie.Name, Value: cookie.Value}, nil
+   for _, c := range resp.Cookies() {
+      if c.Name == "PHPSESSID" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
       }
    }
    return nil, errors.New("PHPSESSID cookie not found in response")
 }
 
-func (p *PhpSessId) String() string {
-   return fmt.Sprintf("%v=%v", p.Name, p.Value)
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
-func (p *PhpSessId) FetchLogin(email, password string) error {
+func FetchLogin(phpSessId *Cookie, email, password string) error {
    body := url.Values{
       "emaillogin": {email},
       "password":   {password},
@@ -99,7 +99,7 @@ func (p *PhpSessId) FetchLogin(email, password string) error {
       },
       map[string]string{
          "content-type": "application/x-www-form-urlencoded",
-         "cookie":       p.String(),
+         "cookie":       phpSessId.String(),
       },
       []byte(body),
    )
@@ -112,7 +112,7 @@ func (p *PhpSessId) FetchLogin(email, password string) error {
 }
 
 // must run login first
-func (p *PhpSessId) FetchStream(id int) (*Stream, error) {
+func FetchStream(phpSessId *Cookie, id int) (*Stream, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme:   "https",
@@ -120,7 +120,7 @@ func (p *PhpSessId) FetchStream(id int) (*Stream, error) {
          Path:     "/elements/films/stream.php",
          RawQuery: fmt.Sprint("id=", id),
       },
-      map[string]string{"cookie": p.String()},
+      map[string]string{"cookie": phpSessId.String()},
    )
    if err != nil {
       return nil, err

@@ -12,234 +12,6 @@ import (
    "strings"
 )
 
-func (p *Playback) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
-}
-
-type St struct {
-   Name  string
-   Value string
-}
-
-func (s *St) String() string {
-   return fmt.Sprintf("%v-%v", s.Name, s.Value)
-}
-
-func StRequest() (*St, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "st" {
-         return &St{Name: cookie.Name, Value: cookie.Value}, nil
-      }
-   }
-   return nil, errors.New("named cookie not present")
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.Drm.Schemes.Widevine.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      endpoint, map[string]string{"authorization": "Bearer " + token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
-}
-
-func playback_request(token, edit_id, drm string) (*Playback, error) {
-   body, err := json.Marshal(map[string]any{
-      "editId":               edit_id,
-      "consumptionType":      "streaming",
-      "appBundle":            "",         // required
-      "applicationSessionId": "",         // required
-      "firstPlay":            false,      // required
-      "gdpr":                 false,      // required
-      "playbackSessionId":    "",         // required
-      "userPreferences":      struct{}{}, // required
-      "capabilities": map[string]any{
-         "contentProtection": map[string]any{
-            "contentDecryptionModules": []any{
-               map[string]string{
-                  "drmKeySystem": drm,
-               },
-            },
-         },
-         "manifests": map[string]any{
-            "formats": map[string]any{
-               "dash": struct{}{}, // required
-            }, // required
-         }, // required
-      }, // required
-      "deviceInfo": map[string]any{
-         "player": map[string]any{
-            "mediaEngine": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-            "playerView": map[string]int{
-               "height": 0, // required
-               "width":  0, // required
-            }, // required
-            "sdk": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-         }, // required
-      }, // required
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
-      },
-      map[string]string{
-         "authorization": "Bearer " + token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (s *St) InitiateRequest(market string) (*Initiate, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      map[string]string{
-         "cookie":        s.String(),
-         "x-device-info": device_info,
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func (s *St) LoginRequest() (*Login, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/authentication/linkDevice/login",
-      },
-      map[string]string{"cookie": s.String()},
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
@@ -459,4 +231,232 @@ func SearchRequest(token, query string) ([]*Entity, error) {
       RawQuery: values.Encode(),
    }
    return entity_request(token, parsedUrl)
+}
+
+func (p *Playback) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   target, err := url.Parse(p.Drm.Schemes.Widevine.LicenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Included, nil
+}
+
+func playback_request(token, edit_id, drm string) (*Playback, error) {
+   body, err := json.Marshal(map[string]any{
+      "editId":               edit_id,
+      "consumptionType":      "streaming",
+      "appBundle":            "",         // required
+      "applicationSessionId": "",         // required
+      "firstPlay":            false,      // required
+      "gdpr":                 false,      // required
+      "playbackSessionId":    "",         // required
+      "userPreferences":      struct{}{}, // required
+      "capabilities": map[string]any{
+         "contentProtection": map[string]any{
+            "contentDecryptionModules": []any{
+               map[string]string{
+                  "drmKeySystem": drm,
+               },
+            },
+         },
+         "manifests": map[string]any{
+            "formats": map[string]any{
+               "dash": struct{}{}, // required
+            }, // required
+         }, // required
+      }, // required
+      "deviceInfo": map[string]any{
+         "player": map[string]any{
+            "mediaEngine": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+            "playerView": map[string]int{
+               "height": 0, // required
+               "width":  0, // required
+            }, // required
+            "sdk": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+         }, // required
+      }, // required
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
+      },
+      map[string]string{
+         "authorization": "Bearer " + token,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v-%v", c.Name, c.Value)
+}
+
+func StRequest() (*Cookie, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com",
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      map[string]string{
+         "x-device-info":  device_info,
+         "x-disco-client": disco_client,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, c := range resp.Cookies() {
+      if c.Name == "st" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("named cookie not present")
+}
+
+func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      map[string]string{
+         "cookie":        st.String(),
+         "x-device-info": device_info,
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *Cookie) (*Login, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/authentication/linkDevice/login",
+      },
+      map[string]string{"cookie": st.String()},
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
 }

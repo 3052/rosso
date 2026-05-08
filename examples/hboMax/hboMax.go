@@ -46,7 +46,7 @@ func (c *client) do_initiate() error {
    if err != nil {
       return err
    }
-   initiate, err := st.InitiateRequest(c.market)
+   initiate, err := hboMax.InitiateRequest(st, c.market)
    if err != nil {
       return err
    }
@@ -55,12 +55,12 @@ func (c *client) do_initiate() error {
 }
 
 func (c *client) do_login() error {
-   var st hboMax.St
-   err := c.cache.Decode(&st)
+   st := &hboMax.Cookie{}
+   err := c.cache.Decode(st)
    if err != nil {
       return err
    }
-   login, err := st.LoginRequest()
+   login, err := hboMax.LoginRequest(st)
    if err != nil {
       return err
    }
