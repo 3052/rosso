@@ -7,48 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   if err := cache.Setup("rosso/itv.xml"); err != nil {
-      return err
-   }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //----------------------------------------------------------
-   playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case playlist.IsSet:
-      return c.do_playlist()
-   case dash.IsSet:
-      return c.run(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-      address,
-      playlist,
-      dash,
-   }})
-}
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-var cache maya.Cache
-
 func (c *client) do_address() error {
    titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address))
    if err != nil {
@@ -63,6 +21,53 @@ func (c *client) do_address() error {
    return nil
 }
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   job      maya.Job
+   playlist string
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   address := maya.StringFlag(&c.address, "a", "address")
+   playlist := maya.StringFlag(&c.playlist, "p", "playlist URL")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(c.job)
+   case address.IsSet:
+      return c.do_address()
+   case playlist.IsSet:
+      return c.do_playlist()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{{
+      widevine,
+      address,
+      playlist,
+      dash,
+   }})
+}
+
+///
+
 func (c *client) do_playlist() error {
    playlist, err := itv.FetchWidevine(c.playlist)
    if err != nil {
@@ -76,29 +81,9 @@ func (c *client) do_playlist() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.MediaFile.FetchKeyService)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   // cache
-   Dash      *maya.Dash
-   Job       maya.Job
-   MediaFile *itv.MediaFile
-   // flags
-   address  string
-   playlist string
-   // state
-   cache_err error
 }

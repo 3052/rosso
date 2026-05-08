@@ -6,12 +6,41 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash     maya.Dash
+      playlist hulu.Playlist
+   )
+   err := c.cache.Decode(&c.job, &dash, &playlist)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playlist.FetchPlayReady)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
+}
+
+func (c *client) do_email_password() error {
+   device, err := hulu.FetchDevice(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(device)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   job      maya.Job
+   password string
 }
 
 func (c *client) do() error {
@@ -48,46 +77,33 @@ func (c *client) do() error {
    })
 }
 
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   job      maya.Job
-   password string
-}
-
 ///
 
-func (c *client) do_email_password() error {
-   var err error
-   c.Device, err = hulu.FetchDevice(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Write(c)
-}
-
 func (c *client) do_address() error {
-   err := c.Device.TokenRefresh()
+   var device hulu.Device
+   err := c.cache.Decode(&device)
    if err != nil {
       return err
    }
-   deep_link, err := c.Device.DeepLink(hulu.ParseId(c.address))
+   err = device.TokenRefresh()
    if err != nil {
       return err
    }
-   c.Playlist, err = c.Device.Playlist(deep_link.EabId)
+   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(c.Playlist.GetManifest)
+   playlist, err := device.Playlist(deep_link.EabId)
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playlist.FetchPlayReady)
+   manifest, err := playlist.GetManifest()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playlist)
 }
