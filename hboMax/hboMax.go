@@ -12,6 +12,52 @@ import (
    "strings"
 )
 
+func StRequest() (string, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com",
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      map[string]string{
+         "x-device-info":  device_info,
+         "x-disco-client": disco_client,
+      },
+   )
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "st" {
+         return cookie.String(), nil
+      }
+   }
+   return "", errors.New("named cookie not present")
+}
+
+func (p *Playback) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Fallback struct {
+      Manifest struct {
+         Url string // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
 func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
    target, err := url.Parse(p.Drm.Schemes.Widevine.LicenseUrl)
    if err != nil {
@@ -47,15 +93,11 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    }
    defer resp.Body.Close()
    var result struct {
-      Errors   []Error
       Included []*Entity `json:"included"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
    }
    return result.Included, nil
 }
@@ -125,9 +167,6 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
    return &result, nil
 }
 
@@ -192,31 +231,6 @@ func LoginRequest(st string) (*Login, error) {
    return &result.Data.Attributes, nil
 }
 
-func StRequest() (string, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-      },
-   )
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "st" {
-         return cookie.String(), nil
-      }
-   }
-   return "", errors.New("named cookie not present")
-}
-
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
@@ -235,10 +249,6 @@ func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
 }
 
 type Login struct {
@@ -401,47 +411,6 @@ func (e *Entity) String() string {
       fmt.Fprintf(data, "ID: %s\n", e.Id)
    }
    return strings.TrimSpace(data.String())
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   []Error
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   // 1. print code
-   data.WriteString("code: ")
-   data.WriteString(e.Code)
-   // 2, 3, 4. if detail print detail, if message print message, if both print
-   // one
-   if e.Detail != "" {
-      data.WriteString("\ndetail: ")
-      data.WriteString(e.Detail)
-   } else if e.Message != "" {
-      data.WriteString("\nmessage: ")
-      data.WriteString(e.Message)
-   }
-   return data.String()
-}
-
-type Error struct {
-   Code    string // 2026-04-10
-   Detail  string // 2026-04-10
-   Message string // 2026-04-10
 }
 
 func PlayReadyRequest(token, editId string) (*Playback, error) {

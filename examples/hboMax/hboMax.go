@@ -7,6 +7,28 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+///
+
+type client struct {
+   Job       maya.Job
+   St        string
+   cache_err error
+   edit      string
+   market    string
+   search    string
+   season    int
+   show      string
+   cache     maya.Cache
+}
+
 func (c *client) do() error {
    if err := cache.Setup("rosso/hboMax.xml"); err != nil {
       return err
@@ -63,15 +85,6 @@ func (c *client) do() error {
       {dash},
    })
 }
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-var cache maya.Cache
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Playback.PlayReadyRequest)
@@ -156,29 +169,4 @@ func (c *client) do_edit() error {
       return err
    }
    return cache.Write(c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   // cache
-   Dash     *maya.Dash
-   Job      maya.Job
-   Login    *hboMax.Login
-   Playback *hboMax.Playback
-   St       string
-   // flags
-   edit   string
-   market string
-   search string
-   season int
-   show   string
-   // state
-   cache_err error
 }

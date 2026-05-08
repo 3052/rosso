@@ -11,81 +11,6 @@ import (
    "strings"
 )
 
-type Cookie string
-
-func PhpSessId() (Cookie, error) {
-   resp, err := maya.Head(
-      &url.URL{Scheme: "https", Host: "www.cinemember.nl", Path: "/nl"},
-      // THIS IS NEEDED OTHERWISE SUBTITLES ARE MISSING, GOD IS DEAD
-      map[string]string{"user-agent": "Windows"},
-   )
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "PHPSESSID" {
-         value := fmt.Sprintf("%v=%v", cookie.Name, cookie.Value)
-         return Cookie(value), nil
-      }
-   }
-   return "", errors.New("PHPSESSID cookie not found in response")
-}
-
-func FetchLogin(phpSessId Cookie, email, password string) error {
-   body := url.Values{
-      "emaillogin": {email},
-      "password":   {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.cinemember.nl",
-         Path:   "/elements/overlays/account/login.php",
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "cookie":       string(phpSessId),
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   _, err = io.Copy(io.Discard, resp.Body)
-   return err
-}
-
-// must run login first
-func FetchStream(phpSessId Cookie, id int) (*Stream, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "www.cinemember.nl",
-         Path:     "/elements/films/stream.php",
-         RawQuery: fmt.Sprint("id=", id),
-      },
-      map[string]string{"cookie": string(phpSessId)},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Stream
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   if result.NoAccess {
-      return nil, errors.New("no access")
-   }
-   return &result, nil
-}
-
 // extracts the numeric ID and converts it to an integer
 func FetchId(urlData string) (int, error) {
    target, err := url.Parse(urlData)
@@ -132,4 +57,85 @@ func (s *Stream) Dash() (*url.URL, error) {
       }
    }
    return nil, errors.New("DASH link not found")
+}
+
+type PhpSessId struct {
+   Name  string
+   Value string
+}
+
+func GetPhpSessId() (*PhpSessId, error) {
+   resp, err := maya.Head(
+      &url.URL{Scheme: "https", Host: "www.cinemember.nl", Path: "/nl"},
+      // THIS IS NEEDED OTHERWISE SUBTITLES ARE MISSING, GOD IS DEAD
+      map[string]string{"user-agent": "Windows"},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "PHPSESSID" {
+         return &PhpSessId{Name: cookie.Name, Value: cookie.Value}, nil
+      }
+   }
+   return nil, errors.New("PHPSESSID cookie not found in response")
+}
+
+func (p *PhpSessId) String() string {
+   return fmt.Sprintf("%v=%v", p.Name, p.Value)
+}
+
+func (p *PhpSessId) FetchLogin(email, password string) error {
+   body := url.Values{
+      "emaillogin": {email},
+      "password":   {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.cinemember.nl",
+         Path:   "/elements/overlays/account/login.php",
+      },
+      map[string]string{
+         "content-type": "application/x-www-form-urlencoded",
+         "cookie":       p.String(),
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   return err
+}
+
+// must run login first
+func (p *PhpSessId) FetchStream(id int) (*Stream, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "www.cinemember.nl",
+         Path:     "/elements/films/stream.php",
+         RawQuery: fmt.Sprint("id=", id),
+      },
+      map[string]string{"cookie": p.String()},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Stream
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   if result.NoAccess {
+      return nil, errors.New("no access")
+   }
+   return &result, nil
 }
