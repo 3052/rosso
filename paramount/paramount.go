@@ -12,132 +12,11 @@ import (
    "errors"
    "fmt"
    "io"
-   "maps"
    "net/url"
    "regexp"
    "slices"
    "strings"
 )
-
-func (a *App) fetch_session(platform, contentId, cbs_com string) (*Session, error) {
-   at, err := get_at(a.Secret)
-   if err != nil {
-      return nil, err
-   }
-   endpoint := "anonymous-session-token.json"
-   header := map[string]string{}
-   if cbs_com != "" {
-      endpoint = "session-token.json"
-      header["cookie"] = cbs_com
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   a.Host,
-         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
-         RawQuery: url.Values{
-            "at":        {at},
-            "contentId": {contentId},
-         }.Encode(),
-      },
-      header,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
-// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func (a *App) FetchCbsCom(username, password string) (string, error) {
-   at, err := get_at(a.Secret)
-   if err != nil {
-      return "", err
-   }
-   body := url.Values{
-      "j_username": {username},
-      "j_password": {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme:   "https",
-         Host:     a.Host,
-         Path:     "/apps-api/v2.0/androidphone/auth/login.json",
-         RawQuery: url.Values{"at": {at}}.Encode(),
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "user-agent":   "!", // randomly fails if this is missing
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Message string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return "", err
-   }
-   if result.Message != "" {
-      return "", errors.New(result.Message)
-   }
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "CBS_COM" {
-         return cookie.String(), nil
-      }
-   }
-   return "", errors.New("named cookie not present")
-}
-
-func (s *Session) Fetch(body []byte) ([]byte, error) {
-   target, err := url.Parse(s.Url)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"authorization": "Bearer " + s.LsSession}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (a *App) FetchWidevine(contentId, cbsCom string) (*Session, error) {
-   return a.fetch_session("androidphone", contentId, cbsCom)
-}
-
-func (a *App) FetchPlayReady(contentId, cbsCom string) (*Session, error) {
-   return a.fetch_session("xboxone", contentId, cbsCom)
-}
-
-func (a *App) FetchStreamingUrl(contentId, cbsCom string) (*Session, error) {
-   result, err := a.fetch_session("androidphone", contentId, cbsCom)
-   if err != nil {
-      return nil, err
-   }
-   if result.StreamingUrl == "" {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-   return result, nil
-}
 
 type Session struct {
    LsSession    string `json:"ls_session"`
@@ -186,29 +65,7 @@ func (s *Session) GetManifest() (*url.URL, error) {
 
 const secret_key = "302a6a0d70a7e9b967f91d39fef3e387816e3095925ae4537bce96063311f9c5"
 
-var apps = map[string]App{
-   "com.cbs.app": {
-      Host:    "www.paramountplus.com",
-      Version: "Paramount+ 16.8.0",
-      Secret:  "7081400bd4143bf3",
-   },
-   "com.cbs.ca": {
-      Host:    "www.paramountplus.com",
-      Version: "Paramount+ 16.8.0",
-      Secret:  "1c5d27627d71b420",
-   },
-   "com.cbs.tve": {
-      Host:    "www.cbs.com",
-      Version: "CBS 15.6.0",
-      Secret:  "cef32931dc01412e",
-   },
-}
-
-func GetAppKeys() []string {
-   return slices.Sorted(maps.Keys(apps))
-}
-
-func get_at(appSecret string) (string, error) {
+func get_at(app_secret string) (string, error) {
    // 1. Decode hex secret key
    key, err := hex.DecodeString(secret_key)
    if err != nil {
@@ -219,9 +76,9 @@ func get_at(appSecret string) (string, error) {
    if err != nil {
       return "", err
    }
-   // 3 & 4. Create payload: "|" + appSecret
+   // 3 & 4. Create payload: "|" + app_secret
    data := []byte{'|'}
-   data = append(data, appSecret...)
+   data = append(data, app_secret...)
    // 5. Apply PKCS7 Padding (Separate Function)
    data = pkcs7_pad(data, aes.BlockSize)
    // Prepare Empty IV (16 bytes of zeros)
@@ -237,11 +94,9 @@ func get_at(appSecret string) (string, error) {
    return base64.StdEncoding.EncodeToString(data), nil
 }
 
-func pkcs7_pad(data []byte, blockSize int) []byte {
+func pkcs7_pad(data []byte, block_size int) []byte {
    // Calculate the number of padding bytes needed.
-   // If data is already a multiple of blockSize, this results in a full block
-   // of padding.
-   paddingLen := blockSize - (len(data) % blockSize)
+   paddingLen := block_size - (len(data) % block_size)
    // Create a padding byte (the value is the length of the padding)
    padByte := byte(paddingLen)
    // Append the padding byte 'paddingLen' times
@@ -251,16 +106,125 @@ func pkcs7_pad(data []byte, blockSize int) []byte {
    return data
 }
 
-type App struct {
-   Host    string
-   Version string
-   Secret  string
+func (s *Session) Fetch(body []byte) ([]byte, error) {
+   target, err := url.Parse(s.Url)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"authorization": "Bearer " + s.LsSession}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
 }
 
-func GetApp(key string) (*App, error) {
-   app, exists := apps[key]
-   if !exists {
-      return nil, fmt.Errorf("app not found: %s", key)
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+}
+
+// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
+// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
+func (c *CbsApp) FetchCbsCom(username, password string) (*Cookie, error) {
+   at, err := get_at(c.Secret)
+   if err != nil {
+      return nil, err
    }
-   return &app, nil
+   body := url.Values{
+      "j_username": {username},
+      "j_password": {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme:   "https",
+         Host:     c.Host,
+         Path:     "/apps-api/v2.0/androidphone/auth/login.json",
+         RawQuery: url.Values{"at": {at}}.Encode(),
+      },
+      map[string]string{
+         "content-type": "application/x-www-form-urlencoded",
+         "user-agent":   "!", // randomly fails if this is missing
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   for _, c := range resp.Cookies() {
+      if c.Name == "CBS_COM" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("CBS_COM cookie not present")
+}
+
+func (c *CbsApp) fetch_session(platform, contentId string, cbs_com *Cookie) (*Session, error) {
+   at, err := get_at(c.Secret)
+   if err != nil {
+      return nil, err
+   }
+   endpoint := "anonymous-session-token.json"
+   header := map[string]string{}
+   if cbs_com != nil {
+      endpoint = "session-token.json"
+      header["cookie"] = cbs_com.String()
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   c.Host,
+         Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
+         RawQuery: url.Values{
+            "at":        {at},
+            "contentId": {contentId},
+         }.Encode(),
+      },
+      header,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+func (c *CbsApp) FetchWidevine(contentId string, cbsCom *Cookie) (*Session, error) {
+   return c.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (c *CbsApp) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
+   return c.fetch_session("xboxone", contentId, cbsCom)
+}
+
+func (c *CbsApp) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, error) {
+   result, err := c.fetch_session("androidphone", contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == "" {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
 }

@@ -7,22 +7,41 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache        maya.Cache
+   cookie       *maya.Flag
+   err          error
+   paramount_id string
+   password     string
+   username     string
+   job          maya.Job
+   App          string
+}
+
+///
+
 func (c *client) do() error {
-   if err := cache.Setup("rosso/paramount.xml"); err != nil {
+   if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
-   //--------------------------------------------------------------
-   app := maya.StringFlag(&c.App, "a", fmt.Sprint(paramount.GetAppKeys()))
-   //--------------------------------------------------------------
-   username := maya.StringFlag(&c.username, "U", "username")
    password := maya.StringFlag(&c.password, "P", "password")
-   //--------------------------------------------------------------
-   paramount_id := maya.StringFlag(&c.ParamountId, "p", "paramount ID")
+   username := maya.StringFlag(&c.username, "U", "username")
    c.cookie = maya.BoolFlag("c", "cookie")
-   //--------------------------------------------------------------
+   paramount_id := maya.StringFlag(&c.paramount_id, "p", "paramount ID")
+   c.err = c.cache.Decode(c)
    dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
+
+   app := maya.StringFlag(&c.App, "a", fmt.Sprint(paramount.GetAppKeys()))
+
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -51,39 +70,6 @@ func (c *client) do() error {
       {dash, c.cookie},
    })
 }
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-func (c *client) do_dash() error {
-   app, err := paramount.GetApp(c.App)
-   if err != nil {
-      return err
-   }
-   var cbs_com string
-   if c.cookie.IsSet {
-      cbs_com = c.CbsCom
-   }
-   session, err := app.FetchPlayReady(c.ParamountId, cbs_com)
-   if err != nil {
-      return err
-   }
-   return c.Dash.Download(&c.Job, session.Fetch)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
 
 func (c *client) do_username_password() error {
    app, err := paramount.GetApp(c.App)
@@ -117,17 +103,18 @@ func (c *client) do_paramount() error {
    return cache.Write(c)
 }
 
-type client struct {
-   // cache
-   App         string
-   CbsCom      string
-   Dash        *maya.Dash
-   Job         maya.Job
-   ParamountId string
-   // flags
-   cookie   *maya.Flag
-   password string
-   username string
-   // state
-   cache_err error
+func (c *client) do_dash() error {
+   app, err := paramount.GetApp(c.App)
+   if err != nil {
+      return err
+   }
+   var cbs_com string
+   if c.cookie.IsSet {
+      cbs_com = c.CbsCom
+   }
+   session, err := app.FetchPlayReady(c.ParamountId, cbs_com)
+   if err != nil {
+      return err
+   }
+   return c.Dash.Download(&c.Job, session.Fetch)
 }
