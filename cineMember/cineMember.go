@@ -86,30 +86,6 @@ func FetchStream(phpSessId Cookie, id int) (*Stream, error) {
    return &result, nil
 }
 
-type Stream struct {
-   Error    string
-   Links    []MediaLink
-   NoAccess bool
-}
-
-func (s *Stream) Dash() (*MediaLink, error) {
-   for _, link := range s.Links {
-      if link.MimeType == "application/dash+xml" {
-         return &link, nil
-      }
-   }
-   return nil, errors.New("DASH link not found")
-}
-
-func (m *MediaLink) GetManifest() (*url.URL, error) {
-   return url.Parse(m.Url)
-}
-
-type MediaLink struct {
-   MimeType string
-   Url      string
-}
-
 // extracts the numeric ID and converts it to an integer
 func FetchId(urlData string) (int, error) {
    target, err := url.Parse(urlData)
@@ -138,4 +114,22 @@ func FetchId(urlData string) (int, error) {
    }
    // 3. Convert string to integer
    return strconv.Atoi(idStr)
+}
+
+type Stream struct {
+   Error string
+   Links []struct {
+      MimeType string
+      Url      string
+   }
+   NoAccess bool
+}
+
+func (s *Stream) Dash() (*url.URL, error) {
+   for _, link := range s.Links {
+      if link.MimeType == "application/dash+xml" {
+         return url.Parse(link.Url)
+      }
+   }
+   return nil, errors.New("DASH link not found")
 }

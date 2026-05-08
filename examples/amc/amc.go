@@ -21,7 +21,11 @@ func (c *client) do_episode() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(source.Src.Url)
+   url, err := source.GetUrl()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(url)
    if err != nil {
       return err
    }

@@ -15,7 +15,7 @@ import (
    "time"
 )
 
-func (p *Player) GetManifest() (*url.URL, error) {
+func (p *Player) GetUrl() (*url.URL, error) {
    return url.Parse(p.Url)
 }
 
@@ -31,7 +31,7 @@ type Player struct {
 }
 
 func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
+   body, err := marshal(map[string]string{
       "brand":        "m7cp",
       "deviceSerial": device_serial,
       "deviceType":   "PC",
@@ -175,7 +175,7 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
-   body, err := json.Marshal(map[string]any{
+   body, err := marshal(map[string]any{
       "player": map[string]any{
          "capabilities": map[string]any{
             "drmSystems": []string{"Widevine"},
@@ -278,7 +278,7 @@ type Ticket struct {
 }
 
 func (t *Ticket) Login(username, password string) (*Login, error) {
-   body, err := json.Marshal(map[string]any{
+   body, err := marshal(map[string]any{
       "ticket": t.Ticket,
       "userInput": map[string]string{
          "username": username,
@@ -318,8 +318,12 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    return &result, nil
 }
 
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
+}
+
 func FetchTicket() (*Ticket, error) {
-   body, err := json.Marshal(map[string]any{
+   body, err := marshal(map[string]any{
       "deviceInfo": map[string]string{
          "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
          "deviceModel":  "Firefox",

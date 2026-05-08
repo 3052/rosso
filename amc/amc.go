@@ -9,27 +9,14 @@ import (
    "net/url"
 )
 
-type Src struct {
-   Url *url.URL
-}
-
-func (s *Src) UnmarshalJSON(data []byte) error {
-   var (
-      urlString string
-      err       error
-   )
-   err = json.Unmarshal(data, &urlString)
-   if err != nil {
-      return err
-   }
-   s.Url, err = url.Parse(urlString)
-   return err
+func (s *Source) GetUrl() (*url.URL, error) {
+   return url.Parse(s.Src)
 }
 
 type Source struct {
    Codecs     string
    KeySystems KeySystems `json:"key_systems"`
-   Src        Src        // MPD
+   Src        string     // MPD
    Type       string
 }
 

@@ -6,6 +6,31 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   var phpSessId cineMember.Cookie
+   err := c.cache.Decode(&phpSessId)
+   if err != nil {
+      return err
+   }
+   id, err := cineMember.FetchId(c.address)
+   if err != nil {
+      return err
+   }
+   stream, err := cineMember.FetchStream(phpSessId, id)
+   if err != nil {
+      return err
+   }
+   url, err := stream.Dash()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
+
 func (c *client) do_dash() error {
    if c.err != nil {
       return c.err
@@ -75,29 +100,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return c.cache.Encode(phpSessId)
-}
-
-func (c *client) do_address() error {
-   var phpSessId cineMember.Cookie
-   err := c.cache.Decode(&phpSessId)
-   if err != nil {
-      return err
-   }
-   id, err := cineMember.FetchId(c.address)
-   if err != nil {
-      return err
-   }
-   stream, err := cineMember.FetchStream(phpSessId, id)
-   if err != nil {
-      return err
-   }
-   link, err := stream.Dash()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(link.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
 }

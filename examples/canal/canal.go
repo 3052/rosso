@@ -10,19 +10,6 @@ import (
    "path"
 )
 
-func (c *client) do_refresh() error {
-   session := &canal.Session{}
-   err := c.cache.Decode(session)
-   if err != nil {
-      return err
-   }
-   session, err = canal.FetchSession(session.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
 func (c *client) do_tracking() error {
    var session canal.Session
    err := c.cache.Decode(&session)
@@ -33,7 +20,11 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(player.GetManifest)
+   url_data, err := player.GetUrl()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(url_data)
    if err != nil {
       return err
    }
@@ -215,6 +206,19 @@ func (c *client) do_email_password() error {
       return err
    }
    session, err := canal.FetchSession(login.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_refresh() error {
+   session := &canal.Session{}
+   err := c.cache.Decode(session)
+   if err != nil {
+      return err
+   }
+   session, err = canal.FetchSession(session.SsoToken)
    if err != nil {
       return err
    }

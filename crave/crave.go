@@ -343,6 +343,27 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
    return token, nil
 }
 
+func (s *Subscription) String() string {
+   var data strings.Builder
+   data.WriteString("display name: ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date: ")
+   data.WriteString(s.ExpirationDate)
+   return data.String()
+}
+
+///
+
+func (s *Stream) GetManifest() (*url.URL, error) {
+   return url.Parse(s.Playback)
+}
+
+type Stream struct {
+   Message   string // 2026-05-01
+   Playback  string `json:"playback"`
+   Trickplay string `json:"trickplay"`
+}
+
 func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -377,23 +398,4 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-type Stream struct {
-   Message   string // 2026-05-01
-   Playback  string `json:"playback"`
-   Trickplay string `json:"trickplay"`
-}
-
-func (s *Stream) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Playback)
-}
-
-func (s *Subscription) String() string {
-   var data strings.Builder
-   data.WriteString("display name: ")
-   data.WriteString(s.Experience.DisplayName)
-   data.WriteString("\nexpiration date: ")
-   data.WriteString(s.ExpirationDate)
-   return data.String()
 }
