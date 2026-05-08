@@ -17,7 +17,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return dash.Download(&c.job, func(data []byte) ([]byte, error) {
+   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
       return amc.License(
          source.KeySystems.ComWidevineAlpha.LicenseURL,
          playback.BcovAuth,
@@ -35,6 +35,7 @@ func main() {
 }
 
 type client struct {
+   dash     string
    email    string
    episode  int
    password string
@@ -143,7 +144,7 @@ func (c *client) do() error {
    season := maya.IntFlag(&c.season, "S", "season ID")
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
    widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -176,7 +177,6 @@ func (c *client) do() error {
       {refresh},
       {series},
       {season},
-
       {episode},
       {dash},
    })
