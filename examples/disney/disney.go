@@ -7,6 +7,21 @@ import (
    "log"
 )
 
+func (c *client) do_hls() error {
+   if c.err != nil {
+      return c.err
+   }
+   var (
+      hls   maya.Hls
+      token disney.Token
+   )
+   err := c.cache.Decode(&hls, &token)
+   if err != nil {
+      return err
+   }
+   return hls.Download(&c.job, token.FetchPlayReady)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -112,8 +127,22 @@ func (c *client) do_address() error {
    return nil
 }
 
+func (c *client) do_season() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   season, err := token.FetchSeason(c.season)
+   if err != nil {
+      return err
+   }
+   fmt.Println(season)
+   return nil
+}
+
 func (c *client) do() error {
-   if err := cache.Setup("rosso/disney"); err != nil {
+   if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
    }
    address := maya.StringFlag(&c.address, "a", "address")
@@ -156,36 +185,25 @@ func (c *client) do() error {
       profile,
       refresh,
       address,
-
       season,
       media,
       hls,
    }})
 }
 
-///
-
-func (c *client) do_season() error {
-   season, err := c.Token.FetchSeason(c.season)
-   if err != nil {
-      return err
-   }
-   fmt.Println(season)
-   return nil
-}
-
 func (c *client) do_media() error {
-   stream, err := c.Token.FetchStream(c.media)
+   var token disney.Token
+   err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   c.Hls, err = maya.ListHls(stream.GetManifest)
+   stream, err := token.FetchStream(c.media)
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-func (c *client) do_hls() error {
-   return c.Hls.Download(&c.Job, c.Token.FetchPlayReady)
+   hls, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(hls)
 }
