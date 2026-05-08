@@ -13,6 +13,45 @@ import (
    "strings"
 )
 
+func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "stream.video.9c9media.com",
+      Path: fmt.Sprintf(
+         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
+         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
+      ),
+   }
+   values := url.Values{}
+   values.Set("filter", "ff") // 2160p HEVC
+   values.Set("format", "mpd")
+   values.Set("hd", "true")  // 1080p H.264
+   values.Set("mcv", "true") // H.264 + HEVC
+   values.Set("uhd", "true") // 2160p HEVC
+   endpoint.RawQuery = values.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + token.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Message  string // 2026-05-01
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return url.Parse(result.Playback)
+}
+
 //go:embed GetShowpage.gql
 var get_showpage string
 
@@ -350,52 +389,4 @@ func (s *Subscription) String() string {
    data.WriteString("\nexpiration date: ")
    data.WriteString(s.ExpirationDate)
    return data.String()
-}
-
-///
-
-func (s *Stream) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Playback)
-}
-
-type Stream struct {
-   Message   string // 2026-05-01
-   Playback  string `json:"playback"`
-   Trickplay string `json:"trickplay"`
-}
-
-func GetStream(token *ProfileToken, activePlayback *Playback) (*Stream, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "stream.video.9c9media.com",
-      Path: fmt.Sprintf(
-         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
-         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
-      ),
-   }
-   values := url.Values{}
-   values.Set("filter", "ff") // 2160p HEVC
-   values.Set("format", "mpd")
-   values.Set("hd", "true")  // 1080p H.264
-   values.Set("mcv", "true") // H.264 + HEVC
-   values.Set("uhd", "true") // 2160p HEVC
-   endpoint.RawQuery = values.Encode()
-
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Stream
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }

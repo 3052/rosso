@@ -15,7 +15,7 @@ import (
    "time"
 )
 
-func (p *Player) GetUrl() (*url.URL, error) {
+func (p *Player) GetManifest() (*url.URL, error) {
    return url.Parse(p.Url)
 }
 

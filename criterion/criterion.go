@@ -9,11 +9,11 @@ import (
    "net/url"
 )
 
-const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
-
 func (f *File) GetManifest() (*url.URL, error) {
    return url.Parse(f.Links.Source.Href)
 }
+
+const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
 func GetDash(files []File) (*File, error) {
    for _, file_data := range files {

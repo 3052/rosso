@@ -7,6 +7,37 @@ import (
    "path"
 )
 
+func (c *client) do_address() error {
+   var token criterion.Token
+   err := token.Refresh()
+   if err != nil {
+      return err
+   }
+   files_href, err := criterion.FetchFilesHref(
+      token.AccessToken, path.Base(c.address),
+   )
+   if err != nil {
+      return err
+   }
+   files, err := criterion.FetchFiles(token.AccessToken, files_href)
+   if err != nil {
+      return err
+   }
+   file, err := criterion.GetDash(files)
+   if err != nil {
+      return err
+   }
+   manifest, err := file.GetManifest()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, file, token)
+}
+
 func (c *client) do_dash() error {
    if c.err != nil {
       return c.err
@@ -81,33 +112,4 @@ func (c *client) do() error {
       {address},
       {dash},
    })
-}
-
-///
-
-func (c *client) do_address() error {
-   var token criterion.Token
-   err := token.Refresh()
-   if err != nil {
-      return err
-   }
-   files_href, err := criterion.FetchFilesHref(
-      token.AccessToken, path.Base(c.address),
-   )
-   if err != nil {
-      return err
-   }
-   files, err := criterion.FetchFiles(token.AccessToken, files_href)
-   if err != nil {
-      return err
-   }
-   file, err := criterion.GetDash(files)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(file.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, file, token)
 }

@@ -31,7 +31,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(stream.GetManifest)
+   dash, err := maya.ListDash(stream)
    if err != nil {
       return err
    }

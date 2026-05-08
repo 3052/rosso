@@ -9,7 +9,7 @@ import (
    "net/url"
 )
 
-func (s *Source) GetUrl() (*url.URL, error) {
+func (s *Source) GetManifest() (*url.URL, error) {
    return url.Parse(s.Src)
 }
 

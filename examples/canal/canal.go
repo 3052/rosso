@@ -20,11 +20,11 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   url_data, err := player.GetUrl()
+   manifest, err := player.GetManifest()
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(url_data)
+   dash, err := maya.ListDash(manifest)
    if err != nil {
       return err
    }

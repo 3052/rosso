@@ -4,8 +4,35 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/ctv"
    "log"
-   "net/url"
 )
+
+func (c *client) do_address() error {
+   path, err := ctv.GetPath(c.address)
+   if err != nil {
+      return err
+   }
+   resolve, err := ctv.Resolve(path)
+   if err != nil {
+      return err
+   }
+   axis, err := resolve.AxisContent()
+   if err != nil {
+      return err
+   }
+   playback, err := axis.Playback()
+   if err != nil {
+      return err
+   }
+   manifest, err := axis.Manifest(playback)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
 
 func (c *client) do_dash() error {
    if c.err != nil {
@@ -58,36 +85,4 @@ func (c *client) do() error {
       address,
       dash,
    }})
-}
-
-///
-
-func (c *client) do_address() error {
-   path, err := ctv.GetPath(c.address)
-   if err != nil {
-      return err
-   }
-   resolve, err := ctv.Resolve(path)
-   if err != nil {
-      return err
-   }
-   axis, err := resolve.AxisContent()
-   if err != nil {
-      return err
-   }
-   playback, err := axis.Playback()
-   if err != nil {
-      return err
-   }
-   manifest, err := axis.Manifest(playback)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(func() (*url.URL, error) {
-      return ctv.GetManifest(manifest)
-   })
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
 }
