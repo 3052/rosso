@@ -12,8 +12,12 @@ import (
    "strings"
 )
 
+func (p *Playback) GetManifest() (*url.URL, error) {
+   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
+}
+
 type St struct {
-   Name string
+   Name  string
    Value string
 }
 
@@ -44,10 +48,6 @@ func StRequest() (*St, error) {
       }
    }
    return nil, errors.New("named cookie not present")
-}
-
-func (p *Playback) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(p.Fallback.Manifest.Url, "_fallback", "", 1))
 }
 
 type Playback struct {
