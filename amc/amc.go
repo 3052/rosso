@@ -9,6 +9,48 @@ import (
    "net/url"
 )
 
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
+type Properties struct {
+   ID           string `json:"id,omitempty"`
+   PageType     string `json:"pageType,omitempty"`
+   ManifestType string `json:"manifestType,omitempty"`
+   CountryCode  string `json:"countryCode,omitempty"`
+   Mode         string `json:"mode,omitempty"`
+   Orientation  string `json:"orientation,omitempty"`
+   Layout       string `json:"layout,omitempty"`
+   Scrollable   bool   `json:"scrollable,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   Nid          int    `json:"nid,omitempty"`
+
+   Images       *Images       `json:"images,omitempty"`
+   Metadata     *Metadata     `json:"metadata,omitempty"`
+   Text         *Text         `json:"text,omitempty"`
+   DownloadData *DownloadData `json:"downloadData,omitempty"`
+   TTS          *TTS          `json:"TTS,omitempty"`
+   Navigation   *Navigation   `json:"navigation,omitempty"`
+}
+
+type Subheading struct {
+   ID    string `json:"id,omitempty"`
+   Title string `json:"title,omitempty"`
+   Type  string `json:"type,omitempty"`
+}
+
+type Text struct {
+   Title       *TextElement `json:"title,omitempty"`
+   Description *TextElement `json:"description,omitempty"`
+   Subheadings []Subheading `json:"subheadings,omitempty"`
+}
+
+type TextElement struct {
+   Title string `json:"title,omitempty"`
+}
+
+type TTS struct {
+   SpeechText string `json:"speechText,omitempty"`
+}
+
 func (s *Source) GetManifest() (*url.URL, error) {
    return url.Parse(s.Src)
 }
@@ -18,17 +60,6 @@ type Source struct {
    KeySystems KeySystems `json:"key_systems"`
    Src        string     // MPD
    Type       string
-}
-
-// DashSource finds and returns the first Source with the type
-// "application/dash+xml"
-func (p *PlaybackData) DashSource() (*Source, error) {
-   for _, source_data := range p.PlaybackJsonData.Sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
 }
 
 func (a *AuthData) Refresh() error {
@@ -384,21 +415,9 @@ type Navigation struct {
    ScreenDesignType string `json:"screenDesignType,omitempty"`
 }
 
-// PlaybackData represents the inner streaming and DRM source data.
-type PlaybackData struct {
-   PlaybackJsonData struct {
-      VideoID string   `json:"id"`
-      Sources []Source `json:"sources"`
-   } `json:"playbackJsonData"`
-}
+///
 
-// PlaybackResult groups the parsed playback data with the Brightcove JWT needed for DRM.
-type PlaybackResult struct {
-   Data     PlaybackData
-   BcovAuth string
-}
-
-func Playback(authToken string, videoId int) (*PlaybackResult, error) {
+func GetPlayback(authToken string, videoId int) (*Playback, error) {
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
@@ -425,58 +444,34 @@ func Playback(authToken string, videoId int) (*PlaybackResult, error) {
    if resp.StatusCode != 200 {
       return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
    }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool         `json:"success"`
-      Status  int          `json:"status"`
-      Data    PlaybackData `json:"data"`
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
    }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-   return &PlaybackResult{
-      Data:     envelope.Data,
+   return &Playback{
       BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+      Sources:  result.Data.PlaybackJsonData.Sources,
    }, nil
 }
 
-// Properties holds all possible strongly-typed properties found in the UI nodes.
-type Properties struct {
-   ID           string `json:"id,omitempty"`
-   PageType     string `json:"pageType,omitempty"`
-   ManifestType string `json:"manifestType,omitempty"`
-   CountryCode  string `json:"countryCode,omitempty"`
-   Mode         string `json:"mode,omitempty"`
-   Orientation  string `json:"orientation,omitempty"`
-   Layout       string `json:"layout,omitempty"`
-   Scrollable   bool   `json:"scrollable,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   Nid          int    `json:"nid,omitempty"`
-
-   Images       *Images       `json:"images,omitempty"`
-   Metadata     *Metadata     `json:"metadata,omitempty"`
-   Text         *Text         `json:"text,omitempty"`
-   DownloadData *DownloadData `json:"downloadData,omitempty"`
-   TTS          *TTS          `json:"TTS,omitempty"`
-   Navigation   *Navigation   `json:"navigation,omitempty"`
+type Playback struct {
+   BcovAuth string
+   Sources  []Source
 }
 
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type Text struct {
-   Title       *TextElement `json:"title,omitempty"`
-   Description *TextElement `json:"description,omitempty"`
-   Subheadings []Subheading `json:"subheadings,omitempty"`
-}
-
-type TextElement struct {
-   Title string `json:"title,omitempty"`
-}
-
-type TTS struct {
-   SpeechText string `json:"speechText,omitempty"`
+// DashSource finds and returns the first Source with the type
+// "application/dash+xml"
+func (p *Playback) Dash() (*Source, error) {
+   for _, source_data := range p.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
 }

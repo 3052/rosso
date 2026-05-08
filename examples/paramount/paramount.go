@@ -23,7 +23,7 @@ type client struct {
    password     string
    username     string
    job          maya.Job
-   App          string
+   cbs_app      paramount.CbsApp
 }
 
 ///
@@ -36,11 +36,12 @@ func (c *client) do() error {
    username := maya.StringFlag(&c.username, "U", "username")
    c.cookie = maya.BoolFlag("c", "cookie")
    paramount_id := maya.StringFlag(&c.paramount_id, "p", "paramount ID")
-   c.err = c.cache.Decode(c)
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   playReady := maya.StringFlag(&c.Job.PlayReady, "PR", "PlayReady")
 
-   app := maya.StringFlag(&c.App, "a", fmt.Sprint(paramount.GetAppKeys()))
+   c.err = c.cache.Decode(c)
+
+   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
+   app := maya.StringFlag(&c.cbs_app.Id, "a", paramount.CbsAppIds())
 
    if err := maya.ParseFlags(); err != nil {
       return err
