@@ -7,6 +7,21 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash          maya.Dash
+      playback      crave.Playback
+      profile_token crave.ProfileToken
+   )
+   err := c.cache.Decode(&c.job, &dash, &playback, &profile_token)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, &profile_token, &playback)
+   })
+}
+
 func (c *client) do_address() error {
    profile_token := &crave.ProfileToken{}
    err := c.cache.Decode(profile_token)
@@ -38,40 +53,12 @@ func (c *client) do_address() error {
    return c.cache.Encode(dash, media, playback)
 }
 
-func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
-   var (
-      dash          maya.Dash
-      playback      crave.Playback
-      profile_token crave.ProfileToken
-   )
-   err := c.cache.Decode(&dash, &playback, &profile_token)
-   if err != nil {
-      return err
-   }
-   return dash.Download(&c.job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, &profile_token, &playback)
-   })
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   cache    maya.Cache
-   job      maya.Job
-   address  string
-   password string
-   profile  string
-   username string
-   err      error
 }
 
 func (c *client) do_username_password() error {
@@ -115,6 +102,16 @@ func (c *client) do_profile() error {
    return c.cache.Encode(profile_token)
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   job      maya.Job
+   password string
+   profile  string
+   username string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/crave"); err != nil {
       return err
@@ -123,9 +120,8 @@ func (c *client) do() error {
    password := maya.StringFlag(&c.password, "p", "password")
    profile := maya.StringFlag(&c.profile, "P", "profile")
    username := maya.StringFlag(&c.username, "u", "username")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }

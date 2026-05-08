@@ -10,22 +10,24 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash   maya.Dash
+      player canal.Player
+   )
+   err := c.cache.Decode(&c.job, &dash, &player)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, player.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   cache    maya.Cache
-   email    string
-   job      maya.Job
-   password string
-   query    string
-   season   int
-   tracking string
 }
 
 func get(address string) error {
@@ -155,7 +157,16 @@ func (c *client) do_subtitles() error {
    return nil
 }
 
-///
+type client struct {
+   cache    maya.Cache
+   dash     string
+   email    string
+   job      maya.Job
+   password string
+   query    string
+   season   int
+   tracking string
+}
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/canal"); err != nil {
@@ -168,9 +179,8 @@ func (c *client) do() error {
    season := maya.IntFlag(&c.season, "s", "season")
    subtitles := maya.BoolFlag("S", "subtitles")
    tracking := maya.StringFlag(&c.tracking, "t", "tracking")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -209,19 +219,4 @@ func (c *client) do() error {
       {subtitles},
       {dash},
    })
-}
-
-func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
-   var (
-      dash   maya.Dash
-      player canal.Player
-   )
-   err := c.cache.Decode(&dash, &player)
-   if err != nil {
-      return err
-   }
-   return dash.Download(&c.job, player.FetchWidevine)
 }

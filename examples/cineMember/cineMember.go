@@ -6,6 +6,15 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, nil)
+}
+
 func (c *client) do_address() error {
    phpSessId := &cineMember.Cookie{}
    err := c.cache.Decode(phpSessId)
@@ -31,18 +40,6 @@ func (c *client) do_address() error {
    return c.cache.Encode(dash)
 }
 
-func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
-   var dash maya.Dash
-   err := c.cache.Decode(&dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(&c.job, nil)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -51,11 +48,23 @@ func main() {
    }
 }
 
+func (c *client) do_email_password() error {
+   phpSessId, err := cineMember.GetPhpSessId()
+   if err != nil {
+      return err
+   }
+   err = cineMember.FetchLogin(phpSessId, c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(phpSessId)
+}
+
 type client struct {
    address  string
    cache    maya.Cache
+   dash     string
    email    string
-   err      error
    job      maya.Job
    password string
 }
@@ -67,8 +76,7 @@ func (c *client) do() error {
    address := maya.StringFlag(&c.address, "a", "address")
    password := maya.StringFlag(&c.password, "p", "password")
    email := maya.StringFlag(&c.email, "e", "email")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -88,16 +96,4 @@ func (c *client) do() error {
       {address},
       {dash},
    })
-}
-
-func (c *client) do_email_password() error {
-   phpSessId, err := cineMember.GetPhpSessId()
-   if err != nil {
-      return err
-   }
-   err = cineMember.FetchLogin(phpSessId, c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(phpSessId)
 }

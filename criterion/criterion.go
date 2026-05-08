@@ -9,6 +9,32 @@ import (
    "net/url"
 )
 
+func (t *Token) Refresh() error {
+   body := url.Values{
+      "client_id":     {client_id},
+      "grant_type":    {"refresh_token"},
+      "refresh_token": {t.RefreshToken},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.vhx.com",
+         Path:   "/v1/oauth/token",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   err = json.NewDecoder(resp.Body).Decode(t)
+   if err != nil {
+      return err
+   }
+   return t.AsError()
+}
+
 func (f *File) GetManifest() (*url.URL, error) {
    return url.Parse(f.Links.Source.Href)
 }
@@ -121,34 +147,6 @@ type Token struct {
    ErrorDescription string `json:"error_description"`
    RefreshToken     string `json:"refresh_token"`
 }
-
-func (t *Token) Refresh() error {
-   body := url.Values{
-      "client_id":     {client_id},
-      "grant_type":    {"refresh_token"},
-      "refresh_token": {t.RefreshToken},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.vhx.com",
-         Path:   "/v1/oauth/token",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   err = json.NewDecoder(resp.Body).Decode(t)
-   if err != nil {
-      return err
-   }
-   return t.AsError()
-}
-
-///
 
 func FetchFilesHref(accessToken, slug string) (string, error) {
    resp, err := maya.Get(

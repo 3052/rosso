@@ -7,9 +7,25 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash maya.Dash
+      file criterion.File
+   )
+   err := c.cache.Decode(&c.job, &dash, &file)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, file.FetchWidevine)
+}
+
 func (c *client) do_address() error {
    var token criterion.Token
-   err := token.Refresh()
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   err = token.Refresh()
    if err != nil {
       return err
    }
@@ -38,36 +54,12 @@ func (c *client) do_address() error {
    return c.cache.Encode(dash, file, token)
 }
 
-func (c *client) do_dash() error {
-   if c.err != nil {
-      return c.err
-   }
-   var (
-      dash maya.Dash
-      file criterion.File
-   )
-   err := c.cache.Decode(&dash, &file)
-   if err != nil {
-      return err
-   }
-   return dash.Download(&c.job, file.FetchWidevine)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   email    string
-   err      error
-   job      maya.Job
-   password string
 }
 
 func (c *client) do_email_password() error {
@@ -78,6 +70,15 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(token)
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   job      maya.Job
+   password string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/criterion"); err != nil {
       return err
@@ -85,9 +86,8 @@ func (c *client) do() error {
    address := maya.StringFlag(&c.address, "a", "address")
    email := maya.StringFlag(&c.email, "e", "email")
    password := maya.StringFlag(&c.password, "p", "password")
-   c.err = c.cache.Decode(&c.job)
-   dash := maya.StringFlag(&c.job.Dash, "d", "DASH ID")
    widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
@@ -108,7 +108,6 @@ func (c *client) do() error {
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
-
       {address},
       {dash},
    })
