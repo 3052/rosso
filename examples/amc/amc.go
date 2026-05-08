@@ -13,7 +13,7 @@ func (c *client) do_dash() error {
       playback amc.Playback
       source   amc.Source
    )
-   err := c.cache.Decode(&dash, &playback, &source)
+   err := c.cache.Decode(&c.job, &dash, &playback, &source)
    if err != nil {
       return err
    }
