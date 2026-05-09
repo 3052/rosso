@@ -8,6 +8,18 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash    maya.Dash
+      session mubi.Session
+   )
+   err := c.cache.Decode(&c.job, &dash, &session)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, session.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -23,6 +35,51 @@ type client struct {
    job     maya.Job
    mubi_id int
    season  int
+}
+
+func (c *client) do_code() error {
+   link_code, err := mubi.FetchLinkCode()
+   if err != nil {
+      return err
+   }
+   fmt.Println(link_code)
+   return c.cache.Encode(link_code)
+}
+
+func (c *client) do_session() error {
+   var link_code mubi.LinkCode
+   err := c.cache.Decode(&link_code)
+   if err != nil {
+      return err
+   }
+   session, err := link_code.FetchSession()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_address() error {
+   slug := path.Base(c.address)
+   if c.season >= 1 {
+      episodes, err := mubi.FetchEpisodes(slug, c.season)
+      if err != nil {
+         return err
+      }
+      for i, episode := range episodes {
+         if i >= 1 {
+            fmt.Println()
+         }
+         fmt.Println(&episode)
+      }
+   } else {
+      film, err := mubi.FetchFilm(slug)
+      if err != nil {
+         return err
+      }
+      fmt.Println(film)
+   }
+   return nil
 }
 
 func (c *client) do() error {
@@ -59,75 +116,32 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
-
       {code},
       {session},
       {address, season},
+
       {mubi_id},
       {dash},
    })
 }
 
-///
-
-func (c *client) do_code() error {
-   var err error
-   c.LinkCode, err = mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(c.LinkCode)
-   return c.cache.Write(c)
-}
-
 func (c *client) do_mubi_id() error {
-   err := c.Session.FetchViewing(c.mubi_id)
+   var session mubi.Session
+   err := c.cache.Decode(&session)
    if err != nil {
       return err
    }
-   secure_url, err := c.Session.FetchSecureUrl(c.mubi_id)
+   err = session.FetchViewing(c.mubi_id)
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(secure_url.GetManifest)
+   secure_url, err := session.FetchSecureUrl(c.mubi_id)
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_session() error {
-   var err error
-   c.Session, err = c.LinkCode.FetchSession()
+   dash, err := maya.ListDash(secure_url.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_address() error {
-   slug := path.Base(c.address)
-   if c.season >= 1 {
-      episodes, err := mubi.FetchEpisodes(slug, c.season)
-      if err != nil {
-         return err
-      }
-      for i, episode := range episodes {
-         if i >= 1 {
-            fmt.Println()
-         }
-         fmt.Println(&episode)
-      }
-   } else {
-      film, err := mubi.FetchFilm(slug)
-      if err != nil {
-         return err
-      }
-      fmt.Println(film)
-   }
-   return nil
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Session.FetchWidevine)
+   return c.cache.Encode(dash)
 }

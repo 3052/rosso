@@ -16,7 +16,29 @@ import (
    "time"
 )
 
-func (m *Metadata) Stream() (*Stream, error) {
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type Stream struct {
+   PlaybackUrl Url // MPD
+}
+
+func (s Stream) GetManifest() *url.URL {
+   manifest := s.PlaybackUrl.Url
+   manifest.Path = strings.Replace(manifest.Path, "_2sec", "", 1)
+   return &manifest
+}
+
+func (m *Metadata) GetStream() (*Stream, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
@@ -112,10 +134,6 @@ func FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-func (s Stream) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(s.PlaybackUrl, "_2sec", "", 1))
-}
-
 // https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
 func GetName(urlData string) (string, error) {
    url_parse, err := url.Parse(urlData)
@@ -157,8 +175,4 @@ func playReady() *url.URL {
       Path:     "/drm-proxy/license/playready",
       RawQuery: build_query("playready"),
    }
-}
-
-type Stream struct {
-   PlaybackUrl string // MPD
 }
