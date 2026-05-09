@@ -68,29 +68,6 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    return &result, nil
 }
 
-// L3 max 1080p
-func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.Protection.LicenceAcquisitionUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
 func generate_sky_ott(method, path string, header map[string]string, body []byte) string {
    // Sort headers by key
    header_keys := slices.Sorted(maps.Keys(header))
@@ -252,10 +229,6 @@ func FetchIdSession(user, password string) (string, error) {
    return "", errors.New("named cookie not present")
 }
 
-func (e *Endpoint) GetManifest() (*url.URL, error) {
-   return url.Parse(e.Url)
-}
-
 func (p *Playout) GetFastly() (*Endpoint, error) {
    for _, endpoint_data := range p.Asset.Endpoints {
       if endpoint_data.Cdn == "FASTLY" {
@@ -263,16 +236,6 @@ func (p *Playout) GetFastly() (*Endpoint, error) {
       }
    }
    return nil, errors.New("FASTLY endpoint not found")
-}
-
-type Playout struct {
-   Asset struct {
-      Endpoints []Endpoint
-   }
-   Description string
-   Protection  struct {
-      LicenceAcquisitionUrl string
-   }
 }
 
 type Endpoint struct {
@@ -293,3 +256,54 @@ type Token struct {
 }
 
 var Territory = "US"
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
+
+type Playout struct {
+   Asset struct {
+      Endpoints []Endpoint
+   }
+   Description string
+   Protection  struct {
+      LicenceAcquisitionUrl string
+   }
+}
+
+// L3 max 1080p
+func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
+   target, err := url.Parse(p.Protection.LicenceAcquisitionUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (e *Endpoint) GetManifest() (*url.URL, error) {
+   return url.Parse(e.Url)
+}

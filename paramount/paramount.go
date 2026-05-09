@@ -18,6 +18,37 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (c *CbsApp) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
+   return c.fetch_session("xboxone", contentId, cbsCom)
+}
+
+func (c *CbsApp) FetchWidevine(contentId string, cbsCom *Cookie) (*Session, error) {
+   return c.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (c *CbsApp) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, error) {
+   result, err := c.fetch_session("androidphone", contentId, cbsCom)
+   if err != nil {
+      return nil, err
+   }
+   if result.StreamingUrl == nil {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
+}
+
 type Session struct {
    LsSession    string `json:"ls_session"`
    Message      string
@@ -60,37 +91,6 @@ func (c *CbsApp) fetch_session(platform, contentId string, cbs_com *Cookie) (*Se
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-func (c *CbsApp) FetchWidevine(contentId string, cbsCom *Cookie) (*Session, error) {
-   return c.fetch_session("androidphone", contentId, cbsCom)
-}
-
-func (c *CbsApp) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
-   return c.fetch_session("xboxone", contentId, cbsCom)
-}
-
-func (c *CbsApp) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, error) {
-   result, err := c.fetch_session("androidphone", contentId, cbsCom)
-   if err != nil {
-      return nil, err
-   }
-   if result.StreamingUrl == nil {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-   return result, nil
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 func (s *Session) Fetch(body []byte) ([]byte, error) {

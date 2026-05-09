@@ -3,24 +3,59 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/paramount"
-   "fmt"
    "log"
 )
 
+type content_id string
+
 func (c *client) do_dash() error {
-   cbs_app, err := paramount.GetApp(c.App)
+   var (
+      cbs_app      paramount.CbsApp
+      dash         maya.Dash
+      paramount_id content_id
+   )
+   err := c.cache.Decode(&c.job, &cbs_app, &dash, &paramount_id)
    if err != nil {
       return err
    }
-   var cbs_com string
+   var cbs_com *paramount.Cookie
    if c.cookie.IsSet {
-      cbs_com = c.CbsCom
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
    }
-   session, err := cbs_app.FetchPlayReady(c.ParamountId, cbs_com)
+   session, err := cbs_app.FetchPlayReady(string(paramount_id), cbs_com)
    if err != nil {
       return err
    }
-   return c.Dash.Download(&c.Job, session.Fetch)
+   return dash.Download(c.dash, &c.job, session.Fetch)
+}
+
+func (c *client) do_paramount_id() error {
+   var cbs_app paramount.CbsApp
+   err := c.cache.Decode(&cbs_app)
+   if err != nil {
+      return err
+   }
+   var cbs_com *paramount.Cookie
+   if c.cookie.IsSet {
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
+   }
+   session, err := cbs_app.FetchStreamingUrl(c.paramount_id, cbs_com)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(&session.StreamingUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(content_id(c.paramount_id), dash)
 }
 
 func main() {
@@ -61,31 +96,6 @@ func (c *client) do_username_password() error {
       return err
    }
    return c.cache.Encode(cbs_com)
-}
-
-func (c *client) do_paramount_id() error {
-   var cbs_app paramount.CbsApp
-   err := c.cache.Decode(&cbs_app)
-   if err != nil {
-      return err
-   }
-   var cbs_com *paramount.Cookie
-   if c.cookie.IsSet {
-      cbs_com = &paramount.Cookie{}
-      err = c.cache.Decode(cbs_com)
-      if err != nil {
-         return err
-      }
-   }
-   session, err := cbs_app.FetchStreamingUrl(c.paramount_id, cbs_com)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(&session.StreamingUrl.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
 }
 
 func (c *client) do() error {
