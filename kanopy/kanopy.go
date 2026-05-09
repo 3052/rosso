@@ -11,6 +11,18 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418
 // - https://kanopy.com/video/genius-party
@@ -59,18 +71,6 @@ type PlayResponse struct {
    PlayId    string     `json:"playId"`
    Manifests []Manifest `json:"manifests"`
    Captions  []Caption  `json:"captions"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 type Manifest struct {

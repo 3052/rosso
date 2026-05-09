@@ -10,13 +10,40 @@ import (
    "strings"
 )
 
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("developer message: ")
-   data.WriteString(e.DeveloperMessage)
-   data.WriteString("\nuser message: ")
-   data.WriteString(e.UserMessage)
-   return data.String()
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
+   target := playData.Url.Url
+   query := target.Query() // keep existing query string
+   query.Set("access_token", a.AccessToken)
+   target.RawQuery = query.Encode()
+   resp, err := maya.Get(&target, map[string]string{
+      "x-forwarded-for": "138.199.15.158",
+      "x-molotov-agent": browser_app,
+   })
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Asset
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+func (a *Asset) GetManifest() *url.URL {
+   manifest := a.Stream.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
+   return &manifest
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Stream struct {
+      Url Url // MPD
+   }
 }
 
 type Auth struct {
@@ -134,19 +161,10 @@ func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
    return result.License, nil
 }
 
-func (a *Asset) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(a.Stream.Url, "high", "fhdready", 1))
-}
-
 const (
    browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
 )
-
-type Error struct {
-   DeveloperMessage string `json:"developer_message"`
-   UserMessage      string `json:"user_message"`
-}
 
 // https://molotov.tv/fr_fr/p/15301-2328
 // https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
@@ -179,46 +197,18 @@ type Program struct {
    ChannelId int
 }
 
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Error  *Error
-   Stream struct {
-      Url string // MPD
-   }
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
 type Play struct {
-   Url string // fapi.molotov.tv/v2/me/assets
-}
-
-func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
-   target, err := url.Parse(playData.Url)
-   if err != nil {
-      return nil, err
-   }
-   query := target.Query() // keep existing query string
-   query.Set("access_token", a.AccessToken)
-   target.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      target,
-      map[string]string{
-         "x-forwarded-for": "138.199.15.158",
-         "x-molotov-agent": browser_app,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Asset
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Error != nil {
-      return nil, result.Error
-   }
-   return &result, nil
+   Url Url // fapi.molotov.tv/v2/me/assets
 }
