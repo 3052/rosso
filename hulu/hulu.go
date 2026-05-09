@@ -9,6 +9,13 @@ import (
    "path"
 )
 
+type Playlist struct {
+   DashPrServer Url `json:"dash_pr_server"`
+   Message      string
+   StreamUrl    Url `json:"stream_url"` // MPD
+   WvServer     Url `json:"wv_server"`
+}
+
 type Device struct {
    DeviceToken string `json:"device_token"`
    Message     string // 2026-05-02
@@ -261,52 +268,6 @@ func FetchDevice(email, password string) (*Device, error) {
    return &result.Data, nil
 }
 
-func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.WvServer)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.DashPrServer)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(body, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return body, nil
-}
-
-func (p *Playlist) GetManifest() (*url.URL, error) {
-   return url.Parse(p.StreamUrl)
-}
-
 // https://hulu.com/movie/05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
 // https://hulu.com/movie/alien-romulus-05e76ad8-c3dd-4c3e-bab9-df3cf71c6871
 func ParseId(urlData string) string {
@@ -319,13 +280,6 @@ func ParseId(urlData string) string {
       }
    }
    return part
-}
-
-type Playlist struct {
-   DashPrServer string `json:"dash_pr_server"`
-   Message      string
-   StreamUrl    string `json:"stream_url"` // MPD
-   WvServer     string `json:"wv_server"`
 }
 
 var deejay = []struct {
@@ -378,4 +332,51 @@ var deejay = []struct {
       device_id:   109,
       key_version: 1,
    },
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.WvServer.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&p.DashPrServer.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(body, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return body, nil
 }

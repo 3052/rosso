@@ -12,6 +12,41 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (p *Playback) GetManifest() *url.URL {
+   manifest := p.Fallback.Manifest.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
+   return &manifest
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Fallback struct {
+      Manifest struct {
+         Url Url // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
@@ -110,39 +145,6 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
       return nil, err
    }
    return &result, nil
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Fallback struct {
-      Manifest struct {
-         Url Url // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) DeleteFallback() {
-   u.Url.Path = strings.Replace(u.Url.Path, "_fallback", "", 1)
 }
 
 type Login struct {

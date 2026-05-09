@@ -6,6 +6,31 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   var device hulu.Device
+   err := c.cache.Decode(&device)
+   if err != nil {
+      return err
+   }
+   err = device.TokenRefresh()
+   if err != nil {
+      return err
+   }
+   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
+   if err != nil {
+      return err
+   }
+   playlist, err := device.Playlist(deep_link.EabId)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(&playlist.StreamUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playlist)
+}
+
 func (c *client) do_dash() error {
    var (
       dash     maya.Dash
@@ -75,35 +100,4 @@ func (c *client) do() error {
       {address},
       {dash},
    })
-}
-
-///
-
-func (c *client) do_address() error {
-   var device hulu.Device
-   err := c.cache.Decode(&device)
-   if err != nil {
-      return err
-   }
-   err = device.TokenRefresh()
-   if err != nil {
-      return err
-   }
-   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
-   if err != nil {
-      return err
-   }
-   playlist, err := device.Playlist(deep_link.EabId)
-   if err != nil {
-      return err
-   }
-   manifest, err := playlist.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playlist)
 }
