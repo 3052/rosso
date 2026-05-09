@@ -18,6 +18,76 @@ import (
    "time"
 )
 
+const (
+   sky_client  = "NBCU-ANDROID-v3"
+   sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
+   sky_version = "1.0"
+)
+
+// userToken is good for one day
+type Token struct {
+   Description string
+   UserToken   string
+}
+
+var Territory = "US"
+
+type Endpoint struct {
+   Cdn string
+   Url string
+}
+
+func (p *Playout) GetFastly() (*url.URL, error) {
+   for _, endpoint_data := range p.Asset.Endpoints {
+      if endpoint_data.Cdn == "FASTLY" {
+         return url.Parse(endpoint_data.Url)
+      }
+   }
+   return nil, errors.New("FASTLY endpoint not found")
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type Playout struct {
+   Asset struct {
+      Endpoints []Endpoint
+   }
+   Description string
+   Protection  struct {
+      LicenceAcquisitionUrl Url
+   }
+}
+
+// L3 max 1080p
+func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
+   target := p.Protection.LicenceAcquisitionUrl.Url
+   resp, err := maya.Post(
+      &target,
+      map[string]string{
+         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    body, err := json.Marshal(map[string]any{
       "device": map[string]any{
@@ -120,6 +190,55 @@ func generate_sky_ott(method, path string, header map[string]string, body []byte
    )
 }
 
+///
+
+func FetchIdSession(user, password string) (string, error) {
+   body := url.Values{
+      "userIdentifier": {user},
+      "password":       {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "rango.id.peacocktv.com",
+         Path:   "/signin/service/international",
+      },
+      map[string]string{
+         "content-type":         "application/x-www-form-urlencoded",
+         "x-skyott-proposition": "NBCUOTT",
+         "x-skyott-provider":    "NBCU",
+         "x-skyott-territory":   Territory,
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Properties struct {
+         Errors struct {
+            CategoryErrors []struct {
+               Code string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return "", err
+   }
+   if resp.StatusCode != 201 {
+      return "", errors.New(result.Properties.Errors.CategoryErrors[0].Code)
+   }
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "idsession" {
+         return cookie.String(), nil
+      }
+   }
+   return "", errors.New("named cookie not present")
+}
+
 func FetchToken(idSession string) (*Token, error) {
    body, err := json.Marshal(map[string]any{
       "auth": map[string]string{
@@ -180,130 +299,4 @@ func FetchToken(idSession string) (*Token, error) {
       return nil, errors.New(result.Description)
    }
    return &result, nil
-}
-
-func FetchIdSession(user, password string) (string, error) {
-   body := url.Values{
-      "userIdentifier": {user},
-      "password":       {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "rango.id.peacocktv.com",
-         Path:   "/signin/service/international",
-      },
-      map[string]string{
-         "content-type":         "application/x-www-form-urlencoded",
-         "x-skyott-proposition": "NBCUOTT",
-         "x-skyott-provider":    "NBCU",
-         "x-skyott-territory":   Territory,
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Properties struct {
-         Errors struct {
-            CategoryErrors []struct {
-               Code string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return "", err
-   }
-   if resp.StatusCode != 201 {
-      return "", errors.New(result.Properties.Errors.CategoryErrors[0].Code)
-   }
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "idsession" {
-         return cookie.String(), nil
-      }
-   }
-   return "", errors.New("named cookie not present")
-}
-
-func (p *Playout) GetFastly() (*Endpoint, error) {
-   for _, endpoint_data := range p.Asset.Endpoints {
-      if endpoint_data.Cdn == "FASTLY" {
-         return &endpoint_data, nil
-      }
-   }
-   return nil, errors.New("FASTLY endpoint not found")
-}
-
-type Endpoint struct {
-   Cdn string
-   Url string
-}
-
-const (
-   sky_client  = "NBCU-ANDROID-v3"
-   sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
-   sky_version = "1.0"
-)
-
-// userToken is good for one day
-type Token struct {
-   Description string
-   UserToken   string
-}
-
-var Territory = "US"
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-///
-
-type Playout struct {
-   Asset struct {
-      Endpoints []Endpoint
-   }
-   Description string
-   Protection  struct {
-      LicenceAcquisitionUrl string
-   }
-}
-
-// L3 max 1080p
-func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.Protection.LicenceAcquisitionUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (e *Endpoint) GetManifest() (*url.URL, error) {
-   return url.Parse(e.Url)
 }

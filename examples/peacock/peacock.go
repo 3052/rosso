@@ -7,6 +7,47 @@ import (
    "path"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+///
+
+type client struct {
+   IdSession string
+   Job       maya.Job
+   Playout   *peacock.Playout
+   address   string
+   cache     maya.Cache
+   cache_err error
+   email     string
+   password  string
+}
+
+func (c *client) do_address() error {
+   token, err := peacock.FetchToken(c.IdSession)
+   if err != nil {
+      return err
+   }
+   c.Playout, err = token.FetchPlayout(path.Base(c.address))
+   if err != nil {
+      return err
+   }
+   endpoint, err := c.Playout.GetFastly()
+   if err != nil {
+      return err
+   }
+   c.Dash, err = maya.ListDash(endpoint.GetManifest)
+   if err != nil {
+      return err
+   }
+   return cache.Write(c)
+}
+
 func (c *client) do() error {
    if err := cache.Setup("rosso/peacock.xml"); err != nil {
       return err
@@ -45,13 +86,6 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
 func (c *client) do_email_password() error {
    var err error
    c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
@@ -63,48 +97,4 @@ func (c *client) do_email_password() error {
 
 func (c *client) do_dash_id() error {
    return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
-}
-
-var cache maya.Cache
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_address() error {
-   token, err := peacock.FetchToken(c.IdSession)
-   if err != nil {
-      return err
-   }
-   c.Playout, err = token.FetchPlayout(path.Base(c.address))
-   if err != nil {
-      return err
-   }
-   endpoint, err := c.Playout.GetFastly()
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(endpoint.GetManifest)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-type client struct {
-   // cache
-   Dash      *maya.Dash
-   IdSession string
-   Job       maya.Job
-   Playout   *peacock.Playout
-   // flags
-   address  string
-   email    string
-   password string
-   // state
-   cache_err error
 }
