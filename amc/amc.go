@@ -9,6 +9,26 @@ import (
    "net/url"
 )
 
+type Src func() *url.URL
+
+func (s *Src) UnmarshalText(text []byte) error {
+   var parsed url.URL
+   if err := parsed.UnmarshalBinary(text); err != nil {
+      return err
+   }
+   *s = func() *url.URL {
+      return &parsed
+   }
+   return nil
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        Src        // MPD
+   Type       string
+}
+
 type Metadata struct {
    AmcnID                   string `json:"amcnId,omitempty"`
    EpisodeNumber            int    `json:"episodeNumber,omitempty"`
@@ -154,17 +174,6 @@ type TextElement struct {
 
 type TTS struct {
    SpeechText string `json:"speechText,omitempty"`
-}
-
-func (s *Source) GetManifest() (*url.URL, error) {
-   return url.Parse(s.Src)
-}
-
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        string     // MPD
-   Type       string
 }
 
 func (a *AuthData) Refresh() error {

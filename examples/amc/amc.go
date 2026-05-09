@@ -7,6 +7,76 @@ import (
    "log"
 )
 
+func (c *client) do_episode() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   source, err := playback.Dash()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(source.Src())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playback, source)
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/amc"); err != nil {
+      return err
+   }
+   email := maya.StringFlag(&c.email, "E", "email")
+   password := maya.StringFlag(&c.password, "P", "password")
+   refresh := maya.BoolFlag("r", "refresh")
+   series := maya.IntFlag(&c.series, "s", "series ID")
+   season := maya.IntFlag(&c.season, "S", "season ID")
+   episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(c.job)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if refresh.IsSet {
+      return c.do_refresh()
+   }
+   if series.IsSet {
+      return c.do_series()
+   }
+   if season.IsSet {
+      return c.do_season()
+   }
+   if episode.IsSet {
+      return c.do_episode()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+      {email, password},
+      {refresh},
+      {series},
+      {season},
+      {episode},
+      {dash},
+   })
+}
+
 func (c *client) do_dash() error {
    var (
       dash     maya.Dash
@@ -106,78 +176,4 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
-}
-
-func (c *client) do_episode() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   source, err := playback.Dash()
-   if err != nil {
-      return err
-   }
-   manifest, err := source.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playback, source)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/amc"); err != nil {
-      return err
-   }
-   email := maya.StringFlag(&c.email, "E", "email")
-   password := maya.StringFlag(&c.password, "P", "password")
-   refresh := maya.BoolFlag("r", "refresh")
-   series := maya.IntFlag(&c.series, "s", "series ID")
-   season := maya.IntFlag(&c.season, "S", "season ID")
-   episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(c.job)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if refresh.IsSet {
-      return c.do_refresh()
-   }
-   if series.IsSet {
-      return c.do_series()
-   }
-   if season.IsSet {
-      return c.do_season()
-   }
-   if episode.IsSet {
-      return c.do_episode()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {refresh},
-      {series},
-      {season},
-      {episode},
-      {dash},
-   })
 }

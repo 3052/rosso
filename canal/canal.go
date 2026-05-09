@@ -15,19 +15,37 @@ import (
    "time"
 )
 
-func (p *Player) GetManifest() (*url.URL, error) {
-   return url.Parse(p.Url)
+func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(p.Drm.LicenseUrl(), nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Url func() *url.URL
+
+func (u *Url) UnmarshalText(text []byte) error {
+   var parsed url.URL
+   if err := parsed.UnmarshalBinary(text); err != nil {
+      return err
+   }
+   *u = func() *url.URL {
+      return &parsed
+   }
+   return nil
 }
 
 type Player struct {
    Drm struct {
-      LicenseUrl string
+      LicenseUrl Url
    }
    Message   string
    Subtitles []struct {
       Url string
    }
-   Url string // MPD
+   Url Url // MPD
 }
 
 func FetchSession(ssoToken string) (*Session, error) {
@@ -159,19 +177,6 @@ type Login struct {
    Label    string
    Message  string
    SsoToken string // this last one day
-}
-
-func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(p.Drm.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
