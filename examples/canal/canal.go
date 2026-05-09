@@ -20,7 +20,7 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(player.Url())
+   dash, err := maya.ListDash(&player.Url.Url)
    if err != nil {
       return err
    }

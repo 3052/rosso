@@ -31,7 +31,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(file.Links.Source.Href())
+   dash, err := maya.ListDash(&file.Links.Source.Href.Url)
    if err != nil {
       return err
    }

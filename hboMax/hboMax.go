@@ -12,6 +12,29 @@ import (
    "strings"
 )
 
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Fallback struct {
+      Manifest struct {
+         Url Url // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+func (p *Playback) GetManifest() *url.URL {
+   parsed := p.Fallback.Manifest.Url()
+   parsed.Path = strings.Replace(parsed.Path, "_fallback", "", 1)
+   return parsed
+}
+
 type Url func() *url.URL
 
 func (u *Url) UnmarshalText(text []byte) error {
@@ -19,7 +42,6 @@ func (u *Url) UnmarshalText(text []byte) error {
    if err := parsed.UnmarshalBinary(text); err != nil {
       return err
    }
-   parsed.Path = strings.Replace(parsed.Path, "_fallback", "", 1)
    *u = func() *url.URL {
       return &parsed
    }
@@ -342,23 +364,6 @@ func LoginRequest(st *Cookie) (*Login, error) {
       return nil, err
    }
    return &result.Data.Attributes, nil
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Fallback struct {
-      Manifest struct {
-         Url Url // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
 }
 
 type Scheme struct {

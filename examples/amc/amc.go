@@ -17,11 +17,11 @@ func (c *client) do_episode() error {
    if err != nil {
       return err
    }
-   source, err := playback.Dash()
+   source, err := playback.GetDash()
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(source.Src())
+   dash, err := maya.ListDash(&source.Src.Url)
    if err != nil {
       return err
    }

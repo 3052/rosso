@@ -7,16 +7,21 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash     maya.Dash
-      playback hboMax.Playback
-   )
-   err := c.cache.Decode(&c.job, &dash, &playback)
+func (c *client) do_edit() error {
+   var login hboMax.Login
+   err := c.cache.Decode(&login)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, playback.PlayReadyRequest)
+   playback, err := hboMax.PlayReadyRequest(login.Token, c.edit)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(playback.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playback)
 }
 
 func main() {
@@ -105,27 +110,6 @@ func (c *client) do_show() error {
    return nil
 }
 
-func (c *client) do_edit() error {
-   var login hboMax.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   playback, err := hboMax.PlayReadyRequest(login.Token, c.edit)
-   if err != nil {
-      return err
-   }
-   manifest, err := playback.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playback)
-}
-
 type client struct {
    cache  maya.Cache
    dash   string
@@ -185,4 +169,16 @@ func (c *client) do() error {
       {edit},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash     maya.Dash
+      playback hboMax.Playback
+   )
+   err := c.cache.Decode(&c.job, &dash, &playback)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playback.PlayReadyRequest)
 }

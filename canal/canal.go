@@ -26,26 +26,25 @@ type Player struct {
    Url Url // MPD
 }
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(p.Drm.LicenseUrl(), nil, body)
+   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-type Url func() *url.URL
-
-func (u *Url) UnmarshalText(text []byte) error {
-   var parsed url.URL
-   if err := parsed.UnmarshalBinary(text); err != nil {
-      return err
-   }
-   *u = func() *url.URL {
-      return &parsed
-   }
-   return nil
 }
 
 func FetchSession(ssoToken string) (*Session, error) {

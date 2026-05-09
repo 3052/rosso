@@ -9,60 +9,9 @@ import (
    "net/url"
 )
 
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href Href // MPD
-      }
-   } `json:"_links"`
-   Method string
-}
-
-func GetDash(files []File) (*File, error) {
-   for _, file_data := range files {
-      if file_data.Method == "dash" {
-         return &file_data, nil
-      }
-   }
-   return nil, errors.New("DASH media file not found")
-}
-
-func FetchFilesHref(accessToken, slug string) (Href, error) {
+func FetchFiles(accessToken string, files *Href) ([]File, error) {
    resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      map[string]string{"authorization": "Bearer " + accessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Embedded struct {
-         Items []struct {
-            Links struct {
-               Files struct {
-                  Href Href // https://api.vhx.tv/videos/3460957/files
-               }
-            } `json:"_links"`
-         }
-      } `json:"_embedded"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Embedded.Items[0].Links.Files.Href, nil
-}
-
-func FetchFiles(accessToken string, files Href) ([]File, error) {
-   resp, err := maya.Get(
-      files(), map[string]string{"authorization": "Bearer " + accessToken},
+      &files.Url, map[string]string{"authorization": "Bearer " + accessToken},
    )
    if err != nil {
       return nil, err
@@ -77,19 +26,6 @@ func FetchFiles(accessToken string, files Href) ([]File, error) {
       return nil, err
    }
    return result, nil
-}
-
-type Href func() *url.URL
-
-func (h *Href) UnmarshalText(text []byte) error {
-   var parsed url.URL
-   if err := parsed.UnmarshalBinary(text); err != nil {
-      return err
-   }
-   *h = func() *url.URL {
-      return &parsed
-   }
-   return nil
 }
 
 func (t *Token) Refresh() error {
@@ -183,4 +119,67 @@ type Token struct {
    Error            string
    ErrorDescription string `json:"error_description"`
    RefreshToken     string `json:"refresh_token"`
+}
+
+type Href struct {
+   Url url.URL
+}
+
+func (h *Href) MarshalText() ([]byte, error) {
+   return h.Url.MarshalBinary()
+}
+
+func (h *Href) UnmarshalText(text []byte) error {
+   return h.Url.UnmarshalBinary(text)
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href Href // MPD
+      }
+   } `json:"_links"`
+   Method string
+}
+
+func GetDash(files []File) (*File, error) {
+   for _, file_data := range files {
+      if file_data.Method == "dash" {
+         return &file_data, nil
+      }
+   }
+   return nil, errors.New("DASH media file not found")
+}
+
+func FetchFilesHref(accessToken, slug string) (*Href, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "api.vhx.com",
+         Path:     fmt.Sprintf("/collections/%v/items", slug),
+         RawQuery: "site_id=59054",
+      },
+      map[string]string{"authorization": "Bearer " + accessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Embedded struct {
+         Items []struct {
+            Links struct {
+               Files struct {
+                  Href Href // https://api.vhx.tv/videos/3460957/files
+               }
+            } `json:"_links"`
+         }
+      } `json:"_embedded"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Embedded.Items[0].Links.Files.Href, nil
 }

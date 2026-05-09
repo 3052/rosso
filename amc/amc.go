@@ -9,26 +9,6 @@ import (
    "net/url"
 )
 
-type Src func() *url.URL
-
-func (s *Src) UnmarshalText(text []byte) error {
-   var parsed url.URL
-   if err := parsed.UnmarshalBinary(text); err != nil {
-      return err
-   }
-   *s = func() *url.URL {
-      return &parsed
-   }
-   return nil
-}
-
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        Src        // MPD
-   Type       string
-}
-
 type Metadata struct {
    AmcnID                   string `json:"amcnId,omitempty"`
    EpisodeNumber            int    `json:"episodeNumber,omitempty"`
@@ -476,9 +456,7 @@ type Playback struct {
    Sources  []Source
 }
 
-// DashSource finds and returns the first Source with the type
-// "application/dash+xml"
-func (p *Playback) Dash() (*Source, error) {
+func (p *Playback) GetDash() (*Source, error) {
    for _, source_data := range p.Sources {
       if source_data.Type == "application/dash+xml" {
          return &source_data, nil
