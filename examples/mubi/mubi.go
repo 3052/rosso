@@ -8,72 +8,58 @@ import (
    "path"
 )
 
-var cache maya.Cache
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
 
 type client struct {
-   // cache
-   Job      maya.Job
-   Dash     *maya.Dash
-   Session  *mubi.Session
-   LinkCode *mubi.LinkCode
-   Proxy    string
-   // flags
    address string
-   season  int
+   cache   maya.Cache
+   dash    string
+   job     maya.Job
    mubi_id int
-   // state
-   cache_err error
+   season  int
 }
 
 func (c *client) do() error {
-   if err := cache.Setup("rosso/mubi.xml"); err != nil {
+   if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   proxy := maya.StringFlag(&c.Proxy, "x", "proxy")
-   //----------------------------------------------------------
-   code := maya.BoolFlag("c", "link code")
-   //----------------------------------------------------------
-   session := maya.BoolFlag("S", "session")
-   //----------------------------------------------------------
    address := maya.StringFlag(&c.address, "a", "address")
-   season := maya.IntFlag(&c.season, "s", "season")
-   //----------------------------------------------------------
+   code := maya.BoolFlag("c", "link code")
    mubi_id := maya.IntFlag(&c.mubi_id, "m", "Mubi ID")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   season := maya.IntFlag(&c.season, "s", "season")
+   session := maya.BoolFlag("S", "session")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if proxy.IsSet {
-      return cache.Write(c)
+      return c.cache.Encode(c.job)
    }
    if code.IsSet {
-      c.cache_err = nil
-      return c.run(c.do_code)
+      return c.do_code()
    }
    if session.IsSet {
-      return c.run(c.do_session)
+      return c.do_session()
    }
    if address.IsSet {
-      c.cache_err = nil
-      return c.run(c.do_address)
+      return c.do_address()
    }
    if mubi_id.IsSet {
-      return c.run(c.do_mubi_id)
+      return c.do_mubi_id()
    }
    if dash.IsSet {
-      return c.run(c.do_dash)
+      return c.do_dash()
    }
-
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
-      {proxy},
+
       {code},
       {session},
       {address, season},
@@ -82,19 +68,17 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   if err := maya.SetProxy(c.Proxy); err != nil {
+///
+
+func (c *client) do_code() error {
+   var err error
+   c.LinkCode, err = mubi.FetchLinkCode()
+   if err != nil {
       return err
    }
-   return action()
+   fmt.Println(c.LinkCode)
+   return c.cache.Write(c)
 }
-
-// ----------------------------------------------------------------------
-// Command Handlers
-// ----------------------------------------------------------------------
 
 func (c *client) do_mubi_id() error {
    err := c.Session.FetchViewing(c.mubi_id)
@@ -109,17 +93,7 @@ func (c *client) do_mubi_id() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-func (c *client) do_code() error {
-   var err error
-   c.LinkCode, err = mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(c.LinkCode)
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_session() error {
@@ -128,7 +102,7 @@ func (c *client) do_session() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
 func (c *client) do_address() error {
@@ -156,16 +130,4 @@ func (c *client) do_address() error {
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.Session.FetchWidevine)
-}
-
-// ----------------------------------------------------------------------
-// Main
-// ----------------------------------------------------------------------
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }

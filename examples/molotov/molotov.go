@@ -6,6 +6,18 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      asset molotov.Asset
+      dash  maya.Dash
+   )
+   err := c.cache.Decode(&c.job, &asset, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, asset.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -21,6 +33,14 @@ type client struct {
    email    string
    job      maya.Job
    password string
+}
+
+func (c *client) do_email_password() error {
+   auth, err := molotov.FetchAuth(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth)
 }
 
 func (c *client) do() error {
@@ -51,8 +71,8 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
-
       {email, password},
+
       {address},
       {dash},
    })
@@ -60,39 +80,31 @@ func (c *client) do() error {
 
 ///
 
-func (c *client) do_email_password() error {
-   var err error
-   c.Auth, err = molotov.FetchAuth(c.email, c.password)
+func (c *client) do_address() error {
+   var auth molotov.Auth
+   err := c.cache.Decode(&auth)
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_address() error {
    program, err := molotov.ParseProgram(c.address)
    if err != nil {
       return err
    }
-   err = c.Auth.Refresh()
+   err = auth.Refresh()
    if err != nil {
       return err
    }
-   play, err := c.Auth.FetchPlay(program)
+   play, err := auth.FetchPlay(program)
    if err != nil {
       return err
    }
-   c.Asset, err = c.Auth.FetchAsset(play)
+   asset, err := auth.FetchAsset(play)
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(c.Asset.GetManifest)
+   dash, err := maya.ListDash(asset.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Asset.FetchWidevine)
+   return c.cache.Encode(asset, auth, dash)
 }

@@ -10,6 +10,43 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (a *Asset) GetManifest() *url.URL {
+   manifest := a.Stream.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
+   return &manifest
+}
+
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() error {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
 func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
    target := playData.Url.Url
    query := target.Query() // keep existing query string
@@ -31,12 +68,6 @@ func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
    return &result, nil
 }
 
-func (a *Asset) GetManifest() *url.URL {
-   manifest := a.Stream.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
-   return &manifest
-}
-
 type Asset struct {
    Drm struct {
       Token string
@@ -49,25 +80,6 @@ type Asset struct {
 type Auth struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() error {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
-      },
-      map[string]string{"x-molotov-agent": customer_area},
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(a)
 }
 
 func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
@@ -195,18 +207,6 @@ func ParseProgram(data string) (*Program, error) {
 type Program struct {
    Id        int
    ChannelId int
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 type Play struct {

@@ -226,24 +226,6 @@ func (l *LinkCode) FetchSession() (*Session, error) {
    return result, nil
 }
 
-func (s *SecureUrl) GetManifest() (*url.URL, error) {
-   s.Url = strings.NewReplacer(
-      ".AVC1", "",
-      ".ex-eac3", "",
-      ".ex-vtt", "",
-   ).Replace(s.Url)
-   return url.Parse(s.Url)
-}
-
-type SecureUrl struct {
-   TextTrackUrls []struct {
-      Id  string
-      Url string
-   } `json:"text_track_urls"`
-   Url         string // MPD
-   UserMessage string `json:"user_message"`
-}
-
 type LinkCode struct {
    AuthToken string `json:"auth_token"`
    LinkCode  string `json:"link_code"`
@@ -266,4 +248,35 @@ type Session struct {
    User  struct {
       Id int
    }
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type SecureUrl struct {
+   TextTrackUrls []struct {
+      Id  string
+      Url string
+   } `json:"text_track_urls"`
+   Url         Url    // MPD
+   UserMessage string `json:"user_message"`
+}
+
+func (s *SecureUrl) GetManifest() *url.URL {
+   manifest := s.Url.Url
+   manifest.Path = strings.NewReplacer(
+      ".AVC1", "",
+      ".ex-eac3", "",
+      ".ex-vtt", "",
+   ).Replace(manifest.Path)
+   return &manifest
 }
