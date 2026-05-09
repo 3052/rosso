@@ -50,7 +50,7 @@ type Stream struct {
    NoAccess bool
 }
 
-func (s *Stream) Dash() (*url.URL, error) {
+func (s *Stream) GetDash() (*url.URL, error) {
    for _, link := range s.Links {
       if link.MimeType == "application/dash+xml" {
          return url.Parse(link.Url)

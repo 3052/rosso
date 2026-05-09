@@ -6,15 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var dash maya.Dash
-   err := c.cache.Decode(&c.job, &dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, nil)
-}
-
 func (c *client) do_address() error {
    phpSessId := &cineMember.Cookie{}
    err := c.cache.Decode(phpSessId)
@@ -29,7 +20,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   url, err := stream.Dash()
+   url, err := stream.GetDash()
    if err != nil {
       return err
    }
@@ -96,4 +87,13 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, nil)
 }

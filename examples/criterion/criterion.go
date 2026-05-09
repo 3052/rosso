@@ -7,18 +7,6 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash maya.Dash
-      file criterion.File
-   )
-   err := c.cache.Decode(&c.job, &dash, &file)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, file.FetchWidevine)
-}
-
 func (c *client) do_address() error {
    var token criterion.Token
    err := c.cache.Decode(&token)
@@ -43,11 +31,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := file.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
+   dash, err := maya.ListDash(file.Links.Source.Href())
    if err != nil {
       return err
    }
@@ -111,4 +95,16 @@ func (c *client) do() error {
       {address},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash maya.Dash
+      file criterion.File
+   )
+   err := c.cache.Decode(&c.job, &dash, &file)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, file.FetchWidevine)
 }
