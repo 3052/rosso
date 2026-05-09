@@ -15,6 +15,17 @@ import (
    "time"
 )
 
+type Player struct {
+   Drm struct {
+      LicenseUrl Url
+   }
+   Message   string
+   Subtitles []struct {
+      Url string
+   }
+   Url Url // MPD
+}
+
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(p.Drm.LicenseUrl(), nil, body)
    if err != nil {
@@ -35,17 +46,6 @@ func (u *Url) UnmarshalText(text []byte) error {
       return &parsed
    }
    return nil
-}
-
-type Player struct {
-   Drm struct {
-      LicenseUrl Url
-   }
-   Message   string
-   Subtitles []struct {
-      Url string
-   }
-   Url Url // MPD
 }
 
 func FetchSession(ssoToken string) (*Session, error) {

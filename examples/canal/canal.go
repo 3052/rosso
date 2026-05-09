@@ -10,98 +10,6 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash   maya.Dash
-      player canal.Player
-   )
-   err := c.cache.Decode(&c.job, &dash, &player)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, player.FetchWidevine)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func get(address string) error {
-   target, err := url.Parse(address)
-   if err != nil {
-      return err
-   }
-   resp, err := maya.Get(target, nil)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
-}
-
-func (c *client) do_query() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   collections, err := session.Search(c.query)
-   if err != nil {
-      return err
-   }
-   var line bool
-   for _, collection := range collections {
-      for _, asset := range collection.Assets {
-         if line {
-            fmt.Println()
-         } else {
-            line = true
-         }
-         fmt.Println(&asset)
-      }
-   }
-   return nil
-}
-
-func (c *client) do_email_password() error {
-   ticket, err := canal.FetchTicket()
-   if err != nil {
-      return err
-   }
-   login, err := ticket.Login(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   session, err := canal.FetchSession(login.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
-func (c *client) do_refresh() error {
-   session := &canal.Session{}
-   err := c.cache.Decode(session)
-   if err != nil {
-      return err
-   }
-   session, err = canal.FetchSession(session.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
 func (c *client) do_tracking() error {
    var session canal.Session
    err := c.cache.Decode(&session)
@@ -112,11 +20,7 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   manifest, err := player.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
+   dash, err := maya.ListDash(player.Url())
    if err != nil {
       return err
    }
@@ -219,4 +123,96 @@ func (c *client) do() error {
       {subtitles},
       {dash},
    })
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash   maya.Dash
+      player canal.Player
+   )
+   err := c.cache.Decode(&c.job, &dash, &player)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, player.FetchWidevine)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func get(address string) error {
+   target, err := url.Parse(address)
+   if err != nil {
+      return err
+   }
+   resp, err := maya.Get(target, nil)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
+
+func (c *client) do_query() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   collections, err := session.Search(c.query)
+   if err != nil {
+      return err
+   }
+   var line bool
+   for _, collection := range collections {
+      for _, asset := range collection.Assets {
+         if line {
+            fmt.Println()
+         } else {
+            line = true
+         }
+         fmt.Println(&asset)
+      }
+   }
+   return nil
+}
+
+func (c *client) do_email_password() error {
+   ticket, err := canal.FetchTicket()
+   if err != nil {
+      return err
+   }
+   login, err := ticket.Login(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   session, err := canal.FetchSession(login.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_refresh() error {
+   session := &canal.Session{}
+   err := c.cache.Decode(session)
+   if err != nil {
+      return err
+   }
+   session, err = canal.FetchSession(session.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
 }
