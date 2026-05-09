@@ -12,6 +12,106 @@ import (
    "strings"
 )
 
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
+      map[string]string{"content-type": "text/xml"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func playback_request(token, edit_id, drm string) (*Playback, error) {
+   body, err := json.Marshal(map[string]any{
+      "editId":               edit_id,
+      "consumptionType":      "streaming",
+      "appBundle":            "",         // required
+      "applicationSessionId": "",         // required
+      "firstPlay":            false,      // required
+      "gdpr":                 false,      // required
+      "playbackSessionId":    "",         // required
+      "userPreferences":      struct{}{}, // required
+      "capabilities": map[string]any{
+         "contentProtection": map[string]any{
+            "contentDecryptionModules": []any{
+               map[string]string{
+                  "drmKeySystem": drm,
+               },
+            },
+         },
+         "manifests": map[string]any{
+            "formats": map[string]any{
+               "dash": struct{}{}, // required
+            }, // required
+         }, // required
+      }, // required
+      "deviceInfo": map[string]any{
+         "player": map[string]any{
+            "mediaEngine": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+            "playerView": map[string]int{
+               "height": 0, // required
+               "width":  0, // required
+            }, // required
+            "sdk": map[string]string{
+               "name":    "", // required
+               "version": "", // required
+            }, // required
+         }, // required
+      }, // required
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
+      },
+      map[string]string{
+         "authorization": "Bearer " + token,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
 type Playback struct {
    Drm struct {
       Schemes struct {
@@ -29,23 +129,20 @@ type Playback struct {
    }
 }
 
-func (p *Playback) GetManifest() *url.URL {
-   parsed := p.Fallback.Manifest.Url()
-   parsed.Path = strings.Replace(parsed.Path, "_fallback", "", 1)
-   return parsed
+type Url struct {
+   Url url.URL
 }
 
-type Url func() *url.URL
-
 func (u *Url) UnmarshalText(text []byte) error {
-   var parsed url.URL
-   if err := parsed.UnmarshalBinary(text); err != nil {
-      return err
-   }
-   *u = func() *url.URL {
-      return &parsed
-   }
-   return nil
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (u *Url) DeleteFallback() {
+   u.Url.Path = strings.Replace(u.Url.Path, "_fallback", "", 1)
 }
 
 type Login struct {
@@ -368,104 +465,4 @@ func LoginRequest(st *Cookie) (*Login, error) {
 
 type Scheme struct {
    LicenseUrl Url
-}
-
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      p.Drm.Schemes.PlayReady.LicenseUrl(),
-      map[string]string{"content-type": "text/xml"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      p.Drm.Schemes.Widevine.LicenseUrl(),
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func playback_request(token, edit_id, drm string) (*Playback, error) {
-   body, err := json.Marshal(map[string]any{
-      "editId":               edit_id,
-      "consumptionType":      "streaming",
-      "appBundle":            "",         // required
-      "applicationSessionId": "",         // required
-      "firstPlay":            false,      // required
-      "gdpr":                 false,      // required
-      "playbackSessionId":    "",         // required
-      "userPreferences":      struct{}{}, // required
-      "capabilities": map[string]any{
-         "contentProtection": map[string]any{
-            "contentDecryptionModules": []any{
-               map[string]string{
-                  "drmKeySystem": drm,
-               },
-            },
-         },
-         "manifests": map[string]any{
-            "formats": map[string]any{
-               "dash": struct{}{}, // required
-            }, // required
-         }, // required
-      }, // required
-      "deviceInfo": map[string]any{
-         "player": map[string]any{
-            "mediaEngine": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-            "playerView": map[string]int{
-               "height": 0, // required
-               "width":  0, // required
-            }, // required
-            "sdk": map[string]string{
-               "name":    "", // required
-               "version": "", // required
-            }, // required
-         }, // required
-      }, // required
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
-      },
-      map[string]string{
-         "authorization": "Bearer " + token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
 }
