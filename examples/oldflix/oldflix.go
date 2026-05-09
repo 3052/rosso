@@ -6,47 +6,13 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   if err := cache.Setup("rosso/oldflix.xml"); err != nil {
+func (c *client) do_hls() error {
+   var hls maya.Hls
+   err := c.cache.Decode(&c.job, &hls)
+   if err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   username := maya.StringFlag(&c.username, "u", "username")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //-------------------------------------------------------------
-   oldflix_id := maya.StringFlag(&c.oldflix_id, "o", "Oldflix ID")
-   //-------------------------------------------------------------
-   hls := maya.IntFlag(&c.Job.Hls, "h", "HLS ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if username.IsSet {
-      if password.IsSet {
-         return c.do_username_password()
-      }
-   }
-   if oldflix_id.IsSet {
-      return c.run(c.do_oldflix_id)
-   }
-   if hls.IsSet {
-      return c.run(c.do_hls_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {username, password},
-      {oldflix_id},
-      {hls},
-   })
-}
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-func (c *client) do_hls_id() error {
-   return c.Hls.Download(&c.Job, nil)
+   return hls.Download(c.hls, &c.job, nil)
 }
 
 func main() {
@@ -57,19 +23,60 @@ func main() {
    }
 }
 
-var cache maya.Cache
+type client struct {
+   cache      maya.Cache
+   hls        int
+   job        maya.Job
+   oldflix_id string
+   password   string
+   username   string
+}
 
 func (c *client) do_username_password() error {
-   var err error
-   c.Login, err = oldflix.FetchLogin(c.username, c.password)
+   login, err := oldflix.FetchLogin(c.username, c.password)
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Encode(login)
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/oldflix"); err != nil {
+      return err
+   }
+   oldflix_id := maya.StringFlag(&c.oldflix_id, "o", "Oldflix ID")
+   password := maya.StringFlag(&c.password, "p", "password")
+   username := maya.StringFlag(&c.username, "u", "username")
+   hls := maya.IntFlag(&c.hls, "h", "HLS ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if username.IsSet {
+      if password.IsSet {
+         return c.do_username_password()
+      }
+   }
+   if oldflix_id.IsSet {
+      return c.do_oldflix_id()
+   }
+   if hls.IsSet {
+      return c.do_hls()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {username, password},
+
+      {oldflix_id},
+      {hls},
+   })
 }
 
 func (c *client) do_oldflix_id() error {
-   browse, err := c.Login.FetchBrowse(c.oldflix_id)
+   var login oldflix.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   browse, err := login.FetchBrowse(c.oldflix_id)
    if err != nil {
       return err
    }
@@ -77,26 +84,13 @@ func (c *client) do_oldflix_id() error {
    if err != nil {
       return err
    }
-   watch, err := browse.FetchWatch(original.Id, c.Login.Token)
+   watch, err := browse.FetchWatch(original.Id, login.Token)
    if err != nil {
       return err
    }
-   c.Hls, err = maya.ListHls(watch.GetManifest)
+   hls, err := maya.ListHls(&watch.Playlist[0].File.Url)
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-type client struct {
-   // cache
-   Hls   *maya.Hls
-   Job   maya.Job
-   Login *oldflix.Login
-   // flags
-   oldflix_id string
-   password   string
-   username   string
-   // state
-   cache_err error
+   return c.cache.Encode(hls)
 }

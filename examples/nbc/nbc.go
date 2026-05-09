@@ -6,6 +6,15 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, nbc.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -47,8 +56,6 @@ func (c *client) do() error {
    }})
 }
 
-///
-
 func (c *client) do_address() error {
    name, err := nbc.GetName(c.address)
    if err != nil {
@@ -58,17 +65,13 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   stream, err := metadata.Stream()
+   stream, err := metadata.FetchStream()
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(stream.GetManifest)
+   dash, err := maya.ListDash(stream.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, nbc.FetchWidevine)
+   return c.cache.Encode(dash)
 }

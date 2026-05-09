@@ -107,17 +107,6 @@ func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {
    return &result, nil
 }
 
-func (w *Watch) GetManifest() (*url.URL, error) {
-   return url.Parse(w.Playlist[0].File)
-}
-
-type Watch struct {
-   Message  string
-   Playlist []struct {
-      File string
-   }
-}
-
 const azure = "oldflix-api.azurewebsites.net"
 
 func (b *Browse) GetOriginal() (*Track, error) {
@@ -146,4 +135,23 @@ type Track struct {
    Id   string
    Lang string
    Lnk  string
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type Watch struct {
+   Message  string
+   Playlist []struct {
+      File Url
+   }
 }

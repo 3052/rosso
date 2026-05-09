@@ -38,7 +38,7 @@ func (s Stream) GetManifest() *url.URL {
    return &manifest
 }
 
-func (m *Metadata) GetStream() (*Stream, error) {
+func (m *Metadata) FetchStream() (*Stream, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
