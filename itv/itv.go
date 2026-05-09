@@ -65,19 +65,6 @@ func FetchTitles(legacyId string) ([]Title, error) {
    return result.Data.Titles, nil
 }
 
-func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
-   target, err := url.Parse(m.KeyServiceUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(target, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
 // fetchPlaylist is the common underlying function doing the heavy lifting
 func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
    body, err := json.Marshal(map[string]any{
@@ -127,10 +114,6 @@ func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
    return &result, nil
 }
 
-func (m *MediaFile) GetManifest() (*url.URL, error) {
-   return url.Parse(strings.Replace(m.Href, "itvpnpctv", "itvpnpdotcom", 1))
-}
-
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
 func FetchPlayReady(urlData string) (*Playlist, error) {
    return fetchPlaylist(urlData, "playready", "SL3000")
@@ -151,12 +134,6 @@ func ParseLegacyId(urlData string) string {
    parts := strings.Split(base, "a")
    // 3. Join them back together with '/'
    return strings.Join(parts, "/")
-}
-
-type MediaFile struct {
-   Href          string // MPD
-   KeyServiceUrl string // DRM
-   Resolution    string
 }
 
 type Playlist struct {
@@ -186,4 +163,31 @@ type Title struct {
    }
    EpisodeNumber int
    Title         string
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type MediaFile struct {
+   Href          Url // MPD
+   KeyServiceUrl Url // DRM
+   Resolution    string
+}
+
+func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&m.KeyServiceUrl.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }

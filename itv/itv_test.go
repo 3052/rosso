@@ -4,18 +4,15 @@ import "testing"
 
 var watch_tests = []struct {
    category string
-   watch    []string
+   watch    string
 }{
    {
-      category: "DRAMA_AND_SOAPS",
-      watch: []string{
-         "https://itv.com/watch/joan/10a3918",
-         "https://itv.com/watch/joan/10a3918/10a3918a0001",
-      },
+      category: "FILM",
+      watch:    "https://itv.com/watch/dune/10a6768a0001B",
    },
    {
-      category: "FILM",
-      watch:    []string{"https://itv.com/watch/love-actually/27304"},
+      category: "DRAMA_AND_SOAPS",
+      watch:    "https://itv.com/watch/joan/10a3918",
    },
 }
 

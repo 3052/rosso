@@ -9,6 +9,18 @@ import (
    "path"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 type Playlist struct {
    DashPrServer Url `json:"dash_pr_server"`
    Message      string
@@ -332,18 +344,6 @@ var deejay = []struct {
       device_id:   109,
       key_version: 1,
    },
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {

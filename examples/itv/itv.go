@@ -7,6 +7,22 @@ import (
    "log"
 )
 
+func (c *client) do_playlist() error {
+   playlist, err := itv.FetchWidevine(c.playlist)
+   if err != nil {
+      return err
+   }
+   media_file, err := playlist.Get1080()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(&media_file.Href.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, media_file)
+}
+
 func (c *client) do_dash() error {
    var (
       dash       maya.Dash
@@ -76,24 +92,4 @@ func (c *client) do() error {
       playlist,
       dash,
    }})
-}
-
-func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.playlist)
-   if err != nil {
-      return err
-   }
-   media_file, err := playlist.Get1080()
-   if err != nil {
-      return err
-   }
-   manifest, err := media_file.GetManifest()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, media_file)
 }
