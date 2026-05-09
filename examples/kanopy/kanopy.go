@@ -8,8 +8,17 @@ import (
 )
 
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(data []byte) ([]byte, error) {
-      return kanopy.CreateLicense(c.Login, c.Manifest, data)
+   var (
+      dash     maya.Dash
+      login    kanopy.Login
+      manifest kanopy.Manifest
+   )
+   err := c.cache.Decode(&c.job, &dash, &login, &manifest)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
+      return kanopy.CreateLicense(&login, &manifest, data)
    })
 }
 
@@ -67,13 +76,10 @@ func (c *client) do() error {
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
       {email, password},
-
       {address},
       {dash},
    })
 }
-
-///
 
 func (c *client) do_address() error {
    login := &kanopy.Login{}
@@ -108,11 +114,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   url, err := manifest.GetUrl()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(url)
+   dash, err := maya.ListDash(&manifest.Url.Url)
    if err != nil {
       return err
    }
