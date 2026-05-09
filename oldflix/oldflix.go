@@ -9,6 +9,18 @@ import (
    "net/url"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 func FetchLogin(username, password string) (*Login, error) {
    body := url.Values{
       "password": {password},
@@ -135,18 +147,6 @@ type Track struct {
    Id   string
    Lang string
    Lnk  string
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 type Watch struct {
