@@ -15,17 +15,63 @@ func main() {
    }
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   job      maya.Job
+   password string
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/peacock"); err != nil {
+      return err
+   }
+   address := maya.StringFlag(&c.address, "a", "address")
+   email := maya.StringFlag(&c.email, "e", "email")
+   password := maya.StringFlag(&c.password, "p", "password")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(c.job)
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return c.do_address()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+
+      {email, password},
+      {address},
+      {dash},
+   })
+}
+
 ///
 
-type client struct {
-   IdSession string
-   Job       maya.Job
-   Playout   *peacock.Playout
-   address   string
-   cache     maya.Cache
-   cache_err error
-   email     string
-   password  string
+func (c *client) do_email_password() error {
+   var err error
+   c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Write(c)
+}
+
+func (c *client) do_dash() error {
+   return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
 }
 
 func (c *client) do_address() error {
@@ -45,56 +91,5 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-func (c *client) do() error {
-   if err := cache.Setup("rosso/peacock.xml"); err != nil {
-      return err
-   }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   //------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //---------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return cache.Write(c)
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return c.run(c.do_address)
-   }
-   if dash.IsSet {
-      return c.run(c.do_dash_id)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
-
-func (c *client) do_email_password() error {
-   var err error
-   c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
-
-func (c *client) do_dash_id() error {
-   return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
+   return c.cache.Write(c)
 }

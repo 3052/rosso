@@ -18,6 +18,68 @@ import (
    "time"
 )
 
+func FetchToken(idSession *Cookie) (*Token, error) {
+   body, err := json.Marshal(map[string]any{
+      "auth": map[string]string{
+         "authScheme":        "MESSO",
+         "proposition":       "NBCUOTT",
+         "provider":          "NBCU",
+         "providerTerritory": Territory,
+      },
+      "device": map[string]string{
+         // if empty /drm/widevine/acquirelicense will fail with
+         // {
+         //    "errorCode": "OVP_00306",
+         //    "description": "Security failure"
+         // }
+         "drmDeviceId": "UNKNOWN",
+         // if incorrect /video/playouts/vod will fail with
+         // {
+         //    "errorCode": "OVP_00311",
+         //    "description": "Unknown deviceId"
+         // }
+         // changing this too often will result in a four hour block
+         // {
+         //    "errorCode": "OVP_00014",
+         //    "description": "Maximum number of streaming devices exceeded"
+         // }
+         "id":       "PC",
+         "platform": "ANDROIDTV",
+         "type":     "TV",
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := url.URL{
+      Scheme: "https",
+      Host:   "ovp.peacocktv.com",
+      Path:   "/auth/tokens",
+   }
+   resp, err := maya.Post(
+      &target,
+      map[string]string{
+         "content-type":    "application/vnd.tokens.v1+json",
+         "cookie":          idSession.String(),
+         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Token
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Description != "" {
+      return nil, errors.New(result.Description)
+   }
+   return &result, nil
+}
+
 const (
    sky_client  = "NBCU-ANDROID-v3"
    sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
@@ -190,9 +252,16 @@ func generate_sky_ott(method, path string, header map[string]string, body []byte
    )
 }
 
-///
+type Cookie struct {
+   Name  string
+   Value string
+}
 
-func FetchIdSession(user, password string) (string, error) {
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+}
+
+func FetchIdSession(user, password string) (*Cookie, error) {
    body := url.Values{
       "userIdentifier": {user},
       "password":       {password},
@@ -212,7 +281,7 @@ func FetchIdSession(user, password string) (string, error) {
       []byte(body),
    )
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
    var result struct {
@@ -226,77 +295,15 @@ func FetchIdSession(user, password string) (string, error) {
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
-      return "", err
+      return nil, err
    }
    if resp.StatusCode != 201 {
-      return "", errors.New(result.Properties.Errors.CategoryErrors[0].Code)
+      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
    }
-   for _, cookie := range resp.Cookies() {
-      if cookie.Name == "idsession" {
-         return cookie.String(), nil
+   for _, c := range resp.Cookies() {
+      if c.Name == "idsession" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
       }
    }
-   return "", errors.New("named cookie not present")
-}
-
-func FetchToken(idSession string) (*Token, error) {
-   body, err := json.Marshal(map[string]any{
-      "auth": map[string]string{
-         "authScheme":        "MESSO",
-         "proposition":       "NBCUOTT",
-         "provider":          "NBCU",
-         "providerTerritory": Territory,
-      },
-      "device": map[string]string{
-         // if empty /drm/widevine/acquirelicense will fail with
-         // {
-         //    "errorCode": "OVP_00306",
-         //    "description": "Security failure"
-         // }
-         "drmDeviceId": "UNKNOWN",
-         // if incorrect /video/playouts/vod will fail with
-         // {
-         //    "errorCode": "OVP_00311",
-         //    "description": "Unknown deviceId"
-         // }
-         // changing this too often will result in a four hour block
-         // {
-         //    "errorCode": "OVP_00014",
-         //    "description": "Maximum number of streaming devices exceeded"
-         // }
-         "id":       "PC",
-         "platform": "ANDROIDTV",
-         "type":     "TV",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := url.URL{
-      Scheme: "https",
-      Host:   "ovp.peacocktv.com",
-      Path:   "/auth/tokens",
-   }
-   resp, err := maya.Post(
-      &target,
-      map[string]string{
-         "content-type":    "application/vnd.tokens.v1+json",
-         "cookie":          idSession,
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Token
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Description != "" {
-      return nil, errors.New(result.Description)
-   }
-   return &result, nil
+   return nil, errors.New("idsession cookie not present")
 }
