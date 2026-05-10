@@ -165,30 +165,29 @@ type Drm struct {
    Widevine Widevine `json:"widevine"`
 }
 
-///
-
-type Widevine struct {
-   LicenseServer string `json:"licenseServer"`
+type Url struct {
+   Url url.URL
 }
 
-type Playback struct {
-   Url         string `json:"url"`
-   Drm         Drm    `json:"drm"`
-   MediaFormat string `json:"mediaFormat"`
-   TraceId     string `json:"traceId"`
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type Widevine struct {
+   LicenseServer Url `json:"licenseServer"`
 }
 
 func (p *Playback) GetWidevineLicense(challenge []byte) ([]byte, error) {
-   target, err := url.Parse(p.Drm.Widevine.LicenseServer)
-   if err != nil {
-      return nil, err
-   }
    headers := map[string]string{
       "content-type": "application/x-protobuf",
       "user-agent":   "Go-http-client/2.0",
    }
 
-   resp, err := maya.Post(target, headers, challenge)
+   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
    if err != nil {
       return nil, err
    }
@@ -197,6 +196,9 @@ func (p *Playback) GetWidevineLicense(challenge []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-func (p *Playback) GetManifest() (*url.URL, error) {
-   return url.Parse(p.Url)
+type Playback struct {
+   Url         Url    // MPD
+   Drm         Drm    `json:"drm"`
+   MediaFormat string `json:"mediaFormat"`
+   TraceId     string `json:"traceId"`
 }

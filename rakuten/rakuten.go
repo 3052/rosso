@@ -11,6 +11,18 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 type StreamInfo struct {
    LicenseUrl Url `json:"license_url"`
    Url        Url // MPD
@@ -406,18 +418,6 @@ func fetchStreaming(contentId string, contentType string, userClassification Cla
    }
 
    return nil, errors.New("no stream infos found")
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 func (s *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
