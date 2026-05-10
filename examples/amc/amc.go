@@ -7,6 +7,27 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     string
+   email    string
+   episode  int
+   password string
+   season   int
+   series   int
+   widevine string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
@@ -23,7 +44,7 @@ func (c *client) do() error {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(maya.Job{Widevine: c.widevine})
+      return c.cache.Encode(device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -47,6 +68,7 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
+
       {email, password},
       {refresh},
       {series},
@@ -54,6 +76,20 @@ func (c *client) do() error {
       {episode},
       {dash},
    })
+}
+
+///
+
+func (c *client) do_email_password() error {
+   auth_data, err := amc.Unauth()
+   if err != nil {
+      return err
+   }
+   auth_data, err = amc.Login(auth_data.AccessToken, c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
 }
 
 func (c *client) do_dash() error {
@@ -75,26 +111,6 @@ func (c *client) do_dash() error {
       )
    }
    return dash.Download(c.dash, &job, fetch)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   auth_data, err := amc.Unauth()
-   if err != nil {
-      return err
-   }
-   auth_data, err = amc.Login(auth_data.AccessToken, c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth_data)
 }
 
 func (c *client) do_refresh() error {
@@ -167,15 +183,4 @@ func (c *client) do_episode() error {
       return err
    }
    return c.cache.Encode(dash, playback, source)
-}
-
-type client struct {
-   cache    maya.Cache
-   dash     string
-   email    string
-   episode  int
-   password string
-   season   int
-   series   int
-   widevine string
 }

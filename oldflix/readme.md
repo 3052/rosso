@@ -1,30 +1,5 @@
 # oldflix.com.br
 
-## android
-
-- https://apkpure.com/oldflix/oldflix.app
-- https://play.google.com/store/apps/details?id=oldflix.app
-
-create Pixel 5, Android 11 device. install system certificate
-
-~~~
-adb install-multiple (Get-ChildItem *.apk)
-~~~
-
-then:
-
-~~~
-save.har @shown oldflix.har
-~~~
-
-## https://oldflix.com.br/title/play/5d5d54a4d55dc050f8468513
-
-country = BR
-name = Brazil
-monetization = FLATRATE
-
-https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
-
 ## purchase
 
 1. sign now
@@ -49,3 +24,28 @@ https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
 19. I'm not a robot
 20. ENABLE JAVASCRIPT
 21. finish purchase
+
+## android
+
+- https://apkpure.com/oldflix/oldflix.app
+- https://play.google.com/store/apps/details?id=oldflix.app
+
+create Pixel 5, Android 11 device. install system certificate
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+then:
+
+~~~
+save.har @shown oldflix.har
+~~~
+
+## https://oldflix.com.br/title/play/5d5d54a4d55dc050f8468513
+
+country = BR
+name = Brazil
+monetization = FLATRATE
+
+https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
