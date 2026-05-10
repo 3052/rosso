@@ -9,17 +9,29 @@ import (
    "strings"
 )
 
+func (m *Media) GetManifest(userData *User) *url.URL {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "vod.provider.plex.tv",
+      Path:   m.Part[0].Key,
+   }
+   query := url.Values{}
+   query.Set("x-plex-token", userData.AuthToken)
+   endpoint.RawQuery = query.Encode()
+   return endpoint
+}
+
 type VodMetadata struct {
    Metadata []MetadataItem `json:"Metadata"`
 }
 
 type MetadataItem struct {
-   Guid  string     `json:"guid"`
-   Title string     `json:"title"`
-   Media []VodMedia `json:"Media"`
+   Guid  string  `json:"guid"`
+   Title string  `json:"title"`
+   Media []Media `json:"Media"`
 }
 
-type VodMedia struct {
+type Media struct {
    Id       string    `json:"id"`
    Protocol string    `json:"protocol"`
    Part     []VodPart `json:"Part"`
@@ -31,7 +43,7 @@ type VodPart struct {
    License string `json:"license"`
 }
 
-func GetVodMetadata(match *MatchItem, anonymous *AnonymousUser) (*VodMetadata, error) {
+func GetVodMetadata(match *MatchItem, userData *User) (*VodMetadata, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "vod.provider.plex.tv",
@@ -39,7 +51,7 @@ func GetVodMetadata(match *MatchItem, anonymous *AnonymousUser) (*VodMetadata, e
    }
 
    headers := map[string]string{
-      "x-plex-token": anonymous.AuthToken,
+      "x-plex-token": userData.AuthToken,
    }
 
    resp, err := maya.Get(endpoint, headers)
@@ -58,33 +70,15 @@ func GetVodMetadata(match *MatchItem, anonymous *AnonymousUser) (*VodMetadata, e
    return &result.MediaContainer, nil
 }
 
-func (vod *VodMetadata) GetDashMedia() (*VodMedia, error) {
+func (vod *VodMetadata) GetDash() (*Media, error) {
    for _, item := range vod.Metadata {
-      for _, media := range item.Media {
-         if media.Protocol == "dash" {
-            return &media, nil
+      for _, media_data := range item.Media {
+         if media_data.Protocol == "dash" {
+            return &media_data, nil
          }
       }
    }
    return nil, errors.New("dash media not found")
-}
-
-func (media *VodMedia) GetMpdUrl(anonymous *AnonymousUser) (*url.URL, error) {
-   if len(media.Part) == 0 {
-      return nil, errors.New("no media parts found")
-   }
-
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "vod.provider.plex.tv",
-      Path:   media.Part[0].Key,
-   }
-
-   query := url.Values{}
-   query.Set("x-plex-token", anonymous.AuthToken)
-   endpoint.RawQuery = query.Encode()
-
-   return endpoint, nil
 }
 
 type MatchContainer struct {
@@ -99,7 +93,7 @@ type MatchItem struct {
    Type      string `json:"type"`
 }
 
-func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchContainer, error) {
+func GetMetadataMatches(urlPath string, userData *User) (*MatchContainer, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "discover.provider.plex.tv",
@@ -108,7 +102,7 @@ func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchContain
 
    query := url.Values{}
    query.Set("url", urlPath)
-   query.Set("x-plex-token", anonymous.AuthToken)
+   query.Set("x-plex-token", userData.AuthToken)
    endpoint.RawQuery = query.Encode()
 
    resp, err := maya.Get(endpoint, nil)
@@ -127,23 +121,23 @@ func GetMetadataMatches(urlPath string, anonymous *AnonymousUser) (*MatchContain
    return &result.MediaContainer, nil
 }
 
-func AcquireWidevineLicense(media *VodMedia, anonymous *AnonymousUser, body []byte) ([]byte, error) {
-   if len(media.Part) == 0 {
+func AcquireWidevineLicense(mediaData *Media, userData *User, body []byte) ([]byte, error) {
+   if len(mediaData.Part) == 0 {
       return nil, errors.New("no media parts found")
    }
-   if media.Part[0].License == "" {
+   if mediaData.Part[0].License == "" {
       return nil, errors.New("no license path found")
    }
 
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "vod.provider.plex.tv",
-      Path:   media.Part[0].License,
+      Path:   mediaData.Part[0].License,
    }
 
    query := url.Values{}
    query.Set("x-plex-drm", "widevine")
-   query.Set("x-plex-token", anonymous.AuthToken)
+   query.Set("x-plex-token", userData.AuthToken)
    endpoint.RawQuery = query.Encode()
 
    resp, err := maya.Post(endpoint, nil, body)
@@ -155,13 +149,13 @@ func AcquireWidevineLicense(media *VodMedia, anonymous *AnonymousUser, body []by
    return io.ReadAll(resp.Body)
 }
 
-type AnonymousUser struct {
+type User struct {
    Id        int    `json:"id"`
    Uuid      string `json:"uuid"`
    AuthToken string `json:"authToken"`
 }
 
-func CreateAnonymousUser() (*AnonymousUser, error) {
+func CreateUser() (*User, error) {
    endpoint := &url.URL{
       Scheme: "https",
       Host:   "plex.tv",
@@ -179,12 +173,11 @@ func CreateAnonymousUser() (*AnonymousUser, error) {
    }
    defer resp.Body.Close()
 
-   var anonymous AnonymousUser
-   if err := json.NewDecoder(resp.Body).Decode(&anonymous); err != nil {
+   var result User
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-
-   return &anonymous, nil
+   return &result, nil
 }
 
 // https://watch.plex.tv/embed/movie/memento-2000

@@ -4,47 +4,20 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/plex"
    "log"
-   "net/url"
 )
 
-func (c *client) do() error {
-   if err := cache.Setup("rosso/plex.xml"); err != nil {
-      return err
-   }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   address := maya.StringFlag(&c.address, "a", "address")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return cache.Write(c)
-   case address.IsSet:
-      return c.do_address()
-   case dash.IsSet:
-      return c.run(c.do_dash)
-   }
-   return maya.PrintFlags([][]*maya.Flag{
-      {widevine},
-      {address},
-      {dash},
-   })
-}
-
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, func(body []byte) ([]byte, error) {
-      return plex.AcquireWidevineLicense(c.VodMedia, c.AnonymousUser, body)
+   var (
+      dash  maya.Dash
+      media plex.Media
+      user  plex.User
+   )
+   err := c.cache.Decode(&c.job, &dash, &media, &user)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, func(body []byte) ([]byte, error) {
+      return plex.AcquireWidevineLicense(&media, &user, body)
    })
 }
 
@@ -56,9 +29,41 @@ func main() {
    }
 }
 
+type client struct {
+   address string
+   cache   maya.Cache
+   dash    string
+   job     maya.Job
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/plex"); err != nil {
+      return err
+   }
+   address := maya.StringFlag(&c.address, "a", "address")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
+   if err := maya.ParseFlags(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(c.job)
+   case address.IsSet:
+      return c.do_address()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([][]*maya.Flag{
+      {widevine},
+
+      {address},
+      {dash},
+   })
+}
+
 func (c *client) do_address() error {
-   var err error
-   c.AnonymousUser, err = plex.CreateAnonymousUser()
+   user, err := plex.CreateUser()
    if err != nil {
       return err
    }
@@ -66,37 +71,21 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   match, err := plex.GetMetadataMatches(path, c.AnonymousUser)
+   match, err := plex.GetMetadataMatches(path, user)
    if err != nil {
       return err
    }
-   vod_metadata, err := plex.GetVodMetadata(&match.Metadata[0], c.AnonymousUser)
+   vod_metadata, err := plex.GetVodMetadata(&match.Metadata[0], user)
    if err != nil {
       return err
    }
-   c.VodMedia, err = vod_metadata.GetDashMedia()
+   media, err := vod_metadata.GetDash()
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return c.VodMedia.GetMpdUrl(c.AnonymousUser)
-   })
+   dash, err := maya.ListDash(media.GetManifest(user))
    if err != nil {
       return err
    }
-   return cache.Write(c)
-}
-
-var cache maya.Cache
-
-type client struct {
-   // cache
-   AnonymousUser *plex.AnonymousUser
-   Dash          *maya.Dash
-   Job           maya.Job
-   VodMedia      *plex.VodMedia
-   // flags
-   address string
-   // state
-   cache_err error
+   return c.cache.Encode(user, dash, media)
 }

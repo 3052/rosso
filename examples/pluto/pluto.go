@@ -9,37 +9,49 @@ import (
    "path"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache   maya.Cache
+   episode string
+   job     maya.Job
+   movie   string
+   show    string
+}
+
 func (c *client) do() error {
-   if err := cache.Setup("rosso/pluto.xml"); err != nil {
+   if err := c.cache.Setup("rosso/pluto.xml"); err != nil {
       return err
    }
-   c.cache_err = cache.Read(c)
-   widevine := maya.StringFlag(&c.Job.Widevine, "w", "Widevine")
-   //----------------------------------------------------------
-   movie := maya.StringFlag(&c.movie, "m", "movie URL")
-   //----------------------------------------------------------
-   show := maya.StringFlag(&c.show, "s", "show URL")
-   //----------------------------------------------------------
    episode := maya.StringFlag(&c.episode, "e", "episode ID")
-   //----------------------------------------------------------
-   dash := maya.StringFlag(&c.Job.Dash, "d", "DASH ID")
+   movie := maya.StringFlag(&c.movie, "m", "movie URL")
+   show := maya.StringFlag(&c.show, "s", "show URL")
+   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    switch {
    case widevine.IsSet:
-      return cache.Write(c)
+      return c.cache.Encode(c.job)
    case movie.IsSet:
       return c.do_movie()
    case show.IsSet:
       return c.do_show()
    case episode.IsSet:
-      return c.run(c.do_episode)
+      return c.do_episode()
    case dash.IsSet:
-      return c.run(c.do_dash_id)
+      return c.do_dash()
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
+
       movie,
       show,
       episode,
@@ -47,23 +59,7 @@ func (c *client) do() error {
    }})
 }
 
-func (c *client) run(action func() error) error {
-   if c.cache_err != nil {
-      return c.cache_err
-   }
-   return action()
-}
-
-func (c *client) do_episode() error {
-   var err error
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return c.Series.GetEpisodeUrl(c.episode)
-   })
-   if err != nil {
-      return err
-   }
-   return cache.Write(c)
-}
+///
 
 func (c *client) do_movie() error {
    series, err := pluto.FetchSeries(path.Base(c.movie))
@@ -76,22 +72,23 @@ func (c *client) do_movie() error {
    if err != nil {
       return err
    }
-   return cache.Write(c)
+   return c.cache.Write(c)
 }
 
-func (c *client) do_dash_id() error {
+func (c *client) do_episode() error {
+   var err error
+   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
+      return c.Series.GetEpisodeUrl(c.episode)
+   })
+   if err != nil {
+      return err
+   }
+   return c.cache.Write(c)
+}
+
+func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, pluto.FetchWidevine)
 }
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-var cache maya.Cache
 
 func (c *client) do_show() error {
    var err error
@@ -100,18 +97,5 @@ func (c *client) do_show() error {
       return err
    }
    fmt.Println(&c.Series.Vod[0])
-   return cache.Write(c)
-}
-
-type client struct {
-   // cache
-   Dash   *maya.Dash
-   Job    maya.Job
-   Series *pluto.Series
-   // flags
-   episode string
-   movie   string
-   show    string
-   // state
-   cache_err error
+   return c.cache.Write(c)
 }
