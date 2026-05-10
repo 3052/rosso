@@ -18,6 +18,18 @@ import (
    "time"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 func FetchToken(idSession *Cookie) (*Token, error) {
    body, err := json.Marshal(map[string]any{
       "auth": map[string]string{
@@ -106,18 +118,6 @@ func (p *Playout) GetFastly() (*url.URL, error) {
       }
    }
    return nil, errors.New("FASTLY endpoint not found")
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 type Playout struct {

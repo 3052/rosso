@@ -328,26 +328,6 @@ func (show *TvShow) String() string {
    return data.String()
 }
 
-func (info *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
-   target, err := url.Parse(info.LicenseUrl)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(target, nil, challenge)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-type StreamInfo struct {
-   LicenseUrl string `json:"license_url"`
-   Url        string `json:"url"`
-}
-
 type StreamingRequest struct {
    AudioLanguage            string `json:"audio_language"`
    AudioQuality             string `json:"audio_quality"`
@@ -423,6 +403,28 @@ func fetchStreaming(contentId string, contentType string, userClassification Cla
    return nil, errors.New("no stream infos found")
 }
 
-func (info *StreamInfo) GetManifest() (*url.URL, error) {
-   return url.Parse(info.Url)
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type StreamInfo struct {
+   LicenseUrl Url `json:"license_url"`
+   Url        Url // MPD
+}
+
+func (s *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
+   resp, err := maya.Post(&s.LicenseUrl.Url, nil, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }
