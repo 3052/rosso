@@ -9,6 +9,70 @@ import (
    "net/url"
 )
 
+func GetPlayback(authToken string, videoId int) (*Playback, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + authToken,
+         "content-type":        "application/json",
+         "x-amcn-language":     "en",
+         "x-amcn-network":      "amcplus",
+         "x-amcn-platform":     "web",
+         "x-amcn-service-id":   "amcplus",
+         "x-amcn-tenant":       "amcn",
+         "x-amcn-device-ad-id": "-",
+         "x-ccpa-do-not-sell":  "doNotPassData",
+      },
+      playback_json,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &Playback{
+      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+      Sources:  result.Data.PlaybackJsonData.Sources,
+   }, nil
+}
+
+type Playback struct {
+   BcovAuth string
+   Sources  []Source
+}
+
+func (p *Playback) GetDash() (*Source, error) {
+   for _, source_data := range p.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        Src        // MPD
+   Type       string
+}
+
 type Src struct {
    Url url.URL
 }
@@ -21,12 +85,7 @@ func (s *Src) MarshalText() ([]byte, error) {
    return s.Url.MarshalBinary()
 }
 
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        Src        // MPD
-   Type       string
-}
+///
 
 type Metadata struct {
    AmcnID                   string `json:"amcnId,omitempty"`
@@ -425,61 +484,4 @@ type Navigation struct {
       VideoTitle string `json:"videoTitle,omitempty"`
    } `json:"properties,omitempty"`
    ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-func GetPlayback(authToken string, videoId int) (*Playback, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + authToken,
-         "content-type":        "application/json",
-         "x-amcn-language":     "en",
-         "x-amcn-network":      "amcplus",
-         "x-amcn-platform":     "web",
-         "x-amcn-service-id":   "amcplus",
-         "x-amcn-tenant":       "amcn",
-         "x-amcn-device-ad-id": "-",
-         "x-ccpa-do-not-sell":  "doNotPassData",
-      },
-      playback_json,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Data struct {
-         PlaybackJsonData struct {
-            Sources []Source
-         }
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &Playback{
-      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
-      Sources:  result.Data.PlaybackJsonData.Sources,
-   }, nil
-}
-
-type Playback struct {
-   BcovAuth string
-   Sources  []Source
-}
-
-func (p *Playback) GetDash() (*Source, error) {
-   for _, source_data := range p.Sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
 }

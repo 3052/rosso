@@ -8,6 +8,18 @@ import (
    "strings"
 )
 
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
    target := &url.URL{
       Scheme: "https",
@@ -163,18 +175,6 @@ func (a *AccountActivation) String() string {
 
 type Drm struct {
    Widevine Widevine `json:"widevine"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
 
 type Widevine struct {

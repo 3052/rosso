@@ -9,29 +9,6 @@ import (
    "strconv"
 )
 
-type Manifest struct {
-   Url      string `json:"url"`
-   Duration int    `json:"duration"`
-}
-
-type LicenseServer struct {
-   Url             string `json:"url"`
-   HdcpVersion     string `json:"hdcp_version"`
-   AuthHeaderKey   string `json:"auth_header_key"`
-   AuthHeaderValue string `json:"auth_header_value"`
-}
-
-type VideoResource struct {
-   Type             string        `json:"type"`
-   Codec            string        `json:"codec"`
-   Resolution       string        `json:"resolution"`
-   Manifest         Manifest      `json:"manifest"`
-   LicenseServer    LicenseServer `json:"license_server"`
-   TitanVersion     string        `json:"titan_version"`
-   SsaiVersion      string        `json:"ssai_version"`
-   GeneratorVersion string        `json:"generator_version"`
-}
-
 type ContentResponse struct {
    HeroImages           []string        `json:"hero_images"`
    UpdatedAt            string          `json:"updated_at"`
@@ -109,13 +86,27 @@ func GetContent(contentId int) (*ContentResponse, error) {
    return &content, nil
 }
 
-func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
-   target, err := url.Parse(server.Url)
-   if err != nil {
-      return nil, err
-   }
+type Url struct {
+   Url url.URL
+}
 
-   resp, err := maya.Post(target, nil, body)
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+type LicenseServer struct {
+   Url             Url
+   HdcpVersion     string `json:"hdcp_version"`
+   AuthHeaderKey   string `json:"auth_header_key"`
+   AuthHeaderValue string `json:"auth_header_value"`
+}
+
+func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
+   resp, err := maya.Post(&server.Url.Url, nil, body)
    if err != nil {
       return nil, err
    }
@@ -124,6 +115,18 @@ func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-func (v *VideoResource) GetManifest() (*url.URL, error) {
-   return url.Parse(v.Manifest.Url)
+type Manifest struct {
+   Url      Url
+   Duration int `json:"duration"`
+}
+
+type VideoResource struct {
+   Type             string        `json:"type"`
+   Codec            string        `json:"codec"`
+   Resolution       string        `json:"resolution"`
+   Manifest         Manifest      `json:"manifest"`
+   LicenseServer    LicenseServer `json:"license_server"`
+   TitanVersion     string        `json:"titan_version"`
+   SsaiVersion      string        `json:"ssai_version"`
+   GeneratorVersion string        `json:"generator_version"`
 }
