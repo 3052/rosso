@@ -7,6 +7,18 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      dash    maya.Dash
+      playout peacock.Playout
+   )
+   err := c.cache.Decode(&c.job, &dash, &playout)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playout.FetchWidevine)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -22,6 +34,14 @@ type client struct {
    email    string
    job      maya.Job
    password string
+}
+
+func (c *client) do_email_password() error {
+   id_session, err := peacock.FetchIdSession(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(id_session)
 }
 
 func (c *client) do() error {
@@ -52,8 +72,8 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {widevine},
-
       {email, password},
+
       {address},
       {dash},
    })
@@ -61,35 +81,27 @@ func (c *client) do() error {
 
 ///
 
-func (c *client) do_email_password() error {
-   var err error
-   c.IdSession, err = peacock.FetchIdSession(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playout.FetchWidevine)
-}
-
 func (c *client) do_address() error {
-   token, err := peacock.FetchToken(c.IdSession)
+   id_session := &peacock.Cookie{}
+   err := c.cache.Decode(id_session)
    if err != nil {
       return err
    }
-   c.Playout, err = token.FetchPlayout(path.Base(c.address))
+   token, err := peacock.FetchToken(id_session)
    if err != nil {
       return err
    }
-   endpoint, err := c.Playout.GetFastly()
+   playout, err := token.FetchPlayout(path.Base(c.address))
    if err != nil {
       return err
    }
-   c.Dash, err = maya.ListDash(endpoint.GetManifest)
+   endpoint, err := playout.GetFastly()
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
+   dash, err := maya.ListDash(endpoint)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playout)
 }
