@@ -7,6 +7,48 @@ import (
    "log"
 )
 
+func (c *client) do_audio() error {
+   var (
+      address     rakuten.Address
+      start       rakuten.Start
+      stream_info *rakuten.StreamInfo
+   )
+   err := c.cache.Decode(&address, &start)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      stream_info, err = rakuten.FetchMovieStreaming(
+         address.ContentId, start.Profile.Classification, c.audio,
+      )
+   case address.IsTvShow():
+      stream_info, err = rakuten.FetchEpisodeStreaming(
+         c.episode, start.Profile.Classification, c.audio,
+      )
+   }
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(&stream_info.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, stream_info)
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash        maya.Dash
+      stream_info rakuten.StreamInfo
+   )
+   err := c.cache.Decode(&c.job, &dash, &stream_info)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, stream_info.FetchLicense)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -55,6 +97,27 @@ func (c *client) do_address() error {
    return c.cache.Encode(address, start)
 }
 
+func (c *client) do_season() error {
+   var start rakuten.Start
+   err := c.cache.Decode(&start)
+   if err != nil {
+      return err
+   }
+   season, err := rakuten.FetchSeason(
+      c.season, start.Profile.Classification, start.Market,
+   )
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.Episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
@@ -76,60 +139,16 @@ func (c *client) do() error {
    case season.IsSet:
       return c.do_season()
    case audio.IsSet:
-      return c.do_language()
+      return c.do_audio()
    case dash.IsSet:
       return c.do_dash()
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
       {address},
-
       {season},
+
       {audio, episode},
       {dash},
    })
-}
-
-///
-
-func (c *client) do_season() error {
-   season, err := rakuten.FetchSeason(
-      c.season, c.Start.Profile.Classification, c.Start.Market,
-   )
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.Episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
-func (c *client) do_language() error {
-   var err error
-   switch {
-   case c.Url.IsMovie():
-      c.StreamInfo, err = rakuten.FetchMovieStreaming(
-         c.Url.ContentId, c.Start.Profile.Classification, c.audio,
-      )
-   case c.Url.IsTvShow():
-      c.StreamInfo, err = rakuten.FetchEpisodeStreaming(
-         c.episode, c.Start.Profile.Classification, c.audio,
-      )
-   }
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(c.StreamInfo.GetManifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
 }

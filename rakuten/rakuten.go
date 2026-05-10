@@ -11,6 +11,11 @@ import (
    "strings"
 )
 
+type StreamInfo struct {
+   LicenseUrl Url `json:"license_url"`
+   Url        Url // MPD
+}
+
 type Start struct {
    Profile Profile `json:"profile"`
    Market  Market  `json:"market"`
@@ -413,11 +418,6 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-type StreamInfo struct {
-   LicenseUrl Url `json:"license_url"`
-   Url        Url // MPD
 }
 
 func (s *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
