@@ -7,27 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_episode() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   source, err := playback.GetDash()
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(&source.Src.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playback, source)
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
@@ -38,13 +17,13 @@ func (c *client) do() error {
    series := maya.IntFlag(&c.series, "s", "series ID")
    season := maya.IntFlag(&c.season, "S", "season ID")
    episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
    dash := maya.StringFlag(&c.dash, "d", "DASH ID")
+   widevine := maya.StringFlag(&c.widevine, "w", "Widevine")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(maya.Job{Widevine: c.widevine})
    }
    if email.IsSet {
       if password.IsSet {
@@ -80,20 +59,22 @@ func (c *client) do() error {
 func (c *client) do_dash() error {
    var (
       dash     maya.Dash
+      job      maya.Job
       playback amc.Playback
       source   amc.Source
    )
-   err := c.cache.Decode(&c.job, &dash, &playback, &source)
+   err := c.cache.Decode(&dash, &job, &playback, &source)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
+   fetch := func(body []byte) ([]byte, error) {
       return amc.License(
          source.KeySystems.ComWidevineAlpha.LicenseURL,
          playback.BcovAuth,
-         data,
+         body,
       )
-   })
+   }
+   return dash.Download(c.dash, &job, fetch)
 }
 
 func main() {
@@ -102,17 +83,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   dash     string
-   email    string
-   episode  int
-   password string
-   season   int
-   series   int
-   cache    maya.Cache
-   job      maya.Job
 }
 
 func (c *client) do_email_password() error {
@@ -176,4 +146,36 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+func (c *client) do_episode() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   source, err := playback.GetDash()
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(&source.Src.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash, playback, source)
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     string
+   email    string
+   episode  int
+   password string
+   season   int
+   series   int
+   widevine string
 }
