@@ -25,8 +25,38 @@ type client struct {
    season  string
 }
 
+func (c *client) do_address() error {
+   address, err := rakuten.ParseAddress(c.address)
+   if err != nil {
+      return err
+   }
+   start, err := rakuten.FetchStart(address.MarketCode)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      movie, err := rakuten.FetchMovie(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(movie)
+   case address.IsTvShow():
+      show, err := rakuten.FetchTvShow(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(show)
+   }
+   return c.cache.Encode(address, start)
+}
+
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/rakuten.xml"); err != nil {
+   if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
    }
    address := maya.StringFlag(&c.address, "a", "address")
@@ -52,8 +82,8 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {playReady},
-
       {address},
+
       {season},
       {audio, episode},
       {dash},
@@ -62,35 +92,20 @@ func (c *client) do() error {
 
 ///
 
-func (c *client) do_address() error {
-   var err error
-   c.Url, err = rakuten.ParseUrl(c.address)
+func (c *client) do_season() error {
+   season, err := rakuten.FetchSeason(
+      c.season, c.Start.Profile.Classification, c.Start.Market,
+   )
    if err != nil {
       return err
    }
-   c.Start, err = rakuten.FetchStart(c.Url.MarketCode)
-   if err != nil {
-      return err
-   }
-   switch {
-   case c.Url.IsMovie():
-      movie, err := rakuten.FetchMovie(
-         c.Url.ContentId, c.Start.Profile.Classification, c.Start.Market,
-      )
-      if err != nil {
-         return err
+   for i, episode := range season.Episodes {
+      if i >= 1 {
+         fmt.Println()
       }
-      fmt.Println(movie)
-   case c.Url.IsTvShow():
-      show, err := rakuten.FetchTvShow(
-         c.Url.ContentId, c.Start.Profile.Classification, c.Start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(show)
+      fmt.Println(&episode)
    }
-   return c.cache.Write(c)
+   return nil
 }
 
 func (c *client) do_language() error {
@@ -117,20 +132,4 @@ func (c *client) do_language() error {
 
 func (c *client) do_dash() error {
    return c.Dash.Download(&c.Job, c.StreamInfo.FetchLicense)
-}
-
-func (c *client) do_season() error {
-   season, err := rakuten.FetchSeason(
-      c.season, c.Start.Profile.Classification, c.Start.Market,
-   )
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.Episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
 }

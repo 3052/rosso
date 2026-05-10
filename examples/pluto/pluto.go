@@ -8,55 +8,8 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var dash maya.Dash
-   err := c.cache.Decode(&c.job, &dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, pluto.FetchWidevine)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   cache   maya.Cache
-   dash    string
-   episode string
-   job     maya.Job
-   movie   string
-   show    string
-}
-
-func (c *client) do_movie() error {
-   series, err := pluto.FetchSeries(path.Base(c.movie))
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(series.GetMovieUrl())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
-}
-
-func (c *client) do_show() error {
-   series, err := pluto.FetchSeries(path.Base(c.show))
-   if err != nil {
-      return err
-   }
-   fmt.Println(&series.Vod[0])
-   return c.cache.Encode(series)
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/pluto.xml"); err != nil {
+   if err := c.cache.Setup("rosso/pluto"); err != nil {
       return err
    }
    episode := maya.StringFlag(&c.episode, "e", "episode ID")
@@ -103,4 +56,51 @@ func (c *client) do_episode() error {
       return err
    }
    return c.cache.Encode(dash)
+}
+
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, pluto.FetchWidevine)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache   maya.Cache
+   dash    string
+   episode string
+   job     maya.Job
+   movie   string
+   show    string
+}
+
+func (c *client) do_movie() error {
+   series, err := pluto.FetchSeries(path.Base(c.movie))
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(series.GetMovieUrl())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
+
+func (c *client) do_show() error {
+   series, err := pluto.FetchSeries(path.Base(c.show))
+   if err != nil {
+      return err
+   }
+   fmt.Println(&series.Vod[0])
+   return c.cache.Encode(series)
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func (c *client) do() error {
-   if err := cache.Setup("rosso/rtbf.xml"); err != nil {
+   if err := cache.Setup("rosso/rtbf"); err != nil {
       return err
    }
    c.cache_err = cache.Read(c)

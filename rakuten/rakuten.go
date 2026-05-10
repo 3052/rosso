@@ -165,13 +165,13 @@ func formatPlayableDetails(identifier string, title string, playbackStreams []St
    return fmt.Sprintf("%s (%s) - Audio: %s", title, identifier, formattedAudio)
 }
 
-type ParsedUrl struct {
+type Address struct {
    MarketCode  string
    ContentType string
    ContentId   string
 }
 
-func ParseUrl(targetUrl string) (*ParsedUrl, error) {
+func ParseAddress(targetUrl string) (*Address, error) {
    target, err := url.Parse(targetUrl)
    if err != nil {
       return nil, err
@@ -186,7 +186,7 @@ func ParseUrl(targetUrl string) (*ParsedUrl, error) {
       return nil, errors.New("missing market code in path")
    }
 
-   parsed := &ParsedUrl{
+   parsed := &Address{
       MarketCode: segments[0],
    }
 
@@ -226,12 +226,12 @@ func ParseUrl(targetUrl string) (*ParsedUrl, error) {
    return parsed, nil
 }
 
-func (parsed *ParsedUrl) IsMovie() bool {
-   return parsed.ContentType == "movies"
+func (a *Address) IsMovie() bool {
+   return a.ContentType == "movies"
 }
 
-func (parsed *ParsedUrl) IsTvShow() bool {
-   return parsed.ContentType == "tv_shows"
+func (a *Address) IsTvShow() bool {
+   return a.ContentType == "tv_shows"
 }
 
 type Season struct {

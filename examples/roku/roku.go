@@ -8,7 +8,7 @@ import (
 )
 
 func (c *client) do() error {
-   if err := cache.Setup("rosso/roku.xml"); err != nil {
+   if err := cache.Setup("rosso/roku"); err != nil {
       return err
    }
    c.cache_err = cache.Read(c)
