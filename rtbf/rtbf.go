@@ -212,31 +212,6 @@ type Session struct {
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
-type Entitlement struct {
-   AssetId   string
-   Formats   []Format
-   Message   string
-   PlayToken string
-}
-
-type Format struct {
-   Format       string
-   MediaLocator string // MPD
-}
-
-func (e *Entitlement) GetDash() (*Format, error) {
-   for _, format_data := range e.Formats {
-      if format_data.Format == "DASH" {
-         return &format_data, nil
-      }
-   }
-   return nil, errors.New("DASH format not found")
-}
-
-func (f *Format) GetManifest() (*url.URL, error) {
-   return url.Parse(f.MediaLocator)
-}
-
 func GetPath(urlData string) (string, error) {
    url_parse, err := url.Parse(urlData)
    if err != nil {
@@ -253,4 +228,23 @@ type Account struct {
    SessionInfo  struct {
       CookieValue string
    }
+}
+
+type Entitlement struct {
+   AssetId string
+   Formats []struct {
+      Format       string
+      MediaLocator string // MPD
+   }
+   Message   string
+   PlayToken string
+}
+
+func (e *Entitlement) GetDash() (*url.URL, error) {
+   for _, format := range e.Formats {
+      if format.Format == "DASH" {
+         return url.Parse(format.MediaLocator)
+      }
+   }
+   return nil, errors.New("DASH format not found")
 }

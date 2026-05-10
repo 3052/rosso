@@ -8,7 +8,15 @@ import (
 )
 
 func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, c.Playback.GetWidevineLicense)
+   var (
+      dash     maya.Dash
+      playback roku.Playback
+   )
+   err := c.cache.Decode(&c.job, &dash, &playback)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playback.GetWidevineLicense)
 }
 
 func main() {
