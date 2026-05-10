@@ -5,9 +5,17 @@ import (
    "41.neocities.org/rosso/pluto"
    "fmt"
    "log"
-   "net/url"
    "path"
 )
+
+func (c *client) do_dash() error {
+   var dash maya.Dash
+   err := c.cache.Decode(&c.job, &dash)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, pluto.FetchWidevine)
+}
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -19,10 +27,32 @@ func main() {
 
 type client struct {
    cache   maya.Cache
+   dash    string
    episode string
    job     maya.Job
    movie   string
    show    string
+}
+
+func (c *client) do_movie() error {
+   series, err := pluto.FetchSeries(path.Base(c.movie))
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(series.GetMovieUrl())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
+
+func (c *client) do_show() error {
+   series, err := pluto.FetchSeries(path.Base(c.show))
+   if err != nil {
+      return err
+   }
+   fmt.Println(&series.Vod[0])
+   return c.cache.Encode(series)
 }
 
 func (c *client) do() error {
@@ -51,7 +81,6 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{{
       widevine,
-
       movie,
       show,
       episode,
@@ -59,43 +88,19 @@ func (c *client) do() error {
    }})
 }
 
-///
-
-func (c *client) do_movie() error {
-   series, err := pluto.FetchSeries(path.Base(c.movie))
-   if err != nil {
-      return err
-   }
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return series.GetMovieUrl(), nil
-   })
-   if err != nil {
-      return err
-   }
-   return c.cache.Write(c)
-}
-
 func (c *client) do_episode() error {
-   var err error
-   c.Dash, err = maya.ListDash(func() (*url.URL, error) {
-      return c.Series.GetEpisodeUrl(c.episode)
-   })
+   var series pluto.Series
+   err := c.cache.Decode(&series)
    if err != nil {
       return err
    }
-   return c.cache.Write(c)
-}
-
-func (c *client) do_dash() error {
-   return c.Dash.Download(&c.Job, pluto.FetchWidevine)
-}
-
-func (c *client) do_show() error {
-   var err error
-   c.Series, err = pluto.FetchSeries(path.Base(c.show))
+   episode, err := series.GetEpisodeUrl(c.episode)
    if err != nil {
       return err
    }
-   fmt.Println(&c.Series.Vod[0])
-   return c.cache.Write(c)
+   dash, err := maya.ListDash(episode)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
 }
