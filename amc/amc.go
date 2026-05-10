@@ -9,6 +9,114 @@ import (
    "net/url"
 )
 
+func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path: fmt.Sprint(
+            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
+            seriesId,
+         ),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path: fmt.Sprint(
+            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/",
+            seasonId,
+         ),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+type DownloadData struct {
+   Downloadable        bool `json:"downloadable,omitempty"`
+   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
+   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
+}
+
+type Images struct {
+   Default string `json:"default,omitempty"`
+   Mobile  string `json:"mobile,omitempty"`
+   Tablet  string `json:"tablet,omitempty"`
+}
+
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
+}
+
+type Navigation struct {
+   ClientRequest struct {
+      Endpoint string `json:"endpoint,omitempty"`
+   } `json:"client_request,omitempty"`
+   ContentID    string `json:"content_id,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   MicroAppType string `json:"micro_app_type,omitempty"`
+   Properties   struct {
+      Fullscreen bool   `json:"fullscreen,omitempty"`
+      IsLive     bool   `json:"isLive,omitempty"`
+      VideoTitle string `json:"videoTitle,omitempty"`
+   } `json:"properties,omitempty"`
+   ScreenDesignType string `json:"screenDesignType,omitempty"`
+}
+
 func GetPlayback(authToken string, videoId int) (*Playback, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -376,112 +484,4 @@ func Unauth() (*AuthData, error) {
       return nil, err
    }
    return &envelope.Data, nil
-}
-
-func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint(
-            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
-            seriesId,
-         ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint(
-            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/",
-            seasonId,
-         ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-type DownloadData struct {
-   Downloadable        bool `json:"downloadable,omitempty"`
-   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
-   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
-}
-
-type Images struct {
-   Default string `json:"default,omitempty"`
-   Mobile  string `json:"mobile,omitempty"`
-   Tablet  string `json:"tablet,omitempty"`
-}
-
-type KeySystems struct {
-   ComWidevineAlpha struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.widevine.alpha"`
-   ComMicrosoftPlayready struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.microsoft.playready"`
-}
-
-type Navigation struct {
-   ClientRequest struct {
-      Endpoint string `json:"endpoint,omitempty"`
-   } `json:"client_request,omitempty"`
-   ContentID    string `json:"content_id,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   MicroAppType string `json:"micro_app_type,omitempty"`
-   Properties   struct {
-      Fullscreen bool   `json:"fullscreen,omitempty"`
-      IsLive     bool   `json:"isLive,omitempty"`
-      VideoTitle string `json:"videoTitle,omitempty"`
-   } `json:"properties,omitempty"`
-   ScreenDesignType string `json:"screenDesignType,omitempty"`
 }

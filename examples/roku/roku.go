@@ -7,47 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash     maya.Dash
-      playback roku.Playback
-   )
-   err := c.cache.Decode(&c.job, &dash, &playback)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, playback.GetWidevineLicense)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   cache       maya.Cache
-   dash        string
-   job         maya.Job
-   roku_id     string
-   use_account *maya.Flag
-}
-
-func (c *client) do_account_activation() error {
-   account_token, err := roku.GetAccountToken(nil)
-   if err != nil {
-      return err
-   }
-   account_activation, err := roku.CreateAccountActivation(account_token)
-   if err != nil {
-      return err
-   }
-   fmt.Println(account_activation)
-   return c.cache.Encode(account_activation, account_token)
-}
-
 func (c *client) do_activation_status() error {
    account_activation := &roku.AccountActivation{}
    account_token := &roku.AccountToken{}
@@ -58,6 +17,9 @@ func (c *client) do_activation_status() error {
    activation_status, err := roku.GetActivationStatus(
       account_token, account_activation,
    )
+   if err != nil {
+      return err
+   }
    return c.cache.Encode(activation_status)
 }
 
@@ -121,4 +83,45 @@ func (c *client) do_roku_id() error {
       return err
    }
    return c.cache.Encode(account_token, dash, playback)
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash     maya.Dash
+      playback roku.Playback
+   )
+   err := c.cache.Decode(&c.job, &dash, &playback)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playback.GetWidevineLicense)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache       maya.Cache
+   dash        string
+   job         maya.Job
+   roku_id     string
+   use_account *maya.Flag
+}
+
+func (c *client) do_account_activation() error {
+   account_token, err := roku.GetAccountToken(nil)
+   if err != nil {
+      return err
+   }
+   account_activation, err := roku.CreateAccountActivation(account_token)
+   if err != nil {
+      return err
+   }
+   fmt.Println(account_activation)
+   return c.cache.Encode(account_activation, account_token)
 }
