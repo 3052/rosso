@@ -7,6 +7,76 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/amc"); err != nil {
+      return err
+   }
+   email := c.flag.String(&c.email, "E", "email")
+   password := c.flag.String(&c.password, "P", "password")
+   refresh := c.flag.Bool("r", "refresh")
+   series := c.flag.Int(&c.series, "s", "series ID")
+   season := c.flag.Int(&c.season, "S", "season ID")
+   episode := c.flag.Int(&c.episode, "e", "episode or movie ID")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(device(c.widevine))
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if refresh.IsSet {
+      return c.do_refresh()
+   }
+   if series.IsSet {
+      return c.do_series()
+   }
+   if season.IsSet {
+      return c.do_season()
+   }
+   if episode.IsSet {
+      return c.do_episode()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{
+      {widevine},
+      {email, password},
+      {refresh},
+      {series},
+      {season},
+      {episode},
+      {dash},
+   })
+}
+
+func (c *client) do_episode() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
+   if err != nil {
+      return err
+   }
+   source, err := playback.GetDash()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&source.Src.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback, source)
+}
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -116,74 +186,3 @@ type client struct {
 }
 
 type device string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/amc"); err != nil {
-      return err
-   }
-   email := c.flag.String(&c.email, "E", "email")
-   password := c.flag.String(&c.password, "P", "password")
-   refresh := c.flag.Bool("r", "refresh")
-   series := c.flag.Int(&c.series, "s", "series ID")
-   season := c.flag.Int(&c.season, "S", "season ID")
-   episode := c.flag.Int(&c.episode, "e", "episode or movie ID")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(device(c.widevine))
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if refresh.IsSet {
-      return c.do_refresh()
-   }
-   if series.IsSet {
-      return c.do_series()
-   }
-   if season.IsSet {
-      return c.do_season()
-   }
-   if episode.IsSet {
-      return c.do_episode()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-
-      {email, password},
-      {refresh},
-      {series},
-      {season},
-      {episode},
-      {dash},
-   })
-}
-
-func (c *client) do_episode() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   playback, err := amc.GetPlayback(auth_data.AccessToken, c.episode)
-   if err != nil {
-      return err
-   }
-   source, err := playback.GetDash()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&source.Src.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback, source)
-}

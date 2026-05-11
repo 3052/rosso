@@ -8,6 +8,23 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      session  mubi.Session
+      widevine device
+   )
+   err := c.cache.Decode(&manifest, &session, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: session.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -115,8 +132,6 @@ func (c *client) do() error {
    })
 }
 
-///
-
 func (c *client) do_mubi_id() error {
    var session mubi.Session
    err := c.cache.Decode(&session)
@@ -131,21 +146,9 @@ func (c *client) do_mubi_id() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(secure_url.GetManifest())
+   manifest, err := maya.ListDash(secure_url.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash)
-}
-
-func (c *client) do_dash() error {
-   var (
-      dash    maya.Dash
-      session mubi.Session
-   )
-   err := c.cache.Decode(&c.job, &dash, &session)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, session.FetchWidevine)
+   return c.cache.Encode(manifest)
 }
