@@ -8,33 +8,12 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash    maya.Dash
-      session mubi.Session
-   )
-   err := c.cache.Decode(&c.job, &dash, &session)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, session.FetchWidevine)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   address string
-   cache   maya.Cache
-   dash    string
-   job     maya.Job
-   mubi_id int
-   season  int
 }
 
 func (c *client) do_code() error {
@@ -82,22 +61,34 @@ func (c *client) do_address() error {
    return nil
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   flag     maya.FlagSet
+   mubi_id  int
+   season   int
+   widevine string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   code := maya.BoolFlag("c", "link code")
-   mubi_id := maya.IntFlag(&c.mubi_id, "m", "Mubi ID")
-   season := maya.IntFlag(&c.season, "s", "season")
-   session := maya.BoolFlag("S", "session")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   code := c.flag.Bool("c", "link code")
+   mubi_id := c.flag.Int(&c.mubi_id, "m", "Mubi ID")
+   season := c.flag.Int(&c.season, "s", "season")
+   session := c.flag.Bool("S", "session")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.widevine))
    }
    if code.IsSet {
       return c.do_code()
@@ -114,16 +105,17 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {widevine},
       {code},
       {session},
       {address, season},
-
       {mubi_id},
       {dash},
    })
 }
+
+///
 
 func (c *client) do_mubi_id() error {
    var session mubi.Session
@@ -144,4 +136,16 @@ func (c *client) do_mubi_id() error {
       return err
    }
    return c.cache.Encode(dash)
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash    maya.Dash
+      session mubi.Session
+   )
+   err := c.cache.Decode(&c.job, &dash, &session)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, session.FetchWidevine)
 }

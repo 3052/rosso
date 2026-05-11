@@ -11,6 +11,15 @@ import (
    "strings"
 )
 
+func (p *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
+}
+
 type Url struct {
    Url url.URL
 }
@@ -56,15 +65,6 @@ func ParseVideo(urlData string) (*Video, error) {
       result.VideoId = numeric_id
    }
    return &result, nil
-}
-
-func (p *PlayResponse) GetDash() (*Manifest, error) {
-   for _, manifest_data := range p.Manifests {
-      if manifest_data.ManifestType == "dash" {
-         return &manifest_data, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
 }
 
 type PlayResponse struct {

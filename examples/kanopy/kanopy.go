@@ -7,38 +7,33 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      login         kanopy.Login
+      manifest      kanopy.Manifest
+      maya_manifest maya.Manifest
+      widevine      device
+   )
+   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return kanopy.CreateLicense(&login, &manifest, body)
+   }
+   return maya.DownloadDash(c.dash, &maya_manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-///
-
-func (c *client) do_dash() error {
-   var (
-      dash     maya.Dash
-      login    kanopy.Login
-      manifest kanopy.Manifest
-   )
-   err := c.cache.Decode(&c.job, &dash, &login, &manifest)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
-      return kanopy.CreateLicense(&login, &manifest, data)
-   })
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   job      maya.Job
-   password string
 }
 
 func (c *client) do_email_password() error {
@@ -49,20 +44,32 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(login)
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   flag     maya.FlagSet
+   password string
+   widevine string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/kanopy"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -75,7 +82,7 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {widevine},
       {email, password},
       {address},
@@ -116,9 +123,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(&manifest.Url.Url)
+   maya_manifest, err := maya.ListDash(&manifest.Url.Url)
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash, manifest)
+   return c.cache.Encode(manifest, maya_manifest)
 }
