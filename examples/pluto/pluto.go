@@ -9,12 +9,19 @@ import (
 )
 
 func (c *client) do_dash() error {
-   var dash maya.Dash
-   err := c.cache.Decode(&c.job, &dash)
+   var (
+      manifest maya.Manifest
+      widevine device
+   )
+   err := c.cache.Decode(&manifest, &widevine)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, pluto.FetchWidevine)
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: pluto.FetchWidevine,
+   })
 }
 
 func main() {

@@ -7,64 +7,21 @@ import (
    "log"
 )
 
-func (c *client) do_audio() error {
-   var (
-      address     rakuten.Address
-      start       rakuten.Start
-      stream_info *rakuten.StreamInfo
-   )
-   err := c.cache.Decode(&address, &start)
-   if err != nil {
-      return err
-   }
-   switch {
-   case address.IsMovie():
-      stream_info, err = rakuten.FetchMovieStreaming(
-         address.ContentId, start.Profile.Classification, c.audio,
-      )
-   case address.IsTvShow():
-      stream_info, err = rakuten.FetchEpisodeStreaming(
-         c.episode, start.Profile.Classification, c.audio,
-      )
-   }
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(&stream_info.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, stream_info)
-}
-
 func (c *client) do_dash() error {
    var (
-      dash        maya.Dash
+      manifest    maya.Manifest
+      playReady   device
       stream_info rakuten.StreamInfo
    )
-   err := c.cache.Decode(&c.job, &dash, &stream_info)
+   err := c.cache.Decode(&manifest, &playReady, &stream_info)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, stream_info.FetchLicense)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   address string
-   audio   string
-   cache   maya.Cache
-   dash    string
-   episode string
-   job     maya.Job
-   season  string
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: stream_info.FetchLicense,
+   })
 }
 
 func (c *client) do_address() error {
@@ -118,22 +75,43 @@ func (c *client) do_season() error {
    return nil
 }
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   address   string
+   audio     string
+   cache     maya.Cache
+   dash      string
+   episode   string
+   flag      maya.FlagSet
+   season    string
+   playReady string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   audio := maya.StringFlag(&c.audio, "A", "audio language")
-   episode := maya.StringFlag(&c.episode, "e", "episode ID")
-   season := maya.StringFlag(&c.season, "s", "season ID")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   playReady := maya.StringFlag(&c.job.PlayReady, "p", "PlayReady")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   audio := c.flag.String(&c.audio, "A", "audio language")
+   episode := c.flag.String(&c.episode, "e", "episode ID")
+   season := c.flag.String(&c.season, "s", "season ID")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   playReady := c.flag.String(&c.playReady, "p", "PlayReady")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.playReady))
    case address.IsSet:
       return c.do_address()
    case season.IsSet:
@@ -143,12 +121,41 @@ func (c *client) do() error {
    case dash.IsSet:
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {playReady},
       {address},
       {season},
-
       {audio, episode},
       {dash},
    })
+}
+
+func (c *client) do_audio() error {
+   var (
+      address     rakuten.Address
+      start       rakuten.Start
+      stream_info *rakuten.StreamInfo
+   )
+   err := c.cache.Decode(&address, &start)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      stream_info, err = rakuten.FetchMovieStreaming(
+         address.ContentId, start.Profile.Classification, c.audio,
+      )
+   case address.IsTvShow():
+      stream_info, err = rakuten.FetchEpisodeStreaming(
+         c.episode, start.Profile.Classification, c.audio,
+      )
+   }
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&stream_info.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, stream_info)
 }
