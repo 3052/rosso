@@ -7,6 +7,23 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest  maya.Manifest
+      playReady device
+      playback  hboMax.Playback
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playback)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: playback.PlayReadyRequest,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -157,8 +174,6 @@ func (c *client) do() error {
    })
 }
 
-///
-
 func (c *client) do_edit() error {
    var login hboMax.Login
    err := c.cache.Decode(&login)
@@ -169,21 +184,9 @@ func (c *client) do_edit() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(playback.GetManifest())
+   manifest, err := maya.ListDash(playback.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash, playback)
-}
-
-func (c *client) do_dash() error {
-   var (
-      dash     maya.Dash
-      playback hboMax.Playback
-   )
-   err := c.cache.Decode(&c.job, &dash, &playback)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, playback.PlayReadyRequest)
+   return c.cache.Encode(manifest, playback)
 }

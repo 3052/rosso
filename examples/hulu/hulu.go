@@ -6,41 +6,21 @@ import (
    "log"
 )
 
-func (c *client) do_address() error {
-   var device hulu.Device
-   err := c.cache.Decode(&device)
-   if err != nil {
-      return err
-   }
-   err = device.TokenRefresh()
-   if err != nil {
-      return err
-   }
-   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
-   if err != nil {
-      return err
-   }
-   playlist, err := device.Playlist(deep_link.EabId)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(&playlist.StreamUrl.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, playlist)
-}
-
 func (c *client) do_dash() error {
    var (
-      dash     maya.Dash
-      playlist hulu.Playlist
+      manifest  maya.Manifest
+      playReady device
+      playlist  hulu.Playlist
    )
-   err := c.cache.Decode(&c.job, &dash, &playlist)
+   err := c.cache.Decode(&manifest, &playReady, &playlist)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, playlist.FetchPlayReady)
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: playlist.FetchPlayReady,
+   })
 }
 
 func main() {
@@ -60,28 +40,31 @@ func (c *client) do_email_password() error {
 }
 
 type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   job      maya.Job
-   password string
+   address   string
+   cache     maya.Cache
+   dash      string
+   email     string
+   flag      maya.FlagSet
+   password  string
+   playReady string
 }
+
+type device string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/hulu"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   playReady := maya.StringFlag(&c.job.PlayReady, "P", "PlayReady")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   playReady := c.flag.String(&c.playReady, "P", "PlayReady")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.playReady))
    }
    if email.IsSet {
       if password.IsSet {
@@ -94,10 +77,35 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {playReady},
       {email, password},
       {address},
       {dash},
    })
+}
+
+func (c *client) do_address() error {
+   var device hulu.Device
+   err := c.cache.Decode(&device)
+   if err != nil {
+      return err
+   }
+   err = device.TokenRefresh()
+   if err != nil {
+      return err
+   }
+   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
+   if err != nil {
+      return err
+   }
+   playlist, err := device.Playlist(deep_link.EabId)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&playlist.StreamUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playlist)
 }
