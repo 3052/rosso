@@ -7,6 +7,16 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+///
+
 func (c *client) do_dash() error {
    var (
       dash     maya.Dash
@@ -20,14 +30,6 @@ func (c *client) do_dash() error {
    return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
       return kanopy.CreateLicense(&login, &manifest, data)
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 type client struct {
