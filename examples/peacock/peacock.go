@@ -7,33 +7,12 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var (
-      dash    maya.Dash
-      playout peacock.Playout
-   )
-   err := c.cache.Decode(&c.job, &dash, &playout)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, playout.FetchWidevine)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   job      maya.Job
-   password string
 }
 
 func (c *client) do_email_password() error {
@@ -44,20 +23,32 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(id_session)
 }
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   flag     maya.FlagSet
+   password string
+   widevine string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/peacock"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -70,10 +61,9 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {widevine},
       {email, password},
-
       {address},
       {dash},
    })
@@ -104,4 +94,16 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(dash, playout)
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash    maya.Dash
+      playout peacock.Playout
+   )
+   err := c.cache.Decode(&c.job, &dash, &playout)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, playout.FetchWidevine)
 }

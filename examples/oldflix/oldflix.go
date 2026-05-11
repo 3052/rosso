@@ -6,6 +6,15 @@ import (
    "log"
 )
 
+func (c *client) do_hls() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadHls(c.hls, &manifest, nil)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -53,14 +62,12 @@ func (c *client) do() error {
    if hls.IsSet {
       return c.do_hls()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {username, password},
       {oldflix_id},
       {hls},
    })
 }
-
-///
 
 func (c *client) do_oldflix_id() error {
    var login oldflix.Login
@@ -80,18 +87,9 @@ func (c *client) do_oldflix_id() error {
    if err != nil {
       return err
    }
-   hls, err := maya.ListHls(&watch.Playlist[0].File.Url)
+   manifest, err := maya.ListHls(&watch.Playlist[0].File.Url)
    if err != nil {
       return err
    }
-   return c.cache.Encode(hls)
-}
-
-func (c *client) do_hls() error {
-   var hls maya.Hls
-   err := c.cache.Decode(&c.job, &hls)
-   if err != nil {
-      return err
-   }
-   return hls.Download(c.hls, &c.job, nil)
+   return c.cache.Encode(manifest)
 }
