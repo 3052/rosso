@@ -8,15 +8,21 @@ import (
 
 func (c *client) do_dash() error {
    var (
-      dash   maya.Dash
-      server tubi.LicenseServer
+      manifest maya.Manifest
+      server   tubi.LicenseServer
+      widevine device
    )
-   err := c.cache.Decode(&c.job, &dash, &server)
+   err := c.cache.Decode(&manifest, &server, &widevine)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, func(body []byte) ([]byte, error) {
+   license := func(body []byte) ([]byte, error) {
       return tubi.AcquireLicense(&server, body)
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
    })
 }
 
@@ -29,10 +35,38 @@ func main() {
 }
 
 type client struct {
-   cache   maya.Cache
-   dash    string
-   job     maya.Job
-   tubi_id int
+   cache    maya.Cache
+   dash     string
+   flag     maya.FlagSet
+   tubi_id  int
+   widevine string
+}
+
+type device string
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/tubi"); err != nil {
+      return err
+   }
+   tubi_id := c.flag.Int(&c.tubi_id, "t", "Tubi ID")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(device(c.widevine))
+   case tubi_id.IsSet:
+      return c.do_tubi()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{{
+      widevine,
+      tubi_id,
+      dash,
+   }})
 }
 
 func (c *client) do_tubi() error {
@@ -41,35 +75,9 @@ func (c *client) do_tubi() error {
       return err
    }
    video := content.VideoResources[0]
-   dash, err := maya.ListDash(&video.Manifest.Url.Url)
+   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash, video.LicenseServer)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/tubi"); err != nil {
-      return err
-   }
-   tubi_id := maya.IntFlag(&c.tubi_id, "t", "Tubi ID")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(c.job)
-   case tubi_id.IsSet:
-      return c.do_tubi()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-
-      tubi_id,
-      dash,
-   }})
+   return c.cache.Encode(manifest, video.LicenseServer)
 }

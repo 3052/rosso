@@ -8,6 +8,21 @@ import (
    "strings"
 )
 
+func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
+   headers := map[string]string{
+      "content-type": "application/x-protobuf",
+      "user-agent":   "Go-http-client/2.0",
+   }
+
+   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
 type Url struct {
    Url url.URL
 }
@@ -179,21 +194,6 @@ type Drm struct {
 
 type Widevine struct {
    LicenseServer Url `json:"licenseServer"`
-}
-
-func (p *Playback) GetWidevineLicense(challenge []byte) ([]byte, error) {
-   headers := map[string]string{
-      "content-type": "application/x-protobuf",
-      "user-agent":   "Go-http-client/2.0",
-   }
-
-   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
 }
 
 type Playback struct {
