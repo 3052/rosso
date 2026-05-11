@@ -56,34 +56,34 @@ func (c *client) do_profile() error {
    return c.cache.Encode(profile_token)
 }
 
-///
-
 type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   password string
-   profile  string
-   username string
-
-   job maya.Job
+   address   string
+   cache     maya.Cache
+   dash      string
+   flag      maya.FlagSet
+   password  string
+   playReady string
+   profile   string
+   username  string
 }
+
+type device string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/crave"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   password := maya.StringFlag(&c.password, "p", "password")
-   profile := maya.StringFlag(&c.profile, "P", "profile")
-   username := maya.StringFlag(&c.username, "u", "username")
-   playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   password := c.flag.String(&c.password, "p", "password")
+   profile := c.flag.String(&c.profile, "P", "profile")
+   username := c.flag.String(&c.username, "u", "username")
+   playReady := c.flag.String(&c.playReady, "PR", "PlayReady")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.playReady))
    }
    if username.IsSet {
       if password.IsSet {
@@ -99,7 +99,7 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {playReady},
       {username, password},
       {profile},
@@ -108,20 +108,7 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_dash() error {
-   var (
-      dash          maya.Dash
-      playback      crave.Playback
-      profile_token crave.ProfileToken
-   )
-   err := c.cache.Decode(&c.job, &dash, &playback, &profile_token)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, &profile_token, &playback)
-   })
-}
+///
 
 func (c *client) do_address() error {
    profile_token := &crave.ProfileToken{}
@@ -152,4 +139,19 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(dash, media, playback)
+}
+
+func (c *client) do_dash() error {
+   var (
+      dash          maya.Dash
+      playback      crave.Playback
+      profile_token crave.ProfileToken
+   )
+   err := c.cache.Decode(&c.job, &dash, &playback, &profile_token)
+   if err != nil {
+      return err
+   }
+   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
+      return crave.AcquireLicense(data, &profile_token, &playback)
+   })
 }

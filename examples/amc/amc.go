@@ -10,61 +10,26 @@ import (
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
-      options  maya.Options
       playback amc.Playback
       source   amc.Source
+      widevine device
    )
-   err := c.cache.Decode(&manifest, &options.Device, &playback, &source)
+   err := c.cache.Decode(&manifest, &playback, &source, &widevine)
    if err != nil {
       return err
    }
-   options.Drm = maya.DrmWidevine
-   options.License = func(body []byte) ([]byte, error) {
+   license := func(body []byte) ([]byte, error) {
       return amc.License(
          source.KeySystems.ComWidevineAlpha.LicenseURL,
          playback.BcovAuth,
          body,
       )
    }
-   return maya.DownloadDash(c.dash, &manifest, &options)
-}
-
-func (c *client) do_season() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.EpisodesMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   cache    maya.Cache
-   dash     string
-   email    string
-   episode  int
-   password string
-   season   int
-   series   int
-   widevine string
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
 }
 
 func (c *client) do_email_password() error {
@@ -111,23 +76,64 @@ func (c *client) do_series() error {
    return nil
 }
 
+func (c *client) do_season() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.EpisodesMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     string
+   email    string
+   episode  int
+   flag     maya.FlagSet
+   password string
+   season   int
+   series   int
+   widevine string
+}
+
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   email := maya.StringFlag(&c.email, "E", "email")
-   password := maya.StringFlag(&c.password, "P", "password")
-   refresh := maya.BoolFlag("r", "refresh")
-   series := maya.IntFlag(&c.series, "s", "series ID")
-   season := maya.IntFlag(&c.season, "S", "season ID")
-   episode := maya.IntFlag(&c.episode, "e", "episode or movie ID")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   widevine := maya.StringFlag(&c.widevine, "w", "Widevine")
-   if err := maya.ParseFlags(); err != nil {
+   email := c.flag.String(&c.email, "E", "email")
+   password := c.flag.String(&c.password, "P", "password")
+   refresh := c.flag.Bool("r", "refresh")
+   series := c.flag.Int(&c.series, "s", "series ID")
+   season := c.flag.Int(&c.season, "S", "season ID")
+   episode := c.flag.Int(&c.episode, "e", "episode or movie ID")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(maya.Device(c.widevine))
+      return c.cache.Encode(device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -149,8 +155,9 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {widevine},
+
       {email, password},
       {refresh},
       {series},

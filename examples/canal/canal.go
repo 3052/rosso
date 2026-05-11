@@ -13,16 +13,18 @@ import (
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
-      options  maya.Options
       player   canal.Player
+      widevine device
    )
-   err := c.cache.Decode(&manifest, &options.Device, &player)
+   err := c.cache.Decode(&manifest, &player, &widevine)
    if err != nil {
       return err
    }
-   options.Drm = maya.DrmWidevine
-   options.License = player.FetchWidevine
-   return maya.DownloadDash(c.dash, &manifest, &options)
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Drm:     maya.DrmWidevine,
+      Device:  string(widevine),
+      License: player.FetchWidevine,
+   })
 }
 
 func main() {
@@ -143,6 +145,7 @@ type client struct {
    cache    maya.Cache
    dash     string
    email    string
+   flag     maya.FlagSet
    password string
    query    string
    season   int
@@ -150,24 +153,26 @@ type client struct {
    widevine string
 }
 
+type device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/canal"); err != nil {
       return err
    }
-   email := maya.StringFlag(&c.email, "e", "email")
-   password := maya.StringFlag(&c.password, "p", "password")
-   query := maya.StringFlag(&c.query, "q", "query")
-   refresh := maya.BoolFlag("r", "refresh")
-   season := maya.IntFlag(&c.season, "s", "season")
-   subtitles := maya.BoolFlag("S", "subtitles")
-   tracking := maya.StringFlag(&c.tracking, "t", "tracking")
-   widevine := maya.StringFlag(&c.widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   query := c.flag.String(&c.query, "q", "query")
+   refresh := c.flag.Bool("r", "refresh")
+   season := c.flag.Int(&c.season, "s", "season")
+   subtitles := c.flag.Bool("S", "subtitles")
+   tracking := c.flag.String(&c.tracking, "t", "tracking")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(maya.Device(c.widevine))
+      return c.cache.Encode(device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -192,7 +197,7 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {widevine},
       {email, password},
       {refresh},

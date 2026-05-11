@@ -40,6 +40,7 @@ type client struct {
    cache    maya.Cache
    dash     string
    email    string
+   flag     maya.FlagSet
    password string
 }
 
@@ -47,11 +48,11 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/cineMember"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   password := maya.StringFlag(&c.password, "p", "password")
-   email := maya.StringFlag(&c.email, "e", "email")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   password := c.flag.String(&c.password, "p", "password")
+   email := c.flag.String(&c.email, "e", "email")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if email.IsSet {
@@ -65,7 +66,7 @@ func (c *client) do() error {
    if dash.IsSet {
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{
+   return maya.PrintFlags([]maya.FlagSet{
       {email, password},
       {address},
       {dash},
