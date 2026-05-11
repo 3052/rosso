@@ -6,51 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var (
-      manifest  maya.Manifest
-      playReady device
-      playlist  hulu.Playlist
-   )
-   err := c.cache.Decode(&manifest, &playReady, &playlist)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(playReady),
-      Drm:     maya.DrmPlayReady,
-      License: playlist.FetchPlayReady,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   device, err := hulu.FetchDevice(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(device)
-}
-
-type client struct {
-   address   string
-   cache     maya.Cache
-   dash      string
-   email     string
-   flag      maya.FlagSet
-   password  string
-   playReady string
-}
-
-type device string
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/hulu"); err != nil {
       return err
@@ -109,3 +64,48 @@ func (c *client) do_address() error {
    }
    return c.cache.Encode(manifest, playlist)
 }
+
+func (c *client) do_dash() error {
+   var (
+      manifest  maya.Manifest
+      playReady device
+      playlist  hulu.Playlist
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playlist)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: playlist.FetchPlayReady,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   device, err := hulu.FetchDevice(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(device)
+}
+
+type client struct {
+   address   string
+   cache     maya.Cache
+   dash      string
+   email     string
+   flag      maya.FlagSet
+   password  string
+   playReady string
+}
+
+type device string
