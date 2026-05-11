@@ -11,7 +11,7 @@ func (c *client) do_dash() error {
       cbs_app      paramount.CbsApp
       manifest     maya.Manifest
       paramount_id content_id
-      playReady    device
+      playReady    playReady_folder
    )
    err := c.cache.Decode(&cbs_app, &manifest, &paramount_id, &playReady)
    if err != nil {
@@ -79,7 +79,7 @@ type client struct {
    playReady    string
 }
 
-type device string
+type playReady_folder string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
@@ -96,7 +96,7 @@ func (c *client) do() error {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    }
    if app.IsSet {
       return c.do_app()

@@ -25,7 +25,7 @@ func (c *client) do() error {
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    case email.IsSet:
       return c.do_email()
    case passcode.IsSet:
@@ -76,7 +76,7 @@ func (c *client) do_media() error {
 func (c *client) do_hls() error {
    var (
       manifest  maya.Manifest
-      playReady device
+      playReady playReady_folder
       token     disney.Token
    )
    err := c.cache.Decode(&manifest, &playReady, &token)
@@ -210,4 +210,4 @@ type client struct {
    season    string
 }
 
-type device string
+type playReady_folder string

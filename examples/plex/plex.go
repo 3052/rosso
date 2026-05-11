@@ -11,7 +11,7 @@ func (c *client) do_dash() error {
       manifest maya.Manifest
       media    plex.Media
       user     plex.User
-      widevine device
+      widevine widevine_folder
    )
    err := c.cache.Decode(&manifest, &media, &user, &widevine)
    if err != nil {
@@ -43,7 +43,7 @@ type client struct {
    widevine string
 }
 
-type device string
+type widevine_folder string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/plex"); err != nil {
@@ -57,7 +57,7 @@ func (c *client) do() error {
    }
    switch {
    case widevine.IsSet:
-      return c.cache.Encode(device(c.widevine))
+      return c.cache.Encode(widevine_folder(c.widevine))
    case address.IsSet:
       return c.do_address()
    case dash.IsSet:

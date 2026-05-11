@@ -23,7 +23,7 @@ func (c *client) do() error {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(device(c.widevine))
+      return c.cache.Encode(widevine_folder(c.widevine))
    }
    if code.IsSet {
       return c.do_code()
@@ -75,7 +75,7 @@ func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       session  mubi.Session
-      widevine device
+      widevine widevine_folder
    )
    err := c.cache.Decode(&manifest, &session, &widevine)
    if err != nil {
@@ -151,4 +151,4 @@ type client struct {
    widevine string
 }
 
-type device string
+type widevine_folder string

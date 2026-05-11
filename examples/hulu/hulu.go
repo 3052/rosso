@@ -19,7 +19,7 @@ func (c *client) do() error {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    }
    if email.IsSet {
       if password.IsSet {
@@ -68,7 +68,7 @@ func (c *client) do_address() error {
 func (c *client) do_dash() error {
    var (
       manifest  maya.Manifest
-      playReady device
+      playReady playReady_folder
       playlist  hulu.Playlist
    )
    err := c.cache.Decode(&manifest, &playReady, &playlist)
@@ -108,4 +108,4 @@ type client struct {
    playReady string
 }
 
-type device string
+type playReady_folder string

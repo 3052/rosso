@@ -10,7 +10,7 @@ func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       server   tubi.LicenseServer
-      widevine device
+      widevine widevine_folder
    )
    err := c.cache.Decode(&manifest, &server, &widevine)
    if err != nil {
@@ -24,6 +24,19 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmWidevine,
       License: license,
    })
+}
+
+func (c *client) do_tubi() error {
+   content, err := tubi.GetContent(c.tubi_id)
+   if err != nil {
+      return err
+   }
+   video := content.VideoResources[0]
+   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, video.LicenseServer)
 }
 
 func main() {
@@ -42,7 +55,7 @@ type client struct {
    widevine string
 }
 
-type device string
+type widevine_folder string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/tubi"); err != nil {
@@ -50,13 +63,13 @@ func (c *client) do() error {
    }
    tubi_id := c.flag.Int(&c.tubi_id, "t", "Tubi ID")
    dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine folder")
    if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
    case widevine.IsSet:
-      return c.cache.Encode(device(c.widevine))
+      return c.cache.Encode(widevine_folder(c.widevine))
    case tubi_id.IsSet:
       return c.do_tubi()
    case dash.IsSet:
@@ -67,17 +80,4 @@ func (c *client) do() error {
       tubi_id,
       dash,
    }})
-}
-
-func (c *client) do_tubi() error {
-   content, err := tubi.GetContent(c.tubi_id)
-   if err != nil {
-      return err
-   }
-   video := content.VideoResources[0]
-   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, video.LicenseServer)
 }

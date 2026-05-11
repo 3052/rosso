@@ -42,7 +42,7 @@ func (c *client) do_dash() error {
    var (
       file     criterion.File
       manifest maya.Manifest
-      widevine device
+      widevine widevine_folder
    )
    err := c.cache.Decode(&file, &manifest, &widevine)
    if err != nil {
@@ -81,7 +81,7 @@ type client struct {
    widevine string
 }
 
-type device string
+type widevine_folder string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/criterion"); err != nil {
@@ -96,7 +96,7 @@ func (c *client) do() error {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(device(c.widevine))
+      return c.cache.Encode(widevine_folder(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {

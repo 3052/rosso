@@ -21,7 +21,7 @@ func (c *client) do() error {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    }
    if username.IsSet {
       if password.IsSet {
@@ -80,7 +80,7 @@ func (c *client) do_address() error {
 func (c *client) do_dash() error {
    var (
       manifest      maya.Manifest
-      playReady     device
+      playReady     playReady_folder
       playback      crave.Playback
       profile_token crave.ProfileToken
    )
@@ -158,4 +158,4 @@ type client struct {
    username  string
 }
 
-type device string
+type playReady_folder string

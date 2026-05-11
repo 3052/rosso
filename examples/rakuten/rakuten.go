@@ -10,7 +10,7 @@ import (
 func (c *client) do_dash() error {
    var (
       manifest    maya.Manifest
-      playReady   device
+      playReady   playReady_folder
       stream_info rakuten.StreamInfo
    )
    err := c.cache.Decode(&manifest, &playReady, &stream_info)
@@ -94,7 +94,7 @@ type client struct {
    playReady string
 }
 
-type device string
+type playReady_folder string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
@@ -111,7 +111,7 @@ func (c *client) do() error {
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    case address.IsSet:
       return c.do_address()
    case season.IsSet:

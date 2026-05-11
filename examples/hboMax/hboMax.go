@@ -24,7 +24,7 @@ func (c *client) do() error {
       return err
    }
    if playReady.IsSet {
-      return c.cache.Encode(device(c.playReady))
+      return c.cache.Encode(playReady_folder(c.playReady))
    }
    if initiate.IsSet {
       if market.IsSet {
@@ -77,7 +77,7 @@ func (c *client) do_edit() error {
 func (c *client) do_dash() error {
    var (
       manifest  maya.Manifest
-      playReady device
+      playReady playReady_folder
       playback  hboMax.Playback
    )
    err := c.cache.Decode(&manifest, &playReady, &playback)
@@ -189,4 +189,4 @@ type client struct {
    playReady string
 }
 
-type device string
+type playReady_folder string

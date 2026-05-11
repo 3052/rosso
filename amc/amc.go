@@ -153,6 +153,50 @@ func Unauth() (*AuthData, error) {
    return &envelope.Data, nil
 }
 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "card" && p.ContentType == "episode" {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
 // ContentNode represents the recursive Server-Driven UI tree used by AMC
 type ContentNode struct {
    Type             string        `json:"type"`
@@ -434,50 +478,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "card" && p.ContentType == "episode" {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
 }
