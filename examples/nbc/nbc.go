@@ -6,6 +6,22 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      widevine device
+   )
+   err := c.cache.Decode(&manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: nbc.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -23,8 +39,6 @@ type client struct {
 }
 
 type device string
-
-///
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/nbc"); err != nil {
@@ -64,18 +78,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(stream.GetManifest())
+   manifest, err := maya.ListDash(stream.GetManifest())
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash)
-}
-
-func (c *client) do_dash() error {
-   var dash maya.Dash
-   err := c.cache.Decode(&c.job, &dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, nbc.FetchWidevine)
+   return c.cache.Encode(manifest)
 }

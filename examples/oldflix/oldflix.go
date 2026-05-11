@@ -6,30 +6,12 @@ import (
    "log"
 )
 
-func (c *client) do_hls() error {
-   var hls maya.Hls
-   err := c.cache.Decode(&c.job, &hls)
-   if err != nil {
-      return err
-   }
-   return hls.Download(c.hls, &c.job, nil)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   cache      maya.Cache
-   hls        int
-   job        maya.Job
-   oldflix_id string
-   password   string
-   username   string
 }
 
 func (c *client) do_username_password() error {
@@ -40,15 +22,24 @@ func (c *client) do_username_password() error {
    return c.cache.Encode(login)
 }
 
+type client struct {
+   cache      maya.Cache
+   flag       maya.FlagSet
+   hls        string
+   oldflix_id string
+   password   string
+   username   string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/oldflix"); err != nil {
       return err
    }
-   oldflix_id := maya.StringFlag(&c.oldflix_id, "o", "Oldflix ID")
-   password := maya.StringFlag(&c.password, "p", "password")
-   username := maya.StringFlag(&c.username, "u", "username")
-   hls := maya.IntFlag(&c.hls, "h", "HLS ID")
-   if err := maya.ParseFlags(); err != nil {
+   oldflix_id := c.flag.String(&c.oldflix_id, "o", "Oldflix ID")
+   password := c.flag.String(&c.password, "p", "password")
+   username := c.flag.String(&c.username, "u", "username")
+   hls := c.flag.String(&c.hls, "h", "HLS ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if username.IsSet {
@@ -64,11 +55,12 @@ func (c *client) do() error {
    }
    return maya.PrintFlags([][]*maya.Flag{
       {username, password},
-
       {oldflix_id},
       {hls},
    })
 }
+
+///
 
 func (c *client) do_oldflix_id() error {
    var login oldflix.Login
@@ -93,4 +85,13 @@ func (c *client) do_oldflix_id() error {
       return err
    }
    return c.cache.Encode(hls)
+}
+
+func (c *client) do_hls() error {
+   var hls maya.Hls
+   err := c.cache.Decode(&c.job, &hls)
+   if err != nil {
+      return err
+   }
+   return hls.Download(c.hls, &c.job, nil)
 }

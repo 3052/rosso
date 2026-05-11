@@ -8,6 +8,69 @@ import (
    "path"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/mubi"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   code := c.flag.Bool("c", "link code")
+   mubi_id := c.flag.Int(&c.mubi_id, "m", "Mubi ID")
+   season := c.flag.Int(&c.season, "s", "season")
+   session := c.flag.Bool("S", "session")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(device(c.widevine))
+   }
+   if code.IsSet {
+      return c.do_code()
+   }
+   if session.IsSet {
+      return c.do_session()
+   }
+   if address.IsSet {
+      return c.do_address()
+   }
+   if mubi_id.IsSet {
+      return c.do_mubi_id()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{
+      {widevine},
+      {code},
+      {session},
+      {address, season},
+      {mubi_id},
+      {dash},
+   })
+}
+
+func (c *client) do_mubi_id() error {
+   var session mubi.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   err = session.FetchViewing(c.mubi_id)
+   if err != nil {
+      return err
+   }
+   secure_url, err := session.FetchSecureUrl(c.mubi_id)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(secure_url.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
+}
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -89,66 +152,3 @@ type client struct {
 }
 
 type device string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/mubi"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   code := c.flag.Bool("c", "link code")
-   mubi_id := c.flag.Int(&c.mubi_id, "m", "Mubi ID")
-   season := c.flag.Int(&c.season, "s", "season")
-   session := c.flag.Bool("S", "session")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(device(c.widevine))
-   }
-   if code.IsSet {
-      return c.do_code()
-   }
-   if session.IsSet {
-      return c.do_session()
-   }
-   if address.IsSet {
-      return c.do_address()
-   }
-   if mubi_id.IsSet {
-      return c.do_mubi_id()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {code},
-      {session},
-      {address, season},
-      {mubi_id},
-      {dash},
-   })
-}
-
-func (c *client) do_mubi_id() error {
-   var session mubi.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   err = session.FetchViewing(c.mubi_id)
-   if err != nil {
-      return err
-   }
-   secure_url, err := session.FetchSecureUrl(c.mubi_id)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(secure_url.GetManifest())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
-}
