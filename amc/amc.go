@@ -9,6 +9,9 @@ import (
    "net/url"
 )
 
+//go:embed playback.json
+var playback_json []byte
+
 func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    target, err := url.Parse(licenseUrl)
    if err != nil {
@@ -25,6 +28,35 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
       return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
    }
    return io.ReadAll(resp.Body)
+}
+
+func (a *AuthData) Refresh() error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + a.RefreshToken},
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return err
+   }
+   *a = result.Data
+   return nil
 }
 
 // AuthData represents the inner payload of authentication responses.
@@ -214,6 +246,33 @@ type KeySystems struct {
    } `json:"com.microsoft.playready"`
 }
 
+type Metadata struct {
+   AmcnID                   string `json:"amcnId,omitempty"`
+   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
+   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
+   SeasonNumber             int    `json:"seasonNumber,omitempty"`
+   ShowName                 string `json:"showName,omitempty"`
+   Title                    string `json:"title,omitempty"`
+   Nid                      int    `json:"nid,omitempty"`
+   PageType                 string `json:"pageType,omitempty"`
+   URL                      string `json:"url,omitempty"`
+   Action                   string `json:"action,omitempty"`
+   ElementType              string `json:"elementType,omitempty"`
+   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
+   ElementName              string `json:"elementName,omitempty"`
+   ItemText                 string `json:"itemText,omitempty"`
+   Label                    string `json:"label,omitempty"`
+   NavComponentName         string `json:"navComponentName,omitempty"`
+   NavigationTitle          string `json:"navigationTitle,omitempty"`
+   IsNavigation             bool   `json:"isNavigation,omitempty"`
+   ListTitle                string `json:"listTitle,omitempty"`
+   IsPlayback               bool   `json:"isPlayback,omitempty"`
+   ListMode                 string `json:"listMode,omitempty"`
+   SearchValue              string `json:"searchValue,omitempty"`
+   ListPosition             int    `json:"listPosition,omitempty"`
+   ComponentName            string `json:"componentName,omitempty"`
+}
+
 type Navigation struct {
    ClientRequest struct {
       Endpoint string `json:"endpoint,omitempty"`
@@ -286,6 +345,22 @@ func (p *Playback) GetDash() (*Source, error) {
    return nil, fmt.Errorf("application/dash+xml source not found")
 }
 
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
+type Properties struct {
+   ID           string    `json:"id,omitempty"`
+   PageType     string    `json:"pageType,omitempty"`
+   ManifestType string    `json:"manifestType,omitempty"`
+   CountryCode  string    `json:"countryCode,omitempty"`
+   Mode         string    `json:"mode,omitempty"`
+   Orientation  string    `json:"orientation,omitempty"`
+   Layout       string    `json:"layout,omitempty"`
+   Scrollable   bool      `json:"scrollable,omitempty"`
+   ContentType  string    `json:"contentType,omitempty"`
+   Nid          int       `json:"nid,omitempty"`
+   Metadata     *Metadata `json:"metadata,omitempty"`
+}
+
 type Source struct {
    Codecs     string
    KeySystems KeySystems `json:"key_systems"`
@@ -305,50 +380,11 @@ func (s *Src) MarshalText() ([]byte, error) {
    return s.Url.MarshalBinary()
 }
 
+type TextElement struct {
+   Title string `json:"title,omitempty"`
+}
+
 ///
-
-type Metadata struct {
-   AmcnID                   string `json:"amcnId,omitempty"`
-   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
-   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
-   SeasonNumber             int    `json:"seasonNumber,omitempty"`
-   ShowName                 string `json:"showName,omitempty"`
-   Title                    string `json:"title,omitempty"`
-   Nid                      int    `json:"nid,omitempty"`
-   PageType                 string `json:"pageType,omitempty"`
-   URL                      string `json:"url,omitempty"`
-   Action                   string `json:"action,omitempty"`
-   ElementType              string `json:"elementType,omitempty"`
-   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
-   ElementName              string `json:"elementName,omitempty"`
-   ItemText                 string `json:"itemText,omitempty"`
-   Label                    string `json:"label,omitempty"`
-   NavComponentName         string `json:"navComponentName,omitempty"`
-   NavigationTitle          string `json:"navigationTitle,omitempty"`
-   IsNavigation             bool   `json:"isNavigation,omitempty"`
-   ListTitle                string `json:"listTitle,omitempty"`
-   IsPlayback               bool   `json:"isPlayback,omitempty"`
-   ListMode                 string `json:"listMode,omitempty"`
-   SearchValue              string `json:"searchValue,omitempty"`
-   ListPosition             int    `json:"listPosition,omitempty"`
-   ComponentName            string `json:"componentName,omitempty"`
-}
-
-// Properties holds all possible strongly-typed properties found in the UI
-// nodes
-type Properties struct {
-   ID           string    `json:"id,omitempty"`
-   PageType     string    `json:"pageType,omitempty"`
-   ManifestType string    `json:"manifestType,omitempty"`
-   CountryCode  string    `json:"countryCode,omitempty"`
-   Mode         string    `json:"mode,omitempty"`
-   Orientation  string    `json:"orientation,omitempty"`
-   Layout       string    `json:"layout,omitempty"`
-   Scrollable   bool      `json:"scrollable,omitempty"`
-   ContentType  string    `json:"contentType,omitempty"`
-   Nid          int       `json:"nid,omitempty"`
-   Metadata     *Metadata `json:"metadata,omitempty"`
-}
 
 // ContentNode represents the recursive Server-Driven UI tree used by AMC
 type ContentNode struct {
@@ -445,43 +481,3 @@ type Text struct {
    Description *TextElement `json:"description,omitempty"`
    Subheadings []Subheading `json:"subheadings,omitempty"`
 }
-
-type TextElement struct {
-   Title string `json:"title,omitempty"`
-}
-
-type TTS struct {
-   SpeechText string `json:"speechText,omitempty"`
-}
-
-func (a *AuthData) Refresh() error {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      map[string]string{"authorization": "Bearer " + a.RefreshToken},
-      nil,
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
-   }
-   *a = result.Data
-   return nil
-}
-
-//go:embed playback.json
-var playback_json []byte
