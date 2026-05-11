@@ -7,6 +7,23 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      playout  peacock.Playout
+      widevine device
+   )
+   err := c.cache.Decode(&manifest, &playout, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: playout.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -69,8 +86,6 @@ func (c *client) do() error {
    })
 }
 
-///
-
 func (c *client) do_address() error {
    id_session := &peacock.Cookie{}
    err := c.cache.Decode(id_session)
@@ -89,21 +104,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(endpoint)
+   manifest, err := maya.ListDash(endpoint)
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash, playout)
-}
-
-func (c *client) do_dash() error {
-   var (
-      dash    maya.Dash
-      playout peacock.Playout
-   )
-   err := c.cache.Decode(&c.job, &dash, &playout)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, playout.FetchWidevine)
+   return c.cache.Encode(manifest, playout)
 }
