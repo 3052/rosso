@@ -126,7 +126,7 @@ type Playout struct {
    }
    Description string
    Protection  struct {
-      LicenceAcquisitionUrl Url
+      LicenceAcquisitionUrl *Url
    }
 }
 

@@ -22,10 +22,10 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 type Playlist struct {
-   DashPrServer Url `json:"dash_pr_server"`
+   DashPrServer *Url `json:"dash_pr_server"`
    Message      string
-   StreamUrl    Url `json:"stream_url"` // MPD
-   WvServer     Url `json:"wv_server"`
+   StreamUrl    *Url `json:"stream_url"` // MPD
+   WvServer     *Url `json:"wv_server"`
 }
 
 type Device struct {

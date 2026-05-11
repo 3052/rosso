@@ -152,6 +152,6 @@ type Track struct {
 type Watch struct {
    Message  string
    Playlist []struct {
-      File Url
+      File *Url
    }
 }

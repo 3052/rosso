@@ -267,7 +267,7 @@ type SecureUrl struct {
       Id  string
       Url string
    } `json:"text_track_urls"`
-   Url         Url    // MPD
+   Url         *Url   // MPD
    UserMessage string `json:"user_message"`
 }
 

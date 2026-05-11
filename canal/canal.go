@@ -17,13 +17,13 @@ import (
 
 type Player struct {
    Drm struct {
-      LicenseUrl Url
+      LicenseUrl *Url
    }
    Message   string
    Subtitles []struct {
       Url string
    }
-   Url Url // MPD
+   Url *Url // MPD
 }
 
 type Url struct {

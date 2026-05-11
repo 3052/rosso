@@ -9,9 +9,9 @@ import (
    "net/url"
 )
 
-func FetchFiles(accessToken string, files *Href) ([]File, error) {
+func FetchFiles(accessToken string, files *url.URL) ([]File, error) {
    resp, err := maya.Get(
-      &files.Url, map[string]string{"authorization": "Bearer " + accessToken},
+      files, map[string]string{"authorization": "Bearer " + accessToken},
    )
    if err != nil {
       return nil, err
@@ -121,23 +121,23 @@ type Token struct {
    RefreshToken     string `json:"refresh_token"`
 }
 
-type Href struct {
+type Url struct {
    Url url.URL
 }
 
-func (h *Href) MarshalText() ([]byte, error) {
-   return h.Url.MarshalBinary()
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
-func (h *Href) UnmarshalText(text []byte) error {
-   return h.Url.UnmarshalBinary(text)
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
 
 type File struct {
    DrmAuthorizationToken string `json:"drm_authorization_token"`
    Links                 struct {
       Source struct {
-         Href Href // MPD
+         Href *Url // MPD
       }
    } `json:"_links"`
    Method string
@@ -152,7 +152,7 @@ func GetDash(files []File) (*File, error) {
    return nil, errors.New("DASH media file not found")
 }
 
-func FetchFilesHref(accessToken, slug string) (*Href, error) {
+func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme:   "https",
@@ -171,7 +171,7 @@ func FetchFilesHref(accessToken, slug string) (*Href, error) {
          Items []struct {
             Links struct {
                Files struct {
-                  Href Href // https://api.vhx.tv/videos/3460957/files
+                  Href Url // https://api.vhx.tv/videos/3460957/files
                }
             } `json:"_links"`
          }
@@ -181,5 +181,5 @@ func FetchFilesHref(accessToken, slug string) (*Href, error) {
    if err != nil {
       return nil, err
    }
-   return &result.Embedded.Items[0].Links.Files.Href, nil
+   return &result.Embedded.Items[0].Links.Files.Href.Url, nil
 }

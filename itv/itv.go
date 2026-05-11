@@ -178,8 +178,8 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 type MediaFile struct {
-   Href          Url // MPD
-   KeyServiceUrl Url // DRM
+   Href          *Url // MPD
+   KeyServiceUrl *Url // DRM
    Resolution    string
 }
 

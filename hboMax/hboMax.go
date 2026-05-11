@@ -39,7 +39,7 @@ type Playback struct {
    }
    Fallback struct {
       Manifest struct {
-         Url Url // _fallback.mpd:1080p, .mpd:4K
+         Url *Url // _fallback.mpd:1080p, .mpd:4K
       }
    }
    Manifest struct {
@@ -466,5 +466,5 @@ func LoginRequest(st *Cookie) (*Login, error) {
 }
 
 type Scheme struct {
-   LicenseUrl Url
+   LicenseUrl *Url
 }

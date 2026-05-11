@@ -73,7 +73,7 @@ type Asset struct {
       Token string
    }
    Stream struct {
-      Url Url // MPD
+      Url *Url // MPD
    }
 }
 
@@ -210,5 +210,5 @@ type Program struct {
 }
 
 type Play struct {
-   Url Url // fapi.molotov.tv/v2/me/assets
+   Url *Url // fapi.molotov.tv/v2/me/assets
 }

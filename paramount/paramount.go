@@ -76,7 +76,7 @@ type Session struct {
    LsSession    string `json:"ls_session"`
    Message      string
    StreamingUrl *Url // MPD
-   Url          Url  // License Server
+   Url          *Url // License Server
 }
 
 func (c *CbsApp) fetch_session(platform, contentId string, cbs_com *Cookie) (*Session, error) {

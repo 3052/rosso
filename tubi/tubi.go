@@ -99,7 +99,7 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 type LicenseServer struct {
-   Url             Url
+   Url             *Url
    HdcpVersion     string `json:"hdcp_version"`
    AuthHeaderKey   string `json:"auth_header_key"`
    AuthHeaderValue string `json:"auth_header_value"`
@@ -116,7 +116,7 @@ func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
 }
 
 type Manifest struct {
-   Url      Url
+   Url      *Url
    Duration int `json:"duration"`
 }
 

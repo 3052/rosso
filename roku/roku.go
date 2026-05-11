@@ -193,11 +193,11 @@ type Drm struct {
 }
 
 type Widevine struct {
-   LicenseServer Url `json:"licenseServer"`
+   LicenseServer *Url `json:"licenseServer"`
 }
 
 type Playback struct {
-   Url         Url    // MPD
+   Url         *Url   // MPD
    Drm         Drm    `json:"drm"`
    MediaFormat string `json:"mediaFormat"`
    TraceId     string `json:"traceId"`

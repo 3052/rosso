@@ -153,6 +153,14 @@ func Unauth() (*AuthData, error) {
    return &envelope.Data, nil
 }
 
+// ContentNode represents the recursive Server-Driven UI tree used by AMC
+type ContentNode struct {
+   Type             string        `json:"type"`
+   Properties       *Properties   `json:"properties,omitempty"`
+   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
+   Children         []ContentNode `json:"children,omitempty"`
+}
+
 func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -244,6 +252,38 @@ type KeySystems struct {
    ComMicrosoftPlayready struct {
       LicenseURL string `json:"license_url"`
    } `json:"com.microsoft.playready"`
+}
+
+// String implements the fmt.Stringer interface for easy printing.
+func (m *Metadata) String() string {
+   hasShow := m.ShowName != "" && m.ShowName != "none"
+
+   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+   }
+
+   if m.SeasonNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   if m.Title != "" {
+      if hasShow && m.ShowName != m.Title {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   return fmt.Sprintf("NID: %d", m.Nid)
 }
 
 type Metadata struct {
@@ -364,35 +404,39 @@ type Properties struct {
 type Source struct {
    Codecs     string
    KeySystems KeySystems `json:"key_systems"`
-   Src        Src        // MPD
+   Src        *Url       // MPD
    Type       string
 }
 
-type Src struct {
-   Url url.URL
+type Subheading struct {
+   ID    string `json:"id,omitempty"`
+   Title string `json:"title,omitempty"`
+   Type  string `json:"type,omitempty"`
 }
 
-func (s *Src) UnmarshalText(text []byte) error {
-   return s.Url.UnmarshalBinary(text)
-}
-
-func (s *Src) MarshalText() ([]byte, error) {
-   return s.Url.MarshalBinary()
+type Text struct {
+   Title       *TextElement `json:"title,omitempty"`
+   Description *TextElement `json:"description,omitempty"`
+   Subheadings []Subheading `json:"subheadings,omitempty"`
 }
 
 type TextElement struct {
    Title string `json:"title,omitempty"`
 }
 
-///
-
-// ContentNode represents the recursive Server-Driven UI tree used by AMC
-type ContentNode struct {
-   Type             string        `json:"type"`
-   Properties       *Properties   `json:"properties,omitempty"`
-   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
-   Children         []ContentNode `json:"children,omitempty"`
+type Url struct {
+   Url url.URL
 }
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
 
 // EpisodesMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for playable episodes.
@@ -436,48 +480,4 @@ func (c *ContentNode) SeasonsMetadata() []*Metadata {
 
    walk(*c)
    return metadata
-}
-
-// String implements the fmt.Stringer interface for easy printing.
-func (m *Metadata) String() string {
-   hasShow := m.ShowName != "" && m.ShowName != "none"
-
-   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-   }
-
-   if m.SeasonNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   if m.Title != "" {
-      if hasShow && m.ShowName != m.Title {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   return fmt.Sprintf("NID: %d", m.Nid)
-}
-
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type Text struct {
-   Title       *TextElement `json:"title,omitempty"`
-   Description *TextElement `json:"description,omitempty"`
-   Subheadings []Subheading `json:"subheadings,omitempty"`
 }

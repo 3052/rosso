@@ -74,7 +74,7 @@ type PlayResponse struct {
 }
 
 type Manifest struct {
-   Url            Url    `json:"url"`
+   Url            *Url
    ManifestType   string `json:"manifestType"`
    DrmType        string `json:"drmType"`
    StorageService string `json:"storageService"`
@@ -110,7 +110,7 @@ type PlayRequest struct {
 
 type File struct {
    Type string `json:"type"`
-   Url  string `json:"url"`
+   Url  string
 }
 
 type Caption struct {

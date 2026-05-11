@@ -29,7 +29,7 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 type Stream struct {
-   PlaybackUrl Url // MPD
+   PlaybackUrl *Url // MPD
 }
 
 func (s Stream) GetManifest() *url.URL {

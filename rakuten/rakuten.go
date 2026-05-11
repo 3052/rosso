@@ -24,8 +24,8 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 type StreamInfo struct {
-   LicenseUrl Url `json:"license_url"`
-   Url        Url // MPD
+   LicenseUrl *Url `json:"license_url"`
+   Url        *Url // MPD
 }
 
 type Start struct {
