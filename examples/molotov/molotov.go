@@ -6,51 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var (
-      asset    molotov.Asset
-      manifest maya.Manifest
-      widevine device
-   )
-   err := c.cache.Decode(&asset, &manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: asset.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   auth, err := molotov.FetchAuth(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth)
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   flag     maya.FlagSet
-   password string
-   widevine string
-}
-
-type device string
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/molotov"); err != nil {
       return err
@@ -113,3 +68,48 @@ func (c *client) do_address() error {
    }
    return c.cache.Encode(asset, auth, manifest)
 }
+
+func (c *client) do_dash() error {
+   var (
+      asset    molotov.Asset
+      manifest maya.Manifest
+      widevine device
+   )
+   err := c.cache.Decode(&asset, &manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: asset.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   auth, err := molotov.FetchAuth(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   flag     maya.FlagSet
+   password string
+   widevine string
+}
+
+type device string

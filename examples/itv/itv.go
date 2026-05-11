@@ -7,6 +7,51 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   playlist := c.flag.String(&c.playlist, "p", "playlist URL")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(device(c.widevine))
+   case address.IsSet:
+      return c.do_address()
+   case playlist.IsSet:
+      return c.do_playlist()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{{
+      widevine,
+      address,
+      playlist,
+      dash,
+   }})
+}
+
+func (c *client) do_playlist() error {
+   playlist, err := itv.FetchWidevine(c.playlist)
+   if err != nil {
+      return err
+   }
+   media_file, err := playlist.Get1080()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&media_file.Href.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, media_file)
+}
+
 func (c *client) do_dash() error {
    var (
       manifest   maya.Manifest
@@ -56,48 +101,3 @@ type client struct {
 }
 
 type device string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   playlist := c.flag.String(&c.playlist, "p", "playlist URL")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(device(c.widevine))
-   case address.IsSet:
-      return c.do_address()
-   case playlist.IsSet:
-      return c.do_playlist()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {address},
-      {playlist},
-      {dash},
-   })
-}
-
-func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.playlist)
-   if err != nil {
-      return err
-   }
-   media_file, err := playlist.Get1080()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&media_file.Href.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, media_file)
-}

@@ -7,55 +7,6 @@ import (
    "log"
 )
 
-func (c *client) do_dash() error {
-   var (
-      login         kanopy.Login
-      manifest      kanopy.Manifest
-      maya_manifest maya.Manifest
-      widevine      device
-   )
-   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return kanopy.CreateLicense(&login, &manifest, body)
-   }
-   return maya.DownloadDash(c.dash, &maya_manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   login, err := kanopy.LoginUser(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(login)
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   flag     maya.FlagSet
-   password string
-   widevine string
-}
-
-type device string
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/kanopy"); err != nil {
       return err
@@ -129,3 +80,52 @@ func (c *client) do_address() error {
    }
    return c.cache.Encode(manifest, maya_manifest)
 }
+
+func (c *client) do_dash() error {
+   var (
+      login         kanopy.Login
+      manifest      kanopy.Manifest
+      maya_manifest maya.Manifest
+      widevine      device
+   )
+   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return kanopy.CreateLicense(&login, &manifest, body)
+   }
+   return maya.DownloadDash(c.dash, &maya_manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   login, err := kanopy.LoginUser(c.email, c.password)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(login)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   flag     maya.FlagSet
+   password string
+   widevine string
+}
+
+type device string
