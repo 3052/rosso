@@ -6,6 +6,59 @@ import (
    "log"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/ctv"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(device(c.widevine))
+   case address.IsSet:
+      return c.do_address()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{{
+      widevine,
+      address,
+      dash,
+   }})
+}
+
+func (c *client) do_address() error {
+   path, err := ctv.GetPath(c.address)
+   if err != nil {
+      return err
+   }
+   resolve, err := ctv.Resolve(path)
+   if err != nil {
+      return err
+   }
+   axis, err := resolve.AxisContent()
+   if err != nil {
+      return err
+   }
+   playback, err := axis.Playback()
+   if err != nil {
+      return err
+   }
+   manifest, err := axis.Manifest(playback)
+   if err != nil {
+      return err
+   }
+   dash, err := maya.ListDash(manifest)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(dash)
+}
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -39,56 +92,3 @@ type client struct {
 }
 
 type device string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/ctv"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(device(c.widevine))
-   case address.IsSet:
-      return c.do_address()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {address},
-      {dash},
-   })
-}
-
-func (c *client) do_address() error {
-   path, err := ctv.GetPath(c.address)
-   if err != nil {
-      return err
-   }
-   resolve, err := ctv.Resolve(path)
-   if err != nil {
-      return err
-   }
-   axis, err := resolve.AxisContent()
-   if err != nil {
-      return err
-   }
-   playback, err := axis.Playback()
-   if err != nil {
-      return err
-   }
-   manifest, err := axis.Manifest(playback)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(manifest)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash)
-}
