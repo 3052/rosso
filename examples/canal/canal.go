@@ -10,6 +10,21 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      options  maya.Options
+      player   canal.Player
+   )
+   err := c.cache.Decode(&manifest, &options.Device, &player)
+   if err != nil {
+      return err
+   }
+   options.Drm = maya.DrmWidevine
+   options.License = player.FetchWidevine
+   return maya.DownloadDash(c.dash, &manifest, &options)
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -124,8 +139,6 @@ func (c *client) do_subtitles() error {
    return nil
 }
 
-///
-
 type client struct {
    cache    maya.Cache
    dash     string
@@ -134,25 +147,7 @@ type client struct {
    query    string
    season   int
    tracking string
-
-   job maya.Job
-}
-
-func (c *client) do_tracking() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   player, err := session.Player(c.tracking)
-   if err != nil {
-      return err
-   }
-   dash, err := maya.ListDash(&player.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(dash, player)
+   widevine string
 }
 
 func (c *client) do() error {
@@ -166,13 +161,13 @@ func (c *client) do() error {
    season := maya.IntFlag(&c.season, "s", "season")
    subtitles := maya.BoolFlag("S", "subtitles")
    tracking := maya.StringFlag(&c.tracking, "t", "tracking")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
+   widevine := maya.StringFlag(&c.widevine, "w", "Widevine")
    dash := maya.StringFlag(&c.dash, "d", "DASH ID")
    if err := maya.ParseFlags(); err != nil {
       return err
    }
    if widevine.IsSet {
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(maya.Device(c.widevine))
    }
    if email.IsSet {
       if password.IsSet {
@@ -208,14 +203,19 @@ func (c *client) do() error {
    })
 }
 
-func (c *client) do_dash() error {
-   var (
-      dash   maya.Dash
-      player canal.Player
-   )
-   err := c.cache.Decode(&c.job, &dash, &player)
+func (c *client) do_tracking() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
    if err != nil {
       return err
    }
-   return dash.Download(c.dash, &c.job, player.FetchWidevine)
+   player, err := session.Player(c.tracking)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&player.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, player)
 }
