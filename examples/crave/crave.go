@@ -7,6 +7,27 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest      maya.Manifest
+      playReady     device
+      playback      crave.Playback
+      profile_token crave.ProfileToken
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playback, &profile_token)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return crave.AcquireLicense(body, &profile_token, &playback)
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -108,8 +129,6 @@ func (c *client) do() error {
    })
 }
 
-///
-
 func (c *client) do_address() error {
    profile_token := &crave.ProfileToken{}
    err := c.cache.Decode(profile_token)
@@ -134,24 +153,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := maya.ListDash(stream)
+   manifest, err := maya.ListDash(stream)
    if err != nil {
       return err
    }
-   return c.cache.Encode(dash, media, playback)
-}
-
-func (c *client) do_dash() error {
-   var (
-      dash          maya.Dash
-      playback      crave.Playback
-      profile_token crave.ProfileToken
-   )
-   err := c.cache.Decode(&c.job, &dash, &playback, &profile_token)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, func(data []byte) ([]byte, error) {
-      return crave.AcquireLicense(data, &profile_token, &playback)
-   })
+   return c.cache.Encode(manifest, media, playback)
 }
