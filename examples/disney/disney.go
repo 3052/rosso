@@ -9,14 +9,19 @@ import (
 
 func (c *client) do_hls() error {
    var (
-      hls   maya.Hls
-      token disney.Token
+      manifest  maya.Manifest
+      playReady device
+      token     disney.Token
    )
-   err := c.cache.Decode(&c.job, &hls, &token)
+   err := c.cache.Decode(&manifest, &playReady, &token)
    if err != nil {
       return err
    }
-   return hls.Download(c.hls, &c.job, token.FetchPlayReady)
+   return maya.DownloadHls(c.hls, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: token.FetchPlayReady,
+   })
 }
 
 func main() {
@@ -126,54 +131,40 @@ func (c *client) do_season() error {
    return nil
 }
 
-func (c *client) do_media() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(c.media)
-   if err != nil {
-      return err
-   }
-   hls, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(hls)
+type client struct {
+   address   string
+   cache     maya.Cache
+   email     string
+   flag      maya.FlagSet
+   hls       string
+   media     string
+   passcode  string
+   playReady string
+   profile   string
+   season    string
 }
 
-type client struct {
-   address  string
-   cache    maya.Cache
-   email    string
-   hls      int
-   job      maya.Job
-   media    string
-   passcode string
-   profile  string
-   season   string
-}
+type device string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   media := maya.StringFlag(&c.media, "m", "media ID")
-   passcode := maya.StringFlag(&c.passcode, "p", "passcode")
-   profile := maya.StringFlag(&c.profile, "P", "profile ID")
-   refresh := maya.BoolFlag("r", "refresh")
-   season := maya.StringFlag(&c.season, "s", "season ID")
-   email := maya.StringFlag(&c.email, "e", "email")
-   playReady := maya.StringFlag(&c.job.PlayReady, "PR", "PlayReady")
-   hls := maya.IntFlag(&c.hls, "h", "HLS ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   hls := c.flag.String(&c.hls, "h", "HLS ID")
+   media := c.flag.String(&c.media, "m", "media ID")
+   passcode := c.flag.String(&c.passcode, "p", "passcode")
+   playReady := c.flag.String(&c.playReady, "PR", "PlayReady")
+   profile := c.flag.String(&c.profile, "P", "profile ID")
+   refresh := c.flag.Bool("r", "refresh")
+   season := c.flag.String(&c.season, "s", "season ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.playReady))
    case email.IsSet:
       return c.do_email()
    case passcode.IsSet:
@@ -191,15 +182,32 @@ func (c *client) do() error {
    case hls.IsSet:
       return c.do_hls()
    }
-   return maya.PrintFlags([][]*maya.Flag{{
-      playReady,
-      email,
-      passcode,
-      profile,
-      refresh,
-      address,
-      season,
-      media,
-      hls,
-   }})
+   return maya.PrintFlags([]maya.FlagSet{
+      {playReady},
+      {email},
+      {passcode},
+      {profile},
+      {refresh},
+      {address},
+      {season},
+      {media},
+      {hls},
+   })
+}
+
+func (c *client) do_media() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   stream, err := token.FetchStream(c.media)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
 }

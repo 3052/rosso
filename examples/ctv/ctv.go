@@ -6,6 +6,22 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      widevine device
+   )
+   err := c.cache.Decode(&manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: ctv.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -15,46 +31,38 @@ func main() {
 }
 
 type client struct {
-   address string
-   cache   maya.Cache
-   dash    string
-   flag    maya.FlagSet
+   address  string
+   cache    maya.Cache
+   dash     string
+   flag     maya.FlagSet
+   widevine string
 }
 
-///
+type device string
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/ctv"); err != nil {
       return err
    }
-   address := maya.StringFlag(&c.address, "a", "address")
-   widevine := maya.StringFlag(&c.job.Widevine, "w", "Widevine")
-   dash := maya.StringFlag(&c.dash, "d", "DASH ID")
-   if err := maya.ParseFlags(); err != nil {
+   address := c.flag.String(&c.address, "a", "address")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
    case widevine.IsSet:
-      return c.cache.Encode(c.job)
+      return c.cache.Encode(device(c.widevine))
    case address.IsSet:
       return c.do_address()
    case dash.IsSet:
       return c.do_dash()
    }
-   return maya.PrintFlags([][]*maya.Flag{{
-      widevine,
-      address,
-      dash,
-   }})
-}
-
-func (c *client) do_dash() error {
-   var dash maya.Dash
-   err := c.cache.Decode(&c.job, &dash)
-   if err != nil {
-      return err
-   }
-   return dash.Download(c.dash, &c.job, ctv.FetchWidevine)
+   return maya.PrintFlags([]maya.FlagSet{
+      {widevine},
+      {address},
+      {dash},
+   })
 }
 
 func (c *client) do_address() error {
