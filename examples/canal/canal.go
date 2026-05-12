@@ -10,57 +10,126 @@ import (
    "path"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func get(address *url.URL) error {
+   resp, err := maya.Get(address, nil)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     *maya.Flag
+   email    *maya.Flag
+   password *maya.Flag
+   query    *maya.Flag
+   season   *maya.Flag
+   tracking *maya.Flag
+   widevine *maya.Flag
+   flag     maya.FlagSet
+}
+
+type widevine string
+
+func (c *client) do_email_password() error {
+   ticket, err := canal.FetchTicket()
+   if err != nil {
+      return err
+   }
+   login, err := ticket.Login(c.email.Value, c.password.Value)
+   if err != nil {
+      return err
+   }
+   session, err := canal.FetchSession(login.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/canal"); err != nil {
       return err
    }
-   email := c.flag.String(&c.email, "e", "email")
-   password := c.flag.String(&c.password, "p", "password")
-   query := c.flag.String(&c.query, "q", "query")
-   refresh := c.flag.Bool("r", "refresh")
-   season := c.flag.Int(&c.season, "s", "season")
-   subtitles := c.flag.Bool("S", "subtitles")
-   tracking := c.flag.String(&c.tracking, "t", "tracking")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   c.email = c.flag.AddValue("e", "email")
+   c.password = c.flag.AddValue("p", "password")
+   c.query = c.flag.AddValue("q", "query")
+   c.season = c.flag.AddValue("s", "season")
+   c.tracking = c.flag.AddValue("t", "tracking")
+   c.widevine = c.flag.AddValue("w", "Widevine")
+   refresh := c.flag.Add("r", "refresh")
+   subtitles := c.flag.Add("S", "subtitles")
    if err := c.flag.Parse(); err != nil {
       return err
    }
-   if widevine.IsSet {
-      return c.cache.Encode(widevine_folder(c.widevine))
+   if c.widevine.Set {
+      return c.cache.Encode(widevine(c.widevine.Value))
    }
-   if email.IsSet {
-      if password.IsSet {
+   if c.email.Set {
+      if c.password.Set {
          return c.do_email_password()
       }
    }
-   if refresh.IsSet {
+   if refresh.Set {
       return c.do_refresh()
    }
-   if query.IsSet {
+   if c.query.Set {
       return c.do_query()
    }
-   if tracking.IsSet {
-      if season.IsSet {
+   if c.tracking.Set {
+      if c.season.Set {
          return c.do_tracking_season()
       }
       return c.do_tracking()
    }
-   if subtitles.IsSet {
+   if subtitles.Set {
       return c.do_subtitles()
    }
-   if dash.IsSet {
+   if c.dash.Set {
       return c.do_dash()
    }
    return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {email, password},
+      {c.widevine},
+      {c.email, c.password},
+
       {refresh},
-      {query},
-      {tracking, season},
+      {c.query},
+      {c.tracking, c.season},
       {subtitles},
-      {dash},
+      {c.dash},
    })
+}
+
+///
+
+func (c *client) do_refresh() error {
+   session := &canal.Session{}
+   err := c.cache.Decode(session)
+   if err != nil {
+      return err
+   }
+   session, err = canal.FetchSession(session.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
 }
 
 func (c *client) do_tracking() error {
@@ -84,44 +153,17 @@ func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       player   canal.Player
-      widevine widevine_folder
+      device   widevine
    )
-   err := c.cache.Decode(&manifest, &player, &widevine)
+   err := c.cache.Decode(&manifest, &player, &device)
    if err != nil {
       return err
    }
    return maya.DownloadDash(c.dash, &manifest, &maya.Options{
       Drm:     maya.DrmWidevine,
-      Device:  string(widevine),
+      Device:  string(device),
       License: player.FetchWidevine,
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func get(address string) error {
-   target, err := url.Parse(address)
-   if err != nil {
-      return err
-   }
-   resp, err := maya.Get(target, nil)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
 }
 
 func (c *client) do_query() error {
@@ -146,35 +188,6 @@ func (c *client) do_query() error {
       }
    }
    return nil
-}
-
-func (c *client) do_email_password() error {
-   ticket, err := canal.FetchTicket()
-   if err != nil {
-      return err
-   }
-   login, err := ticket.Login(c.email, c.password)
-   if err != nil {
-      return err
-   }
-   session, err := canal.FetchSession(login.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
-func (c *client) do_refresh() error {
-   session := &canal.Session{}
-   err := c.cache.Decode(session)
-   if err != nil {
-      return err
-   }
-   session, err = canal.FetchSession(session.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
 }
 
 func (c *client) do_tracking_season() error {
@@ -203,24 +216,10 @@ func (c *client) do_subtitles() error {
       return err
    }
    for _, subtitles := range player.Subtitles {
-      err := get(subtitles.Url)
+      err := get(&subtitles.Url.Url)
       if err != nil {
          return err
       }
    }
    return nil
 }
-
-type client struct {
-   cache    maya.Cache
-   dash     string
-   email    string
-   flag     maya.FlagSet
-   password string
-   query    string
-   season   int
-   tracking string
-   widevine string
-}
-
-type widevine_folder string

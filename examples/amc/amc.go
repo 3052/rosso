@@ -23,7 +23,7 @@ func (c *client) do() error {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine(c.widevine))
+      return c.cache.Encode(widevine(c.widevine.Value))
    }
    if c.email.Set {
       if c.password.Set {

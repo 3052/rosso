@@ -21,7 +21,7 @@ type Player struct {
    }
    Message   string
    Subtitles []struct {
-      Url string
+      Url *Url
    }
    Url *Url // MPD
 }
