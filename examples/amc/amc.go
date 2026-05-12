@@ -79,6 +79,29 @@ func (c *client) do_series() error {
    return nil
 }
 
+func (c *client) do_season() error {
+   id, err := c.season.Int()
+   if err != nil {
+      return err
+   }
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, id)
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.EpisodesMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
@@ -122,33 +145,14 @@ func (c *client) do() error {
       {c.email, c.password},
       {refresh},
       {c.series},
-
       {c.season},
+
       {c.episode},
       {c.dash},
    })
 }
 
 ///
-
-func (c *client) do_season() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.EpisodesMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
 
 func (c *client) do_episode() error {
    var auth_data amc.AuthData

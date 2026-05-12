@@ -9,244 +9,12 @@ import (
    "net/url"
 )
 
-func SeriesDetail(authToken string, id int) (*ContentNode, error) {
+func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-//go:embed playback.json
-var playback_json []byte
-
-func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
-   target, err := url.Parse(licenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (a *AuthData) Refresh() error {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      map[string]string{"authorization": "Bearer " + a.RefreshToken},
-      nil,
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
-   }
-   *a = result.Data
-   return nil
-}
-
-// AuthData represents the inner payload of authentication responses.
-type AuthData struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
-}
-
-// Login authenticates the user. It requires the guest token (access_token)
-// retrieved from calling the Unauth() function.
-func Login(guestToken, email, password string) (*AuthData, error) {
-   // Body
-   body, err := json.Marshal(map[string]string{
-      "email":    email,
-      "password": password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/login",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + guestToken,
-         "content-type":            "application/json",
-         "x-amcn-language":         "en",
-         "x-amcn-network":          "amcplus",
-         "x-amcn-platform":         "web",
-         "x-amcn-service-group-id": "10",
-         "x-amcn-tenant":           "amcn",
-         "x-amcn-device-ad-id":     "-",
-         "x-amcn-device-id":        "-",
-         "x-amcn-service-id":       "amcplus",
-         "x-ccpa-do-not-sell":      "doNotPassData",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-func Unauth() (*AuthData, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/unauth",
-      },
-      map[string]string{
-         "x-amcn-network":   "amcplus",
-         "x-amcn-platform":  "web",
-         "x-amcn-tenant":    "amcn",
-         "x-amcn-device-id": "-",
-         "x-amcn-language":  "en",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "card" && p.ContentType == "episode" {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// ContentNode represents the recursive Server-Driven UI tree used by AMC
-type ContentNode struct {
-   Type             string        `json:"type"`
-   Properties       *Properties   `json:"properties,omitempty"`
-   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
-   Children         []ContentNode `json:"children,omitempty"`
-}
-
-func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint(
-            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/",
-            seasonId,
-         ),
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
       },
       map[string]string{
          "authorization":   "Bearer " + authToken,
@@ -475,4 +243,233 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func SeriesDetail(authToken string, id int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+//go:embed playback.json
+var playback_json []byte
+
+func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
+   target, err := url.Parse(licenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (a *AuthData) Refresh() error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + a.RefreshToken},
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return err
+   }
+   *a = result.Data
+   return nil
+}
+
+// AuthData represents the inner payload of authentication responses.
+type AuthData struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
+// Login authenticates the user. It requires the guest token (access_token)
+// retrieved from calling the Unauth() function.
+func Login(guestToken, email, password string) (*AuthData, error) {
+   // Body
+   body, err := json.Marshal(map[string]string{
+      "email":    email,
+      "password": password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/login",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + guestToken,
+         "content-type":            "application/json",
+         "x-amcn-language":         "en",
+         "x-amcn-network":          "amcplus",
+         "x-amcn-platform":         "web",
+         "x-amcn-service-group-id": "10",
+         "x-amcn-tenant":           "amcn",
+         "x-amcn-device-ad-id":     "-",
+         "x-amcn-device-id":        "-",
+         "x-amcn-service-id":       "amcplus",
+         "x-ccpa-do-not-sell":      "doNotPassData",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+func Unauth() (*AuthData, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/unauth",
+      },
+      map[string]string{
+         "x-amcn-network":   "amcplus",
+         "x-amcn-platform":  "web",
+         "x-amcn-tenant":    "amcn",
+         "x-amcn-device-id": "-",
+         "x-amcn-language":  "en",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "card" && p.ContentType == "episode" {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// ContentNode represents the recursive Server-Driven UI tree used by AMC
+type ContentNode struct {
+   Type             string        `json:"type"`
+   Properties       *Properties   `json:"properties,omitempty"`
+   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
+   Children         []ContentNode `json:"children,omitempty"`
 }
