@@ -63,6 +63,83 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(session)
 }
 
+func (c *client) do_refresh() error {
+   session := &canal.Session{}
+   err := c.cache.Decode(session)
+   if err != nil {
+      return err
+   }
+   session, err = canal.FetchSession(session.SsoToken)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_query() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   collections, err := session.Search(c.query.Value)
+   if err != nil {
+      return err
+   }
+   var line bool
+   for _, collection := range collections {
+      for _, asset := range collection.Assets {
+         if line {
+            fmt.Println()
+         } else {
+            line = true
+         }
+         fmt.Println(&asset)
+      }
+   }
+   return nil
+}
+
+func (c *client) do_tracking() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   player, err := session.Player(c.tracking.Value)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&player.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, player)
+}
+
+func (c *client) do_tracking_season() error {
+   season, err := c.season.Int()
+   if err != nil {
+      return err
+   }
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   episodes, err := session.Episodes(c.tracking.Value, season)
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/canal"); err != nil {
       return err
@@ -108,10 +185,10 @@ func (c *client) do() error {
    return maya.PrintFlags([]maya.FlagSet{
       {c.widevine},
       {c.email, c.password},
-
       {refresh},
       {c.query},
       {c.tracking, c.season},
+
       {subtitles},
       {c.dash},
    })
@@ -119,34 +196,19 @@ func (c *client) do() error {
 
 ///
 
-func (c *client) do_refresh() error {
-   session := &canal.Session{}
-   err := c.cache.Decode(session)
+func (c *client) do_subtitles() error {
+   var player canal.Player
+   err := c.cache.Decode(&player)
    if err != nil {
       return err
    }
-   session, err = canal.FetchSession(session.SsoToken)
-   if err != nil {
-      return err
+   for _, subtitles := range player.Subtitles {
+      err := get(&subtitles.Url.Url)
+      if err != nil {
+         return err
+      }
    }
-   return c.cache.Encode(session)
-}
-
-func (c *client) do_tracking() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   player, err := session.Player(c.tracking)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&player.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, player)
+   return nil
 }
 
 func (c *client) do_dash() error {
@@ -164,62 +226,4 @@ func (c *client) do_dash() error {
       Device:  string(device),
       License: player.FetchWidevine,
    })
-}
-
-func (c *client) do_query() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   collections, err := session.Search(c.query)
-   if err != nil {
-      return err
-   }
-   var line bool
-   for _, collection := range collections {
-      for _, asset := range collection.Assets {
-         if line {
-            fmt.Println()
-         } else {
-            line = true
-         }
-         fmt.Println(&asset)
-      }
-   }
-   return nil
-}
-
-func (c *client) do_tracking_season() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   episodes, err := session.Episodes(c.tracking, c.season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
-func (c *client) do_subtitles() error {
-   var player canal.Player
-   err := c.cache.Decode(&player)
-   if err != nil {
-      return err
-   }
-   for _, subtitles := range player.Subtitles {
-      err := get(&subtitles.Url.Url)
-      if err != nil {
-         return err
-      }
-   }
-   return nil
 }

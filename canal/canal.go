@@ -15,6 +15,159 @@ import (
    "time"
 )
 
+func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   "/v1/assets",
+         RawQuery: url.Values{
+            "limit": {"99"},
+            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + s.Token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Assets  []Episode
+      Message string
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return result.Assets, nil
+}
+
+func (s *Session) Search(query string) ([]Collection, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "tvapi-hlm2.solocoo.tv",
+         Path:     "/v1/search",
+         RawQuery: url.Values{"query": {query}}.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + s.Token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Collection []Collection
+      Message    string
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return result.Collection, nil
+}
+
+type Ticket struct {
+   Message string
+   Ticket  string
+}
+
+func (t *Ticket) Login(username, password string) (*Login, error) {
+   body, err := marshal(map[string]any{
+      "ticket": t.Ticket,
+      "userInput": map[string]string{
+         "username": username,
+         "password": password,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Login
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      return nil, &result
+   }
+   return &result, nil
+}
+
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
+}
+
+func FetchTicket() (*Ticket, error) {
+   body, err := marshal(map[string]any{
+      "deviceInfo": map[string]string{
+         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
+         "deviceModel":  "Firefox",
+         "deviceOem":    "Firefox",
+         "deviceSerial": device_serial,
+         "deviceType":   "PC",
+         "osVersion":    "Windows 10",
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Ticket
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
 type Player struct {
    Drm struct {
       LicenseUrl *Url
@@ -207,159 +360,6 @@ func (s *Session) Player(tracking string) (*Player, error) {
    }
    defer resp.Body.Close()
    var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   "/v1/assets",
-         RawQuery: url.Values{
-            "limit": {"99"},
-            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Assets  []Episode
-      Message string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return result.Assets, nil
-}
-
-func (s *Session) Search(query string) ([]Collection, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "tvapi-hlm2.solocoo.tv",
-         Path:     "/v1/search",
-         RawQuery: url.Values{"query": {query}}.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Collection []Collection
-      Message    string
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return result.Collection, nil
-}
-
-type Ticket struct {
-   Message string
-   Ticket  string
-}
-
-func (t *Ticket) Login(username, password string) (*Login, error) {
-   body, err := marshal(map[string]any{
-      "ticket": t.Ticket,
-      "userInput": map[string]string{
-         "username": username,
-         "password": password,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
-   client, err := get_client(target, body)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "authorization": client,
-         "user-agent":    user_agent,
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Login
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      return nil, &result
-   }
-   return &result, nil
-}
-
-func marshal(value any) ([]byte, error) {
-   return json.MarshalIndent(value, "", " ")
-}
-
-func FetchTicket() (*Ticket, error) {
-   body, err := marshal(map[string]any{
-      "deviceInfo": map[string]string{
-         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
-         "deviceModel":  "Firefox",
-         "deviceOem":    "Firefox",
-         "deviceSerial": device_serial,
-         "deviceType":   "PC",
-         "osVersion":    "Windows 10",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
-   client, err := get_client(target, body)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "authorization": client,
-         "user-agent":    user_agent,
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Ticket
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
