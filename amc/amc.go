@@ -9,6 +9,39 @@ import (
    "net/url"
 )
 
+func SeriesDetail(authToken string, id int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
 //go:embed playback.json
 var playback_json []byte
 
@@ -203,42 +236,6 @@ type ContentNode struct {
    Properties       *Properties   `json:"properties,omitempty"`
    TabletProperties *Properties   `json:"tablet_properties,omitempty"`
    Children         []ContentNode `json:"children,omitempty"`
-}
-
-func SeriesDetail(authToken string, seriesId int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path: fmt.Sprint(
-            "/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/",
-            seriesId,
-         ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
 }
 
 func SeasonEpisodes(authToken string, seasonId int) (*ContentNode, error) {

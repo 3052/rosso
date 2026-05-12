@@ -7,30 +7,90 @@ import (
    "log"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    cache    maya.Cache
-   dash *maya.Flag
-   email *maya.Flag
-   episode *maya.Flag
-   flag     maya.FlagSet
+   dash     *maya.Flag
+   email    *maya.Flag
+   episode  *maya.Flag
    password *maya.Flag
-   season *maya.Flag
-   series *maya.Flag
+   season   *maya.Flag
+   series   *maya.Flag
    widevine *maya.Flag
+   flag     maya.FlagSet
+}
+
+type widevine string
+
+func (c *client) do_email_password() error {
+   auth_data, err := amc.Unauth()
+   if err != nil {
+      return err
+   }
+   auth_data, err = amc.Login(
+      auth_data.AccessToken, c.email.Value, c.password.Value,
+   )
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
+}
+
+func (c *client) do_refresh() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   err = auth_data.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
+}
+
+func (c *client) do_series() error {
+   id, err := c.series.Int()
+   if err != nil {
+      return err
+   }
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   series, err := amc.SeriesDetail(auth_data.AccessToken, id)
+   if err != nil {
+      return err
+   }
+   for i, season := range series.SeasonsMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(season)
+   }
+   return nil
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   c.dash = c.flag.String("d", "DASH ID")
-   c.email = c.flag.String("E", "email")
-   c.episode = c.flag.String("e", "episode or movie ID")
-   c.password = c.flag.String("P", "password")
-   c.season = c.flag.String("S", "season ID")
-   c.series = c.flag.String("s", "series ID")
-   c.widevine = c.flag.String("w", "Widevine")
-   refresh := c.flag.Bool("r", "refresh")
+   refresh := c.flag.Add("r", "refresh")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   c.email = c.flag.AddValue("E", "email")
+   c.episode = c.flag.AddValue("e", "episode or movie ID")
+   c.password = c.flag.AddValue("P", "password")
+   c.season = c.flag.AddValue("S", "season ID")
+   c.series = c.flag.AddValue("s", "series ID")
+   c.widevine = c.flag.AddValue("w", "Widevine")
    if err := c.flag.Parse(); err != nil {
       return err
    }
@@ -58,17 +118,37 @@ func (c *client) do() error {
       return c.do_dash()
    }
    return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {email, password},
+      {c.widevine},
+      {c.email, c.password},
       {refresh},
-      {series},
-      {season},
-      {episode},
-      {dash},
+      {c.series},
+
+      {c.season},
+      {c.episode},
+      {c.dash},
    })
 }
 
-type widevine string
+///
+
+func (c *client) do_season() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.EpisodesMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
 
 func (c *client) do_episode() error {
    var auth_data amc.AuthData
@@ -96,7 +176,7 @@ func (c *client) do_dash() error {
       manifest maya.Manifest
       playback amc.Playback
       source   amc.Source
-      device widevine
+      device   widevine
    )
    err := c.cache.Decode(&manifest, &playback, &source, &device)
    if err != nil {
@@ -114,75 +194,4 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmWidevine,
       License: license,
    })
-}
-
-func (c *client) do_email_password() error {
-   auth_data, err := amc.Unauth()
-   if err != nil {
-      return err
-   }
-   auth_data, err = amc.Login(auth_data.AccessToken, c.email, c.password)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth_data)
-}
-
-func (c *client) do_refresh() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   err = auth_data.Refresh()
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth_data)
-}
-
-func (c *client) do_series() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   series, err := amc.SeriesDetail(auth_data.AccessToken, c.series)
-   if err != nil {
-      return err
-   }
-   for i, season := range series.SeasonsMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(season)
-   }
-   return nil
-}
-
-func (c *client) do_season() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.EpisodesMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
