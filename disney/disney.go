@@ -10,6 +10,27 @@ import (
    "strings"
 )
 
+// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+func ParseEntity(urlData string) (string, error) {
+   if strings.Contains(urlData, "/play/") {
+      return "", errors.New("URL is a 'play' and not a 'browse'")
+   }
+   // The unique marker for the ID we want is "/browse/entity-".
+   const marker = "/browse/entity-"
+   // strings.Cut splits the string at the first instance of the marker.
+   // It returns the part before, the part after, and a boolean indicating if the marker was found.
+   // We don't need the 'before' part, so we discard it with the blank identifier _.
+   _, id, found := strings.Cut(urlData, marker)
+   // If the marker was not found, or if the resulting ID string is empty, return an error.
+   if !found || id == "" {
+      return "", errors.New("failed to find a valid ID in the URL")
+   }
+   // The 'id' variable now holds the rest of the string after the marker.
+   return id, nil
+}
+
 // request: Account
 func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
    if err := t.assert("Account"); err != nil {
@@ -618,27 +639,6 @@ var mutation_refresh_token string
 
 //go:embed switchProfile.gql
 var mutation_switch_profile string
-
-// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func ParseEntity(urlData string) (string, error) {
-   if strings.Contains(urlData, "/play/") {
-      return "", errors.New("URL is a 'play' and not a 'browse'")
-   }
-   // The unique marker for the ID we want is "/browse/entity-".
-   const marker = "/browse/entity-"
-   // strings.Cut splits the string at the first instance of the marker.
-   // It returns the part before, the part after, and a boolean indicating if the marker was found.
-   // We don't need the 'before' part, so we discard it with the blank identifier _.
-   _, id, found := strings.Cut(urlData, marker)
-   // If the marker was not found, or if the resulting ID string is empty, return an error.
-   if !found || id == "" {
-      return "", errors.New("failed to find a valid ID in the URL")
-   }
-   // The 'id' variable now holds the rest of the string after the marker.
-   return id, nil
-}
 
 type AuthenticateWithOtp struct {
    ActionGrant string
