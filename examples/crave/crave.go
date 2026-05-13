@@ -7,6 +7,97 @@ import (
    "log"
 )
 
+func (c *client) do_address() error {
+   address, err := c.address.ParseUrl()
+   if err != nil {
+      return err
+   }
+   profile_token := &crave.ProfileToken{}
+   if err = c.cache.Decode(profile_token); err != nil {
+      return err
+   }
+   media, err := crave.ParseMedia(address)
+   if err != nil {
+      return err
+   }
+   if media.FirstContent.Id == 0 {
+      media, err = crave.GetMedia(media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   playback, err := crave.GetPlayback(profile_token, media)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(profile_token, playback)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, media, playback)
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/crave"); err != nil {
+      return err
+   }
+   c.playReady = c.flag.AddValue("PR", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.password = c.flag.AddValue("p", "password")
+   c.username = c.flag.AddValue("u", "username")
+   c.flag = append(c.flag, nil)
+   c.profile = c.flag.AddValue("P", "profile")
+   c.address = c.flag.AddValue("a", "address")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.playReady.Set {
+      return c.cache.Encode(playReady(c.playReady.Value))
+   }
+   if c.username.Set {
+      if c.password.Set {
+         return c.do_username_password()
+      }
+   }
+   if c.profile.Set {
+      return c.do_profile()
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest      maya.Manifest
+      device        playReady
+      playback      crave.Playback
+      profile_token crave.ProfileToken
+   )
+   err := c.cache.Decode(&manifest, &device, &playback, &profile_token)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return crave.AcquireLicense(body, &profile_token, &playback)
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -67,95 +158,4 @@ func (c *client) do_profile() error {
       fmt.Println(&sub)
    }
    return c.cache.Encode(profile_token)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/crave"); err != nil {
-      return err
-   }
-   c.playReady = c.flag.AddValue("PR", "PlayReady")
-   c.flag = append(c.flag, nil)
-   c.password = c.flag.AddValue("p", "password")
-   c.username = c.flag.AddValue("u", "username")
-   c.flag = append(c.flag, nil)
-   c.profile = c.flag.AddValue("P", "profile")
-   c.address = c.flag.AddValue("a", "address")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.playReady.Set {
-      return c.cache.Encode(playReady(c.playReady.Value))
-   }
-   if c.username.Set {
-      if c.password.Set {
-         return c.do_username_password()
-      }
-   }
-   if c.profile.Set {
-      return c.do_profile()
-   }
-
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-///
-
-func (c *client) do_address() error {
-   profile_token := &crave.ProfileToken{}
-   err := c.cache.Decode(profile_token)
-   if err != nil {
-      return err
-   }
-   media, err := crave.ParseMedia(c.address)
-   if err != nil {
-      return err
-   }
-   if media.FirstContent.Id == 0 {
-      media, err = crave.GetMedia(media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   playback, err := crave.GetPlayback(profile_token, media)
-   if err != nil {
-      return err
-   }
-   stream, err := crave.GetStream(profile_token, playback)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, media, playback)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest      maya.Manifest
-      device        playReady
-      playback      crave.Playback
-      profile_token crave.ProfileToken
-   )
-   err := c.cache.Decode(&manifest, &device, &playback, &profile_token)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return crave.AcquireLicense(body, &profile_token, &playback)
-   }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmPlayReady,
-      License: license,
-   })
 }
