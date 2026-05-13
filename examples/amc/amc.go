@@ -11,15 +11,17 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   c.widevine = c.flag[0].AddValue("w", "Widevine")
-   c.email = c.flag[1].AddValue("E", "email")
-   c.password = c.flag[1].AddValue("P", "password")
-   refresh := c.flag[2].Add("r", "refresh")
-   c.series = c.flag[2].AddValue("s", "series ID")
-   c.season = c.flag[2].AddValue("S", "season ID")
-   c.episode = c.flag[2].AddValue("e", "episode or movie ID")
-   c.dash = c.flag[2].AddValue("d", "DASH ID")
-   if err := maya.ParseFlags(c.flag[:]...); err != nil {
+   c.widevine = c.flag.AddValue("w", "Widevine")
+   c.flag = append(c.flag, nil)
+   c.email = c.flag.AddValue("E", "email")
+   c.password = c.flag.AddValue("P", "password")
+   c.flag = append(c.flag, nil)
+   refresh := c.flag.Add("r", "refresh")
+   c.series = c.flag.AddValue("s", "series ID")
+   c.season = c.flag.AddValue("S", "season ID")
+   c.episode = c.flag.AddValue("e", "episode or movie ID")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
       return err
    }
    if c.widevine.Set {
@@ -45,71 +47,10 @@ func (c *client) do() error {
    if c.dash.Set {
       return c.do_dash()
    }
-   for i, flag := range c.flag {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(flag)
-   }
+   fmt.Println(c.flag)
    return nil
 }
 
-func (c *client) do_episode() error {
-   video_id, err := c.episode.ParseInt()
-   if err != nil {
-      return err
-   }
-   var auth_data amc.AuthData
-   if err = c.cache.Decode(&auth_data); err != nil {
-      return err
-   }
-   playback, err := amc.GetPlayback(auth_data.AccessToken, video_id)
-   if err != nil {
-      return err
-   }
-   source, err := playback.GetDash()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&source.Src.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback, source)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      playback amc.Playback
-      source   amc.Source
-      device   widevine
-   )
-   err := c.cache.Decode(&manifest, &playback, &source, &device)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return amc.License(
-         source.KeySystems.ComWidevineAlpha.LicenseURL,
-         playback.BcovAuth,
-         body,
-      )
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
 type widevine string
 
 func (c *client) do_email_password() error {
@@ -183,6 +124,63 @@ func (c *client) do_season() error {
    return nil
 }
 
+func (c *client) do_episode() error {
+   video_id, err := c.episode.ParseInt()
+   if err != nil {
+      return err
+   }
+   var auth_data amc.AuthData
+   if err = c.cache.Decode(&auth_data); err != nil {
+      return err
+   }
+   playback, err := amc.GetPlayback(auth_data.AccessToken, video_id)
+   if err != nil {
+      return err
+   }
+   source, err := playback.GetDash()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&source.Src.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback, source)
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      playback amc.Playback
+      source   amc.Source
+      device   widevine
+   )
+   err := c.cache.Decode(&manifest, &playback, &source, &device)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return amc.License(
+         source.KeySystems.ComWidevineAlpha.LicenseURL,
+         playback.BcovAuth,
+         body,
+      )
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    cache    maya.Cache
    dash     *maya.Flag
@@ -192,5 +190,5 @@ type client struct {
    season   *maya.Flag
    series   *maya.Flag
    widevine *maya.Flag
-   flag [3]maya.FlagSet
+   flag     maya.FlagSet
 }
