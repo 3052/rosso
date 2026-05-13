@@ -7,6 +7,33 @@ import (
    "log"
 )
 
+type playReady string
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type disney_email string
+
+///
+
+type client struct {
+   address   string
+   cache     maya.Cache
+   email     string
+   flag      maya.FlagSet
+   hls       string
+   media     string
+   passcode  string
+   playReady string
+   profile   string
+   season    string
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
@@ -25,7 +52,7 @@ func (c *client) do() error {
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(playReady_folder(c.playReady))
+      return c.cache.Encode(playReady(c.playReady))
    case email.IsSet:
       return c.do_email()
    case passcode.IsSet:
@@ -75,30 +102,20 @@ func (c *client) do_media() error {
 
 func (c *client) do_hls() error {
    var (
-      manifest  maya.Manifest
-      playReady playReady_folder
-      token     disney.Token
+      manifest maya.Manifest
+      device   playReady
+      token    disney.Token
    )
-   err := c.cache.Decode(&manifest, &playReady, &token)
+   err := c.cache.Decode(&manifest, &device, &token)
    if err != nil {
       return err
    }
    return maya.DownloadHls(c.hls, &manifest, &maya.Options{
-      Device:  string(playReady),
+      Device:  string(device),
       Drm:     maya.DrmPlayReady,
       License: token.FetchPlayReady,
    })
 }
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type disney_email string
 
 func (c *client) do_email() error {
    token, err := disney.RegisterDevice()
@@ -196,18 +213,3 @@ func (c *client) do_season() error {
    fmt.Println(season)
    return nil
 }
-
-type client struct {
-   address   string
-   cache     maya.Cache
-   email     string
-   flag      maya.FlagSet
-   hls       string
-   media     string
-   passcode  string
-   playReady string
-   profile   string
-   season    string
-}
-
-type playReady_folder string

@@ -77,18 +77,6 @@ var query_resolve_path string
 //go:embed axisContent.gql
 var query_axis_content string
 
-// https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
-func GetPath(urlData string) (string, error) {
-   urlParse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   if urlParse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return urlParse.Path, nil
-}
-
 type AxisContent struct {
    AxisId                int
    AxisPlaybackLanguages []struct {

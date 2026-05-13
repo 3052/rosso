@@ -3,9 +3,44 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/criterion"
+   "fmt"
    "log"
    "path"
 )
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/criterion"); err != nil {
+      return err
+   }
+   c.widevine = c.flag.AddValue("w", "Widevine")
+   c.flag = append(c.flag, nil)
+   c.email = c.flag.AddValue("e", "email")
+   c.password = c.flag.AddValue("p", "password")
+   c.flag = append(c.flag, nil)
+   c.address = c.flag.AddValue("a", "address")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.widevine.Set {
+      return c.cache.Encode(widevine(c.widevine.Value))
+   }
+   if c.email.Set {
+      if c.password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+type widevine string
 
 func (c *client) do_address() error {
    var token criterion.Token
@@ -18,7 +53,7 @@ func (c *client) do_address() error {
       return err
    }
    files_href, err := criterion.FetchFilesHref(
-      token.AccessToken, path.Base(c.address),
+      token.AccessToken, path.Base(c.address.Value),
    )
    if err != nil {
       return err
@@ -42,14 +77,14 @@ func (c *client) do_dash() error {
    var (
       file     criterion.File
       manifest maya.Manifest
-      widevine widevine_folder
+      device   widevine
    )
-   err := c.cache.Decode(&file, &manifest, &widevine)
+   err := c.cache.Decode(&file, &manifest, &device)
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(widevine),
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
       Drm:     maya.DrmWidevine,
       License: file.FetchWidevine,
    })
@@ -64,7 +99,7 @@ func main() {
 }
 
 func (c *client) do_email_password() error {
-   token, err := criterion.FetchToken(c.email, c.password)
+   token, err := criterion.FetchToken(c.email.Value, c.password.Value)
    if err != nil {
       return err
    }
@@ -72,47 +107,11 @@ func (c *client) do_email_password() error {
 }
 
 type client struct {
-   address  string
    cache    maya.Cache
-   dash     string
-   email    string
+   address  *maya.Flag
+   dash     *maya.Flag
+   email    *maya.Flag
+   password *maya.Flag
+   widevine *maya.Flag
    flag     maya.FlagSet
-   password string
-   widevine string
-}
-
-type widevine_folder string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/criterion"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   email := c.flag.String(&c.email, "e", "email")
-   password := c.flag.String(&c.password, "p", "password")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(widevine_folder(c.widevine))
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return c.do_address()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {email, password},
-      {address},
-      {dash},
-   })
 }
