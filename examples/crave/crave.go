@@ -19,59 +19,17 @@ type playReady string
 
 type client struct {
    cache     maya.Cache
-   flag      maya.FlagSet
    address   *maya.Flag
    dash      *maya.Flag
    password  *maya.Flag
    playReady *maya.Flag
    profile   *maya.Flag
    username  *maya.Flag
+   flag      maya.FlagSet
 }
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/crave"); err != nil {
-      return err
-   }
-   c.address = c.flag.AddValue("a", "address")
-   c.password = c.flag.AddValue("p", "password")
-   c.profile = c.flag.AddValue("P", "profile")
-   c.username = c.flag.AddValue("u", "username")
-   c.playReady = c.flag.AddValue("PR", "PlayReady")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.playReady.Set {
-      return c.cache.Encode(playReady(c.playReady.Value))
-   }
-   if c.username.Set {
-      if c.password.Set {
-         return c.do_username_password()
-      }
-   }
-   if c.profile.Set {
-      return c.do_profile()
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {c.playReady},
-
-      {c.username, c.password},
-      {c.profile},
-      {c.address},
-      {c.dash},
-   })
-}
-
-///
 
 func (c *client) do_username_password() error {
-   account_token, err := crave.PerformLogin(c.username, c.password)
+   account_token, err := crave.PerformLogin(c.username.Value, c.password.Value)
    if err != nil {
       return err
    }
@@ -94,7 +52,7 @@ func (c *client) do_profile() error {
    if err != nil {
       return err
    }
-   profile_token, err := crave.SwitchProfile(account_token, c.profile)
+   profile_token, err := crave.SwitchProfile(account_token, c.profile.Value)
    if err != nil {
       return err
    }
@@ -110,6 +68,45 @@ func (c *client) do_profile() error {
    }
    return c.cache.Encode(profile_token)
 }
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/crave"); err != nil {
+      return err
+   }
+   c.playReady = c.flag.AddValue("PR", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.password = c.flag.AddValue("p", "password")
+   c.username = c.flag.AddValue("u", "username")
+   c.flag = append(c.flag, nil)
+   c.profile = c.flag.AddValue("P", "profile")
+   c.address = c.flag.AddValue("a", "address")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.playReady.Set {
+      return c.cache.Encode(playReady(c.playReady.Value))
+   }
+   if c.username.Set {
+      if c.password.Set {
+         return c.do_username_password()
+      }
+   }
+   if c.profile.Set {
+      return c.do_profile()
+   }
+
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+///
 
 func (c *client) do_address() error {
    profile_token := &crave.ProfileToken{}

@@ -3,11 +3,39 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/cineMember"
+   "fmt"
    "log"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/cineMember"); err != nil {
+      return err
+   }
+   c.email = c.flag.AddValue("e", "email")
+   c.password = c.flag.AddValue("p", "password")
+   c.flag = append(c.flag, nil)
+   c.address = c.flag.AddValue("a", "address")
+   c.dash = c.flag.AddValue("d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.email.Set {
+      if c.password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
 func (c *client) do_address() error {
-   address, err := c.address.Url()
+   address, err := c.address.ParseUrl()
    if err != nil {
       return err
    }
@@ -53,11 +81,11 @@ func main() {
 
 type client struct {
    cache    maya.Cache
-   flag     maya.FlagSet
    address  *maya.Flag
    dash     *maya.Flag
    email    *maya.Flag
    password *maya.Flag
+   flag     maya.FlagSet
 }
 
 func (c *client) do_email_password() error {
@@ -70,33 +98,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return c.cache.Encode(phpSessId)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/cineMember"); err != nil {
-      return err
-   }
-   c.address = c.flag.AddValue("a", "address")
-   c.password = c.flag.AddValue("p", "password")
-   c.email = c.flag.AddValue("e", "email")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.email.Set {
-      if c.password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {c.email, c.password},
-      {c.address},
-      {c.dash},
-   })
 }
