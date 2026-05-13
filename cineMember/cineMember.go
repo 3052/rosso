@@ -12,12 +12,8 @@ import (
 )
 
 // extracts the numeric ID and converts it to an integer
-func FetchId(urlData string) (int, error) {
-   target, err := url.Parse(urlData)
-   if err != nil {
-      return 0, err
-   }
-   resp, err := maya.Get(target, nil)
+func FetchId(address *url.URL) (int, error) {
+   resp, err := maya.Get(address, nil)
    if err != nil {
       return 0, err
    }
