@@ -11,15 +11,15 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   refresh := c.flag.Add("r", "refresh")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   c.email = c.flag.AddValue("E", "email")
-   c.episode = c.flag.AddValue("e", "episode or movie ID")
-   c.password = c.flag.AddValue("P", "password")
-   c.season = c.flag.AddValue("S", "season ID")
-   c.series = c.flag.AddValue("s", "series ID")
-   c.widevine = c.flag.AddValue("w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
+   c.widevine = c.flag[0].AddValue("w", "Widevine")
+   c.email = c.flag[1].AddValue("E", "email")
+   c.password = c.flag[1].AddValue("P", "password")
+   refresh := c.flag[2].Add("r", "refresh")
+   c.series = c.flag[2].AddValue("s", "series ID")
+   c.season = c.flag[2].AddValue("S", "season ID")
+   c.episode = c.flag[2].AddValue("e", "episode or movie ID")
+   c.dash = c.flag[2].AddValue("d", "DASH ID")
+   if err := maya.ParseFlags(c.flag[:]...); err != nil {
       return err
    }
    if c.widevine.Set {
@@ -45,19 +45,17 @@ func (c *client) do() error {
    if c.dash.Set {
       return c.do_dash()
    }
-   return maya.PrintFlags([]maya.FlagSet{
-      {c.widevine},
-      {c.email, c.password},
-      {refresh},
-      {c.series},
-      {c.season},
-      {c.episode},
-      {c.dash},
-   })
+   for i, flag := range c.flag {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(flag)
+   }
+   return nil
 }
 
 func (c *client) do_episode() error {
-   video_id, err := c.episode.Int()
+   video_id, err := c.episode.ParseInt()
    if err != nil {
       return err
    }
@@ -112,19 +110,6 @@ func main() {
       log.Fatal(err)
    }
 }
-
-type client struct {
-   cache    maya.Cache
-   dash     *maya.Flag
-   email    *maya.Flag
-   episode  *maya.Flag
-   password *maya.Flag
-   season   *maya.Flag
-   series   *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
-}
-
 type widevine string
 
 func (c *client) do_email_password() error {
@@ -155,7 +140,7 @@ func (c *client) do_refresh() error {
 }
 
 func (c *client) do_series() error {
-   id, err := c.series.Int()
+   id, err := c.series.ParseInt()
    if err != nil {
       return err
    }
@@ -177,7 +162,7 @@ func (c *client) do_series() error {
 }
 
 func (c *client) do_season() error {
-   id, err := c.season.Int()
+   id, err := c.season.ParseInt()
    if err != nil {
       return err
    }
@@ -196,4 +181,16 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     *maya.Flag
+   email    *maya.Flag
+   episode  *maya.Flag
+   password *maya.Flag
+   season   *maya.Flag
+   series   *maya.Flag
+   widevine *maya.Flag
+   flag [3]maya.FlagSet
 }
