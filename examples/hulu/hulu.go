@@ -3,8 +3,53 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/hulu"
+   "fmt"
    "log"
 )
+
+type client struct {
+   cache     maya.Cache
+   flag      maya.FlagSet
+   address   maya.Flag
+   dash      maya.Flag
+   email     maya.Flag
+   password  maya.Flag
+   playReady maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/hulu"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.playReady, "P", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.email, "e", "email")
+   c.flag.AddValue(&c.password, "p", "password")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.playReady.Set {
+      return c.cache.Encode(playReady_device(c.playReady.Value))
+   }
+   if c.email.Set {
+      if c.password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+type playReady_device string
 
 func (c *client) do_address() error {
    var device hulu.Device
@@ -31,20 +76,18 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, playlist)
 }
 
-///
-
 func (c *client) do_dash() error {
    var (
-      manifest  maya.Manifest
-      playReady playReady_folder
-      playlist  hulu.Playlist
+      device   playReady_device
+      manifest maya.Manifest
+      playlist hulu.Playlist
    )
-   err := c.cache.Decode(&manifest, &playReady, &playlist)
+   err := c.cache.Decode(&device, &manifest, &playlist)
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(playReady),
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
       Drm:     maya.DrmPlayReady,
       License: playlist.FetchPlayReady,
    })
@@ -59,55 +102,9 @@ func main() {
 }
 
 func (c *client) do_email_password() error {
-   device, err := hulu.FetchDevice(c.email, c.password)
+   device, err := hulu.FetchDevice(c.email.Value, c.password.Value)
    if err != nil {
       return err
    }
    return c.cache.Encode(device)
-}
-
-type client struct {
-   address   string
-   cache     maya.Cache
-   dash      string
-   email     string
-   flag      maya.FlagSet
-   password  string
-   playReady string
-}
-
-type playReady_folder string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/hulu"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   email := c.flag.String(&c.email, "e", "email")
-   password := c.flag.String(&c.password, "p", "password")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   playReady := c.flag.String(&c.playReady, "P", "PlayReady")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return c.cache.Encode(playReady_folder(c.playReady))
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return c.do_address()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {playReady},
-      {email, password},
-      {address},
-      {dash},
-   })
 }
