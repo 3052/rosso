@@ -97,6 +97,28 @@ func (c *client) do_refresh() error {
    return c.cache.Encode(token)
 }
 
+func (c *client) do_address() error {
+   address, err := c.address.ParseUrl()
+   if err != nil {
+      return err
+   }
+   entity, err := disney.ParseEntity(address)
+   if err != nil {
+      return err
+   }
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   page, err := token.FetchPage(entity)
+   if err != nil {
+      return err
+   }
+   fmt.Println(page)
+   return nil
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
@@ -124,9 +146,9 @@ func (c *client) do() error {
       return c.do_profile()
    case refresh.Set:
       return c.do_refresh()
-
    case c.address.Set:
       return c.do_address()
+
    case c.season.Set:
       return c.do_season()
    case c.media.Set:
@@ -139,24 +161,6 @@ func (c *client) do() error {
 }
 
 ///
-
-func (c *client) do_address() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   entity, err := disney.ParseEntity(c.address)
-   if err != nil {
-      return err
-   }
-   page, err := token.FetchPage(entity)
-   if err != nil {
-      return err
-   }
-   fmt.Println(page)
-   return nil
-}
 
 func (c *client) do_season() error {
    var token disney.Token

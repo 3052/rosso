@@ -7,28 +7,60 @@ import (
    "errors"
    "io"
    "net/url"
+   "path"
    "strings"
 )
 
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func ParseEntity(urlData string) (string, error) {
-   if strings.Contains(urlData, "/play/") {
-      return "", errors.New("URL is a 'play' and not a 'browse'")
+func GetEntityId(address *url.URL) (string, error) {
+   if address == nil || address.Path == "" {
+      return "", errors.New("invalid URL")
    }
-   // The unique marker for the ID we want is "/browse/entity-".
-   const marker = "/browse/entity-"
-   // strings.Cut splits the string at the first instance of the marker.
-   // It returns the part before, the part after, and a boolean indicating if the marker was found.
-   // We don't need the 'before' part, so we discard it with the blank identifier _.
-   _, id, found := strings.Cut(urlData, marker)
-   // If the marker was not found, or if the resulting ID string is empty, return an error.
-   if !found || id == "" {
-      return "", errors.New("failed to find a valid ID in the URL")
+   entityID := path.Base(address.Path)
+   if !strings.HasPrefix(entityID, "entity-") {
+      return "", errors.New("invalid ID: missing entity prefix")
    }
-   // The 'id' variable now holds the rest of the string after the marker.
-   return id, nil
+   return entityID, nil
+}
+
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/" + entity,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Errors []Error // 2026-04-11
+         Page   Page
+      }
+      Errors []Error // 2026-05-03
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
+   }
+   return &result.Data.Page, nil
 }
 
 // request: Account
@@ -140,44 +172,6 @@ func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
       return nil, err
    }
    return &result.Data.RequestOtp, nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/entity-" + entity,
-         RawQuery: "limit=0",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Errors []Error // 2026-04-11
-         Page   Page
-      }
-      Errors []Error // 2026-05-03
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   if len(result.Data.Errors) >= 1 {
-      return nil, &result.Data.Errors[0]
-   }
-   return &result.Data.Page, nil
 }
 
 func (p *Page) String() string {

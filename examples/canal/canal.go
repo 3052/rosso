@@ -10,6 +10,80 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      player   canal.Player
+      device   widevine_device
+   )
+   err := c.cache.Decode(&manifest, &player, &device)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Drm:     maya.DrmWidevine,
+      Device:  string(device),
+      License: player.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func get(address *url.URL) error {
+   resp, err := maya.Get(address, nil)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address.Path))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
+
+func (c *client) do_tracking_season() error {
+   season, err := c.season.ParseInt()
+   if err != nil {
+      return err
+   }
+   var session canal.Session
+   if err = c.cache.Decode(&session); err != nil {
+      return err
+   }
+   episodes, err := session.Episodes(c.tracking.Value, season)
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     *maya.Flag
+   email    *maya.Flag
+   password *maya.Flag
+   query    *maya.Flag
+   season   *maya.Flag
+   tracking *maya.Flag
+   widevine *maya.Flag
+   flag     maya.FlagSet
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/canal"); err != nil {
       return err
@@ -31,7 +105,7 @@ func (c *client) do() error {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine(c.widevine.Value))
+      return c.cache.Encode(widevine_device(c.widevine.Value))
    }
    if c.email.Set {
       if c.password.Set {
@@ -60,7 +134,7 @@ func (c *client) do() error {
    return nil
 }
 
-type widevine string
+type widevine_device string
 
 func (c *client) do_email_password() error {
    ticket, err := canal.FetchTicket()
@@ -145,78 +219,4 @@ func (c *client) do_subtitles() error {
       }
    }
    return nil
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      player   canal.Player
-      device   widevine
-   )
-   err := c.cache.Decode(&manifest, &player, &device)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Drm:     maya.DrmWidevine,
-      Device:  string(device),
-      License: player.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func get(address *url.URL) error {
-   resp, err := maya.Get(address, nil)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address.Path))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
-}
-
-func (c *client) do_tracking_season() error {
-   season, err := c.season.ParseInt()
-   if err != nil {
-      return err
-   }
-   var session canal.Session
-   if err = c.cache.Decode(&session); err != nil {
-      return err
-   }
-   episodes, err := session.Episodes(c.tracking.Value, season)
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
-type client struct {
-   cache    maya.Cache
-   dash     *maya.Flag
-   email    *maya.Flag
-   password *maya.Flag
-   query    *maya.Flag
-   season   *maya.Flag
-   tracking *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
 }

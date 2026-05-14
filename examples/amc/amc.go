@@ -7,6 +7,33 @@ import (
    "log"
 )
 
+func (c *client) do_dash() error {
+   var (
+      device   widevine_device
+      manifest maya.Manifest
+      playback amc.Playback
+      source   amc.Source
+   )
+   err := c.cache.Decode(&device, &manifest, &playback, &source)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return amc.License(
+         source.KeySystems.ComWidevineAlpha.LicenseURL,
+         playback.BcovAuth,
+         body,
+      )
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
+type widevine_device string
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
@@ -25,7 +52,7 @@ func (c *client) do() error {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine(c.widevine.Value))
+      return c.cache.Encode(widevine_device(c.widevine.Value))
    }
    if c.email.Set {
       if c.password.Set {
@@ -51,7 +78,25 @@ func (c *client) do() error {
    return nil
 }
 
-type widevine string
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache    maya.Cache
+   dash     *maya.Flag
+   email    *maya.Flag
+   episode  *maya.Flag
+   password *maya.Flag
+   season   *maya.Flag
+   series   *maya.Flag
+   widevine *maya.Flag
+   flag     maya.FlagSet
+}
 
 func (c *client) do_email_password() error {
    auth_data, err := amc.Unauth()
@@ -146,49 +191,4 @@ func (c *client) do_episode() error {
       return err
    }
    return c.cache.Encode(manifest, playback, source)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      playback amc.Playback
-      source   amc.Source
-      device   widevine
-   )
-   err := c.cache.Decode(&manifest, &playback, &source, &device)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return amc.License(
-         source.KeySystems.ComWidevineAlpha.LicenseURL,
-         playback.BcovAuth,
-         body,
-      )
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   cache    maya.Cache
-   dash     *maya.Flag
-   email    *maya.Flag
-   episode  *maya.Flag
-   password *maya.Flag
-   season   *maya.Flag
-   series   *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
 }
