@@ -10,6 +10,44 @@ import (
    "strings"
 )
 
+type Address struct {
+   Program int
+   Channel int
+}
+
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseAddress(input *url.URL) (*Address, error) {
+   if input == nil {
+      return nil, errors.New("url is nil")
+   }
+   // Find everything after "/p/"
+   _, after, found := strings.Cut(input.Path, "/p/")
+   if !found {
+      return nil, errors.New("missing /p/ in path")
+   }
+   // Cut at the next slash to isolate the ID segment.
+   // If there is no slash, strings.Cut safely returns the whole string as idStr.
+   idStr, _, _ := strings.Cut(after, "/")
+   // Cut by the hyphen to separate Program and Channel
+   progStr, chanStr, found := strings.Cut(idStr, "-")
+   if !found {
+      return nil, errors.New("invalid ID format")
+   }
+   prog, err := strconv.Atoi(progStr)
+   if err != nil {
+      return nil, err
+   }
+   chanID, err := strconv.Atoi(chanStr)
+   if err != nil {
+      return nil, err
+   }
+   return &Address{
+      Program: prog,
+      Channel: chanID,
+   }, nil
+}
+
 type Url struct {
    Url url.URL
 }
@@ -82,14 +120,14 @@ type Auth struct {
    RefreshToken string `json:"refresh_token"`
 }
 
-func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
+func (a *Auth) FetchPlay(addressData *Address) (*Play, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "fapi.molotov.tv",
          Path: fmt.Sprintf(
             "/v2/channels/%v/programs/%v/view",
-            programData.ChannelId, programData.Id,
+            addressData.Channel, addressData.Program,
          ),
          RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
       },
@@ -177,37 +215,6 @@ const (
    browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
 )
-
-// https://molotov.tv/fr_fr/p/15301-2328
-// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
-func ParseProgram(data string) (*Program, error) {
-   var found bool
-   _, data, found = strings.Cut(data, "/p/")
-   if !found {
-      return nil, errors.New("url does not contain the /p/ marker")
-   }
-   data, _, _ = strings.Cut(data, "/")
-   id, channel_id, found := strings.Cut(data, "-")
-   if !found {
-      return nil, errors.New("invalid format: hyphen not found between IDs")
-   }
-   var (
-      p   Program
-      err error
-   )
-   if p.Id, err = strconv.Atoi(id); err != nil {
-      return nil, errors.New("program ID is not a valid integer")
-   }
-   if p.ChannelId, err = strconv.Atoi(channel_id); err != nil {
-      return nil, errors.New("channel ID is not a valid integer")
-   }
-   return &p, nil
-}
-
-type Program struct {
-   Id        int
-   ChannelId int
-}
 
 type Play struct {
    Url *Url // fapi.molotov.tv/v2/me/assets
