@@ -8,41 +8,37 @@ import (
 )
 
 type client struct {
-   address  string
    cache    maya.Cache
-   dash     string
    flag     maya.FlagSet
-   playlist string
-   widevine string
+   address  maya.Flag
+   dash     maya.Flag
+   playlist maya.Flag
+   widevine maya.Flag
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/itv"); err != nil {
       return err
    }
-   address := c.flag.String(&c.address, "a", "address")
-   playlist := c.flag.String(&c.playlist, "p", "playlist URL")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.playlist, "p", "playlist URL")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
    if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
-   case widevine.IsSet:
-      return c.cache.Encode(widevine_device(c.widevine))
-   case address.IsSet:
+   case c.widevine.Set:
+      return c.cache.Encode(widevine_device(c.widevine.Value))
+   case c.address.Set:
       return c.do_address()
-   case playlist.IsSet:
+   case c.playlist.Set:
       return c.do_playlist()
-   case dash.IsSet:
+   case c.dash.Set:
       return c.do_dash()
    }
-   return maya.PrintFlags([]maya.FlagSet{{
-      widevine,
-      address,
-      playlist,
-      dash,
-   }})
+   fmt.Println(c.flag)
+   return nil
 }
 
 func main() {

@@ -11,27 +11,6 @@ import (
    "strings"
 )
 
-func (p *PlayResponse) GetDash() (*Manifest, error) {
-   for _, manifest_data := range p.Manifests {
-      if manifest_data.ManifestType == "dash" {
-         return &manifest_data, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418
 // - https://kanopy.com/video/genius-party
@@ -283,4 +262,25 @@ func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) (
    defer resp.Body.Close()
 
    return io.ReadAll(resp.Body)
+}
+
+func (p *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
