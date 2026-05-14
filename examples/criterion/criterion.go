@@ -8,22 +8,32 @@ import (
    "path"
 )
 
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   email    maya.Flag
+   password maya.Flag
+   widevine maya.Flag
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/criterion"); err != nil {
       return err
    }
-   c.widevine = c.flag.AddValue("w", "Widevine")
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
    c.flag = append(c.flag, nil)
-   c.email = c.flag.AddValue("e", "email")
-   c.password = c.flag.AddValue("p", "password")
+   c.flag.AddValue(&c.email, "e", "email")
+   c.flag.AddValue(&c.password, "p", "password")
    c.flag = append(c.flag, nil)
-   c.address = c.flag.AddValue("a", "address")
-   c.dash = c.flag.AddValue("d", "DASH ID")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine(c.widevine.Value))
+      return c.cache.Encode(widevine_device(c.widevine.Value))
    }
    if c.email.Set {
       if c.password.Set {
@@ -40,7 +50,40 @@ func (c *client) do() error {
    return nil
 }
 
-type widevine string
+func (c *client) do_dash() error {
+   var (
+      device   widevine_device
+      file     criterion.File
+      manifest maya.Manifest
+   )
+   err := c.cache.Decode(&device, &file, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
+      Drm:     maya.DrmWidevine,
+      License: file.FetchWidevine,
+   })
+}
+
+type widevine_device string
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   token, err := criterion.FetchToken(c.email.Value, c.password.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
+}
 
 func (c *client) do_address() error {
    var token criterion.Token
@@ -70,48 +113,5 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(manifest, file, token)
-}
-
-func (c *client) do_dash() error {
-   var (
-      file     criterion.File
-      manifest maya.Manifest
-      device   widevine
-   )
-   err := c.cache.Decode(&file, &manifest, &device)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmWidevine,
-      License: file.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   token, err := criterion.FetchToken(c.email.Value, c.password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(token)
-}
-
-type client struct {
-   cache    maya.Cache
-   address  *maya.Flag
-   dash     *maya.Flag
-   email    *maya.Flag
-   password *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
+   return c.cache.Encode(file, manifest, token)
 }

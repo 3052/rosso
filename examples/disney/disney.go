@@ -7,18 +7,6 @@ import (
    "log"
 )
 
-type playReady string
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type disney_email string
-
 type client struct {
    cache     maya.Cache
    address   *maya.Flag
@@ -31,6 +19,58 @@ type client struct {
    season    *maya.Flag
    flag      maya.FlagSet
 }
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/disney"); err != nil {
+      return err
+   }
+   c.playReady = c.flag.AddValue("PR", "PlayReady")
+   c.email = c.flag.AddValue("e", "email")
+   c.passcode = c.flag.AddValue("p", "passcode")
+   c.profile = c.flag.AddValue("P", "profile ID")
+   refresh := c.flag.Add("r", "refresh")
+   c.address = c.flag.AddValue("a", "address")
+   c.season = c.flag.AddValue("s", "season ID")
+   c.media = c.flag.AddValue("m", "media ID")
+   c.hls = c.flag.AddValue("h", "HLS ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.playReady.Set:
+      return c.cache.Encode(playReady_device(c.playReady.Value))
+   case c.email.Set:
+      return c.do_email()
+   case c.passcode.Set:
+      return c.do_passcode()
+   case c.profile.Set:
+      return c.do_profile()
+   case refresh.Set:
+      return c.do_refresh()
+   case c.address.Set:
+      return c.do_address()
+   case c.season.Set:
+      return c.do_season()
+   case c.media.Set:
+      return c.do_media()
+   case c.hls.Set:
+      return c.do_hls()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type disney_email string
+
+type playReady_device string
 
 func (c *client) do_email() error {
    token, err := disney.RegisterDevice()
@@ -119,56 +159,13 @@ func (c *client) do_address() error {
    return nil
 }
 
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/disney"); err != nil {
-      return err
-   }
-   c.playReady = c.flag.AddValue("PR", "PlayReady")
-   c.email = c.flag.AddValue("e", "email")
-   c.passcode = c.flag.AddValue("p", "passcode")
-   c.profile = c.flag.AddValue("P", "profile ID")
-   refresh := c.flag.Add("r", "refresh")
-   c.address = c.flag.AddValue("a", "address")
-   c.season = c.flag.AddValue("s", "season ID")
-   c.media = c.flag.AddValue("m", "media ID")
-   c.hls = c.flag.AddValue("h", "HLS ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.playReady.Set:
-      return c.cache.Encode(playReady(c.playReady.Value))
-   case c.email.Set:
-      return c.do_email()
-   case c.passcode.Set:
-      return c.do_passcode()
-   case c.profile.Set:
-      return c.do_profile()
-   case refresh.Set:
-      return c.do_refresh()
-   case c.address.Set:
-      return c.do_address()
-
-   case c.season.Set:
-      return c.do_season()
-   case c.media.Set:
-      return c.do_media()
-   case c.hls.Set:
-      return c.do_hls()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-///
-
 func (c *client) do_season() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   season, err := token.FetchSeason(c.season)
+   season, err := token.FetchSeason(c.season.Value)
    if err != nil {
       return err
    }
@@ -182,7 +179,7 @@ func (c *client) do_media() error {
    if err != nil {
       return err
    }
-   stream, err := token.FetchStream(c.media)
+   stream, err := token.FetchStream(c.media.Value)
    if err != nil {
       return err
    }
@@ -195,15 +192,15 @@ func (c *client) do_media() error {
 
 func (c *client) do_hls() error {
    var (
+      device   playReady_device
       manifest maya.Manifest
-      device   playReady
       token    disney.Token
    )
-   err := c.cache.Decode(&manifest, &device, &token)
+   err := c.cache.Decode(&device, &manifest, &token)
    if err != nil {
       return err
    }
-   return maya.DownloadHls(c.hls, &manifest, &maya.Options{
+   return maya.DownloadHls(c.hls.Value, &manifest, &maya.Options{
       Device:  string(device),
       Drm:     maya.DrmPlayReady,
       License: token.FetchPlayReady,

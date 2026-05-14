@@ -7,6 +7,36 @@ import (
    "log"
 )
 
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   widevine maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/ctv"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.widevine.Set:
+      return c.cache.Encode(widevine_device(c.widevine.Value))
+   case c.address.Set:
+      return c.do_address()
+   case c.dash.Set:
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
 func (c *client) do_address() error {
    address, err := c.address.ParseUrl()
    if err != nil {
@@ -43,14 +73,14 @@ func main() {
    }
 }
 
-type widevine string
+type widevine_device string
 
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
-      device   widevine
+      device   widevine_device
    )
-   err := c.cache.Decode(&manifest, &device)
+   err := c.cache.Decode(&device, &manifest)
    if err != nil {
       return err
    }
@@ -59,34 +89,4 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmWidevine,
       License: ctv.FetchWidevine,
    })
-}
-
-type client struct {
-   cache    maya.Cache
-   address  *maya.Flag
-   dash     *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/ctv"); err != nil {
-      return err
-   }
-   c.widevine = c.flag.AddValue("w", "Widevine")
-   c.address = c.flag.AddValue("a", "address")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.widevine.Set:
-      return c.cache.Encode(widevine(c.widevine.Value))
-   case c.address.Set:
-      return c.do_address()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }
