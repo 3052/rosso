@@ -11,11 +11,11 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/cineMember"); err != nil {
       return err
    }
-   c.email = c.flag.AddValue("e", "email")
-   c.password = c.flag.AddValue("p", "password")
+   c.flag.AddValue(&c.email, "e", "email")
+   c.flag.AddValue(&c.password, "p", "password")
    c.flag = append(c.flag, nil)
-   c.address = c.flag.AddValue("a", "address")
-   c.dash = c.flag.AddValue("d", "DASH ID")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
       return err
    }
@@ -32,6 +32,44 @@ func (c *client) do() error {
    }
    fmt.Println(c.flag)
    return nil
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   email    maya.Flag
+   password maya.Flag
+}
+
+func (c *client) do_email_password() error {
+   phpSessId, err := cineMember.GetPhpSessId()
+   if err != nil {
+      return err
+   }
+   err = cineMember.FetchLogin(phpSessId, c.email.Value, c.password.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(phpSessId)
+}
+
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, nil)
 }
 
 func (c *client) do_address() error {
@@ -60,42 +98,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-func (c *client) do_dash() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, nil)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   cache    maya.Cache
-   address  *maya.Flag
-   dash     *maya.Flag
-   email    *maya.Flag
-   password *maya.Flag
-   flag     maya.FlagSet
-}
-
-func (c *client) do_email_password() error {
-   phpSessId, err := cineMember.GetPhpSessId()
-   if err != nil {
-      return err
-   }
-   err = cineMember.FetchLogin(phpSessId, c.email.Value, c.password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(phpSessId)
 }
