@@ -12,116 +12,14 @@ import (
    "strings"
 )
 
-func (t *Title) String() string {
-   data := &strings.Builder{}
-   if t.Series != nil {
-      fmt.Fprintln(data, "series:", t.Series.SeriesNumber)
-      fmt.Fprintln(data, "episode:", t.EpisodeNumber)
-   }
-   if t.Title != "" {
-      fmt.Fprintln(data, "title:", t.Title)
-   }
-   fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
-   return data.String()
-}
-
-func graphql_compact(data string) string {
-   return strings.Join(strings.Fields(data), " ")
-}
-
-func FetchTitles(legacyId string) ([]Title, error) {
-   var data strings.Builder
-   err := json.NewEncoder(&data).Encode(map[string]string{
-      "brandLegacyId": legacyId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "content-inventory.prd.oasvc.itv.com",
-         Path:   "/discovery",
-         RawQuery: url.Values{
-            "query":     {graphql_compact(programme_page)},
-            "variables": {data.String()},
-         }.Encode(),
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Titles []Title
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Data.Titles, nil
-}
-
-// fetchPlaylist is the common underlying function doing the heavy lifting
-func fetchPlaylist(urlData, drmSystem, maxSupported string) (*Playlist, error) {
-   body, err := json.Marshal(map[string]any{
-      "client": map[string]string{
-         "id": "browser",
-      },
-      "variantAvailability": map[string]any{
-         "drm": map[string]string{
-            "maxSupported": maxSupported,
-            "system":       drmSystem,
-         },
-         "featureset": []string{ // need all these to get 720p
-            "hd",
-            "mpeg-dash",
-            "single-track",
-            drmSystem, // Injects "playready" or "widevine"
-         },
-         "platformTag": "ctv", // 1080p
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target, err := url.Parse(urlData)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "accept":     "application/vnd.itv.vod.playlist.v4+json",
-         "user-agent": "!",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playlist
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
-}
-
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
-func FetchPlayReady(urlData string) (*Playlist, error) {
-   return fetchPlaylist(urlData, "playready", "SL3000")
+func FetchPlayReady(address *url.URL) (*Playlist, error) {
+   return fetchPlaylist(address, "playready", "SL3000")
 }
 
 // FetchWidevine fetches a playlist with Widevine DRM requirements
-func FetchWidevine(urlData string) (*Playlist, error) {
-   return fetchPlaylist(urlData, "widevine", "L3")
+func FetchWidevine(address *url.URL) (*Playlist, error) {
+   return fetchPlaylist(address, "widevine", "L3")
 }
 
 //go:embed ProgrammePage.gql
@@ -190,4 +88,102 @@ func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
+}
+
+func (t *Title) String() string {
+   data := &strings.Builder{}
+   if t.Series != nil {
+      fmt.Fprintln(data, "series:", t.Series.SeriesNumber)
+      fmt.Fprintln(data, "episode:", t.EpisodeNumber)
+   }
+   if t.Title != "" {
+      fmt.Fprintln(data, "title:", t.Title)
+   }
+   fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
+   return data.String()
+}
+
+func graphql_compact(data string) string {
+   return strings.Join(strings.Fields(data), " ")
+}
+
+func FetchTitles(legacyId string) ([]Title, error) {
+   var data strings.Builder
+   err := json.NewEncoder(&data).Encode(map[string]string{
+      "brandLegacyId": legacyId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "content-inventory.prd.oasvc.itv.com",
+         Path:   "/discovery",
+         RawQuery: url.Values{
+            "query":     {graphql_compact(programme_page)},
+            "variables": {data.String()},
+         }.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Titles []Title
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Data.Titles, nil
+}
+
+// fetchPlaylist is the common underlying function doing the heavy lifting
+func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist, error) {
+   body, err := json.Marshal(map[string]any{
+      "client": map[string]string{
+         "id": "browser",
+      },
+      "variantAvailability": map[string]any{
+         "drm": map[string]string{
+            "maxSupported": maxSupported,
+            "system":       drmSystem,
+         },
+         "featureset": []string{ // need all these to get 720p
+            "hd",
+            "mpeg-dash",
+            "single-track",
+            drmSystem, // Injects "playready" or "widevine"
+         },
+         "platformTag": "ctv", // 1080p
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      address,
+      map[string]string{
+         "accept":     "application/vnd.itv.vod.playlist.v4+json",
+         "user-agent": "!",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playlist
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result, nil
 }

@@ -7,6 +7,44 @@ import (
    "log"
 )
 
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   flag     maya.FlagSet
+   playlist string
+   widevine string
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   playlist := c.flag.String(&c.playlist, "p", "playlist URL")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(widevine_device(c.widevine))
+   case address.IsSet:
+      return c.do_address()
+   case playlist.IsSet:
+      return c.do_playlist()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{{
+      widevine,
+      address,
+      playlist,
+      dash,
+   }})
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -48,10 +86,12 @@ func (c *client) do_address() error {
    return nil
 }
 
-///
-
 func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.playlist)
+   address, err := c.playlist.ParseUrl()
+   if err != nil {
+      return err
+   }
+   playlist, err := itv.FetchWidevine(address)
    if err != nil {
       return err
    }
@@ -64,42 +104,4 @@ func (c *client) do_playlist() error {
       return err
    }
    return c.cache.Encode(manifest, media_file)
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   flag     maya.FlagSet
-   playlist string
-   widevine string
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   playlist := c.flag.String(&c.playlist, "p", "playlist URL")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(widevine_device(c.widevine))
-   case address.IsSet:
-      return c.do_address()
-   case playlist.IsSet:
-      return c.do_playlist()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{{
-      widevine,
-      address,
-      playlist,
-      dash,
-   }})
 }
