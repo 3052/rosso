@@ -10,13 +10,77 @@ import (
    "path"
 )
 
+type client struct {
+   cache     maya.Cache
+   flag      maya.FlagSet
+   dash      maya.Flag
+   email     maya.Flag
+   password  maya.Flag
+   query     maya.Flag
+   season    maya.Flag
+   tracking  maya.Flag
+   widevine  maya.Flag
+   refresh   maya.Flag
+   subtitles maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/canal"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.email, "e", "email")
+   c.flag.AddValue(&c.password, "p", "password")
+   c.flag = append(c.flag, nil)
+   c.flag.Add(&c.refresh, "r", "refresh")
+   c.flag.AddValue(&c.query, "q", "query")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.tracking, "t", "tracking")
+   c.flag.AddValue(&c.season, "s", "season")
+   c.flag = append(c.flag, nil)
+   c.flag.Add(&c.subtitles, "S", "subtitles")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.widevine.Set {
+      return c.cache.Encode(widevine_device(c.widevine.Value))
+   }
+   if c.email.Set {
+      if c.password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.refresh.Set {
+      return c.do_refresh()
+   }
+   if c.query.Set {
+      return c.do_query()
+   }
+   if c.tracking.Set {
+      if c.season.Set {
+         return c.do_tracking_season()
+      }
+      return c.do_tracking()
+   }
+   if c.subtitles.Set {
+      return c.do_subtitles()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
 func (c *client) do_dash() error {
    var (
+      device   widevine_device
       manifest maya.Manifest
       player   canal.Player
-      device   widevine_device
    )
-   err := c.cache.Decode(&manifest, &player, &device)
+   err := c.cache.Decode(&device, &manifest, &player)
    if err != nil {
       return err
    }
@@ -69,68 +133,6 @@ func (c *client) do_tracking_season() error {
       }
       fmt.Println(&episode)
    }
-   return nil
-}
-
-type client struct {
-   cache    maya.Cache
-   dash     *maya.Flag
-   email    *maya.Flag
-   password *maya.Flag
-   query    *maya.Flag
-   season   *maya.Flag
-   tracking *maya.Flag
-   widevine *maya.Flag
-   flag     maya.FlagSet
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/canal"); err != nil {
-      return err
-   }
-   c.widevine = c.flag.AddValue("w", "Widevine")
-   c.flag = append(c.flag, nil)
-   c.email = c.flag.AddValue("e", "email")
-   c.password = c.flag.AddValue("p", "password")
-   c.flag = append(c.flag, nil)
-   refresh := c.flag.Add("r", "refresh")
-   c.query = c.flag.AddValue("q", "query")
-   c.flag = append(c.flag, nil)
-   c.tracking = c.flag.AddValue("t", "tracking")
-   c.season = c.flag.AddValue("s", "season")
-   c.flag = append(c.flag, nil)
-   subtitles := c.flag.Add("S", "subtitles")
-   c.dash = c.flag.AddValue("d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   }
-   if c.email.Set {
-      if c.password.Set {
-         return c.do_email_password()
-      }
-   }
-   if refresh.Set {
-      return c.do_refresh()
-   }
-   if c.query.Set {
-      return c.do_query()
-   }
-   if c.tracking.Set {
-      if c.season.Set {
-         return c.do_tracking_season()
-      }
-      return c.do_tracking()
-   }
-   if subtitles.Set {
-      return c.do_subtitles()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
    return nil
 }
 
