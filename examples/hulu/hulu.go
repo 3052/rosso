@@ -6,40 +6,6 @@ import (
    "log"
 )
 
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/hulu"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   email := c.flag.String(&c.email, "e", "email")
-   password := c.flag.String(&c.password, "p", "password")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   playReady := c.flag.String(&c.playReady, "P", "PlayReady")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if playReady.IsSet {
-      return c.cache.Encode(playReady_folder(c.playReady))
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return c.do_address()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {playReady},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
-
 func (c *client) do_address() error {
    var device hulu.Device
    err := c.cache.Decode(&device)
@@ -50,7 +16,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   deep_link, err := device.DeepLink(hulu.ParseId(c.address))
+   deep_link, err := device.DeepLink(hulu.ParseId(c.address.Value))
    if err != nil {
       return err
    }
@@ -64,6 +30,8 @@ func (c *client) do_address() error {
    }
    return c.cache.Encode(manifest, playlist)
 }
+
+///
 
 func (c *client) do_dash() error {
    var (
@@ -109,3 +77,37 @@ type client struct {
 }
 
 type playReady_folder string
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/hulu"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   playReady := c.flag.String(&c.playReady, "P", "PlayReady")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if playReady.IsSet {
+      return c.cache.Encode(playReady_folder(c.playReady))
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return c.do_address()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{
+      {playReady},
+      {email, password},
+      {address},
+      {dash},
+   })
+}
