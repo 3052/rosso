@@ -16,6 +16,11 @@ import (
    "time"
 )
 
+// https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
+func GetName(address *url.URL) string {
+   return strings.TrimPrefix(address.Path, "/")
+}
+
 type Url struct {
    Url url.URL
 }
@@ -132,15 +137,6 @@ func FetchWidevine(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-// https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
-func GetName(urlData string) (string, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   return strings.TrimPrefix(url_parse.Path, "/"), nil
 }
 
 type Metadata struct {

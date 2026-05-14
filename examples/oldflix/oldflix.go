@@ -12,7 +12,7 @@ func (c *client) do_hls() error {
    if err != nil {
       return err
    }
-   return maya.DownloadHls(c.hls, &manifest, nil)
+   return maya.DownloadHls(c.hls.Value, &manifest, nil)
 }
 
 func main() {
@@ -24,11 +24,38 @@ func main() {
 }
 
 func (c *client) do_username_password() error {
-   login, err := oldflix.FetchLogin(c.username, c.password)
+   login, err := oldflix.FetchLogin(c.username.Value, c.password.Value)
    if err != nil {
       return err
    }
    return c.cache.Encode(login)
+}
+
+///
+
+func (c *client) do_oldflix_id() error {
+   var login oldflix.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   browse, err := login.FetchBrowse(c.oldflix_id)
+   if err != nil {
+      return err
+   }
+   original, err := browse.GetOriginal()
+   if err != nil {
+      return err
+   }
+   watch, err := browse.FetchWatch(original.Id, login.Token)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(&watch.Playlist[0].File.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
 }
 
 type client struct {
@@ -67,29 +94,4 @@ func (c *client) do() error {
       {oldflix_id},
       {hls},
    })
-}
-
-func (c *client) do_oldflix_id() error {
-   var login oldflix.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   browse, err := login.FetchBrowse(c.oldflix_id)
-   if err != nil {
-      return err
-   }
-   original, err := browse.GetOriginal()
-   if err != nil {
-      return err
-   }
-   watch, err := browse.FetchWatch(original.Id, login.Token)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListHls(&watch.Playlist[0].File.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
 }

@@ -14,8 +14,7 @@ func (c *client) do_mubi_id() error {
       return err
    }
    var session mubi.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
+   if err = c.cache.Decode(&session); err != nil {
       return err
    }
    err = session.FetchViewing(mubi_id)
@@ -60,8 +59,6 @@ func main() {
    }
 }
 
-///
-
 func (c *client) do_code() error {
    link_code, err := mubi.FetchLinkCode()
    if err != nil {
@@ -85,9 +82,13 @@ func (c *client) do_session() error {
 }
 
 func (c *client) do_address() error {
-   slug := path.Base(c.address)
-   if c.season >= 1 {
-      episodes, err := mubi.FetchEpisodes(slug, c.season)
+   season, err := c.season.ParseInt()
+   if err != nil {
+      return err
+   }
+   slug := path.Base(c.address.Value)
+   if season >= 1 {
+      episodes, err := mubi.FetchEpisodes(slug, season)
       if err != nil {
          return err
       }
@@ -108,53 +109,51 @@ func (c *client) do_address() error {
 }
 
 type client struct {
-   address  string
+   address  maya.Flag
    cache    maya.Cache
-   dash     string
+   code     maya.Flag
+   dash     maya.Flag
    flag     maya.FlagSet
-   mubi_id  int
-   season   int
-   widevine string
+   mubi_id  maya.Flag
+   season   maya.Flag
+   widevine maya.Flag
+   session  maya.Flag
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
-   address := c.flag.String(&c.address, "a", "address")
-   code := c.flag.Bool("c", "link code")
-   mubi_id := c.flag.Int(&c.mubi_id, "m", "Mubi ID")
-   season := c.flag.Int(&c.season, "s", "season")
-   session := c.flag.Bool("S", "session")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.Add(&c.code, "c", "link code")
+   c.flag.Add(&c.session, "S", "session")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.season, "s", "season")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.mubi_id, "m", "Mubi ID")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
       return err
    }
-   if widevine.IsSet {
-      return c.cache.Encode(widevine_device(c.widevine))
+   if c.widevine.Set {
+      return c.cache.Encode(widevine_device(c.widevine.Value))
    }
-   if code.IsSet {
+   if c.code.Set {
       return c.do_code()
    }
-   if session.IsSet {
+   if c.session.Set {
       return c.do_session()
    }
-   if address.IsSet {
+   if c.address.Set {
       return c.do_address()
    }
-   if mubi_id.IsSet {
+   if c.mubi_id.Set {
       return c.do_mubi_id()
    }
-   if dash.IsSet {
+   if c.dash.Set {
       return c.do_dash()
    }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {code},
-      {session},
-      {address, season},
-      {mubi_id},
-      {dash},
-   })
+   fmt.Println(c.flag)
+   return nil
 }
