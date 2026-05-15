@@ -3,6 +3,7 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/paramount"
+   "fmt"
    "log"
 )
 
@@ -22,40 +23,37 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
    }
-   c.cookie = c.flag.Bool("c", "cookie")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   paramount_id := c.flag.String(&c.paramount_id, "p", "paramount ID")
-   password := c.flag.String(&c.password, "P", "password")
-   username := c.flag.String(&c.username, "U", "username")
-   app := c.flag.String(&c.app, "a", paramount.CbsAppIds())
-   playReady := c.flag.String(&c.playReady, "PR", "PlayReady")
+   c.flag.AddValue(&c.app, "a", paramount.CbsAppIds())
+   c.flag.AddValue(&c.playReady, "PR", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.username, "U", "username")
+   c.flag.AddValue(&c.password, "P", "password")
+   c.flag = append(c.flag, nil)
+   c.flag.Add(&c.cookie, "c", "cookie")
+   c.flag.AddValue(&c.paramount_id, "p", "paramount ID")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
       return err
    }
-   if playReady.Set {
-      return c.cache.Encode(playReady_device(c.playReady))
+   if c.playReady.Set {
+      return c.cache.Encode(playReady_device(c.playReady.Value))
    }
-   if app.Set {
+   if c.app.Set {
       return c.do_app()
    }
-   if username.Set {
-      if password.Set {
+   if c.username.Set {
+      if c.password.Set {
          return c.do_username_password()
       }
    }
-   if paramount_id.Set {
+   if c.paramount_id.Set {
       return c.do_paramount_id()
    }
-   if dash.Set {
+   if c.dash.Set {
       return c.do_dash()
    }
-   return maya.PrintFlags([]maya.FlagSet{
-      {playReady},
-      {app},
-      {username, password},
-      {paramount_id, c.cookie},
-      {dash, c.cookie},
-   })
+   fmt.Println(c.flag)
+   return nil
 }
 
 type playReady_device string

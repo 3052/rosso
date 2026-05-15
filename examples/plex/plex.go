@@ -8,20 +8,20 @@ import (
 
 func (c *client) do_dash() error {
    var (
+      device   widevine_device
       manifest maya.Manifest
       media    plex.Media
       user     plex.User
-      widevine widevine_folder
    )
-   err := c.cache.Decode(&manifest, &media, &user, &widevine)
+   err := c.cache.Decode(&device, &manifest, &media, &user)
    if err != nil {
       return err
    }
    license := func(body []byte) ([]byte, error) {
       return plex.AcquireWidevineLicense(&media, &user, body)
    }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(widevine),
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
       Drm:     maya.DrmWidevine,
       License: license,
    })
@@ -35,40 +35,9 @@ func main() {
    }
 }
 
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   flag     maya.FlagSet
-   widevine string
-}
+type widevine_device string
 
-type widevine_folder string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/plex"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(widevine_folder(c.widevine))
-   case address.IsSet:
-      return c.do_address()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{{
-      widevine,
-      address,
-      dash,
-   }})
-}
+///
 
 func (c *client) do_address() error {
    user, err := plex.CreateUser()
@@ -96,4 +65,37 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, user)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   flag     maya.FlagSet
+   widevine string
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/plex"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case widevine.IsSet:
+      return c.cache.Encode(widevine_device(c.widevine))
+   case address.IsSet:
+      return c.do_address()
+   case dash.IsSet:
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{{
+      widevine,
+      address,
+      dash,
+   }})
 }
