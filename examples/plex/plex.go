@@ -3,8 +3,39 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/plex"
+   "fmt"
    "log"
 )
+
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   widevine maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/plex"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.widevine.Set:
+      return c.cache.Encode(widevine_device(c.widevine.Value))
+   case c.address.Set:
+      return c.do_address()
+   case c.dash.Set:
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
 
 func (c *client) do_dash() error {
    var (
@@ -37,18 +68,16 @@ func main() {
 
 type widevine_device string
 
-///
-
 func (c *client) do_address() error {
    user, err := plex.CreateUser()
    if err != nil {
       return err
    }
-   path, err := plex.ParsePath(c.address)
+   address, err := c.address.ParseUrl()
    if err != nil {
       return err
    }
-   match, err := plex.GetMetadataMatches(path, user)
+   match, err := plex.GetMetadataMatches(plex.ParsePath(address), user)
    if err != nil {
       return err
    }
@@ -65,37 +94,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, user)
-}
-
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   flag     maya.FlagSet
-   widevine string
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/plex"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case widevine.IsSet:
-      return c.cache.Encode(widevine_device(c.widevine))
-   case address.IsSet:
-      return c.do_address()
-   case dash.IsSet:
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{{
-      widevine,
-      address,
-      dash,
-   }})
 }

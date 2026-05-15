@@ -10,6 +10,21 @@ import (
    "strings"
 )
 
+func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
+   // Iterate through all seasons and episodes to find the matching ID
+   for _, season := range s.Vod[0].Seasons {
+      for _, episode := range season.Episodes {
+         if episode.Id == episodeId {
+            // Directly access the path based on the data guarantees
+            return build_stitcher(
+               s.SessionToken, episode.Stitched.Paths[0].Path,
+            ), nil
+         }
+      }
+   }
+   return nil, errors.New("episode not found")
+}
+
 func (v *Vod) String() string {
    data := &strings.Builder{}
    var lines bool
@@ -95,21 +110,6 @@ func FetchWidevine(body []byte) ([]byte, error) {
 func (s *Series) GetMovieUrl() *url.URL {
    // Directly access the required path based on the data guarantees
    return build_stitcher(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
-}
-
-func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
-   // Iterate through all seasons and episodes to find the matching ID
-   for _, season := range s.Vod[0].Seasons {
-      for _, episode := range season.Episodes {
-         if episode.Id == episodeId {
-            // Directly access the path based on the data guarantees
-            return build_stitcher(
-               s.SessionToken, episode.Stitched.Paths[0].Path,
-            ), nil
-         }
-      }
-   }
-   return nil, errors.New("episode not found")
 }
 
 type Series struct {
