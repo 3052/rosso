@@ -7,22 +7,26 @@ import (
    "log"
 )
 
+type playReady_device string
+
 func (c *client) do_dash() error {
    var (
+      device      playReady_device
       manifest    maya.Manifest
-      playReady   playReady_folder
       stream_info rakuten.StreamInfo
    )
-   err := c.cache.Decode(&manifest, &playReady, &stream_info)
+   err := c.cache.Decode(&device, &manifest, &stream_info)
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(playReady),
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,
    })
 }
+
+///
 
 func (c *client) do_address() error {
    address, err := rakuten.ParseAddress(c.address)
@@ -94,8 +98,6 @@ type client struct {
    playReady string
 }
 
-type playReady_folder string
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
@@ -111,7 +113,7 @@ func (c *client) do() error {
    }
    switch {
    case playReady.IsSet:
-      return c.cache.Encode(playReady_folder(c.playReady))
+      return c.cache.Encode(playReady_device(c.playReady))
    case address.IsSet:
       return c.do_address()
    case season.IsSet:
