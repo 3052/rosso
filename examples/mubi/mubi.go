@@ -8,6 +8,57 @@ import (
    "path"
 )
 
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+
+   address  maya.Flag
+   code     maya.Flag
+   dash     maya.Flag
+   mubi_id  maya.Flag
+   season   maya.Flag
+   session  maya.Flag
+   widevine maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/mubi"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.Add(&c.code, "c", "link code")
+   c.flag.Add(&c.session, "S", "session")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.season, "s", "season")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.mubi_id, "m", "Mubi ID")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.widevine.Set {
+      return c.cache.Encode(widevine_device(c.widevine.Value))
+   }
+   if c.code.Set {
+      return c.do_code()
+   }
+   if c.session.Set {
+      return c.do_session()
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.mubi_id.Set {
+      return c.do_mubi_id()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
 func (c *client) do_mubi_id() error {
    mubi_id, err := c.mubi_id.ParseInt()
    if err != nil {
@@ -105,55 +156,5 @@ func (c *client) do_address() error {
       }
       fmt.Println(film)
    }
-   return nil
-}
-
-type client struct {
-   address  maya.Flag
-   cache    maya.Cache
-   code     maya.Flag
-   dash     maya.Flag
-   flag     maya.FlagSet
-   mubi_id  maya.Flag
-   season   maya.Flag
-   widevine maya.Flag
-   session  maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/mubi"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.Add(&c.code, "c", "link code")
-   c.flag.Add(&c.session, "S", "session")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.season, "s", "season")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.mubi_id, "m", "Mubi ID")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   }
-   if c.code.Set {
-      return c.do_code()
-   }
-   if c.session.Set {
-      return c.do_session()
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.mubi_id.Set {
-      return c.do_mubi_id()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
    return nil
 }
