@@ -212,17 +212,6 @@ type Session struct {
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
-func GetPath(urlData string) (string, error) {
-   url_parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   if url_parse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return url_parse.Path, nil
-}
-
 type Account struct {
    ErrorMessage string
    SessionInfo  struct {
