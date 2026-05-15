@@ -11,59 +11,52 @@ import (
    "strings"
 )
 
-func ParseAddress(targetUrl string) (*Address, error) {
-   target, err := url.Parse(targetUrl)
-   if err != nil {
-      return nil, err
+type Address struct {
+   MarketCode  string
+   ContentType string
+   ContentID   string
+}
+
+func ParseUrl(parsed *url.URL) *Address {
+   data := &Address{}
+
+   pathClean := strings.TrimPrefix(parsed.Path, "/")
+   parts := strings.Split(pathClean, "/")
+   if len(parts) > 0 && parts[0] != "" {
+      data.MarketCode = parts[0]
    }
 
-   if !strings.HasSuffix(target.Host, "rakuten.tv") {
-      return nil, errors.New("invalid host")
+   queryParams := parsed.Query()
+
+   if queryParams.Has("content_type") {
+      data.ContentType = queryParams.Get("content_type")
    }
 
-   segments := strings.Split(strings.Trim(target.Path, "/"), "/")
-   if len(segments) == 0 || segments[0] == "" {
-      return nil, errors.New("missing market code in path")
+   if queryParams.Has("content_id") {
+      data.ContentID = queryParams.Get("content_id")
+   } else if queryParams.Has("tv_show_id") {
+      data.ContentID = queryParams.Get("tv_show_id")
    }
 
-   parsed := &Address{
-      MarketCode: segments[0],
+   if data.ContentType != "" && data.ContentID != "" {
+      return data
    }
 
-   if len(segments) == 3 {
-      parsed.ContentType = segments[1]
-      parsed.ContentId = segments[2]
-   } else if len(segments) >= 5 && segments[1] == "player" {
-      parsed.ContentType = segments[2]
-      parsed.ContentId = segments[4]
-   }
+   if len(parts) > 1 {
+      if data.ContentID == "" {
+         data.ContentID = parts[len(parts)-1]
+      }
 
-   query := target.Query()
-   if parsed.ContentType == "" {
-      parsed.ContentType = query.Get("content_type")
-   }
-
-   if parsed.ContentId == "" {
-      if id := query.Get("content_id"); id != "" {
-         parsed.ContentId = id
-      } else if id := query.Get("tv_show_id"); id != "" {
-         parsed.ContentId = id
-         if parsed.ContentType == "" {
-            parsed.ContentType = "tv_shows"
-         }
-      } else if id := query.Get("movie_id"); id != "" {
-         parsed.ContentId = id
-         if parsed.ContentType == "" {
-            parsed.ContentType = "movies"
+      if data.ContentType == "" {
+         for _, part := range parts {
+            if part == "movies" || part == "tv_shows" {
+               data.ContentType = part
+               break
+            }
          }
       }
    }
-
-   if parsed.MarketCode == "" || parsed.ContentType == "" || parsed.ContentId == "" {
-      return nil, errors.New("could not extract all required components from url")
-   }
-
-   return parsed, nil
+   return data
 }
 
 func (a *Address) IsMovie() bool {
@@ -421,10 +414,4 @@ func formatPlayableDetails(identifier string, title string, playbackStreams []St
    }
    formattedAudio := strings.Join(availableLanguages, ", ")
    return fmt.Sprintf("%s (%s) - Audio: %s", title, identifier, formattedAudio)
-}
-
-type Address struct {
-   MarketCode  string
-   ContentType string
-   ContentId   string
 }

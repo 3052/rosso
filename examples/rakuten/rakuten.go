@@ -7,86 +7,6 @@ import (
    "log"
 )
 
-type playReady_device string
-
-func (c *client) do_dash() error {
-   var (
-      device      playReady_device
-      manifest    maya.Manifest
-      stream_info rakuten.StreamInfo
-   )
-   err := c.cache.Decode(&device, &manifest, &stream_info)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmPlayReady,
-      License: stream_info.FetchLicense,
-   })
-}
-
-///
-
-func (c *client) do_address() error {
-   address, err := rakuten.ParseAddress(c.address)
-   if err != nil {
-      return err
-   }
-   start, err := rakuten.FetchStart(address.MarketCode)
-   if err != nil {
-      return err
-   }
-   switch {
-   case address.IsMovie():
-      movie, err := rakuten.FetchMovie(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(movie)
-   case address.IsTvShow():
-      show, err := rakuten.FetchTvShow(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(show)
-   }
-   return c.cache.Encode(address, start)
-}
-
-func (c *client) do_season() error {
-   var start rakuten.Start
-   err := c.cache.Decode(&start)
-   if err != nil {
-      return err
-   }
-   season, err := rakuten.FetchSeason(
-      c.season, start.Profile.Classification, start.Market,
-   )
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.Episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 type client struct {
    address   string
    audio     string
@@ -132,6 +52,86 @@ func (c *client) do() error {
    })
 }
 
+type playReady_device string
+
+func (c *client) do_dash() error {
+   var (
+      device      playReady_device
+      manifest    maya.Manifest
+      stream_info rakuten.StreamInfo
+   )
+   err := c.cache.Decode(&device, &manifest, &stream_info)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
+      Drm:     maya.DrmPlayReady,
+      License: stream_info.FetchLicense,
+   })
+}
+
+func (c *client) do_address() error {
+   parsed, err := c.address.ParseUrl()
+   if err != nil {
+      return err
+   }
+   address := rakuten.ParseUrl(parsed)
+
+   start, err := rakuten.FetchStart(address.MarketCode)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      movie, err := rakuten.FetchMovie(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(movie)
+   case address.IsTvShow():
+      show, err := rakuten.FetchTvShow(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(show)
+   }
+   return c.cache.Encode(address, start)
+}
+
+func (c *client) do_season() error {
+   var start rakuten.Start
+   err := c.cache.Decode(&start)
+   if err != nil {
+      return err
+   }
+   season, err := rakuten.FetchSeason(
+      c.season.Value, start.Profile.Classification, start.Market,
+   )
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.Episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_audio() error {
    var (
       address     rakuten.Address
@@ -145,11 +145,11 @@ func (c *client) do_audio() error {
    switch {
    case address.IsMovie():
       stream_info, err = rakuten.FetchMovieStreaming(
-         address.ContentId, start.Profile.Classification, c.audio,
+         address.ContentId, start.Profile.Classification, c.audio.Value,
       )
    case address.IsTvShow():
       stream_info, err = rakuten.FetchEpisodeStreaming(
-         c.episode, start.Profile.Classification, c.audio,
+         c.episode.Value, start.Profile.Classification, c.audio.Value,
       )
    }
    if err != nil {
