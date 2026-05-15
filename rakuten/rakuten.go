@@ -14,7 +14,7 @@ import (
 type Address struct {
    MarketCode  string
    ContentType string
-   ContentID   string
+   ContentId   string
 }
 
 func ParseUrl(parsed *url.URL) *Address {
@@ -33,18 +33,18 @@ func ParseUrl(parsed *url.URL) *Address {
    }
 
    if queryParams.Has("content_id") {
-      data.ContentID = queryParams.Get("content_id")
+      data.ContentId = queryParams.Get("content_id")
    } else if queryParams.Has("tv_show_id") {
-      data.ContentID = queryParams.Get("tv_show_id")
+      data.ContentId = queryParams.Get("tv_show_id")
    }
 
-   if data.ContentType != "" && data.ContentID != "" {
+   if data.ContentType != "" && data.ContentId != "" {
       return data
    }
 
    if len(parts) > 1 {
-      if data.ContentID == "" {
-         data.ContentID = parts[len(parts)-1]
+      if data.ContentId == "" {
+         data.ContentId = parts[len(parts)-1]
       }
 
       if data.ContentType == "" {

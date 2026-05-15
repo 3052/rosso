@@ -6,18 +6,20 @@ import (
    "log"
 )
 
+type widevine_device string
+
 func (c *client) do_dash() error {
    var (
+      device      widevine_device
       entitlement rtbf.Entitlement
       manifest    maya.Manifest
-      widevine    widevine_folder
    )
-   err := c.cache.Decode(&entitlement, &manifest, &widevine)
+   err := c.cache.Decode(&device, &entitlement, &manifest)
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash, &manifest, &maya.Options{
-      Device:  string(widevine),
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(device),
       Drm:     maya.DrmWidevine,
       License: entitlement.FetchWidevine,
    })
@@ -32,58 +34,14 @@ func main() {
 }
 
 func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(c.email, c.password)
+   account, err := rtbf.FetchAccount(c.email.Value, c.password.Value)
    if err != nil {
       return err
    }
    return c.cache.Encode(account)
 }
 
-type client struct {
-   address  string
-   cache    maya.Cache
-   dash     string
-   email    string
-   flag     maya.FlagSet
-   password string
-   widevine string
-}
-
-type widevine_folder string
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/rtbf"); err != nil {
-      return err
-   }
-   address := c.flag.String(&c.address, "a", "address")
-   email := c.flag.String(&c.email, "e", "email")
-   password := c.flag.String(&c.password, "p", "password")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   widevine := c.flag.String(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if widevine.IsSet {
-      return c.cache.Encode(widevine_folder(c.widevine))
-   }
-   if email.IsSet {
-      if password.IsSet {
-         return c.do_email_password()
-      }
-   }
-   if address.IsSet {
-      return c.do_address()
-   }
-   if dash.IsSet {
-      return c.do_dash()
-   }
-   return maya.PrintFlags([]maya.FlagSet{
-      {widevine},
-      {email, password},
-      {address},
-      {dash},
-   })
-}
+///
 
 func (c *client) do_address() error {
    var account rtbf.Account
@@ -120,4 +78,48 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(entitlement, manifest)
+}
+
+type client struct {
+   address  string
+   cache    maya.Cache
+   dash     string
+   email    string
+   flag     maya.FlagSet
+   password string
+   widevine string
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/rtbf"); err != nil {
+      return err
+   }
+   address := c.flag.String(&c.address, "a", "address")
+   email := c.flag.String(&c.email, "e", "email")
+   password := c.flag.String(&c.password, "p", "password")
+   dash := c.flag.String(&c.dash, "d", "DASH ID")
+   widevine := c.flag.String(&c.widevine, "w", "Widevine")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if widevine.IsSet {
+      return c.cache.Encode(widevine_device(c.widevine))
+   }
+   if email.IsSet {
+      if password.IsSet {
+         return c.do_email_password()
+      }
+   }
+   if address.IsSet {
+      return c.do_address()
+   }
+   if dash.IsSet {
+      return c.do_dash()
+   }
+   return maya.PrintFlags([]maya.FlagSet{
+      {widevine},
+      {email, password},
+      {address},
+      {dash},
+   })
 }

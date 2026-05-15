@@ -8,48 +8,45 @@ import (
 )
 
 type client struct {
-   address   string
-   audio     string
    cache     maya.Cache
-   dash      string
-   episode   string
    flag      maya.FlagSet
-   season    string
-   playReady string
+   address   maya.Flag
+   audio     maya.Flag
+   dash      maya.Flag
+   episode   maya.Flag
+   season    maya.Flag
+   playReady maya.Flag
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
    }
-   address := c.flag.String(&c.address, "a", "address")
-   audio := c.flag.String(&c.audio, "A", "audio language")
-   episode := c.flag.String(&c.episode, "e", "episode ID")
-   season := c.flag.String(&c.season, "s", "season ID")
-   dash := c.flag.String(&c.dash, "d", "DASH ID")
-   playReady := c.flag.String(&c.playReady, "p", "PlayReady")
+   c.flag.AddValue(&c.playReady, "p", "PlayReady")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.season, "s", "season ID")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.audio, "A", "audio language")
+   c.flag.AddValue(&c.episode, "e", "episode ID")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
       return err
    }
    switch {
-   case playReady.IsSet:
-      return c.cache.Encode(playReady_device(c.playReady))
-   case address.IsSet:
+   case c.playReady.Set:
+      return c.cache.Encode(playReady_device(c.playReady.Value))
+   case c.address.Set:
       return c.do_address()
-   case season.IsSet:
+   case c.season.Set:
       return c.do_season()
-   case audio.IsSet:
+   case c.audio.Set:
       return c.do_audio()
-   case dash.IsSet:
+   case c.dash.Set:
       return c.do_dash()
    }
-   return maya.PrintFlags([]maya.FlagSet{
-      {playReady},
-      {address},
-      {season},
-      {audio, episode},
-      {dash},
-   })
+   fmt.Println(c.flag)
+   return nil
 }
 
 type playReady_device string
