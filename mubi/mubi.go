@@ -10,6 +10,41 @@ import (
    "strings"
 )
 
+func FetchEpisodes(slug string, season int) ([]*Film, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
+      },
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Episodes []*Film
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Episodes, nil
+}
+
+func (f *Film) String() string {
+   data := &strings.Builder{}
+   data.WriteString("title: ")
+   data.WriteString(f.Title)
+   data.WriteString("\nid: ")
+   fmt.Fprint(data, f.Id)
+   return data.String()
+}
+
 type Url struct {
    Url url.URL
 }
@@ -20,15 +55,6 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-func (f *Film) String() string {
-   data := &strings.Builder{}
-   data.WriteString("title: ")
-   data.WriteString(f.Title)
-   data.WriteString("\nid: ")
-   fmt.Fprint(data, f.Id)
-   return data.String()
 }
 
 func (l *LinkCode) String() string {
@@ -160,32 +186,6 @@ func FetchFilm(slug string) (*Film, error) {
       return nil, err
    }
    return result, nil
-}
-
-func FetchEpisodes(slug string, season int) ([]Film, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Episodes []Film
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Episodes, nil
 }
 
 func FetchLinkCode() (*LinkCode, error) {
