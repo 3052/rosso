@@ -9,6 +9,91 @@ import (
    "net/url"
 )
 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "card" && p.ContentType == "episode" {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// ContentNode represents the recursive Server-Driven UI tree used by AMC
+type ContentNode struct {
+   Type             string        `json:"type"`
+   Properties       *Properties   `json:"properties,omitempty"`
+   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
+   Children         []ContentNode `json:"children,omitempty"`
+}
+
+func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
 func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -40,6 +125,27 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
       return nil, err
    }
    return &envelope.Data, nil
+}
+
+type DownloadData struct {
+   Downloadable        bool `json:"downloadable,omitempty"`
+   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
+   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
+}
+
+type Images struct {
+   Default string `json:"default,omitempty"`
+   Mobile  string `json:"mobile,omitempty"`
+   Tablet  string `json:"tablet,omitempty"`
+}
+
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
 }
 
 // String implements the fmt.Stringer interface for easy printing.
@@ -368,110 +474,4 @@ func Unauth() (*AuthData, error) {
       return nil, err
    }
    return &envelope.Data, nil
-}
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "card" && p.ContentType == "episode" {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// ContentNode represents the recursive Server-Driven UI tree used by AMC
-type ContentNode struct {
-   Type             string        `json:"type"`
-   Properties       *Properties   `json:"properties,omitempty"`
-   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
-   Children         []ContentNode `json:"children,omitempty"`
-}
-
-func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-type DownloadData struct {
-   Downloadable        bool `json:"downloadable,omitempty"`
-   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
-   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
-}
-
-type Images struct {
-   Default string `json:"default,omitempty"`
-   Mobile  string `json:"mobile,omitempty"`
-   Tablet  string `json:"tablet,omitempty"`
-}
-
-type KeySystems struct {
-   ComWidevineAlpha struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.widevine.alpha"`
-   ComMicrosoftPlayready struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.microsoft.playready"`
 }

@@ -9,8 +9,8 @@ import (
 )
 
 type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
+   cache maya.Cache
+   flag  maya.FlagSet
 
    address  maya.Flag
    code     maya.Flag
