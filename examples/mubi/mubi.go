@@ -14,8 +14,8 @@ func (c *client) do() error {
       return err
    }
    c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.AddValue(&c.proxy_set, "P", "Set proxy")
-   c.flag.Add(&c.proxy, "p", "Use proxy")
+   c.flag.AddValue(&c.set_proxy, "X", "set proxy")
+   c.flag.Add(&c.proxy, "x", "proxy")
    c.flag.Add(&c.code, "c", "link code")
    c.flag.Add(&c.session, "S", "session")
    c.flag = append(c.flag, nil)
@@ -27,14 +27,12 @@ func (c *client) do() error {
    if err := c.flag.Parse(); err != nil {
       return err
    }
-
    if c.widevine.Set {
       return c.cache.Encode(widevine_value(c.widevine.Value))
    }
-   if c.proxy_set.Set {
-      return c.cache.Encode(proxy_value(c.proxy_set.Value))
+   if c.set_proxy.Set {
+      return c.cache.Encode(proxy_value(c.set_proxy.Value))
    }
-
    if c.proxy.Set {
       var proxy proxy_value
       if err := c.cache.Decode(&proxy); err != nil {
@@ -44,7 +42,6 @@ func (c *client) do() error {
          return err
       }
    }
-
    if c.code.Set {
       return c.do_code()
    }
@@ -66,24 +63,6 @@ func (c *client) do() error {
    fmt.Println(c.flag)
    return nil
 }
-
-type client struct {
-   cache maya.Cache
-   flag  maya.FlagSet
-
-   address   maya.Flag
-   code      maya.Flag
-   dash      maya.Flag
-   mubi_id   maya.Flag
-   season    maya.Flag
-   session   maya.Flag
-   widevine  maya.Flag
-   proxy_set maya.Flag
-   proxy     maya.Flag
-}
-
-type widevine_value string
-type proxy_value string
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -183,4 +162,24 @@ func (c *client) do_address_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+type widevine_value string
+
+type proxy_value string
+
+type client struct {
+   cache maya.Cache
+
+   address   maya.Flag
+   code      maya.Flag
+   dash      maya.Flag
+   mubi_id   maya.Flag
+   season    maya.Flag
+   session   maya.Flag
+   widevine  maya.Flag
+   set_proxy maya.Flag
+   proxy     maya.Flag
+
+   flag maya.FlagSet
 }

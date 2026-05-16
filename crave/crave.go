@@ -13,6 +13,94 @@ import (
    "strings"
 )
 
+// SL2000 max 2160p
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "license.9c9media.com",
+      Path:   "/playready",
+   }
+
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId": activePlayback.ContentId,
+         // lower-case 'p' as per their API
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+type AccountToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountId    string `json:"account_id"`
+   Jti          string `json:"jti"`
+}
+
+func PerformLogin(username string, password string) (*AccountToken, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.1",
+   }
+
+   headers := map[string]string{
+      // crave-web:default
+      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
+      "content-type":  "application/x-www-form-urlencoded",
+   }
+
+   values := url.Values{}
+   values.Set("grant_type", "password")
+   values.Set("password", password)
+   values.Set("username", username)
+
+   body := []byte(values.Encode())
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   account := &AccountToken{}
+   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
+      return nil, err
+   }
+
+   return account, nil
+}
+
+type ContentPackage struct {
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Id                int    `json:"id"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+   Language          string `json:"language"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
+
 func GetMedia(showId int) (*Media, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -367,91 +455,3 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) 
 
 //go:embed GetShowpage.gql
 var get_showpage string
-
-// SL2000 max 2160p
-func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "license.9c9media.com",
-      Path:   "/playready",
-   }
-
-   bodyMap := map[string]interface{}{
-      "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]interface{}{
-         "contentId": activePlayback.ContentId,
-         // lower-case 'p' as per their API
-         "contentpackageId": activePlayback.ContentPackage.Id,
-         "destinationId":    activePlayback.DestinationId,
-         "jwt":              token.AccessToken,
-         "platformId":       48,
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-type AccountToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id"`
-   Jti          string `json:"jti"`
-}
-
-func PerformLogin(username string, password string) (*AccountToken, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.1",
-   }
-
-   headers := map[string]string{
-      // crave-web:default
-      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
-      "content-type":  "application/x-www-form-urlencoded",
-   }
-
-   values := url.Values{}
-   values.Set("grant_type", "password")
-   values.Set("password", password)
-   values.Set("username", username)
-
-   body := []byte(values.Encode())
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   account := &AccountToken{}
-   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
-      return nil, err
-   }
-
-   return account, nil
-}
-
-type ContentPackage struct {
-   DurationInSeconds int    `json:"durationInSeconds"`
-   Id                int    `json:"id"`
-   IsDescribedVideo  bool   `json:"isDescribedVideo"`
-   Language          string `json:"language"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
-}
