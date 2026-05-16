@@ -85,13 +85,14 @@ type client struct {
    widevine maya.Flag
 }
 
-type proxy_address string
-type widevine_device string
+type (
+   proxy_address   string
+   widevine_device string
+)
 
 func main() {
    log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
+   if err := new(client).do(); err != nil {
       log.Fatal(err)
    }
 }
@@ -102,11 +103,10 @@ func (c *client) do_mubi_id() error {
       return err
    }
    var session mubi.Session
-   if err = c.cache.Decode(&session); err != nil {
+   if err := c.cache.Decode(&session); err != nil {
       return err
    }
-   err = session.FetchViewing(mubi_id)
-   if err != nil {
+   if err := session.FetchViewing(mubi_id); err != nil {
       return err
    }
    secure_url, err := session.FetchSecureUrl(mubi_id)
@@ -126,8 +126,7 @@ func (c *client) do_dash() error {
       manifest maya.Manifest
       session  mubi.Session
    )
-   err := c.cache.Decode(&device, &manifest, &session)
-   if err != nil {
+   if err := c.cache.Decode(&device, &manifest, &session); err != nil {
       return err
    }
    return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
@@ -148,8 +147,7 @@ func (c *client) do_code() error {
 
 func (c *client) do_session() error {
    var link_code mubi.LinkCode
-   err := c.cache.Decode(&link_code)
-   if err != nil {
+   if err := c.cache.Decode(&link_code); err != nil {
       return err
    }
    session, err := link_code.FetchSession()
@@ -160,8 +158,7 @@ func (c *client) do_session() error {
 }
 
 func (c *client) do_film() error {
-   slug := path.Base(c.address.Value)
-   film, err := mubi.FetchFilm(slug)
+   film, err := mubi.FetchFilm(path.Base(c.address.Value))
    if err != nil {
       return err
    }
@@ -174,13 +171,12 @@ func (c *client) do_episodes() error {
    if err != nil {
       return err
    }
-   slug := path.Base(c.address.Value)
-   episodes, err := mubi.FetchEpisodes(slug, season)
+   episodes, err := mubi.FetchEpisodes(path.Base(c.address.Value), season)
    if err != nil {
       return err
    }
    for i, episode := range episodes {
-      if i >= 1 {
+      if i > 0 {
          fmt.Println()
       }
       fmt.Println(episode)
