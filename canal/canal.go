@@ -15,6 +15,56 @@ import (
    "time"
 )
 
+type Player struct {
+   Drm struct {
+      LicenseUrl *Url
+   }
+   Message   string
+   Subtitles []struct {
+      Url *Url
+   }
+   Url *Url // MPD
+}
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   body, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
+      },
+      map[string]string{
+         "authorization": "Bearer " + s.Token,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
 func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -80,7 +130,7 @@ type Ticket struct {
 }
 
 func (t *Ticket) Login(username, password string) (*Login, error) {
-   body, err := marshal(map[string]any{
+   body, err := json.Marshal(map[string]any{
       "ticket": t.Ticket,
       "userInput": map[string]string{
          "username": username,
@@ -120,12 +170,8 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    return &result, nil
 }
 
-func marshal(value any) ([]byte, error) {
-   return json.MarshalIndent(value, "", " ")
-}
-
 func FetchTicket() (*Ticket, error) {
-   body, err := marshal(map[string]any{
+   body, err := json.Marshal(map[string]any{
       "deviceInfo": map[string]string{
          "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
          "deviceModel":  "Firefox",
@@ -168,16 +214,7 @@ func FetchTicket() (*Ticket, error) {
    return &result, nil
 }
 
-type Player struct {
-   Drm struct {
-      LicenseUrl *Url
-   }
-   Message   string
-   Subtitles []struct {
-      Url *Url
-   }
-   Url *Url // MPD
-}
+///
 
 type Url struct {
    Url url.URL
@@ -201,7 +238,7 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
 }
 
 func FetchSession(ssoToken string) (*Session, error) {
-   body, err := marshal(map[string]string{
+   body, err := json.Marshal(map[string]string{
       "brand":        "m7cp",
       "deviceSerial": device_serial,
       "deviceType":   "PC",
@@ -329,43 +366,4 @@ type Login struct {
    Label    string
    Message  string
    SsoToken string // this last one day
-}
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   body, err := marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
-      },
-      map[string]string{
-         "authorization": "Bearer " + s.Token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }

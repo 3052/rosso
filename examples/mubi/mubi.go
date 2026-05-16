@@ -9,7 +9,15 @@ import (
    "41.neocities.org/rosso/mubi"
 )
 
-func (c *client) do() error {
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(command).start()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *command) start() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
@@ -28,14 +36,14 @@ func (c *client) do() error {
    }
 
    if c.proxy.Set {
-      return c.cache.Encode(proxy_address(c.proxy.Value))
+      return c.cache.Encode(proxy_value(c.proxy.Value))
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
+      return c.cache.Encode(widevine_value(c.widevine.Value))
    }
 
-   if run := c.action(); run != nil {
-      var proxy proxy_address
+   if run := c.run(); run != nil {
+      var proxy proxy_value
       if err := c.cache.Decode(&proxy); err != nil {
          return err
       }
@@ -49,29 +57,29 @@ func (c *client) do() error {
    return nil
 }
 
-func (c *client) action() func() error {
+func (c *command) run() func() error {
    if c.code.Set {
-      return c.do_code
+      return c.run_code
    }
    if c.session.Set {
-      return c.do_session
+      return c.run_session
    }
    if c.address.Set {
       if c.season.Set {
-         return c.do_episodes
+         return c.run_address_season
       }
-      return c.do_film
+      return c.run_address
    }
    if c.mubi_id.Set {
-      return c.do_mubi_id
+      return c.run_mubi_id
    }
    if c.dash.Set {
-      return c.do_dash
+      return c.run_dash
    }
    return nil
 }
 
-type client struct {
+type command struct {
    cache maya.Cache
    flag  maya.FlagSet
 
@@ -86,18 +94,11 @@ type client struct {
 }
 
 type (
-   proxy_address   string
-   widevine_device string
+   proxy_value    string
+   widevine_value string
 )
 
-func main() {
-   log.SetFlags(log.Ltime)
-   if err := new(client).do(); err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_mubi_id() error {
+func (c *command) run_mubi_id() error {
    mubi_id, err := c.mubi_id.ParseInt()
    if err != nil {
       return err
@@ -120,23 +121,24 @@ func (c *client) do_mubi_id() error {
    return c.cache.Encode(manifest)
 }
 
-func (c *client) do_dash() error {
+func (c *command) run_dash() error {
    var (
-      device   widevine_device
       manifest maya.Manifest
       session  mubi.Session
+      widevine widevine_value
    )
-   if err := c.cache.Decode(&device, &manifest, &session); err != nil {
+   err := c.cache.Decode(&manifest, &session, &widevine)
+   if err != nil {
       return err
    }
    return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: session.FetchWidevine,
    })
 }
 
-func (c *client) do_code() error {
+func (c *command) run_code() error {
    link_code, err := mubi.FetchLinkCode()
    if err != nil {
       return err
@@ -145,7 +147,7 @@ func (c *client) do_code() error {
    return c.cache.Encode(link_code)
 }
 
-func (c *client) do_session() error {
+func (c *command) run_session() error {
    var link_code mubi.LinkCode
    if err := c.cache.Decode(&link_code); err != nil {
       return err
@@ -157,7 +159,7 @@ func (c *client) do_session() error {
    return c.cache.Encode(session)
 }
 
-func (c *client) do_film() error {
+func (c *command) run_address() error {
    film, err := mubi.FetchFilm(path.Base(c.address.Value))
    if err != nil {
       return err
@@ -166,7 +168,7 @@ func (c *client) do_film() error {
    return nil
 }
 
-func (c *client) do_episodes() error {
+func (c *command) run_address_season() error {
    season, err := c.season.ParseInt()
    if err != nil {
       return err

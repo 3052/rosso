@@ -9,6 +9,27 @@ import (
    "net/url"
 )
 
+//go:embed playback.json
+var playback_json []byte
+
+func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
+   target, err := url.Parse(licenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func (a *AuthData) Refresh() error {
    resp, err := maya.Post(
       &url.URL{
@@ -451,27 +472,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-//go:embed playback.json
-var playback_json []byte
-
-func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
-   target, err := url.Parse(licenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
-   }
-   return io.ReadAll(resp.Body)
 }
