@@ -13,6 +13,48 @@ import (
    "strings"
 )
 
+//go:embed GetShowpage.gql
+var get_showpage string
+
+func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "stream.video.9c9media.com",
+      Path: fmt.Sprintf(
+         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
+         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
+      ),
+   }
+   values := url.Values{}
+   values.Set("filter", "ff") // 2160p HEVC
+   values.Set("format", "mpd")
+   values.Set("hd", "true")  // 1080p H.264
+   values.Set("mcv", "true") // H.264 + HEVC
+   values.Set("uhd", "true") // 2160p HEVC
+   endpoint.RawQuery = values.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + token.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Message  string // 2026-05-01
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return url.Parse(result.Playback)
+}
+
 // SL2000 max 2160p
 func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
    endpoint := &url.URL{
@@ -90,6 +132,11 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    return account, nil
 }
 
+type Circle struct {
+   Svg ImageSet `json:"svg"`
+   Png ImageSet `json:"png"`
+}
+
 type ContentPackage struct {
    DurationInSeconds int    `json:"durationInSeconds"`
    Id                int    `json:"id"`
@@ -97,8 +144,34 @@ type ContentPackage struct {
    Language          string `json:"language"`
 }
 
+type ContentPolicy struct {
+   Sku string `json:"sku"`
+}
+
+type Experience struct {
+   Id              string          `json:"id"`
+   Sku             string          `json:"sku"`
+   BrandId         string          `json:"brandId"`
+   DisplayName     string          `json:"displayName"`
+   Logos           Logos           `json:"logos"`
+   ContentPolicies []ContentPolicy `json:"contentPolicies"`
+}
+
 type FirstContent struct {
    Id int `json:"id,string"`
+}
+
+type ImageSet struct {
+   Small LocalizedUrl `json:"small"`
+}
+
+type LocalizedUrl struct {
+   Fr string `json:"fr"`
+   En string `json:"en"`
+}
+
+type Logos struct {
+   Circle Circle `json:"circle"`
 }
 
 func GetMedia(showId int) (*Media, error) {
@@ -336,48 +409,6 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
    return token, nil
 }
 
-func (s *Subscription) String() string {
-   var data strings.Builder
-   data.WriteString("display name: ")
-   data.WriteString(s.Experience.DisplayName)
-   data.WriteString("\nexpiration date: ")
-   data.WriteString(s.ExpirationDate)
-   return data.String()
-}
-
-///
-
-type Circle struct {
-   Svg ImageSet `json:"svg"`
-   Png ImageSet `json:"png"`
-}
-
-type ContentPolicy struct {
-   Sku string `json:"sku"`
-}
-
-type Experience struct {
-   Id              string          `json:"id"`
-   Sku             string          `json:"sku"`
-   BrandId         string          `json:"brandId"`
-   DisplayName     string          `json:"displayName"`
-   Logos           Logos           `json:"logos"`
-   ContentPolicies []ContentPolicy `json:"contentPolicies"`
-}
-
-type ImageSet struct {
-   Small LocalizedUrl `json:"small"`
-}
-
-type LocalizedUrl struct {
-   Fr string `json:"fr"`
-   En string `json:"en"`
-}
-
-type Logos struct {
-   Circle Circle `json:"circle"`
-}
-
 type Subscription struct {
    Type              string     `json:"type"`
    Experience        Experience `json:"experience"`
@@ -414,44 +445,11 @@ func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
    return wrapper.Subscriptions, nil
 }
 
-func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "stream.video.9c9media.com",
-      Path: fmt.Sprintf(
-         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
-         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
-      ),
-   }
-   values := url.Values{}
-   values.Set("filter", "ff") // 2160p HEVC
-   values.Set("format", "mpd")
-   values.Set("hd", "true")  // 1080p H.264
-   values.Set("mcv", "true") // H.264 + HEVC
-   values.Set("uhd", "true") // 2160p HEVC
-   endpoint.RawQuery = values.Encode()
-
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Message  string // 2026-05-01
-      Playback string `json:"playback"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return url.Parse(result.Playback)
+func (s *Subscription) String() string {
+   var data strings.Builder
+   data.WriteString("display name: ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date: ")
+   data.WriteString(s.ExpirationDate)
+   return data.String()
 }
-
-//go:embed GetShowpage.gql
-var get_showpage string

@@ -7,18 +7,6 @@ import (
    "log"
 )
 
-type client struct {
-   cache        maya.Cache
-   cookie       maya.Flag
-   flag         maya.FlagSet
-   app          maya.Flag
-   dash         maya.Flag
-   paramount_id maya.Flag
-   password     maya.Flag
-   username     maya.Flag
-   playReady    maya.Flag
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
@@ -142,4 +130,16 @@ func (c *client) do_paramount_id() error {
       return err
    }
    return c.cache.Encode(content_id(c.paramount_id.Value), manifest)
+}
+
+type client struct {
+   cache        maya.Cache
+   cookie       maya.Flag
+   flag         maya.FlagSet
+   app          maya.Flag
+   dash         maya.Flag
+   paramount_id maya.Flag
+   password     maya.Flag
+   username     maya.Flag
+   playReady    maya.Flag
 }
