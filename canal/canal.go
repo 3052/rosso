@@ -15,6 +15,16 @@ import (
    "time"
 )
 
+const user_agent = "Mozilla/5.0 Windows"
+
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
 func get_client(url_data *url.URL, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
    // 1. base64 raw URL decode secret key
@@ -45,6 +55,17 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+func (a *Asset) String() string {
+   var data strings.Builder
+   data.WriteString("title: ")
+   data.WriteString(a.Title)
+   data.WriteString("\ntype: ")
+   data.WriteString(a.Type)
+   data.WriteString("\nid: ")
+   data.WriteString(a.Id)
+   return data.String()
+}
+
 type Asset struct {
    Id    string
    Title string
@@ -55,6 +76,15 @@ type Collection struct {
    Assets []Asset
 }
 
+func (e *Episode) String() string {
+   data := &strings.Builder{}
+   fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
+   fmt.Fprintln(data, "title:", e.Title)
+   fmt.Fprintln(data, "desc:", e.Desc)
+   fmt.Fprint(data, "tracking: ", e.Id)
+   return data.String()
+}
+
 type Episode struct {
    Desc   string
    Id     string
@@ -62,6 +92,15 @@ type Episode struct {
       SeriesEpisode int
    }
    Title string
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label: ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage: ")
+   data.WriteString(l.Message)
+   return data.String()
 }
 
 type Login struct {
@@ -79,6 +118,43 @@ type Player struct {
       Url *Url
    }
    Url *Url // MPD
+}
+
+func FetchSession(ssoToken string) (*Session, error) {
+   body, err := json.Marshal(map[string]string{
+      "brand":        "m7cp",
+      "deviceSerial": device_serial,
+      "deviceType":   "PC",
+      "ssoToken":     ssoToken,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
@@ -291,79 +367,3 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
 }
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func (e *Episode) String() string {
-   data := &strings.Builder{}
-   fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
-   fmt.Fprintln(data, "title:", e.Title)
-   fmt.Fprintln(data, "desc:", e.Desc)
-   fmt.Fprint(data, "tracking: ", e.Id)
-   return data.String()
-}
-
-func (a *Asset) String() string {
-   var data strings.Builder
-   data.WriteString("title: ")
-   data.WriteString(a.Title)
-   data.WriteString("\ntype: ")
-   data.WriteString(a.Type)
-   data.WriteString("\nid: ")
-   data.WriteString(a.Id)
-   return data.String()
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label: ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage: ")
-   data.WriteString(l.Message)
-   return data.String()
-}
-
-const user_agent = "Mozilla/5.0 Windows"
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)

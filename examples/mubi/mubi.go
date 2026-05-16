@@ -14,6 +14,8 @@ func (c *client) do() error {
       return err
    }
    c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.proxy_set, "P", "Set proxy")
+   c.flag.Add(&c.proxy, "proxy", "Use proxy")
    c.flag.Add(&c.code, "c", "link code")
    c.flag.Add(&c.session, "S", "session")
    c.flag = append(c.flag, nil)
@@ -29,6 +31,20 @@ func (c *client) do() error {
    if c.widevine.Set {
       return c.cache.Encode(widevine_value(c.widevine.Value))
    }
+   if c.proxy_set.Set {
+      return c.cache.Encode(proxy_value(c.proxy_set.Value))
+   }
+
+   if c.proxy.Set {
+      var proxy proxy_value
+      if err := c.cache.Decode(&proxy); err != nil {
+         return err
+      }
+      if err := maya.SetProxy(string(proxy)); err != nil {
+         return err
+      }
+   }
+
    if c.code.Set {
       return c.do_code()
    }
@@ -55,16 +71,19 @@ type client struct {
    cache maya.Cache
    flag  maya.FlagSet
 
-   address  maya.Flag
-   code     maya.Flag
-   dash     maya.Flag
-   mubi_id  maya.Flag
-   season   maya.Flag
-   session  maya.Flag
-   widevine maya.Flag
+   address   maya.Flag
+   code      maya.Flag
+   dash      maya.Flag
+   mubi_id   maya.Flag
+   season    maya.Flag
+   session   maya.Flag
+   widevine  maya.Flag
+   proxy_set maya.Flag
+   proxy     maya.Flag
 }
 
 type widevine_value string
+type proxy_value string
 
 func main() {
    log.SetFlags(log.Ltime)
