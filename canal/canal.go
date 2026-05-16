@@ -109,6 +109,15 @@ type Login struct {
    SsoToken string // this last one day
 }
 
+func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
 type Player struct {
    Drm struct {
       LicenseUrl *Url
@@ -345,8 +354,6 @@ func FetchTicket() (*Ticket, error) {
    return &result, nil
 }
 
-///
-
 type Url struct {
    Url url.URL
 }
@@ -357,13 +364,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }

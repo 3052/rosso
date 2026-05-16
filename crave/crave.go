@@ -13,6 +13,56 @@ import (
    "strings"
 )
 
+func GetMedia(showId int) (*Media, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "rte-api.bellmedia.ca",
+      Path:   "/graphql",
+   }
+
+   headers := map[string]string{
+      // {"platform":"platform_web"}
+      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
+   }
+
+   bodyMap := map[string]interface{}{
+      "query": get_showpage,
+      "variables": map[string]interface{}{
+         "ids": []string{strconv.Itoa(showId)},
+         "sessionContext": map[string]interface{}{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Data struct {
+         Medias []Media `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data.Medias[0], nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
 /*
 https://crave.ca/en/movie/anaconda-2025-59881
 https://crave.ca/en/play/anaconda-2025-3300246
@@ -206,6 +256,8 @@ func (s *Subscription) String() string {
    data.WriteString(s.ExpirationDate)
    return data.String()
 }
+
+///
 
 type Circle struct {
    Svg ImageSet `json:"svg"`
@@ -402,54 +454,4 @@ type ContentPackage struct {
 
 type FirstContent struct {
    Id int `json:"id,string"`
-}
-
-func GetMedia(showId int) (*Media, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "rte-api.bellmedia.ca",
-      Path:   "/graphql",
-   }
-
-   headers := map[string]string{
-      // {"platform":"platform_web"}
-      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
-   }
-
-   bodyMap := map[string]interface{}{
-      "query": get_showpage,
-      "variables": map[string]interface{}{
-         "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]interface{}{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Data struct {
-         Medias []Media `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data.Medias[0], nil
-}
-
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
 }

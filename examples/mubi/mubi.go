@@ -15,7 +15,7 @@ func (c *client) do() error {
    }
    c.flag.AddValue(&c.widevine, "w", "Widevine")
    c.flag.AddValue(&c.proxy_set, "P", "Set proxy")
-   c.flag.Add(&c.proxy, "proxy", "Use proxy")
+   c.flag.Add(&c.proxy, "p", "Use proxy")
    c.flag.Add(&c.code, "c", "link code")
    c.flag.Add(&c.session, "S", "session")
    c.flag = append(c.flag, nil)

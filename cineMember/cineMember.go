@@ -11,6 +11,31 @@ import (
    "strings"
 )
 
+func FetchLogin(phpSessId *Cookie, email, password string) error {
+   body := url.Values{
+      "emaillogin": {email},
+      "password":   {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.cinemember.nl",
+         Path:   "/elements/overlays/account/login.php",
+      },
+      map[string]string{
+         "content-type": "application/x-www-form-urlencoded",
+         "cookie":       phpSessId.String(),
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   return err
+}
+
 // extracts the numeric ID and converts it to an integer
 func FetchId(address *url.URL) (int, error) {
    resp, err := maya.Get(address, nil)
@@ -35,24 +60,6 @@ func FetchId(address *url.URL) (int, error) {
    }
    // 3. Convert string to integer
    return strconv.Atoi(idStr)
-}
-
-type Stream struct {
-   Error string
-   Links []struct {
-      MimeType string
-      Url      string
-   }
-   NoAccess bool
-}
-
-func (s *Stream) GetDash() (*url.URL, error) {
-   for _, link := range s.Links {
-      if link.MimeType == "application/dash+xml" {
-         return url.Parse(link.Url)
-      }
-   }
-   return nil, errors.New("DASH link not found")
 }
 
 type Cookie struct {
@@ -82,31 +89,6 @@ func (c *Cookie) String() string {
    return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
-func FetchLogin(phpSessId *Cookie, email, password string) error {
-   body := url.Values{
-      "emaillogin": {email},
-      "password":   {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.cinemember.nl",
-         Path:   "/elements/overlays/account/login.php",
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "cookie":       phpSessId.String(),
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   _, err = io.Copy(io.Discard, resp.Body)
-   return err
-}
-
 // must run login first
 func FetchStream(phpSessId *Cookie, id int) (*Stream, error) {
    resp, err := maya.Get(
@@ -134,4 +116,22 @@ func FetchStream(phpSessId *Cookie, id int) (*Stream, error) {
       return nil, errors.New("no access")
    }
    return &result, nil
+}
+
+type Stream struct {
+   Error string
+   Links []struct {
+      MimeType string
+      Url      string
+   }
+   NoAccess bool
+}
+
+func (s *Stream) GetDash() (*url.URL, error) {
+   for _, link := range s.Links {
+      if link.MimeType == "application/dash+xml" {
+         return url.Parse(link.Url)
+      }
+   }
+   return nil, errors.New("DASH link not found")
 }
