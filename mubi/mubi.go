@@ -10,6 +10,26 @@ import (
    "strings"
 )
 
+func FetchLinkCode() (*LinkCode, error) {
+   resp, err := maya.Get(
+      &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &LinkCode{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 func FetchEpisodes(slug string, season int) ([]*Film, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -181,26 +201,6 @@ func FetchFilm(slug string) (*Film, error) {
    }
    defer resp.Body.Close()
    result := &Film{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func FetchLinkCode() (*LinkCode, error) {
-   resp, err := maya.Get(
-      &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &LinkCode{}
    err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err

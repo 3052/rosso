@@ -7,17 +7,34 @@ import (
    "log"
 )
 
+c.flag.AddValue(&c.cbs_app, "", paramount.CbsAppIds())
+c.flag.AddValue(&c.playReady, "", "set PlayReady")
+c.flag.AddValue(&c.proxy, "", "set proxy")
+
+c.flag.Add(&c.use_cookie, "", "use cookie")
+c.flag.Add(&c.use_proxy, "", "use proxy")
+
+c.flag.AddValue(&c.username, "", "username")
+c.flag.AddValue(&c.password, "", "password")
+c.flag.AddValue(&c.paramount_id, "", "paramount ID")
+c.flag.AddValue(&c.dash, "", "DASH ID")
+
+
+
+
+
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.app, "a", paramount.CbsAppIds())
-   c.flag.AddValue(&c.playReady, "PR", "PlayReady")
+   c.flag.AddValue(&c.cbs_app, "a", paramount.CbsAppIds())
+   c.flag.AddValue(&c.playReady, "PR", "set PlayReady")
    c.flag = append(c.flag, nil)
    c.flag.AddValue(&c.username, "U", "username")
    c.flag.AddValue(&c.password, "P", "password")
    c.flag = append(c.flag, nil)
-   c.flag.Add(&c.cookie, "c", "cookie")
+   c.flag.Add(&c.use_cookie, "c", "use cookie")
    c.flag.AddValue(&c.paramount_id, "p", "paramount ID")
    c.flag.AddValue(&c.dash, "d", "DASH ID")
    if err := c.flag.Parse(); err != nil {
@@ -26,8 +43,8 @@ func (c *client) do() error {
    if c.playReady.Set {
       return c.cache.Encode(playReady_device(c.playReady.Value))
    }
-   if c.app.Set {
-      return c.do_app()
+   if c.cbs_app.Set {
+      return c.do_cbs_app()
    }
    if c.username.Set {
       if c.password.Set {
@@ -58,7 +75,7 @@ func (c *client) do_dash() error {
       return err
    }
    var cbs_com *paramount.Cookie
-   if c.cookie.Set {
+   if c.use_cookie.Set {
       cbs_com = &paramount.Cookie{}
       err = c.cache.Decode(cbs_com)
       if err != nil {
@@ -76,8 +93,8 @@ func (c *client) do_dash() error {
    })
 }
 
-func (c *client) do_app() error {
-   cbs_app, err := paramount.GetCbsApp(c.app.Value)
+func (c *client) do_cbs_app() error {
+   cbs_app, err := paramount.GetCbsApp(c.cbs_app.Value)
    if err != nil {
       return err
    }
@@ -114,7 +131,7 @@ func (c *client) do_paramount_id() error {
       return err
    }
    var cbs_com *paramount.Cookie
-   if c.cookie.Set {
+   if c.use_cookie.Set {
       cbs_com = &paramount.Cookie{}
       err = c.cache.Decode(cbs_com)
       if err != nil {
@@ -134,9 +151,9 @@ func (c *client) do_paramount_id() error {
 
 type client struct {
    cache        maya.Cache
-   cookie       maya.Flag
+   use_cookie       maya.Flag
    flag         maya.FlagSet
-   app          maya.Flag
+   cbs_app          maya.Flag
    dash         maya.Flag
    paramount_id maya.Flag
    password     maya.Flag

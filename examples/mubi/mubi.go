@@ -9,41 +9,54 @@ import (
    "41.neocities.org/rosso/mubi"
 )
 
+type client struct {
+   cache maya.Cache
+   flag maya.FlagSet
+
+   address   *maya.Flag
+   dash      *maya.Flag
+   link_code      *maya.Flag
+   mubi_id   *maya.Flag
+   set_proxy     *maya.Flag
+   season    *maya.Flag
+   session   *maya.Flag
+   use_proxy *maya.Flag
+   widevine  *maya.Flag
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.AddValue(&c.proxy, "X", "proxy")
-   c.flag.Add(&c.use_proxy, "x", "use proxy")
-   c.flag.Add(&c.code, "c", "link code")
-   c.flag.Add(&c.session, "S", "session")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.season, "s", "season")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.mubi_id, "m", "Mubi ID")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
+
+   c.widevine = c.flag.AddGroup("widevine-folder", true, 1)
+   c.set_proxy = c.flag.AddGroup("set-proxy", true, 1)
+   c.use_proxy = c.flag.AddGroup("use-proxy", false, 1)
+   c.link_code = c.flag.AddGroup("link-code", false, 1)
+   c.session = c.flag.AddGroup("session", false, 1)
+   
+   c.address = c.flag.AddGroup("address", true, 2)
+   c.season = c.flag.AddGroup("season", true, 2)
+   
+   c.mubi_id = c.flag.AddGroup("mubi-id", true, 3)
+   c.dash = c.flag.AddGroup("dash-id", true, 3)
+
    if err := c.flag.Parse(); err != nil {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine_value(c.widevine.Value))
+      return c.cache.Encode(widevine_folder(c.widevine.Value))
    }
-   if c.proxy.Set {
-      return c.cache.Encode(proxy_value(c.proxy.Value))
+   if c.set_proxy.Set {
+      return c.cache.Encode(set_proxy(c.set_proxy.Value))
    }
    if c.use_proxy.Set {
-      var proxy proxy_value
-      if err := c.cache.Decode(&proxy); err != nil {
-         return err
-      }
-      if err := maya.SetProxy(string(proxy)); err != nil {
+      if err := c.do_use_proxy(); err != nil {
          return err
       }
    }
-   if c.code.Set {
-      return c.do_code()
+   if c.link_code.Set {
+      return c.do_link_code()
    }
    if c.session.Set {
       return c.do_session()
@@ -62,6 +75,15 @@ func (c *client) do() error {
    }
    fmt.Println(c.flag)
    return nil
+}
+
+func (c *client) do_use_proxy() error {
+   var proxy set_proxy
+   err := c.cache.Decode(&proxy)
+   if err != nil {
+      return err
+   }
+   return maya.SetProxy(string(proxy))
 }
 
 func main() {
@@ -100,7 +122,7 @@ func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       session  mubi.Session
-      widevine widevine_value
+      widevine widevine_folder
    )
    err := c.cache.Decode(&manifest, &session, &widevine)
    if err != nil {
@@ -113,7 +135,7 @@ func (c *client) do_dash() error {
    })
 }
 
-func (c *client) do_code() error {
+func (c *client) do_link_code() error {
    link_code, err := mubi.FetchLinkCode()
    if err != nil {
       return err
@@ -164,22 +186,6 @@ func (c *client) do_address_season() error {
    return nil
 }
 
-type widevine_value string
+type widevine_folder string
 
-type proxy_value string
-
-type client struct {
-   cache maya.Cache
-
-   address   maya.Flag
-   code      maya.Flag
-   dash      maya.Flag
-   mubi_id   maya.Flag
-   season    maya.Flag
-   session   maya.Flag
-   widevine  maya.Flag
-   proxy     maya.Flag
-   use_proxy maya.Flag
-
-   flag maya.FlagSet
-}
+type set_proxy string
