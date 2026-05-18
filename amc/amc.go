@@ -9,6 +9,275 @@ import (
    "net/url"
 )
 
+func GetPlayback(authToken string, videoId int) (*Playback, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + authToken,
+         "content-type":        "application/json",
+         "x-amcn-language":     "en",
+         "x-amcn-network":      "amcplus",
+         "x-amcn-platform":     "web",
+         "x-amcn-service-id":   "amcplus",
+         "x-amcn-tenant":       "amcn",
+         "x-amcn-device-ad-id": "-",
+         "x-ccpa-do-not-sell":  "doNotPassData",
+      },
+      playback_json,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &Playback{
+      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+      Sources:  result.Data.PlaybackJsonData.Sources,
+   }, nil
+}
+
+func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+func SeriesDetail(authToken string, id int) (*ContentNode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + authToken,
+         "x-amcn-network":  "amcplus",
+         "x-amcn-platform": "android",
+         "x-amcn-tenant":   "amcn",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool        `json:"success"`
+      Status  int         `json:"status"`
+      Data    ContentNode `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+type DownloadData struct {
+   Downloadable        bool `json:"downloadable,omitempty"`
+   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
+   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
+}
+
+type Images struct {
+   Default string `json:"default,omitempty"`
+   Mobile  string `json:"mobile,omitempty"`
+   Tablet  string `json:"tablet,omitempty"`
+}
+
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
+}
+
+// String implements the fmt.Stringer interface for easy printing.
+func (m *Metadata) String() string {
+   hasShow := m.ShowName != "" && m.ShowName != "none"
+
+   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+   }
+
+   if m.SeasonNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   if m.Title != "" {
+      if hasShow && m.ShowName != m.Title {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   return fmt.Sprintf("NID: %d", m.Nid)
+}
+
+type Metadata struct {
+   AmcnID                   string `json:"amcnId,omitempty"`
+   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
+   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
+   SeasonNumber             int    `json:"seasonNumber,omitempty"`
+   ShowName                 string `json:"showName,omitempty"`
+   Title                    string `json:"title,omitempty"`
+   Nid                      int    `json:"nid,omitempty"`
+   PageType                 string `json:"pageType,omitempty"`
+   URL                      string `json:"url,omitempty"`
+   Action                   string `json:"action,omitempty"`
+   ElementType              string `json:"elementType,omitempty"`
+   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
+   ElementName              string `json:"elementName,omitempty"`
+   ItemText                 string `json:"itemText,omitempty"`
+   Label                    string `json:"label,omitempty"`
+   NavComponentName         string `json:"navComponentName,omitempty"`
+   NavigationTitle          string `json:"navigationTitle,omitempty"`
+   IsNavigation             bool   `json:"isNavigation,omitempty"`
+   ListTitle                string `json:"listTitle,omitempty"`
+   IsPlayback               bool   `json:"isPlayback,omitempty"`
+   ListMode                 string `json:"listMode,omitempty"`
+   SearchValue              string `json:"searchValue,omitempty"`
+   ListPosition             int    `json:"listPosition,omitempty"`
+   ComponentName            string `json:"componentName,omitempty"`
+}
+
+type Navigation struct {
+   ClientRequest struct {
+      Endpoint string `json:"endpoint,omitempty"`
+   } `json:"client_request,omitempty"`
+   ContentID    string `json:"content_id,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   MicroAppType string `json:"micro_app_type,omitempty"`
+   Properties   struct {
+      Fullscreen bool   `json:"fullscreen,omitempty"`
+      IsLive     bool   `json:"isLive,omitempty"`
+      VideoTitle string `json:"videoTitle,omitempty"`
+   } `json:"properties,omitempty"`
+   ScreenDesignType string `json:"screenDesignType,omitempty"`
+}
+
+type Playback struct {
+   BcovAuth string
+   Sources  []Source
+}
+
+func (p *Playback) GetDash() (*Source, error) {
+   for _, source_data := range p.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
+type Properties struct {
+   ID           string    `json:"id,omitempty"`
+   PageType     string    `json:"pageType,omitempty"`
+   ManifestType string    `json:"manifestType,omitempty"`
+   CountryCode  string    `json:"countryCode,omitempty"`
+   Mode         string    `json:"mode,omitempty"`
+   Orientation  string    `json:"orientation,omitempty"`
+   Layout       string    `json:"layout,omitempty"`
+   Scrollable   bool      `json:"scrollable,omitempty"`
+   ContentType  string    `json:"contentType,omitempty"`
+   Nid          int       `json:"nid,omitempty"`
+   Metadata     *Metadata `json:"metadata,omitempty"`
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        *Url       // MPD
+   Type       string
+}
+
+type Subheading struct {
+   ID    string `json:"id,omitempty"`
+   Title string `json:"title,omitempty"`
+   Type  string `json:"type,omitempty"`
+}
+
+type Text struct {
+   Title       *TextElement `json:"title,omitempty"`
+   Description *TextElement `json:"description,omitempty"`
+   Subheadings []Subheading `json:"subheadings,omitempty"`
+}
+
+type TextElement struct {
+   Title string `json:"title,omitempty"`
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
 //go:embed playback.json
 var playback_json []byte
 
@@ -203,273 +472,4 @@ type ContentNode struct {
    Properties       *Properties   `json:"properties,omitempty"`
    TabletProperties *Properties   `json:"tablet_properties,omitempty"`
    Children         []ContentNode `json:"children,omitempty"`
-}
-
-func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/season-episodes/id/", id),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-func SeriesDetail(authToken string, id int) (*ContentNode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/content-compiler-cr/api/v1/content/amcn/amcplus/type/series-detail/id/", id),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + authToken,
-         "x-amcn-network":  "amcplus",
-         "x-amcn-platform": "android",
-         "x-amcn-tenant":   "amcn",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool        `json:"success"`
-      Status  int         `json:"status"`
-      Data    ContentNode `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-type DownloadData struct {
-   Downloadable        bool `json:"downloadable,omitempty"`
-   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
-   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
-}
-
-type Images struct {
-   Default string `json:"default,omitempty"`
-   Mobile  string `json:"mobile,omitempty"`
-   Tablet  string `json:"tablet,omitempty"`
-}
-
-type KeySystems struct {
-   ComWidevineAlpha struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.widevine.alpha"`
-   ComMicrosoftPlayready struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.microsoft.playready"`
-}
-
-// String implements the fmt.Stringer interface for easy printing.
-func (m *Metadata) String() string {
-   hasShow := m.ShowName != "" && m.ShowName != "none"
-
-   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-   }
-
-   if m.SeasonNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   if m.Title != "" {
-      if hasShow && m.ShowName != m.Title {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   return fmt.Sprintf("NID: %d", m.Nid)
-}
-
-type Metadata struct {
-   AmcnID                   string `json:"amcnId,omitempty"`
-   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
-   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
-   SeasonNumber             int    `json:"seasonNumber,omitempty"`
-   ShowName                 string `json:"showName,omitempty"`
-   Title                    string `json:"title,omitempty"`
-   Nid                      int    `json:"nid,omitempty"`
-   PageType                 string `json:"pageType,omitempty"`
-   URL                      string `json:"url,omitempty"`
-   Action                   string `json:"action,omitempty"`
-   ElementType              string `json:"elementType,omitempty"`
-   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
-   ElementName              string `json:"elementName,omitempty"`
-   ItemText                 string `json:"itemText,omitempty"`
-   Label                    string `json:"label,omitempty"`
-   NavComponentName         string `json:"navComponentName,omitempty"`
-   NavigationTitle          string `json:"navigationTitle,omitempty"`
-   IsNavigation             bool   `json:"isNavigation,omitempty"`
-   ListTitle                string `json:"listTitle,omitempty"`
-   IsPlayback               bool   `json:"isPlayback,omitempty"`
-   ListMode                 string `json:"listMode,omitempty"`
-   SearchValue              string `json:"searchValue,omitempty"`
-   ListPosition             int    `json:"listPosition,omitempty"`
-   ComponentName            string `json:"componentName,omitempty"`
-}
-
-type Navigation struct {
-   ClientRequest struct {
-      Endpoint string `json:"endpoint,omitempty"`
-   } `json:"client_request,omitempty"`
-   ContentID    string `json:"content_id,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   MicroAppType string `json:"micro_app_type,omitempty"`
-   Properties   struct {
-      Fullscreen bool   `json:"fullscreen,omitempty"`
-      IsLive     bool   `json:"isLive,omitempty"`
-      VideoTitle string `json:"videoTitle,omitempty"`
-   } `json:"properties,omitempty"`
-   ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-func GetPlayback(authToken string, videoId int) (*Playback, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + authToken,
-         "content-type":        "application/json",
-         "x-amcn-language":     "en",
-         "x-amcn-network":      "amcplus",
-         "x-amcn-platform":     "web",
-         "x-amcn-service-id":   "amcplus",
-         "x-amcn-tenant":       "amcn",
-         "x-amcn-device-ad-id": "-",
-         "x-ccpa-do-not-sell":  "doNotPassData",
-      },
-      playback_json,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Data struct {
-         PlaybackJsonData struct {
-            Sources []Source
-         }
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &Playback{
-      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
-      Sources:  result.Data.PlaybackJsonData.Sources,
-   }, nil
-}
-
-type Playback struct {
-   BcovAuth string
-   Sources  []Source
-}
-
-func (p *Playback) GetDash() (*Source, error) {
-   for _, source_data := range p.Sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
-}
-
-// Properties holds all possible strongly-typed properties found in the UI
-// nodes
-type Properties struct {
-   ID           string    `json:"id,omitempty"`
-   PageType     string    `json:"pageType,omitempty"`
-   ManifestType string    `json:"manifestType,omitempty"`
-   CountryCode  string    `json:"countryCode,omitempty"`
-   Mode         string    `json:"mode,omitempty"`
-   Orientation  string    `json:"orientation,omitempty"`
-   Layout       string    `json:"layout,omitempty"`
-   Scrollable   bool      `json:"scrollable,omitempty"`
-   ContentType  string    `json:"contentType,omitempty"`
-   Nid          int       `json:"nid,omitempty"`
-   Metadata     *Metadata `json:"metadata,omitempty"`
-}
-
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        *Url       // MPD
-   Type       string
-}
-
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type Text struct {
-   Title       *TextElement `json:"title,omitempty"`
-   Description *TextElement `json:"description,omitempty"`
-   Subheadings []Subheading `json:"subheadings,omitempty"`
-}
-
-type TextElement struct {
-   Title string `json:"title,omitempty"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }
