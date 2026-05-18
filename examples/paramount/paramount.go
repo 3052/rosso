@@ -7,23 +7,6 @@ import (
    "log"
 )
 
-c.flag.AddValue(&c.cbs_app, "", paramount.CbsAppIds())
-c.flag.AddValue(&c.playReady, "", "set PlayReady")
-c.flag.AddValue(&c.proxy, "", "set proxy")
-
-c.flag.Add(&c.use_cookie, "", "use cookie")
-c.flag.Add(&c.use_proxy, "", "use proxy")
-
-c.flag.AddValue(&c.username, "", "username")
-c.flag.AddValue(&c.password, "", "password")
-c.flag.AddValue(&c.paramount_id, "", "paramount ID")
-c.flag.AddValue(&c.dash, "", "DASH ID")
-
-
-
-
-
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
@@ -151,9 +134,9 @@ func (c *client) do_paramount_id() error {
 
 type client struct {
    cache        maya.Cache
-   use_cookie       maya.Flag
+   use_cookie   maya.Flag
    flag         maya.FlagSet
-   cbs_app          maya.Flag
+   cbs_app      maya.Flag
    dash         maya.Flag
    paramount_id maya.Flag
    password     maya.Flag
