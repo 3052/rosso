@@ -3,35 +3,37 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/cineMember"
-   "fmt"
    "log"
+   "os"
 )
+
+type client struct {
+   cache    maya.Cache
+   Email    maya.Flag[string] `depends:"Password"`
+   Password maya.Flag[string] `depends:"Email"`
+   Address  maya.Flag[string]
+   DashId   maya.Flag[string]
+}
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/cineMember"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.email, "e", "email")
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
    }
-   if c.email.Set {
-      if c.password.Set {
+   if c.Email.Set {
+      if c.Password.Set {
          return c.do_email_password()
       }
    }
-   if c.address.Set {
+   if c.Address.Set {
       return c.do_address()
    }
-   if c.dash.Set {
-      return c.do_dash()
+   if c.DashId.Set {
+      return c.do_dash_id()
    }
-   fmt.Println(c.flag)
-   return nil
+   return maya.FormatFlags(os.Stderr, "cineMember", c)
 }
 
 func main() {
@@ -42,46 +44,34 @@ func main() {
    }
 }
 
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   email    maya.Flag
-   password maya.Flag
-}
-
 func (c *client) do_email_password() error {
    phpSessId, err := cineMember.GetPhpSessId()
    if err != nil {
       return err
    }
-   err = cineMember.FetchLogin(phpSessId, c.email.Value, c.password.Value)
+   err = cineMember.FetchLogin(phpSessId, c.Email.Value, c.Password.Value)
    if err != nil {
       return err
    }
    return c.cache.Encode(phpSessId)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var manifest maya.Manifest
    err := c.cache.Decode(&manifest)
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, nil)
+   return maya.DownloadDash(c.DashId.Value, &manifest, nil)
 }
 
 func (c *client) do_address() error {
-   address, err := c.address.ParseUrl()
+   phpSessId := &cineMember.Cookie{}
+   err := c.cache.Decode(phpSessId)
    if err != nil {
       return err
    }
-   phpSessId := &cineMember.Cookie{}
-   if err = c.cache.Decode(phpSessId); err != nil {
-      return err
-   }
-   id, err := cineMember.FetchId(address)
+   id, err := cineMember.FetchId(c.Address.Value)
    if err != nil {
       return err
    }

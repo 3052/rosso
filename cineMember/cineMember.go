@@ -11,34 +11,13 @@ import (
    "strings"
 )
 
-func FetchLogin(phpSessId *Cookie, email, password string) error {
-   body := url.Values{
-      "emaillogin": {email},
-      "password":   {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.cinemember.nl",
-         Path:   "/elements/overlays/account/login.php",
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "cookie":       phpSessId.String(),
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   _, err = io.Copy(io.Discard, resp.Body)
-   return err
-}
-
 // extracts the numeric ID and converts it to an integer
-func FetchId(address *url.URL) (int, error) {
-   resp, err := maya.Get(address, nil)
+func FetchId(address string) (int, error) {
+   parse, err := url.Parse(address)
+   if err != nil {
+      return 0, err
+   }
+   resp, err := maya.Get(parse, nil)
    if err != nil {
       return 0, err
    }
@@ -134,4 +113,29 @@ func (s *Stream) GetDash() (*url.URL, error) {
       }
    }
    return nil, errors.New("DASH link not found")
+}
+
+func FetchLogin(phpSessId *Cookie, email, password string) error {
+   body := url.Values{
+      "emaillogin": {email},
+      "password":   {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.cinemember.nl",
+         Path:   "/elements/overlays/account/login.php",
+      },
+      map[string]string{
+         "content-type": "application/x-www-form-urlencoded",
+         "cookie":       phpSessId.String(),
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   return err
 }
