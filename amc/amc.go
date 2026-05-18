@@ -9,47 +9,56 @@ import (
    "net/url"
 )
 
-func GetPlayback(authToken string, videoId int) (*Playback, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + authToken,
-         "content-type":        "application/json",
-         "x-amcn-language":     "en",
-         "x-amcn-network":      "amcplus",
-         "x-amcn-platform":     "web",
-         "x-amcn-service-id":   "amcplus",
-         "x-amcn-tenant":       "amcn",
-         "x-amcn-device-ad-id": "-",
-         "x-ccpa-do-not-sell":  "doNotPassData",
-      },
-      playback_json,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Data struct {
-         PlaybackJsonData struct {
-            Sources []Source
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "card" && p.ContentType == "episode" {
+            metadata = append(metadata, p.Metadata)
          }
       }
+      for _, child := range node.Children {
+         walk(child)
+      }
    }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
    }
-   return &Playback{
-      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
-      Sources:  result.Data.PlaybackJsonData.Sources,
-   }, nil
+
+   walk(*c)
+   return metadata
+}
+
+// ContentNode represents the recursive Server-Driven UI tree used by AMC
+type ContentNode struct {
+   Type             string        `json:"type"`
+   Properties       *Properties   `json:"properties,omitempty"`
+   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
+   Children         []ContentNode `json:"children,omitempty"`
 }
 
 func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
@@ -117,6 +126,51 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    }
    return &envelope.Data, nil
 }
+
+func GetPlayback(authToken string, videoId int) (*Playback, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + authToken,
+         "content-type":        "application/json",
+         "x-amcn-language":     "en",
+         "x-amcn-network":      "amcplus",
+         "x-amcn-platform":     "web",
+         "x-amcn-service-id":   "amcplus",
+         "x-amcn-tenant":       "amcn",
+         "x-amcn-device-ad-id": "-",
+         "x-ccpa-do-not-sell":  "doNotPassData",
+      },
+      playback_json,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &Playback{
+      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+      Sources:  result.Data.PlaybackJsonData.Sources,
+   }, nil
+}
+
+///
 
 type DownloadData struct {
    Downloadable        bool `json:"downloadable,omitempty"`
@@ -420,56 +474,4 @@ func Unauth() (*AuthData, error) {
       return nil, err
    }
    return &envelope.Data, nil
-}
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "card" && p.ContentType == "episode" {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
-   }
-
-   walk(*c)
-   return metadata
-}
-
-// ContentNode represents the recursive Server-Driven UI tree used by AMC
-type ContentNode struct {
-   Type             string        `json:"type"`
-   Properties       *Properties   `json:"properties,omitempty"`
-   TabletProperties *Properties   `json:"tablet_properties,omitempty"`
-   Children         []ContentNode `json:"children,omitempty"`
 }
