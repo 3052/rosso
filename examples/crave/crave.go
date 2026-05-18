@@ -38,8 +38,6 @@ func (c *client) do_dash() error {
    })
 }
 
-///
-
 func (c *client) do_username_password() error {
    account_token, err := crave.PerformLogin(c.username.Value, c.password.Value)
    if err != nil {
@@ -57,6 +55,8 @@ func (c *client) do_username_password() error {
    }
    return c.cache.Encode(account_token)
 }
+
+///
 
 func (c *client) do_profile() error {
    account_token := &crave.AccountToken{}
