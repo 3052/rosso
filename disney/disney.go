@@ -11,128 +11,6 @@ import (
    "strings"
 )
 
-// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func GetEntity(rawUrl string) (string, error) {
-   parsed, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   base := path.Base(parsed.Path)
-   if !strings.HasPrefix(base, "entity-") {
-      return "", errors.New("entity value missing from URL")
-   }
-   return base, nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/" + entity,
-         RawQuery: "limit=0",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Errors []Error // 2026-04-11
-         Page   Page
-      }
-      Errors []Error // 2026-05-03
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   if len(result.Data.Errors) >= 1 {
-      return nil, &result.Data.Errors[0]
-   }
-   return &result.Data.Page, nil
-}
-
-// request: Account
-func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   playback_id, err := json.Marshal(map[string]string{
-      "mediaId": mediaId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "playback": map[string]any{
-         "attributes": map[string]any{
-            "assetInsertionStrategy": "SGAI",
-            "codecs": map[string]any{
-               "supportsMultiCodecMaster": true, // 4K
-               "video": []string{
-                  "h.264",
-                  "h.265",
-               },
-            },
-            "videoRanges": []string{"HDR10"},
-         },
-      },
-      "playbackId": playback_id,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.playback.edge.bamgrid.com",
-         // /v7/playback/ctr-high
-         // /v7/playback/tv-drm-ctr-h265-atmos
-         Path: "/v7/playback/ctr-regular",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + t.AccessToken,
-         "content-type":            "application/json",
-         "x-application-version":   "",
-         "x-bamsdk-client-id":      "",
-         "x-bamsdk-platform":       "",
-         "x-bamsdk-version":        "",
-         "x-dss-feature-filtering": "true",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Stream struct {
-         Sources []struct {
-            Complete struct {
-               Url string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return url.Parse(result.Stream.Sources[0].Complete.Url)
-}
-
 // request: Device
 func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
    if err := t.assert("Device"); err != nil {
@@ -698,4 +576,126 @@ func (t *Token) assert(expected string) error {
       return errors.New("expected token type " + expected)
    }
    return nil
+}
+
+// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+func GetEntity(rawUrl string) (string, error) {
+   parsed, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
+   }
+   base := path.Base(parsed.Path)
+   if !strings.HasPrefix(base, "entity-") {
+      return "", errors.New("entity value missing from URL")
+   }
+   return base, nil
+}
+
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/" + entity,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Errors []Error // 2026-04-11
+         Page   Page
+      }
+      Errors []Error // 2026-05-03
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
+   }
+   return &result.Data.Page, nil
+}
+
+// request: Account
+func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   playback_id, err := json.Marshal(map[string]string{
+      "mediaId": mediaId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "playback": map[string]any{
+         "attributes": map[string]any{
+            "assetInsertionStrategy": "SGAI",
+            "codecs": map[string]any{
+               "supportsMultiCodecMaster": true, // 4K
+               "video": []string{
+                  "h.264",
+                  "h.265",
+               },
+            },
+            "videoRanges": []string{"HDR10"},
+         },
+      },
+      "playbackId": playback_id,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         // /v7/playback/ctr-high
+         // /v7/playback/tv-drm-ctr-h265-atmos
+         Path: "/v7/playback/ctr-regular",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + t.AccessToken,
+         "content-type":            "application/json",
+         "x-application-version":   "",
+         "x-bamsdk-client-id":      "",
+         "x-bamsdk-platform":       "",
+         "x-bamsdk-version":        "",
+         "x-dss-feature-filtering": "true",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Stream struct {
+         Sources []struct {
+            Complete struct {
+               Url string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return url.Parse(result.Stream.Sources[0].Complete.Url)
 }

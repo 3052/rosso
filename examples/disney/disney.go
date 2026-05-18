@@ -7,6 +7,8 @@ import (
    "log"
 )
 
+type PlayReadyFolder string
+
 func (c *client) do_address() error {
    entity_id, err := disney.GetEntity(c.address.Value)
    if err != nil {
@@ -27,8 +29,6 @@ func (c *client) do_address() error {
    fmt.Println(page)
    return nil
 }
-
-///
 
 func (c *client) do_season() error {
    var token disney.Token
@@ -63,19 +63,96 @@ func (c *client) do_media() error {
 
 func (c *client) do_hls() error {
    var (
-      device   playReady_device
-      manifest maya.Manifest
-      token    disney.Token
+      manifest  maya.Manifest
+      playReady PlayReadyFolder
+      token     disney.Token
    )
-   err := c.cache.Decode(&device, &manifest, &token)
+   err := c.cache.Decode(&manifest, &playReady, &token)
    if err != nil {
       return err
    }
    return maya.DownloadHls(c.hls.Value, &manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(playReady),
       Drm:     maya.DrmPlayReady,
       License: token.FetchPlayReady,
    })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type EmailString string
+
+func (c *client) do_email() error {
+   token, err := disney.RegisterDevice()
+   if err != nil {
+      return err
+   }
+   request_otp, err := token.RequestOtp(c.email.Value)
+   if err != nil {
+      return err
+   }
+   fmt.Println(request_otp)
+   return c.cache.Encode(EmailString(c.email.Value), token)
+}
+
+func (c *client) do_passcode() error {
+   var (
+      email EmailString
+      token disney.Token
+   )
+   err := c.cache.Decode(&email, &token)
+   if err != nil {
+      return err
+   }
+   otp, err := token.AuthenticateWithOtp(string(email), c.passcode.Value)
+   if err != nil {
+      return err
+   }
+   login, err := token.LoginWithActionGrant(otp.ActionGrant)
+   if err != nil {
+      return err
+   }
+   for i, profile := range login.Account.Profiles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&profile)
+   }
+   return c.cache.Encode(token)
+}
+
+///
+
+func (c *client) do_profile() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   err = token.SwitchProfile(c.profile.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
+}
+
+func (c *client) do_refresh() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   err = token.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
 }
 
 type client struct {
@@ -110,7 +187,7 @@ func (c *client) do() error {
    }
    switch {
    case c.playReady.Set:
-      return c.cache.Encode(playReady_device(c.playReady.Value))
+      return c.cache.Encode(PlayReadyFolder(c.playReady.Value))
    case c.email.Set:
       return c.do_email()
    case c.passcode.Set:
@@ -130,81 +207,4 @@ func (c *client) do() error {
    }
    fmt.Println(c.flag)
    return nil
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type disney_email string
-
-type playReady_device string
-
-func (c *client) do_email() error {
-   token, err := disney.RegisterDevice()
-   if err != nil {
-      return err
-   }
-   request_otp, err := token.RequestOtp(c.email.Value)
-   if err != nil {
-      return err
-   }
-   fmt.Println(request_otp)
-   return c.cache.Encode(disney_email(c.email.Value), token)
-}
-
-func (c *client) do_passcode() error {
-   var (
-      email disney_email
-      token disney.Token
-   )
-   err := c.cache.Decode(&email, &token)
-   if err != nil {
-      return err
-   }
-   otp, err := token.AuthenticateWithOtp(string(email), c.passcode.Value)
-   if err != nil {
-      return err
-   }
-   login, err := token.LoginWithActionGrant(otp.ActionGrant)
-   if err != nil {
-      return err
-   }
-   for i, profile := range login.Account.Profiles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&profile)
-   }
-   return c.cache.Encode(token)
-}
-
-func (c *client) do_profile() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   err = token.SwitchProfile(c.profile.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(token)
-}
-
-func (c *client) do_refresh() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   err = token.Refresh()
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(token)
 }
