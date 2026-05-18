@@ -13,14 +13,12 @@ type client struct {
    cache          maya.Cache
    WidevineFolder maya.Flag[string]
    SetProxy       maya.Flag[string]
-   UseProxy       maya.Flag[bool]
    LinkCode       maya.Flag[bool]
    Session        maya.Flag[bool]
-   _              struct{}
    Address        maya.Flag[string]
-   Season         maya.Flag[int]
-   _              struct{}
+   Season         maya.Flag[int] `depends:"Address"`
    MubiId         maya.Flag[int]
+   UseProxy       maya.Flag[bool] `depends:"MubiId"`
    DashId         maya.Flag[string]
 }
 
@@ -60,11 +58,7 @@ func (c *client) do() error {
    if c.DashId.Set {
       return c.do_dash_id()
    }
-   return maya.FormatFlags(os.Stderr, c,
-      "mubi Widevine L3",
-      "mubi Code",
-      "mubi Dash abcdef",
-   )
+   return maya.FormatFlags(os.Stderr, "mubi", c)
 }
 
 func (c *client) do_use_proxy() error {
