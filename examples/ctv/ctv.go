@@ -7,35 +7,33 @@ import (
    "log"
 )
 
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   widevine maya.Flag
+type WidevineFolder string
+
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: ctv.FetchWidevine,
+   })
 }
 
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/ctv"); err != nil {
-      return err
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
    }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.widevine.Set:
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   case c.address.Set:
-      return c.do_address()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }
+
+///
 
 func (c *client) do_address() error {
    address, err := c.address.ParseUrl()
@@ -65,28 +63,32 @@ func (c *client) do_address() error {
    return c.cache.Encode(maya_manifest)
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   widevine maya.Flag
 }
 
-type widevine_device string
-
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      device   widevine_device
-   )
-   err := c.cache.Decode(&device, &manifest)
-   if err != nil {
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/ctv"); err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmWidevine,
-      License: ctv.FetchWidevine,
-   })
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.widevine.Set:
+      return c.cache.Encode(WidevineFolder(c.widevine.Value))
+   case c.address.Set:
+      return c.do_address()
+   case c.dash.Set:
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
 }
