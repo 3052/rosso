@@ -18,6 +18,27 @@ import (
    "strings"
 )
 
+var CbsApps = []CbsApp{
+   {
+      Id:      "com.cbs.app",
+      Host:    "www.paramountplus.com",
+      Secret:  "7081400bd4143bf3",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.ca",
+      Host:    "www.paramountplus.com",
+      Secret:  "1c5d27627d71b420",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.tve",
+      Host:    "www.cbs.com",
+      Secret:  "cef32931dc01412e",
+      Version: "CBS 15.6.0",
+   },
+}
+
 // ExtractDexHexBytes returns a set (map) of unique 16-character hex strings
 // found in .dex files
 func ExtractDexHexBytes(name string) (map[string]struct{}, error) {
@@ -143,17 +164,6 @@ type CbsApp struct {
    Version string
 }
 
-func CbsAppIds() string {
-   var data strings.Builder
-   for i, app := range CbsApps {
-      if i >= 1 {
-         data.WriteByte(' ')
-      }
-      data.WriteString(app.Id)
-   }
-   return data.String()
-}
-
 func GetCbsApp(id string) (*CbsApp, error) {
    for _, app := range CbsApps {
       if app.Id == id {
@@ -161,27 +171,6 @@ func GetCbsApp(id string) (*CbsApp, error) {
       }
    }
    return nil, fmt.Errorf("CBS app not found %q", id)
-}
-
-var CbsApps = []CbsApp{
-   {
-      Id:      "com.cbs.app",
-      Host:    "www.paramountplus.com",
-      Secret:  "7081400bd4143bf3",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.ca",
-      Host:    "www.paramountplus.com",
-      Secret:  "1c5d27627d71b420",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.tve",
-      Host:    "www.cbs.com",
-      Secret:  "cef32931dc01412e",
-      Version: "CBS 15.6.0",
-   },
 }
 
 var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)

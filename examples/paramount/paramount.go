@@ -9,7 +9,7 @@ import (
 
 type client struct {
    cache           maya.Cache
-   CbsApp          maya.Flag[string]
+   CbsApp          maya.Flag[string] `usage:"com.cbs.app com.cbs.tve com.cbs.ca"`
    PlayReadyFolder maya.Flag[string]
    Username        maya.Flag[string] `depends:"Password"`
    Password        maya.Flag[string] `depends:"Username"`

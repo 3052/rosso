@@ -9,6 +9,129 @@ import (
    "net/url"
 )
 
+func (a *AuthData) Refresh() error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + a.RefreshToken},
+      nil,
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return err
+   }
+   *a = result.Data
+   return nil
+}
+
+// AuthData represents the inner payload of authentication responses.
+type AuthData struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
+// Login authenticates the user. It requires the guest token (access_token)
+// retrieved from calling the Unauth() function.
+func Login(guestToken, email, password string) (*AuthData, error) {
+   // Body
+   body, err := json.Marshal(map[string]string{
+      "email":    email,
+      "password": password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/login",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + guestToken,
+         "content-type":            "application/json",
+         "x-amcn-language":         "en",
+         "x-amcn-network":          "amcplus",
+         "x-amcn-platform":         "web",
+         "x-amcn-service-group-id": "10",
+         "x-amcn-tenant":           "amcn",
+         "x-amcn-device-ad-id":     "-",
+         "x-amcn-device-id":        "-",
+         "x-amcn-service-id":       "amcplus",
+         "x-ccpa-do-not-sell":      "doNotPassData",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
+func Unauth() (*AuthData, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/unauth",
+      },
+      map[string]string{
+         "x-amcn-network":   "amcplus",
+         "x-amcn-platform":  "web",
+         "x-amcn-tenant":    "amcn",
+         "x-amcn-device-id": "-",
+         "x-amcn-language":  "en",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
+   }
+   // Internal envelope to strip the first layer
+   var envelope struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+   return &envelope.Data, nil
+}
+
 // EpisodesMetadata recursively traverses the Server-Driven UI tree
 // and extracts only the Metadata for playable episodes.
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
@@ -351,127 +474,4 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
       return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
    }
    return io.ReadAll(resp.Body)
-}
-
-func (a *AuthData) Refresh() error {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      map[string]string{"authorization": "Bearer " + a.RefreshToken},
-      nil,
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
-   }
-   *a = result.Data
-   return nil
-}
-
-// AuthData represents the inner payload of authentication responses.
-type AuthData struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
-}
-
-// Login authenticates the user. It requires the guest token (access_token)
-// retrieved from calling the Unauth() function.
-func Login(guestToken, email, password string) (*AuthData, error) {
-   // Body
-   body, err := json.Marshal(map[string]string{
-      "email":    email,
-      "password": password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/login",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + guestToken,
-         "content-type":            "application/json",
-         "x-amcn-language":         "en",
-         "x-amcn-network":          "amcplus",
-         "x-amcn-platform":         "web",
-         "x-amcn-service-group-id": "10",
-         "x-amcn-tenant":           "amcn",
-         "x-amcn-device-ad-id":     "-",
-         "x-amcn-device-id":        "-",
-         "x-amcn-service-id":       "amcplus",
-         "x-ccpa-do-not-sell":      "doNotPassData",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
-}
-
-func Unauth() (*AuthData, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/unauth",
-      },
-      map[string]string{
-         "x-amcn-network":   "amcplus",
-         "x-amcn-platform":  "web",
-         "x-amcn-tenant":    "amcn",
-         "x-amcn-device-id": "-",
-         "x-amcn-language":  "en",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
-   }
-   // Internal envelope to strip the first layer
-   var envelope struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-   return &envelope.Data, nil
 }
