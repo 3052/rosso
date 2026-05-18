@@ -9,6 +9,27 @@ import (
    "net/url"
 )
 
+//go:embed playback.json
+var playback_json []byte
+
+func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
+   target, err := url.Parse(licenseUrl)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func (a *AuthData) Refresh() error {
    resp, err := maya.Post(
       &url.URL{
@@ -250,6 +271,12 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
+type DownloadData struct {
+   Downloadable        bool `json:"downloadable,omitempty"`
+   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
+   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
+}
+
 func GetPlayback(authToken string, videoId int) (*Playback, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -293,13 +320,65 @@ func GetPlayback(authToken string, videoId int) (*Playback, error) {
    }, nil
 }
 
-///
-
-type DownloadData struct {
-   Downloadable        bool `json:"downloadable,omitempty"`
-   DownloadingExpireIn int  `json:"downloadingExpireIn,omitempty"`
-   DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
+type Playback struct {
+   BcovAuth string
+   Sources  []Source
 }
+
+func (p *Playback) GetDash() (*Source, error) {
+   for _, source_data := range p.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
+type Properties struct {
+   ID           string    `json:"id,omitempty"`
+   PageType     string    `json:"pageType,omitempty"`
+   ManifestType string    `json:"manifestType,omitempty"`
+   CountryCode  string    `json:"countryCode,omitempty"`
+   Mode         string    `json:"mode,omitempty"`
+   Orientation  string    `json:"orientation,omitempty"`
+   Layout       string    `json:"layout,omitempty"`
+   Scrollable   bool      `json:"scrollable,omitempty"`
+   ContentType  string    `json:"contentType,omitempty"`
+   Nid          int       `json:"nid,omitempty"`
+   Metadata     *Metadata `json:"metadata,omitempty"`
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        *Url       // MPD
+   Type       string
+}
+
+type Text struct {
+   Title       *TextElement `json:"title,omitempty"`
+   Description *TextElement `json:"description,omitempty"`
+}
+
+type TextElement struct {
+   Title string `json:"title,omitempty"`
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
 
 type Images struct {
    Default string `json:"default,omitempty"`
@@ -388,90 +467,4 @@ type Navigation struct {
       VideoTitle string `json:"videoTitle,omitempty"`
    } `json:"properties,omitempty"`
    ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-type Playback struct {
-   BcovAuth string
-   Sources  []Source
-}
-
-func (p *Playback) GetDash() (*Source, error) {
-   for _, source_data := range p.Sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
-}
-
-// Properties holds all possible strongly-typed properties found in the UI
-// nodes
-type Properties struct {
-   ID           string    `json:"id,omitempty"`
-   PageType     string    `json:"pageType,omitempty"`
-   ManifestType string    `json:"manifestType,omitempty"`
-   CountryCode  string    `json:"countryCode,omitempty"`
-   Mode         string    `json:"mode,omitempty"`
-   Orientation  string    `json:"orientation,omitempty"`
-   Layout       string    `json:"layout,omitempty"`
-   Scrollable   bool      `json:"scrollable,omitempty"`
-   ContentType  string    `json:"contentType,omitempty"`
-   Nid          int       `json:"nid,omitempty"`
-   Metadata     *Metadata `json:"metadata,omitempty"`
-}
-
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        *Url       // MPD
-   Type       string
-}
-
-type Subheading struct {
-   ID    string `json:"id,omitempty"`
-   Title string `json:"title,omitempty"`
-   Type  string `json:"type,omitempty"`
-}
-
-type Text struct {
-   Title       *TextElement `json:"title,omitempty"`
-   Description *TextElement `json:"description,omitempty"`
-   Subheadings []Subheading `json:"subheadings,omitempty"`
-}
-
-type TextElement struct {
-   Title string `json:"title,omitempty"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-//go:embed playback.json
-var playback_json []byte
-
-func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
-   target, err := url.Parse(licenseUrl)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target, map[string]string{"bcov-auth": bcovAuth}, challenge,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("license request failed with status: %d", resp.StatusCode)
-   }
-   return io.ReadAll(resp.Body)
 }

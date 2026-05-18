@@ -13,8 +13,8 @@ type client struct {
    PlayReadyFolder maya.Flag[string]
    Username        maya.Flag[string] `depends:"Password"`
    Password        maya.Flag[string] `depends:"Username"`
-   ParamountId     maya.Flag[string]
-   UseCookie       maya.Flag[bool] `depends:"ParamountId"`
+   ContentId       maya.Flag[string]
+   UseCookie       maya.Flag[bool] `depends:"ContentId"`
    DashId          maya.Flag[string]
 }
 
@@ -36,7 +36,7 @@ func (c *client) do() error {
          return c.do_username_password()
       }
    }
-   if c.ParamountId.Set {
+   if c.ContentId.Set {
       return c.do_paramount_id()
    }
    if c.DashId.Set {
@@ -47,16 +47,16 @@ func (c *client) do() error {
 
 type PlayReadyFolder string
 
-type ParamountIdString string
+type ContentIdString string
 
 func (c *client) do_dash_id() error {
    var (
-      cbs_app      paramount.CbsApp
-      manifest     maya.Manifest
-      paramount_id ParamountIdString
-      playReady    PlayReadyFolder
+      cbs_app    paramount.CbsApp
+      content_id ContentIdString
+      manifest   maya.Manifest
+      playReady  PlayReadyFolder
    )
-   err := c.cache.Decode(&cbs_app, &manifest, &paramount_id, &playReady)
+   err := c.cache.Decode(&cbs_app, &content_id, &manifest, &playReady)
    if err != nil {
       return err
    }
@@ -68,7 +68,7 @@ func (c *client) do_dash_id() error {
          return err
       }
    }
-   session, err := cbs_app.FetchPlayReady(string(paramount_id), cbs_com)
+   session, err := cbs_app.FetchPlayReady(string(content_id), cbs_com)
    if err != nil {
       return err
    }
@@ -122,7 +122,7 @@ func (c *client) do_paramount_id() error {
          return err
       }
    }
-   session, err := cbs_app.FetchStreamingUrl(c.ParamountId.Value, cbs_com)
+   session, err := cbs_app.FetchStreamingUrl(c.ContentId.Value, cbs_com)
    if err != nil {
       return err
    }
@@ -130,5 +130,5 @@ func (c *client) do_paramount_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(ParamountIdString(c.ParamountId.Value), manifest)
+   return c.cache.Encode(ContentIdString(c.ContentId.Value), manifest)
 }
