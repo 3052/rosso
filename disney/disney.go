@@ -14,15 +14,54 @@ import (
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func GetEntityId(address *url.URL) (string, error) {
-   if address == nil || address.Path == "" {
-      return "", errors.New("invalid URL")
+func GetEntity(rawUrl string) (string, error) {
+   parsed, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
    }
-   entityID := path.Base(address.Path)
-   if !strings.HasPrefix(entityID, "entity-") {
-      return "", errors.New("invalid ID: missing entity prefix")
+   base := path.Base(parsed.Path)
+   if !strings.HasPrefix(base, "entity-") {
+      return "", errors.New("entity value missing from URL")
    }
-   return entityID, nil
+   return base, nil
+}
+
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/" + entity,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Errors []Error // 2026-04-11
+         Page   Page
+      }
+      Errors []Error // 2026-05-03
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
+   }
+   return &result.Data.Page, nil
 }
 
 // request: Account
@@ -659,42 +698,4 @@ func (t *Token) assert(expected string) error {
       return errors.New("expected token type " + expected)
    }
    return nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/" + entity,
-         RawQuery: "limit=0",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Errors []Error // 2026-04-11
-         Page   Page
-      }
-      Errors []Error // 2026-05-03
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   if len(result.Data.Errors) >= 1 {
-      return nil, &result.Data.Errors[0]
-   }
-   return &result.Data.Page, nil
 }

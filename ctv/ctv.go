@@ -11,6 +11,61 @@ import (
    "strings"
 )
 
+// https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
+func GetPath(urlData string) (string, error) {
+   parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   if parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return parse.Path, nil
+}
+
+func Resolve(path string) (*ResolvedPath, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": query_resolve_path,
+      "variables": map[string]string{
+         "path": path,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.ctv.ca",
+         Path:   "/space-graphql/apq/graphql",
+      },
+      // you need this for the first request, then can omit
+      map[string]string{"graphql-client-platform": "entpay_web"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Data struct {
+         ResolvedPath *ResolvedPath
+      }
+   }
+   err = json.Unmarshal(body, &result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Data.ResolvedPath == nil {
+      return nil, errors.New(string(body))
+   }
+   return result.Data.ResolvedPath, nil
+}
+
 func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -165,47 +220,4 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
       return nil, errors.New(result.Errors[0].Message)
    }
    return &result.Data.AxisContent, nil
-}
-
-func Resolve(path string) (*ResolvedPath, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": query_resolve_path,
-      "variables": map[string]string{
-         "path": path,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.ctv.ca",
-         Path:   "/space-graphql/apq/graphql",
-      },
-      // you need this for the first request, then can omit
-      map[string]string{"graphql-client-platform": "entpay_web"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         ResolvedPath *ResolvedPath
-      }
-   }
-   err = json.Unmarshal(body, &result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Data.ResolvedPath == nil {
-      return nil, errors.New(string(body))
-   }
-   return result.Data.ResolvedPath, nil
 }

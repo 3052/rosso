@@ -8,11 +8,11 @@ import (
 )
 
 func (c *client) do_address() error {
-   address, err := c.address.ParseUrl()
+   entity_id, err := disney.GetEntity(c.address.Value)
    if err != nil {
       return err
    }
-   entity, err := disney.GetEntityId(address)
+   entity, err := disney.GetEntityId(entity_id)
    if err != nil {
       return err
    }
@@ -27,6 +27,8 @@ func (c *client) do_address() error {
    fmt.Println(page)
    return nil
 }
+
+///
 
 func (c *client) do_season() error {
    var token disney.Token
