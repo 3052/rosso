@@ -56,8 +56,6 @@ func (c *client) do_username_password() error {
    return c.cache.Encode(account_token)
 }
 
-///
-
 func (c *client) do_profile() error {
    account_token := &crave.AccountToken{}
    err := c.cache.Decode(account_token)
@@ -79,6 +77,42 @@ func (c *client) do_profile() error {
       fmt.Println(&sub)
    }
    return c.cache.Encode(profile_token)
+}
+
+///
+
+func (c *client) do_address() error {
+   address, err := c.address.ParseUrl()
+   if err != nil {
+      return err
+   }
+   profile_token := &crave.ProfileToken{}
+   if err = c.cache.Decode(profile_token); err != nil {
+      return err
+   }
+   media, err := crave.ParseMedia(address)
+   if err != nil {
+      return err
+   }
+   if media.FirstContent.Id == 0 {
+      media, err = crave.GetMedia(media.Id)
+      if err != nil {
+         return err
+      }
+   }
+   playback, err := crave.GetPlayback(profile_token, media)
+   if err != nil {
+      return err
+   }
+   stream, err := crave.GetStream(profile_token, playback)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, media, playback)
 }
 
 type client struct {
@@ -126,38 +160,4 @@ func (c *client) do() error {
    }
    fmt.Println(c.flag)
    return nil
-}
-
-func (c *client) do_address() error {
-   address, err := c.address.ParseUrl()
-   if err != nil {
-      return err
-   }
-   profile_token := &crave.ProfileToken{}
-   if err = c.cache.Decode(profile_token); err != nil {
-      return err
-   }
-   media, err := crave.ParseMedia(address)
-   if err != nil {
-      return err
-   }
-   if media.FirstContent.Id == 0 {
-      media, err = crave.GetMedia(media.Id)
-      if err != nil {
-         return err
-      }
-   }
-   playback, err := crave.GetPlayback(profile_token, media)
-   if err != nil {
-      return err
-   }
-   stream, err := crave.GetStream(profile_token, playback)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, media, playback)
 }
