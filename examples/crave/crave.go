@@ -7,6 +7,55 @@ import (
    "log"
 )
 
+type client struct {
+   cache           maya.Cache
+   PlayReadyFolder maya.Flag[string]
+   Username        maya.Flag[string] `depends:"Password"`
+   Password        maya.Flag[string] `depends:"Username"`
+   ProfileId       maya.Flag[string]
+   Address         maya.Flag[string]
+   DashId          maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/crave"); err != nil {
+      return err
+   }
+
+   c.flag.AddValue(&c.PlayReadyFolder, "PR", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.Password, "p", "password")
+   c.flag.AddValue(&c.Username, "u", "username")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.ProfileId, "P", "profile")
+   c.flag.AddValue(&c.Address, "a", "address")
+   c.flag.AddValue(&c.DashId, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.PlayReadyFolder.Set {
+      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+   }
+   if c.Username.Set {
+      if c.Password.Set {
+         return c.do_username_password()
+      }
+   }
+   if c.ProfileId.Set {
+      return c.do_profile()
+   }
+   if c.Address.Set {
+      return c.do_address()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
+type PlayReadyFolder string
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -15,9 +64,7 @@ func main() {
    }
 }
 
-type PlayReadyFolder string
-
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest      maya.Manifest
       playReady     PlayReadyFolder
@@ -31,7 +78,7 @@ func (c *client) do_dash() error {
    license := func(body []byte) ([]byte, error) {
       return crave.AcquireLicense(body, &profile_token, &playback)
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
       Device:  string(playReady),
       Drm:     maya.DrmPlayReady,
       License: license,
@@ -39,7 +86,7 @@ func (c *client) do_dash() error {
 }
 
 func (c *client) do_username_password() error {
-   account_token, err := crave.PerformLogin(c.username.Value, c.password.Value)
+   account_token, err := crave.PerformLogin(c.Username.Value, c.Password.Value)
    if err != nil {
       return err
    }
@@ -62,7 +109,7 @@ func (c *client) do_profile() error {
    if err != nil {
       return err
    }
-   profile_token, err := crave.SwitchProfile(account_token, c.profile.Value)
+   profile_token, err := crave.SwitchProfile(account_token, c.ProfileId.Value)
    if err != nil {
       return err
    }
@@ -79,18 +126,12 @@ func (c *client) do_profile() error {
    return c.cache.Encode(profile_token)
 }
 
-///
-
 func (c *client) do_address() error {
-   address, err := c.address.ParseUrl()
-   if err != nil {
-      return err
-   }
    profile_token := &crave.ProfileToken{}
    if err = c.cache.Decode(profile_token); err != nil {
       return err
    }
-   media, err := crave.ParseMedia(address)
+   media, err := crave.ParseMedia(c.Address.Value)
    if err != nil {
       return err
    }
@@ -113,51 +154,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, playback)
-}
-
-type client struct {
-   cache     maya.Cache
-   flag      maya.FlagSet
-   address   maya.Flag
-   dash      maya.Flag
-   password  maya.Flag
-   playReady maya.Flag
-   profile   maya.Flag
-   username  maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/crave"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.playReady, "PR", "PlayReady")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag.AddValue(&c.username, "u", "username")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.profile, "P", "profile")
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.playReady.Set {
-      return c.cache.Encode(PlayReadyFolder(c.playReady.Value))
-   }
-   if c.username.Set {
-      if c.password.Set {
-         return c.do_username_password()
-      }
-   }
-   if c.profile.Set {
-      return c.do_profile()
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }
