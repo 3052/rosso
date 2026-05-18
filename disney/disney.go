@@ -11,6 +11,75 @@ import (
    "strings"
 )
 
+// request: Account
+func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   playback_id, err := json.Marshal(map[string]string{
+      "mediaId": mediaId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "playback": map[string]any{
+         "attributes": map[string]any{
+            "assetInsertionStrategy": "SGAI",
+            "codecs": map[string]any{
+               "supportsMultiCodecMaster": true, // 4K
+               "video": []string{
+                  "h.264",
+                  "h.265",
+               },
+            },
+            "videoRanges": []string{"HDR10"},
+         },
+      },
+      "playbackId": playback_id,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         // /v7/playback/ctr-high
+         // /v7/playback/tv-drm-ctr-h265-atmos
+         Path: "/v7/playback/ctr-regular",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + t.AccessToken,
+         "content-type":            "application/json",
+         "x-application-version":   "",
+         "x-bamsdk-client-id":      "",
+         "x-bamsdk-platform":       "",
+         "x-bamsdk-version":        "",
+         "x-dss-feature-filtering": "true",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Stream struct {
+         Sources []struct {
+            Complete struct {
+               Url string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return url.Parse(result.Stream.Sources[0].Complete.Url)
+}
+
 // request: Device
 func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
    if err := t.assert("Device"); err != nil {
@@ -629,73 +698,4 @@ func (t *Token) FetchPage(entity string) (*Page, error) {
       return nil, &result.Data.Errors[0]
    }
    return &result.Data.Page, nil
-}
-
-// request: Account
-func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   playback_id, err := json.Marshal(map[string]string{
-      "mediaId": mediaId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "playback": map[string]any{
-         "attributes": map[string]any{
-            "assetInsertionStrategy": "SGAI",
-            "codecs": map[string]any{
-               "supportsMultiCodecMaster": true, // 4K
-               "video": []string{
-                  "h.264",
-                  "h.265",
-               },
-            },
-            "videoRanges": []string{"HDR10"},
-         },
-      },
-      "playbackId": playback_id,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.playback.edge.bamgrid.com",
-         // /v7/playback/ctr-high
-         // /v7/playback/tv-drm-ctr-h265-atmos
-         Path: "/v7/playback/ctr-regular",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + t.AccessToken,
-         "content-type":            "application/json",
-         "x-application-version":   "",
-         "x-bamsdk-client-id":      "",
-         "x-bamsdk-platform":       "",
-         "x-bamsdk-version":        "",
-         "x-dss-feature-filtering": "true",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Stream struct {
-         Sources []struct {
-            Complete struct {
-               Url string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return url.Parse(result.Stream.Sources[0].Complete.Url)
 }
