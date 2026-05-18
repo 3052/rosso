@@ -5,6 +5,7 @@ import (
    "41.neocities.org/rosso/disney"
    "fmt"
    "log"
+   "os"
 )
 
 type client struct {
@@ -24,17 +25,7 @@ func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
    }
-
-   c.flag.AddValue(&c.PlayReadyFolder, "PR", "PlayReady")
-   c.flag.AddValue(&c.Email, "e", "email")
-   c.flag.AddValue(&c.Passcode, "p", "passcode")
-   c.flag.AddValue(&c.ProfileId, "P", "profile ID")
-   c.flag.Add(&c.Refresh, "r", "refresh")
-   c.flag.AddValue(&c.Address, "a", "address")
-   c.flag.AddValue(&c.SeasonId, "s", "season ID")
-   c.flag.AddValue(&c.MediaId, "m", "media ID")
-   c.flag.AddValue(&c.HlsId, "h", "HLS ID")
-   if err := c.flag.Parse(); err != nil {
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
    }
    switch {
@@ -45,26 +36,25 @@ func (c *client) do() error {
    case c.Passcode.Set:
       return c.do_passcode()
    case c.ProfileId.Set:
-      return c.do_profile()
+      return c.do_profile_id()
    case c.Refresh.Set:
       return c.do_refresh()
    case c.Address.Set:
       return c.do_address()
    case c.SeasonId.Set:
-      return c.do_season()
+      return c.do_season_id()
    case c.MediaId.Set:
-      return c.do_media()
+      return c.do_media_id()
    case c.HlsId.Set:
-      return c.do_hls()
+      return c.do_hls_id()
    }
-   fmt.Println(c.flag)
-   return nil
+   return maya.FormatFlags(os.Stderr, "disney", c)
 }
 
 type PlayReadyFolder string
 
 func (c *client) do_address() error {
-   entity_id, err := disney.GetEntity(c.Address.Value)
+   entity_id, err := disney.GetEntityId(c.Address.Value)
    if err != nil {
       return err
    }
@@ -84,7 +74,7 @@ func (c *client) do_address() error {
    return nil
 }
 
-func (c *client) do_season() error {
+func (c *client) do_season_id() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
@@ -98,7 +88,7 @@ func (c *client) do_season() error {
    return nil
 }
 
-func (c *client) do_media() error {
+func (c *client) do_media_id() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
@@ -115,7 +105,7 @@ func (c *client) do_media() error {
    return c.cache.Encode(manifest)
 }
 
-func (c *client) do_hls() error {
+func (c *client) do_hls_id() error {
    var (
       manifest  maya.Manifest
       playReady PlayReadyFolder
@@ -181,7 +171,7 @@ func (c *client) do_passcode() error {
    return c.cache.Encode(token)
 }
 
-func (c *client) do_profile() error {
+func (c *client) do_profile_id() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {

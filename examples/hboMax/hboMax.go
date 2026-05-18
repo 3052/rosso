@@ -7,30 +7,18 @@ import (
    "log"
 )
 
-func (c *client) do_show() error {
-   season, err := c.season.ParseInt()
-   if err != nil {
-      return err
-   }
+func (c *client) do_show_season() error {
    var login hboMax.Login
    if err = c.cache.Decode(&login); err != nil {
       return err
    }
-   var results []*hboMax.Entity
-   if season >= 1 {
-      results, err = hboMax.SeasonRequest(login.Token, c.show.Value, season)
-      if err != nil {
-         return err
-      }
-      results = hboMax.SeasonResults(results)
-   } else {
-      results, err = hboMax.MovieRequest(login.Token, c.show.Value)
-      if err != nil {
-         return err
-      }
-      results = hboMax.MovieResults(results)
+   results, err := hboMax.SeasonRequest(
+      login.Token, c.show.Value, c.season.Value,
+   )
+   if err != nil {
+      return err
    }
-   for i, result := range results {
+   for i, result := range hboMax.SeasonResults(results) {
       if i >= 1 {
          fmt.Println()
       }
@@ -39,68 +27,44 @@ func (c *client) do_show() error {
    return nil
 }
 
-type client struct {
-   cache     maya.Cache
-   flag      maya.FlagSet
-   dash      maya.Flag
-   edit      maya.Flag
-   market    maya.Flag
-   search    maya.Flag
-   show      maya.Flag
-   playReady maya.Flag
-   season    maya.Flag
-   initiate  maya.Flag
-   login     maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/hboMax"); err != nil {
+func (c *client) do_show() error {
+   var login hboMax.Login
+   if err = c.cache.Decode(&login); err != nil {
       return err
    }
-   c.flag.AddValue(&c.playReady, "p", "PlayReady")
-   c.flag = append(c.flag, nil)
-   c.flag.Add(&c.initiate, "i", "initiate")
-   c.flag.AddValue(&c.market, "m", fmt.Sprint(hboMax.Markets))
-   c.flag = append(c.flag, nil)
-   c.flag.Add(&c.login, "l", "login")
-   c.flag.AddValue(&c.search, "s", "search")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.show, "SM", "show/movie ID")
-   c.flag.AddValue(&c.season, "S", "season")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.edit, "e", "edit ID")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
+   results, err := hboMax.MovieRequest(login.Token, c.show.Value)
+   if err != nil {
       return err
    }
-   if c.playReady.Set {
-      return c.cache.Encode(playReady_device(c.playReady.Value))
-   }
-   if c.initiate.Set {
-      if c.market.Set {
-         return c.do_initiate()
+   for i, result := range hboMax.MovieResults(results) {
+      if i >= 1 {
+         fmt.Println()
       }
+      fmt.Println(result)
    }
-   if c.login.Set {
-      return c.do_login()
-   }
-   if c.search.Set {
-      return c.do_search()
-   }
-   if c.show.Set {
-      return c.do_show()
-   }
-   if c.edit.Set {
-      return c.do_edit()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
    return nil
 }
 
-type playReady_device string
+type PlayReadyFolder string
+
+func (c *client) do_dash() error {
+   var (
+      manifest  maya.Manifest
+      playReady PlayReadyFolder
+      playback  hboMax.Playback
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playback)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: playback.PlayReadyRequest,
+   })
+}
+
+///
 
 func (c *client) do_edit() error {
    var login hboMax.Login
@@ -117,23 +81,6 @@ func (c *client) do_edit() error {
       return err
    }
    return c.cache.Encode(manifest, playback)
-}
-
-func (c *client) do_dash() error {
-   var (
-      device   playReady_device
-      manifest maya.Manifest
-      playback hboMax.Playback
-   )
-   err := c.cache.Decode(&device, &manifest, &playback)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmPlayReady,
-      License: playback.PlayReadyRequest,
-   })
 }
 
 func main() {
@@ -190,5 +137,69 @@ func (c *client) do_search() error {
       }
       fmt.Println(result)
    }
+   return nil
+}
+
+type client struct {
+   cache     maya.Cache
+   flag      maya.FlagSet
+   dash      maya.Flag
+   edit      maya.Flag
+   market    maya.Flag
+   search    maya.Flag
+   show      maya.Flag
+   playReady maya.Flag
+   season    maya.Flag
+   initiate  maya.Flag
+   login     maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/hboMax"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.playReady, "p", "PlayReady")
+   c.flag = append(c.flag, nil)
+   c.flag.Add(&c.initiate, "i", "initiate")
+   c.flag.AddValue(&c.market, "m", fmt.Sprint(hboMax.Markets))
+   c.flag = append(c.flag, nil)
+   c.flag.Add(&c.login, "l", "login")
+   c.flag.AddValue(&c.search, "s", "search")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.show, "SM", "show/movie ID")
+   c.flag.AddValue(&c.season, "S", "season")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.edit, "e", "edit ID")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.playReady.Set {
+      return c.cache.Encode(PlayReadyFolder(c.playReady.Value))
+   }
+   if c.initiate.Set {
+      if c.market.Set {
+         return c.do_initiate()
+      }
+   }
+   if c.login.Set {
+      return c.do_login()
+   }
+   if c.search.Set {
+      return c.do_search()
+   }
+   if c.show.Set {
+      if c.season.Set {
+         return c.do_show_season()
+      }
+      return c.do_show()
+   }
+   if c.edit.Set {
+      return c.do_edit()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
    return nil
 }

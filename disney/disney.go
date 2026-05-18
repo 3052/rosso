@@ -11,6 +11,21 @@ import (
    "strings"
 )
 
+// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
+func GetEntityId(rawUrl string) (string, error) {
+   parsed, err := url.Parse(rawUrl)
+   if err != nil {
+      return "", err
+   }
+   base := path.Base(parsed.Path)
+   if !strings.HasPrefix(base, "entity-") {
+      return "", errors.New("entity value missing from URL")
+   }
+   return base, nil
+}
+
 // request: Account
 func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
    if err := t.assert("Account"); err != nil {
@@ -645,21 +660,6 @@ func (t *Token) assert(expected string) error {
       return errors.New("expected token type " + expected)
    }
    return nil
-}
-
-// https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-// https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
-func GetEntity(rawUrl string) (string, error) {
-   parsed, err := url.Parse(rawUrl)
-   if err != nil {
-      return "", err
-   }
-   base := path.Base(parsed.Path)
-   if !strings.HasPrefix(base, "entity-") {
-      return "", errors.New("entity value missing from URL")
-   }
-   return base, nil
 }
 
 // request: Account
