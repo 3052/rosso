@@ -8,34 +8,11 @@ import (
    "os"
 )
 
-func (c *client) do_episode_or_movie() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   playback, err := amc.GetPlayback(
-      auth_data.AccessToken, c.EpisodeOrMovie.Value,
-   )
-   if err != nil {
-      return err
-   }
-   source, err := playback.GetDash()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&source.Src.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback, source)
-}
-
 type client struct {
    cache          maya.Cache
    WidevineFolder maya.Flag[string]
-   Email          maya.Flag[string]
-   Password       maya.Flag[string]
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
    Refresh        maya.Flag[bool]
    Series         maya.Flag[int]
    Season         maya.Flag[int]
@@ -174,4 +151,27 @@ func (c *client) do_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+func (c *client) do_episode_or_movie() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   playback, err := amc.GetPlayback(
+      auth_data.AccessToken, c.EpisodeOrMovie.Value,
+   )
+   if err != nil {
+      return err
+   }
+   source, err := playback.GetDash()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&source.Src.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback, source)
 }
