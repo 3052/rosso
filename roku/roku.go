@@ -8,33 +8,6 @@ import (
    "strings"
 )
 
-func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
-   headers := map[string]string{
-      "content-type": "application/x-protobuf",
-      "user-agent":   "Go-http-client/2.0",
-   }
-
-   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
 func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
    target := &url.URL{
       Scheme: "https",
@@ -201,4 +174,31 @@ type Playback struct {
    Drm         Drm    `json:"drm"`
    MediaFormat string `json:"mediaFormat"`
    TraceId     string `json:"traceId"`
+}
+
+func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
+   headers := map[string]string{
+      "content-type": "application/x-protobuf",
+      "user-agent":   "Go-http-client/2.0",
+   }
+
+   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }

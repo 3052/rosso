@@ -7,6 +7,43 @@ import (
    "log"
 )
 
+type WidevineFolder string
+
+func (c *client) do_dash() error {
+   var (
+      entitlement rtbf.Entitlement
+      manifest    maya.Manifest
+      widevine    WidevineFolder
+   )
+   err := c.cache.Decode(&entitlement, &manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: entitlement.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+///
+
+func (c *client) do_email_password() error {
+   account, err := rtbf.FetchAccount(c.email.Value, c.password.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(account)
+}
+
 func (c *client) do_address() error {
    address, err := c.address.ParseUrl()
    if err != nil {
@@ -68,7 +105,7 @@ func (c *client) do() error {
       return err
    }
    if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
+      return c.cache.Encode(WidevineFolder(c.widevine.Value))
    }
    if c.email.Set {
       if c.password.Set {
@@ -83,39 +120,4 @@ func (c *client) do() error {
    }
    fmt.Println(c.flag)
    return nil
-}
-
-type widevine_device string
-
-func (c *client) do_dash() error {
-   var (
-      device      widevine_device
-      entitlement rtbf.Entitlement
-      manifest    maya.Manifest
-   )
-   err := c.cache.Decode(&device, &entitlement, &manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
-      Drm:     maya.DrmWidevine,
-      License: entitlement.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(c.email.Value, c.password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(account)
 }
