@@ -17,8 +17,12 @@ import (
 )
 
 // https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
-func GetName(address *url.URL) string {
-   return strings.TrimPrefix(address.Path, "/")
+func GetName(urlData string) (string, error) {
+   parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   return strings.TrimPrefix(parse.Path, "/"), nil
 }
 
 type Url struct {

@@ -7,13 +7,48 @@ import (
    "log"
 )
 
+type client struct {
+   cache     maya.Cache
+   Username  maya.Flag
+   Password  maya.Flag
+   OldflixId maya.Flag
+   HlsId     maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/oldflix"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.Username, "u", "username")
+   c.flag.AddValue(&c.Password, "p", "password")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.OldflixId, "o", "Oldflix ID")
+   c.flag.AddValue(&c.HlsId, "h", "HLS ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.Username.Set {
+      if c.Password.Set {
+         return c.do_username_password()
+      }
+   }
+   if c.OldflixId.Set {
+      return c.do_oldflix_id()
+   }
+   if c.HlsId.Set {
+      return c.do_hls_id()
+   }
+   fmt.Println(c.flag)
+   return nil
+}
+
 func (c *client) do_oldflix_id() error {
    var login oldflix.Login
    err := c.cache.Decode(&login)
    if err != nil {
       return err
    }
-   browse, err := login.FetchBrowse(c.oldflix_id.Value)
+   browse, err := login.FetchBrowse(c.OldflixId.Value)
    if err != nil {
       return err
    }
@@ -32,51 +67,6 @@ func (c *client) do_oldflix_id() error {
    return c.cache.Encode(manifest)
 }
 
-type client struct {
-   cache      maya.Cache
-   flag       maya.FlagSet
-   hls        maya.Flag
-   oldflix_id maya.Flag
-   password   maya.Flag
-   username   maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/oldflix"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.username, "u", "username")
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.oldflix_id, "o", "Oldflix ID")
-   c.flag.AddValue(&c.hls, "h", "HLS ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.username.Set {
-      if c.password.Set {
-         return c.do_username_password()
-      }
-   }
-   if c.oldflix_id.Set {
-      return c.do_oldflix_id()
-   }
-   if c.hls.Set {
-      return c.do_hls()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-func (c *client) do_hls() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadHls(c.hls.Value, &manifest, nil)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -85,8 +75,17 @@ func main() {
    }
 }
 
+func (c *client) do_hls_id() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadHls(c.HlsId.Value, &manifest, nil)
+}
+
 func (c *client) do_username_password() error {
-   login, err := oldflix.FetchLogin(c.username.Value, c.password.Value)
+   login, err := oldflix.FetchLogin(c.Username.Value, c.Password.Value)
    if err != nil {
       return err
    }
