@@ -3,57 +3,21 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/rtbf"
-   "fmt"
    "log"
+   "os"
 )
 
-type WidevineFolder string
-
-func (c *client) do_dash() error {
-   var (
-      entitlement rtbf.Entitlement
-      manifest    maya.Manifest
-      widevine    WidevineFolder
-   )
-   err := c.cache.Decode(&entitlement, &manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: entitlement.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-///
-
-func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(c.email.Value, c.password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(account)
-}
-
 func (c *client) do_address() error {
-   address, err := c.address.ParseUrl()
+   var account rtbf.Account
+   err := c.cache.Decode(&account)
    if err != nil {
       return err
    }
-   var account rtbf.Account
-   if err = c.cache.Decode(&account); err != nil {
+   path, err := rtbf.GetPath(c.Address.Value)
+   if err != nil {
       return err
    }
-   asset_id, err := rtbf.FetchAssetId(address.Path)
+   asset_id, err := rtbf.FetchAssetId(path)
    if err != nil {
       return err
    }
@@ -81,43 +45,69 @@ func (c *client) do_address() error {
 }
 
 type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   email    maya.Flag
-   password maya.Flag
-   widevine maya.Flag
+   cache          maya.Cache
+   WidevineFolder maya.Flag[string]
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
+   Address        maya.Flag[string]
+   DashId         maya.Flag[string]
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rtbf"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.email, "e", "email")
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
    }
-   if c.widevine.Set {
-      return c.cache.Encode(WidevineFolder(c.widevine.Value))
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
    }
-   if c.email.Set {
-      if c.password.Set {
+   if c.Email.Set {
+      if c.Password.Set {
          return c.do_email_password()
       }
    }
-   if c.address.Set {
+   if c.Address.Set {
       return c.do_address()
    }
-   if c.dash.Set {
-      return c.do_dash()
+   if c.DashId.Set {
+      return c.do_dash_id()
    }
-   fmt.Println(c.flag)
-   return nil
+   return maya.FormatFlags(os.Stderr, "rtbf", c)
+}
+
+type WidevineFolder string
+
+func (c *client) do_dash_id() error {
+   var (
+      entitlement rtbf.Entitlement
+      manifest    maya.Manifest
+      widevine    WidevineFolder
+   )
+   err := c.cache.Decode(&entitlement, &manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  string(widevine),
+      Drm:     maya.DrmWidevine,
+      License: entitlement.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   account, err := rtbf.FetchAccount(c.Email.Value, c.Password.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(account)
 }

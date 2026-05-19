@@ -9,6 +9,17 @@ import (
    "net/url"
 )
 
+func GetPath(urlData string) (string, error) {
+   parse, err := url.Parse(urlData)
+   if err != nil {
+      return "", err
+   }
+   if parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return parse.Path, nil
+}
+
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
    resp, err := maya.Get(
       &url.URL{
