@@ -12,6 +12,149 @@ import (
    "strings"
 )
 
+var Markets = []string{
+   "amer",
+   "apac",
+   "emea",
+   "latam",
+}
+
+func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("pf[show.id]", showId)
+   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
+   parsedUrl := &url.URL{
+      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
+}
+
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Included, nil
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v-%v", c.Name, c.Value)
+}
+
+func StRequest() (*Cookie, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com",
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      map[string]string{
+         "x-device-info":  device_info,
+         "x-disco-client": disco_client,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, c := range resp.Cookies() {
+      if c.Name == "st" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("named cookie not present")
+}
+
+func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      map[string]string{
+         "cookie":        st.String(),
+         "x-device-info": device_info,
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *Cookie) (*Login, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/authentication/linkDevice/login",
+      },
+      map[string]string{"cookie": st.String()},
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+type Scheme struct {
+   LicenseUrl *Url
+}
+
 type Url struct {
    Url url.URL
 }
@@ -165,13 +308,6 @@ func (i *Initiate) String() string {
    return data.String()
 }
 
-var Markets = []string{
-   "amer",
-   "apac",
-   "emea",
-   "latam",
-}
-
 func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
    for _, item := range entities {
@@ -313,27 +449,6 @@ func WidevineRequest(token, editId string) (*Playback, error) {
    return playback_request(token, editId, "widevine")
 }
 
-func MovieRequest(token, showId string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("page[items.size]", "1")
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/movie/" + showId,
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("pf[show.id]", showId)
-   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
-   parsedUrl := &url.URL{
-      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
 func SearchRequest(token, query string) ([]*Entity, error) {
    values := url.Values{}
    values.Set("contentFilter[query]", query)
@@ -344,127 +459,12 @@ func SearchRequest(token, query string) ([]*Entity, error) {
    return entity_request(token, parsedUrl)
 }
 
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      endpoint, map[string]string{"authorization": "Bearer " + token},
-   )
-   if err != nil {
-      return nil, err
+func MovieRequest(token, movieId string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("page[items.size]", "1")
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/movie/" + movieId,
+      RawQuery: values.Encode(),
    }
-   defer resp.Body.Close()
-   var result struct {
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
-}
-
-type Cookie struct {
-   Name  string
-   Value string
-}
-
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v-%v", c.Name, c.Value)
-}
-
-func StRequest() (*Cookie, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, c := range resp.Cookies() {
-      if c.Name == "st" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
-      }
-   }
-   return nil, errors.New("named cookie not present")
-}
-
-func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      map[string]string{
-         "cookie":        st.String(),
-         "x-device-info": device_info,
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *Cookie) (*Login, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/authentication/linkDevice/login",
-      },
-      map[string]string{"cookie": st.String()},
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-type Scheme struct {
-   LicenseUrl *Url
+   return entity_request(token, parsedUrl)
 }
