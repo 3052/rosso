@@ -5,36 +5,14 @@ import (
    "41.neocities.org/rosso/rakuten"
    "fmt"
    "log"
+   "os"
 )
 
-type PlayReadyFolder string
-
-func (c *client) do_dash() error {
-   var (
-      manifest    maya.Manifest
-      playReady   PlayReadyFolder
-      stream_info rakuten.StreamInfo
-   )
-   err := c.cache.Decode(&manifest, &playReady, &stream_info)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
-      Drm:     maya.DrmPlayReady,
-      License: stream_info.FetchLicense,
-   })
-}
-
-///
-
 func (c *client) do_address() error {
-   parsed, err := c.address.ParseUrl()
+   address, err := rakuten.ParseAddress(c.Address.Value)
    if err != nil {
       return err
    }
-   address := rakuten.ParseUrl(parsed)
-
    start, err := rakuten.FetchStart(address.MarketCode)
    if err != nil {
       return err
@@ -60,14 +38,14 @@ func (c *client) do_address() error {
    return c.cache.Encode(address, start)
 }
 
-func (c *client) do_season() error {
+func (c *client) do_season_id() error {
    var start rakuten.Start
    err := c.cache.Decode(&start)
    if err != nil {
       return err
    }
    season, err := rakuten.FetchSeason(
-      c.season.Value, start.Profile.Classification, start.Market,
+      c.SeasonId.Value, start.Profile.Classification, start.Market,
    )
    if err != nil {
       return err
@@ -89,7 +67,7 @@ func main() {
    }
 }
 
-func (c *client) do_audio() error {
+func (c *client) do_audio_language() error {
    var (
       address     rakuten.Address
       start       rakuten.Start
@@ -102,11 +80,11 @@ func (c *client) do_audio() error {
    switch {
    case address.IsMovie():
       stream_info, err = rakuten.FetchMovieStreaming(
-         address.ContentId, start.Profile.Classification, c.audio.Value,
+         address.ContentId, start.Profile.Classification, c.AudioLanguage.Value,
       )
    case address.IsTvShow():
       stream_info, err = rakuten.FetchEpisodeStreaming(
-         c.episode.Value, start.Profile.Classification, c.audio.Value,
+         c.EpisodeId.Value, start.Profile.Classification, c.AudioLanguage.Value,
       )
    }
    if err != nil {
@@ -120,43 +98,52 @@ func (c *client) do_audio() error {
 }
 
 type client struct {
-   cache     maya.Cache
-   flag      maya.FlagSet
-   address   maya.Flag
-   audio     maya.Flag
-   dash      maya.Flag
-   episode   maya.Flag
-   season    maya.Flag
-   playReady maya.Flag
+   cache           maya.Cache
+   PlayReadyFolder maya.Flag[string]
+   Address         maya.Flag[string]
+   SeasonId        maya.Flag[string]
+   AudioLanguage   maya.Flag[string]
+   EpisodeId       maya.Flag[string] `depends:"AudioLanguage"`
+   DashId          maya.Flag[string]
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/rakuten"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.playReady, "p", "PlayReady")
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.season, "s", "season ID")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.audio, "A", "audio language")
-   c.flag.AddValue(&c.episode, "e", "episode ID")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
    }
    switch {
-   case c.playReady.Set:
-      return c.cache.Encode(PlayReadyFolder(c.playReady.Value))
-   case c.address.Set:
+   case c.PlayReadyFolder.Set:
+      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+   case c.Address.Set:
       return c.do_address()
-   case c.season.Set:
-      return c.do_season()
-   case c.audio.Set:
-      return c.do_audio()
-   case c.dash.Set:
-      return c.do_dash()
+   case c.SeasonId.Set:
+      return c.do_season_id()
+   case c.AudioLanguage.Set:
+      return c.do_audio_language()
+   case c.DashId.Set:
+      return c.do_dash_id()
    }
-   fmt.Println(c.flag)
-   return nil
+   return maya.FormatFlags(os.Stderr, "rakuten", c)
+}
+
+type PlayReadyFolder string
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest    maya.Manifest
+      playReady   PlayReadyFolder
+      stream_info rakuten.StreamInfo
+   )
+   err := c.cache.Decode(&manifest, &playReady, &stream_info)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  string(playReady),
+      Drm:     maya.DrmPlayReady,
+      License: stream_info.FetchLicense,
+   })
 }

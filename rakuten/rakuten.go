@@ -86,11 +86,11 @@ type Episode struct {
    ViewOptions ViewOptions `json:"view_options"`
 }
 
-func FetchSeason(seasonId string, userClassification Classification, targetMarket Market) (*Season, error) {
+func FetchSeason(id string, userClassification Classification, targetMarket Market) (*Season, error) {
    target := &url.URL{
       Scheme: "https",
       Host:   "gizmo.rakuten.tv",
-      Path:   "/v3/seasons/" + seasonId,
+      Path:   "/v3/seasons/" + id,
    }
 
    query := url.Values{}
@@ -116,8 +116,8 @@ func FetchSeason(seasonId string, userClassification Classification, targetMarke
    return &apiResp.Data, nil
 }
 
-func (targetEpisode *Episode) String() string {
-   return formatPlayableDetails(targetEpisode.Id, targetEpisode.Title, targetEpisode.ViewOptions.Private.Streams)
+func (e *Episode) String() string {
+   return formatPlayableDetails(e.Id, e.Title, e.ViewOptions.Private.Streams)
 }
 
 type TvShow struct {

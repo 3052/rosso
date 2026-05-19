@@ -7,65 +7,20 @@ import (
    "log"
 )
 
-type client struct {
-   cache              maya.Cache
-   flag               maya.FlagSet
-   use_account        maya.Flag
-   dash               maya.Flag
-   roku_id            maya.Flag
-   widevine           maya.Flag
-   account_activation maya.Flag
-   activation_status  maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/roku"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.Add(&c.account_activation, "a", "account activation")
-   c.flag.Add(&c.activation_status, "A", "activation status")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.roku_id, "r", "Roku ID")
-   c.flag.Add(&c.use_account, "u", "use account")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   }
-   if c.account_activation.Set {
-      return c.do_account_activation()
-   }
-   if c.activation_status.Set {
-      return c.do_activation_status()
-   }
-   if c.roku_id.Set {
-      return c.do_roku_id()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-type widevine_device string
+type WidevineFolder string
 
 func (c *client) do_dash() error {
    var (
-      device   widevine_device
       manifest maya.Manifest
       playback roku.Playback
+      widevine WidevineFolder
    )
-   err := c.cache.Decode(&device, &manifest, &playback)
+   err := c.cache.Decode(&manifest, &playback, &widevine)
    if err != nil {
       return err
    }
    return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: playback.LicenseWidevine,
    })
@@ -78,6 +33,8 @@ func main() {
       log.Fatal(err)
    }
 }
+
+///
 
 func (c *client) do_account_activation() error {
    account_token, err := roku.GetAccountToken(nil)
@@ -130,4 +87,49 @@ func (c *client) do_roku_id() error {
       return err
    }
    return c.cache.Encode(account_token, manifest, playback)
+}
+
+type client struct {
+   cache              maya.Cache
+   flag               maya.FlagSet
+   use_account        maya.Flag
+   dash               maya.Flag
+   roku_id            maya.Flag
+   widevine           maya.Flag
+   account_activation maya.Flag
+   activation_status  maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/roku"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.Add(&c.account_activation, "a", "account activation")
+   c.flag.Add(&c.activation_status, "A", "activation status")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.roku_id, "r", "Roku ID")
+   c.flag.Add(&c.use_account, "u", "use account")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.widevine.Set {
+      return c.cache.Encode(WidevineFolder(c.widevine.Value))
+   }
+   if c.account_activation.Set {
+      return c.do_account_activation()
+   }
+   if c.activation_status.Set {
+      return c.do_activation_status()
+   }
+   if c.roku_id.Set {
+      return c.do_roku_id()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
 }
