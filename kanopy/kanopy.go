@@ -11,119 +11,22 @@ import (
    "strings"
 )
 
-func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-   }
-
-   resp, err := maya.Post(endpoint, headers, challenge)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-func GetMemberships(loginData *Login) ([]Membership, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/memberships",
-   }
-
-   query := url.Values{}
-   query.Set("userId", strconv.Itoa(loginData.UserId))
-   endpoint.RawQuery = query.Encode()
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      List []Membership `json:"list"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return result.List, nil
-}
-
-func (p *PlayResponse) GetDash() (*Manifest, error) {
-   for _, manifest_data := range p.Manifests {
-      if manifest_data.ManifestType == "dash" {
-         return &manifest_data, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
-}
-
-type PlayResponse struct {
-   PlayId    string     `json:"playId"`
-   Manifests []Manifest `json:"manifests"`
-   Captions  []Caption  `json:"captions"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func GetVideo(loginData *Login, alias string) (*Video, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/videos/alias/" + alias,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Video Video `json:"video"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Video, nil
-}
-
 // Supports URLs such as:
 // - https://kanopy.com/video/6440418
 // - https://kanopy.com/video/genius-party
 // - https://kanopy.com/en/video/genius-party
 // - https://kanopy.com/en/product/genius-party
-func ParseVideo(address *url.URL) (*Video, error) {
-   if !strings.Contains(address.Host, "kanopy.com") {
+func ParseVideo(urlData string) (*Video, error) {
+   parse, err := url.Parse(urlData)
+   if err != nil {
+      return nil, err
+   }
+   if !strings.Contains(parse.Host, "kanopy.com") {
       return nil, errors.New("invalid domain")
    }
    // Get the directory of the path (removes the final identifier).
    // e.g., "/en/product/genius-party" -> "/en/product"
-   dir := path.Dir(address.Path)
+   dir := path.Dir(parse.Path)
    // Check if the directory ends with "/video" OR "/product".
    // This supports:
    // - /video/{id}
@@ -133,7 +36,7 @@ func ParseVideo(address *url.URL) (*Video, error) {
       return nil, errors.New("invalid path structure")
    }
    var result Video
-   identifier := path.Base(address.Path)
+   identifier := path.Base(parse.Path)
    numeric_id, err := strconv.Atoi(identifier)
    if err != nil {
       result.Alias = identifier
@@ -142,8 +45,6 @@ func ParseVideo(address *url.URL) (*Video, error) {
    }
    return &result, nil
 }
-
-///
 
 type Manifest struct {
    Url            *Url
@@ -279,4 +180,105 @@ func LoginUser(email string, password string) (*Login, error) {
    }
 
    return &loginData, nil
+}
+
+func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + loginData.Jwt,
+   }
+
+   resp, err := maya.Post(endpoint, headers, challenge)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
+func GetMemberships(loginData *Login) ([]Membership, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/memberships",
+   }
+
+   query := url.Values{}
+   query.Set("userId", strconv.Itoa(loginData.UserId))
+   endpoint.RawQuery = query.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + loginData.Jwt,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      List []Membership `json:"list"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return result.List, nil
+}
+
+func (p *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
+}
+
+type PlayResponse struct {
+   PlayId    string     `json:"playId"`
+   Manifests []Manifest `json:"manifests"`
+   Captions  []Caption  `json:"captions"`
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func GetVideo(loginData *Login, alias string) (*Video, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/videos/alias/" + alias,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + loginData.Jwt,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Video Video `json:"video"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Video, nil
 }
