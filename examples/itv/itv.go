@@ -5,7 +5,36 @@ import (
    "41.neocities.org/rosso/itv"
    "fmt"
    "log"
+   "os"
 )
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder maya.Flag[string]
+   Address        maya.Flag[string]
+   Playlist       maya.Flag[string]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+   case c.Address.Set:
+      return c.do_address()
+   case c.Playlist.Set:
+      return c.do_playlist()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "itv", c)
+}
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -17,7 +46,7 @@ func main() {
 
 type WidevineFolder string
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest   maya.Manifest
       media_file itv.MediaFile
@@ -27,7 +56,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
       Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: media_file.FetchKeyService,
@@ -35,7 +64,7 @@ func (c *client) do_dash() error {
 }
 
 func (c *client) do_address() error {
-   titles, err := itv.FetchTitles(itv.ParseLegacyId(c.address.Value))
+   titles, err := itv.FetchTitles(itv.ParseLegacyId(c.Address.Value))
    if err != nil {
       return err
    }
@@ -48,14 +77,8 @@ func (c *client) do_address() error {
    return nil
 }
 
-///
-
 func (c *client) do_playlist() error {
-   address, err := c.playlist.ParseUrl()
-   if err != nil {
-      return err
-   }
-   playlist, err := itv.FetchWidevine(address)
+   playlist, err := itv.FetchWidevine(c.Playlist.Value)
    if err != nil {
       return err
    }
@@ -68,38 +91,4 @@ func (c *client) do_playlist() error {
       return err
    }
    return c.cache.Encode(manifest, media_file)
-}
-
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   playlist maya.Flag
-   widevine maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.playlist, "p", "playlist URL")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.widevine.Set:
-      return c.cache.Encode(WidevineFolder(c.widevine.Value))
-   case c.address.Set:
-      return c.do_address()
-   case c.playlist.Set:
-      return c.do_playlist()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }

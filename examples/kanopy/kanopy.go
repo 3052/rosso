@@ -7,48 +7,6 @@ import (
    "log"
 )
 
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   email    maya.Flag
-   password maya.Flag
-   widevine maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/kanopy"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.email, "e", "email")
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.widevine.Set {
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   }
-   if c.email.Set {
-      if c.password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -67,12 +25,12 @@ func (c *client) do_email_password() error {
 
 func (c *client) do_dash() error {
    var (
-      device        widevine_device
       login         kanopy.Login
       manifest      kanopy.Manifest
       maya_manifest maya.Manifest
+      widevine      WidevineFolder
    )
-   err := c.cache.Decode(&device, &login, &manifest, &maya_manifest)
+   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
    if err != nil {
       return err
    }
@@ -80,13 +38,15 @@ func (c *client) do_dash() error {
       return kanopy.CreateLicense(&login, &manifest, body)
    }
    return maya.DownloadDash(c.dash.Value, &maya_manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: license,
    })
 }
 
-type widevine_device string
+type WidevineFolder string
+
+///
 
 func (c *client) do_address() error {
    login := &kanopy.Login{}
@@ -130,4 +90,46 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, maya_manifest)
+}
+
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   address  maya.Flag
+   dash     maya.Flag
+   email    maya.Flag
+   password maya.Flag
+   widevine maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/kanopy"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.email, "e", "email")
+   c.flag.AddValue(&c.password, "p", "password")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   if c.widevine.Set {
+      return c.cache.Encode(WidevineFolder(c.widevine.Value))
+   }
+   if c.email.Set {
+      if c.password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.address.Set {
+      return c.do_address()
+   }
+   if c.dash.Set {
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
 }

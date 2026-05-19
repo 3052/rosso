@@ -12,8 +12,22 @@ import (
    "strings"
 )
 
+// FetchPlayReady fetches a playlist with PlayReady DRM requirements
+func FetchPlayReady(address string) (*Playlist, error) {
+   return fetchPlaylist(address, "playready", "SL3000")
+}
+
+// FetchWidevine fetches a playlist with Widevine DRM requirements
+func FetchWidevine(address string) (*Playlist, error) {
+   return fetchPlaylist(address, "widevine", "L3")
+}
+
 // fetchPlaylist is the common underlying function doing the heavy lifting
-func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist, error) {
+func fetchPlaylist(address, drmSystem, maxSupported string) (*Playlist, error) {
+   parse, err := url.Parse(address)
+   if err != nil {
+      return nil, err
+   }
    body, err := json.Marshal(map[string]any{
       "client": map[string]string{
          "id": "browser",
@@ -36,7 +50,7 @@ func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist,
       return nil, err
    }
    resp, err := maya.Post(
-      address,
+      parse,
       map[string]string{
          "accept":     "application/vnd.itv.vod.playlist.v4+json",
          "user-agent": "!",
@@ -55,16 +69,6 @@ func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist,
       return nil, errors.New(result.Error)
    }
    return &result, nil
-}
-
-// FetchPlayReady fetches a playlist with PlayReady DRM requirements
-func FetchPlayReady(address *url.URL) (*Playlist, error) {
-   return fetchPlaylist(address, "playready", "SL3000")
-}
-
-// FetchWidevine fetches a playlist with Widevine DRM requirements
-func FetchWidevine(address *url.URL) (*Playlist, error) {
-   return fetchPlaylist(address, "widevine", "L3")
 }
 
 //go:embed ProgrammePage.gql
