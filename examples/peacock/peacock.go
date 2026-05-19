@@ -3,10 +3,45 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/peacock"
-   "fmt"
    "log"
+   "os"
    "path"
 )
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder maya.Flag[string]
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
+   Address        maya.Flag[string]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/peacock"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Address.Set {
+      return c.do_address()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "peacock", c)
+}
+
+type WidevineFolder string
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -16,9 +51,7 @@ func main() {
    }
 }
 
-type WidevineFolder string
-
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playout  peacock.Playout
@@ -28,17 +61,15 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
       Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: playout.FetchWidevine,
    })
 }
 
-///
-
 func (c *client) do_email_password() error {
-   id_session, err := peacock.FetchIdSession(c.email.Value, c.password.Value)
+   id_session, err := peacock.FetchIdSession(c.Email.Value, c.Password.Value)
    if err != nil {
       return err
    }
@@ -55,7 +86,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   playout, err := token.FetchPlayout(path.Base(c.address.Value))
+   playout, err := token.FetchPlayout(path.Base(c.Address.Value))
    if err != nil {
       return err
    }
@@ -68,46 +99,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, playout)
-}
-
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   address  maya.Flag
-   dash     maya.Flag
-   email    maya.Flag
-   password maya.Flag
-   widevine maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/peacock"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.email, "e", "email")
-   c.flag.AddValue(&c.password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   if c.widevine.Set {
-      return c.cache.Encode(WidevineFolder(c.widevine.Value))
-   }
-   if c.email.Set {
-      if c.password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.address.Set {
-      return c.do_address()
-   }
-   if c.dash.Set {
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }

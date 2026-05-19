@@ -8,57 +8,19 @@ import (
    "path"
 )
 
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   dash     maya.Flag
-   episode  maya.Flag
-   movie    maya.Flag
-   show     maya.Flag
-   widevine maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/pluto"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.AddValue(&c.movie, "m", "movie URL")
-   c.flag.AddValue(&c.show, "s", "show URL")
-   c.flag.AddValue(&c.episode, "e", "episode ID")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.widevine.Set:
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   case c.movie.Set:
-      return c.do_movie()
-   case c.show.Set:
-      return c.do_show()
-   case c.episode.Set:
-      return c.do_episode()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-type widevine_device string
+type WidevineFolder string
 
 func (c *client) do_dash() error {
    var (
-      device   widevine_device
       manifest maya.Manifest
+      widevine WidevineFolder
    )
-   err := c.cache.Decode(&device, &manifest)
+   err := c.cache.Decode(&manifest, &widevine)
    if err != nil {
       return err
    }
    return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: pluto.FetchWidevine,
    })
@@ -71,6 +33,8 @@ func main() {
       log.Fatal(err)
    }
 }
+
+///
 
 func (c *client) do_show() error {
    series, err := pluto.FetchSeries(path.Base(c.show.Value))
@@ -108,4 +72,42 @@ func (c *client) do_episode() error {
       return err
    }
    return c.cache.Encode(manifest)
+}
+
+type client struct {
+   cache    maya.Cache
+   flag     maya.FlagSet
+   dash     maya.Flag
+   episode  maya.Flag
+   movie    maya.Flag
+   show     maya.Flag
+   widevine maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/pluto"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.widevine, "w", "Widevine")
+   c.flag.AddValue(&c.movie, "m", "movie URL")
+   c.flag.AddValue(&c.show, "s", "show URL")
+   c.flag.AddValue(&c.episode, "e", "episode ID")
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.widevine.Set:
+      return c.cache.Encode(WidevineFolder(c.widevine.Value))
+   case c.movie.Set:
+      return c.do_movie()
+   case c.show.Set:
+      return c.do_show()
+   case c.episode.Set:
+      return c.do_episode()
+   case c.dash.Set:
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
 }
