@@ -9,54 +9,9 @@ import (
    "net/url"
 )
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func FetchLogin(username, password string) (*Login, error) {
-   body := url.Values{
-      "password": {password},
-      "username": {username},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   azure,
-         Path:   "/api/token",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      return nil, errors.New(string(data))
-   }
-   result := &Login{}
-   err = json.Unmarshal(data, result)
-   if err != nil {
-      return nil, fmt.Errorf("failed to decode login response: %w", err)
-   }
-   return result, nil
-}
-
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
-func (l *Login) FetchBrowse(contentId string) (*Browse, error) {
-   body := url.Values{"id": {contentId}}.Encode()
+func (l *Login) FetchBrowse(id string) (*Browse, error) {
+   body := url.Values{"id": {id}}.Encode()
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
@@ -154,4 +109,49 @@ type Watch struct {
    Playlist []struct {
       File *Url
    }
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func FetchLogin(username, password string) (*Login, error) {
+   body := url.Values{
+      "password": {password},
+      "username": {username},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   azure,
+         Path:   "/api/token",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      return nil, errors.New(string(data))
+   }
+   result := &Login{}
+   err = json.Unmarshal(data, result)
+   if err != nil {
+      return nil, fmt.Errorf("failed to decode login response: %w", err)
+   }
+   return result, nil
 }

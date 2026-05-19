@@ -3,28 +3,23 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/oldflix"
-   "fmt"
    "log"
+   "os"
 )
 
 type client struct {
-   cache     maya.Cache
-   Username  maya.Flag
-   Password  maya.Flag
-   OldflixId maya.Flag
-   HlsId     maya.Flag
+   cache    maya.Cache
+   Username maya.Flag[string] `depends:"Password"`
+   Password maya.Flag[string] `depends:"Username"`
+   BrowseId maya.Flag[string]
+   HlsId    maya.Flag[string]
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/oldflix"); err != nil {
       return err
    }
-   c.flag.AddValue(&c.Username, "u", "username")
-   c.flag.AddValue(&c.Password, "p", "password")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.OldflixId, "o", "Oldflix ID")
-   c.flag.AddValue(&c.HlsId, "h", "HLS ID")
-   if err := c.flag.Parse(); err != nil {
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
    }
    if c.Username.Set {
@@ -32,23 +27,22 @@ func (c *client) do() error {
          return c.do_username_password()
       }
    }
-   if c.OldflixId.Set {
-      return c.do_oldflix_id()
+   if c.BrowseId.Set {
+      return c.do_browse_id()
    }
    if c.HlsId.Set {
       return c.do_hls_id()
    }
-   fmt.Println(c.flag)
-   return nil
+   return maya.FormatFlags(os.Stderr, "oldflix", c)
 }
 
-func (c *client) do_oldflix_id() error {
+func (c *client) do_browse_id() error {
    var login oldflix.Login
    err := c.cache.Decode(&login)
    if err != nil {
       return err
    }
-   browse, err := login.FetchBrowse(c.OldflixId.Value)
+   browse, err := login.FetchBrowse(c.BrowseId.Value)
    if err != nil {
       return err
    }
