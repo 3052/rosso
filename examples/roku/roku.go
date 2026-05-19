@@ -34,8 +34,6 @@ func main() {
    }
 }
 
-///
-
 func (c *client) do_account_activation() error {
    account_token, err := roku.GetAccountToken(nil)
    if err != nil {
@@ -48,6 +46,8 @@ func (c *client) do_account_activation() error {
    fmt.Println(account_activation)
    return c.cache.Encode(account_activation, account_token)
 }
+
+///
 
 func (c *client) do_activation_status() error {
    account_activation := &roku.AccountActivation{}
