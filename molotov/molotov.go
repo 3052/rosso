@@ -10,124 +10,14 @@ import (
    "strings"
 )
 
-type Address struct {
-   Program int
-   Channel int
-}
-
-// https://molotov.tv/fr_fr/p/15301-2328
-// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
-func ParseAddress(input *url.URL) (*Address, error) {
-   if input == nil {
-      return nil, errors.New("url is nil")
-   }
-   // Find everything after "/p/"
-   _, after, found := strings.Cut(input.Path, "/p/")
-   if !found {
-      return nil, errors.New("missing /p/ in path")
-   }
-   // Cut at the next slash to isolate the ID segment.
-   // If there is no slash, strings.Cut safely returns the whole string as idStr.
-   idStr, _, _ := strings.Cut(after, "/")
-   // Cut by the hyphen to separate Program and Channel
-   progStr, chanStr, found := strings.Cut(idStr, "-")
-   if !found {
-      return nil, errors.New("invalid ID format")
-   }
-   prog, err := strconv.Atoi(progStr)
-   if err != nil {
-      return nil, err
-   }
-   chanID, err := strconv.Atoi(chanStr)
-   if err != nil {
-      return nil, err
-   }
-   return &Address{
-      Program: prog,
-      Channel: chanID,
-   }, nil
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (a *Asset) GetManifest() *url.URL {
-   manifest := a.Stream.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
-   return &manifest
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() error {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
-      },
-      map[string]string{"x-molotov-agent": customer_area},
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(a)
-}
-
-func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
-   target := playData.Url.Url
-   query := target.Query() // keep existing query string
-   query.Set("access_token", a.AccessToken)
-   target.RawQuery = query.Encode()
-   resp, err := maya.Get(&target, map[string]string{
-      "x-forwarded-for": "138.199.15.158",
-      "x-molotov-agent": browser_app,
-   })
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Asset
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Stream struct {
-      Url *Url // MPD
-   }
-}
-
-type Auth struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-func (a *Auth) FetchPlay(addressData *Address) (*Play, error) {
+func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
          Host:   "fapi.molotov.tv",
          Path: fmt.Sprintf(
             "/v2/channels/%v/programs/%v/view",
-            addressData.Channel, addressData.Program,
+            programData.ChannelId, programData.Id,
          ),
          RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
       },
@@ -216,6 +106,109 @@ const (
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
 )
 
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseProgram(data string) (*Program, error) {
+   var found bool
+   _, data, found = strings.Cut(data, "/p/")
+   if !found {
+      return nil, errors.New("url does not contain the /p/ marker")
+   }
+   data, _, _ = strings.Cut(data, "/")
+   id, channel_id, found := strings.Cut(data, "-")
+   if !found {
+      return nil, errors.New("invalid format: hyphen not found between IDs")
+   }
+   var (
+      p   Program
+      err error
+   )
+   if p.Id, err = strconv.Atoi(id); err != nil {
+      return nil, errors.New("program ID is not a valid integer")
+   }
+   if p.ChannelId, err = strconv.Atoi(channel_id); err != nil {
+      return nil, errors.New("channel ID is not a valid integer")
+   }
+   return &p, nil
+}
+
+type Program struct {
+   Id        int
+   ChannelId int
+}
+
 type Play struct {
    Url *Url // fapi.molotov.tv/v2/me/assets
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (a *Asset) GetManifest() *url.URL {
+   manifest := a.Stream.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
+   return &manifest
+}
+
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() error {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
+   target := playData.Url.Url
+   query := target.Query() // keep existing query string
+   query.Set("access_token", a.AccessToken)
+   target.RawQuery = query.Encode()
+   resp, err := maya.Get(&target, map[string]string{
+      "x-forwarded-for": "138.199.15.158",
+      "x-molotov-agent": browser_app,
+   })
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Asset
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Stream struct {
+      Url *Url // MPD
+   }
+}
+
+type Auth struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
 }
