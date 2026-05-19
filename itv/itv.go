@@ -12,6 +12,51 @@ import (
    "strings"
 )
 
+// fetchPlaylist is the common underlying function doing the heavy lifting
+func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist, error) {
+   body, err := json.Marshal(map[string]any{
+      "client": map[string]string{
+         "id": "browser",
+      },
+      "variantAvailability": map[string]any{
+         "drm": map[string]string{
+            "maxSupported": maxSupported,
+            "system":       drmSystem,
+         },
+         "featureset": []string{ // need all these to get 720p
+            "hd",
+            "mpeg-dash",
+            "single-track",
+            drmSystem, // Injects "playready" or "widevine"
+         },
+         "platformTag": "ctv", // 1080p
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      address,
+      map[string]string{
+         "accept":     "application/vnd.itv.vod.playlist.v4+json",
+         "user-agent": "!",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playlist
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result, nil
+}
+
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
 func FetchPlayReady(address *url.URL) (*Playlist, error) {
    return fetchPlaylist(address, "playready", "SL3000")
@@ -141,49 +186,4 @@ func FetchTitles(legacyId string) ([]Title, error) {
       return nil, err
    }
    return result.Data.Titles, nil
-}
-
-// fetchPlaylist is the common underlying function doing the heavy lifting
-func fetchPlaylist(address *url.URL, drmSystem, maxSupported string) (*Playlist, error) {
-   body, err := json.Marshal(map[string]any{
-      "client": map[string]string{
-         "id": "browser",
-      },
-      "variantAvailability": map[string]any{
-         "drm": map[string]string{
-            "maxSupported": maxSupported,
-            "system":       drmSystem,
-         },
-         "featureset": []string{ // need all these to get 720p
-            "hd",
-            "mpeg-dash",
-            "single-track",
-            drmSystem, // Injects "playready" or "widevine"
-         },
-         "platformTag": "ctv", // 1080p
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      address,
-      map[string]string{
-         "accept":     "application/vnd.itv.vod.playlist.v4+json",
-         "user-agent": "!",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playlist
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
 }
