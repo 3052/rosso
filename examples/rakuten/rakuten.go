@@ -7,66 +7,26 @@ import (
    "log"
 )
 
-type client struct {
-   cache     maya.Cache
-   flag      maya.FlagSet
-   address   maya.Flag
-   audio     maya.Flag
-   dash      maya.Flag
-   episode   maya.Flag
-   season    maya.Flag
-   playReady maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/rakuten"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.playReady, "p", "PlayReady")
-   c.flag.AddValue(&c.address, "a", "address")
-   c.flag.AddValue(&c.season, "s", "season ID")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.audio, "A", "audio language")
-   c.flag.AddValue(&c.episode, "e", "episode ID")
-   c.flag = append(c.flag, nil)
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.playReady.Set:
-      return c.cache.Encode(playReady_device(c.playReady.Value))
-   case c.address.Set:
-      return c.do_address()
-   case c.season.Set:
-      return c.do_season()
-   case c.audio.Set:
-      return c.do_audio()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
-}
-
-type playReady_device string
+type PlayReadyFolder string
 
 func (c *client) do_dash() error {
    var (
-      device      playReady_device
       manifest    maya.Manifest
+      playReady   PlayReadyFolder
       stream_info rakuten.StreamInfo
    )
-   err := c.cache.Decode(&device, &manifest, &stream_info)
+   err := c.cache.Decode(&manifest, &playReady, &stream_info)
    if err != nil {
       return err
    }
    return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
+      Device:  string(playReady),
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,
    })
 }
+
+///
 
 func (c *client) do_address() error {
    parsed, err := c.address.ParseUrl()
@@ -157,4 +117,46 @@ func (c *client) do_audio() error {
       return err
    }
    return c.cache.Encode(manifest, stream_info)
+}
+
+type client struct {
+   cache     maya.Cache
+   flag      maya.FlagSet
+   address   maya.Flag
+   audio     maya.Flag
+   dash      maya.Flag
+   episode   maya.Flag
+   season    maya.Flag
+   playReady maya.Flag
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/rakuten"); err != nil {
+      return err
+   }
+   c.flag.AddValue(&c.playReady, "p", "PlayReady")
+   c.flag.AddValue(&c.address, "a", "address")
+   c.flag.AddValue(&c.season, "s", "season ID")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.audio, "A", "audio language")
+   c.flag.AddValue(&c.episode, "e", "episode ID")
+   c.flag = append(c.flag, nil)
+   c.flag.AddValue(&c.dash, "d", "DASH ID")
+   if err := c.flag.Parse(); err != nil {
+      return err
+   }
+   switch {
+   case c.playReady.Set:
+      return c.cache.Encode(PlayReadyFolder(c.playReady.Value))
+   case c.address.Set:
+      return c.do_address()
+   case c.season.Set:
+      return c.do_season()
+   case c.audio.Set:
+      return c.do_audio()
+   case c.dash.Set:
+      return c.do_dash()
+   }
+   fmt.Println(c.flag)
+   return nil
 }
