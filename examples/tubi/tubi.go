@@ -3,12 +3,37 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/tubi"
-   "fmt"
    "log"
+   "os"
 )
 
-func (c *client) do_tubi() error {
-   content, err := tubi.GetContent(c.tubi_id.Value)
+type client struct {
+   cache          maya.Cache
+   WidevineFolder maya.Flag[string]
+   ContentId      maya.Flag[int]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/tubi"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+   case c.ContentId.Set:
+      return c.do_content_id()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "tubi", c)
+}
+
+func (c *client) do_content_id() error {
+   content, err := tubi.GetContent(c.ContentId.Value)
    if err != nil {
       return err
    }
@@ -28,56 +53,24 @@ func main() {
    }
 }
 
-///
+type WidevineFolder string
 
-type widevine_device string
-
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
-      device   widevine_device
       manifest maya.Manifest
       server   tubi.LicenseServer
+      widevine WidevineFolder
    )
-   err := c.cache.Decode(&device, &manifest, &server)
+   err := c.cache.Decode(&manifest, &server, &widevine)
    if err != nil {
       return err
    }
    license := func(body []byte) ([]byte, error) {
       return tubi.AcquireLicense(&server, body)
    }
-   return maya.DownloadDash(c.dash.Value, &manifest, &maya.Options{
-      Device:  string(device),
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  string(widevine),
       Drm:     maya.DrmWidevine,
       License: license,
    })
-}
-
-type client struct {
-   cache    maya.Cache
-   flag     maya.FlagSet
-   dash     maya.Flag
-   tubi_id  maya.Flag
-   widevine maya.Flag
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/tubi"); err != nil {
-      return err
-   }
-   c.flag.AddValue(&c.widevine, "w", "Widevine")
-   c.flag.AddValue(&c.tubi_id, "t", "Tubi ID")
-   c.flag.AddValue(&c.dash, "d", "DASH ID")
-   if err := c.flag.Parse(); err != nil {
-      return err
-   }
-   switch {
-   case c.widevine.Set:
-      return c.cache.Encode(widevine_device(c.widevine.Value))
-   case c.tubi_id.Set:
-      return c.do_tubi()
-   case c.dash.Set:
-      return c.do_dash()
-   }
-   fmt.Println(c.flag)
-   return nil
 }
