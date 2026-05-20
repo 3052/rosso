@@ -277,6 +277,21 @@ type DownloadData struct {
    DownloadingEndDate  int  `json:"downloadingEndDate,omitempty"`
 }
 
+type Images struct {
+   Default string `json:"default,omitempty"`
+   Mobile  string `json:"mobile,omitempty"`
+   Tablet  string `json:"tablet,omitempty"`
+}
+
+type KeySystems struct {
+   ComWidevineAlpha struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.widevine.alpha"`
+   ComMicrosoftPlayready struct {
+      LicenseURL string `json:"license_url"`
+   } `json:"com.microsoft.playready"`
+}
+
 // String implements the fmt.Stringer interface for easy printing.
 func (m *Metadata) String() string {
    hasShow := m.ShowName != "" && m.ShowName != "none"
@@ -450,21 +465,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-type Images struct {
-   Default string `json:"default,omitempty"`
-   Mobile  string `json:"mobile,omitempty"`
-   Tablet  string `json:"tablet,omitempty"`
-}
-
-type KeySystems struct {
-   ComWidevineAlpha struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.widevine.alpha"`
-   ComMicrosoftPlayready struct {
-      LicenseURL string `json:"license_url"`
-   } `json:"com.microsoft.playready"`
 }

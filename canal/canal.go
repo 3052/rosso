@@ -15,6 +15,122 @@ import (
    "time"
 )
 
+const user_agent = "Mozilla/5.0 Windows"
+
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
+func get_client(url_data *url.URL, body []byte) (string, error) {
+   encoding := base64.RawURLEncoding
+   // 1. base64 raw URL decode secret key
+   decoded_key, err := encoding.DecodeString(secret_key)
+   if err != nil {
+      return "", err
+   }
+   // Prepare timestamp as string immediately
+   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+   body_checksum := sha256.Sum256(body)
+   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
+   // 2. hmac.New(sha256.New, secret key)
+   hash := hmac.New(sha256.New, decoded_key)
+   // 3, 4, 5. Write components to the hasher
+   io.WriteString(hash, url_data.String())
+   io.WriteString(hash, encoded_body_hash)
+   io.WriteString(hash, timestamp)
+   // 6. base64 raw URL encode the hmac sum
+   signature := encoding.EncodeToString(hash.Sum(nil))
+   // Construct final result string using strings.Builder
+   var data strings.Builder
+   data.WriteString("Client key=")
+   data.WriteString(client_key)
+   data.WriteString(",time=")
+   data.WriteString(timestamp)
+   data.WriteString(",sig=")
+   data.WriteString(signature)
+   return data.String(), nil
+}
+
+func FetchSession(ssoToken string) (*Session, error) {
+   body, err := json.Marshal(map[string]string{
+      "brand":        "m7cp",
+      "deviceSerial": device_serial,
+      "deviceType":   "PC",
+      "ssoToken":     ssoToken,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
+}
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   body, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
+      },
+      map[string]string{
+         "authorization": "Bearer " + s.Token,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
+}
+
 func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -176,45 +292,7 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-const user_agent = "Mozilla/5.0 Windows"
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)
-
-func get_client(url_data *url.URL, body []byte) (string, error) {
-   encoding := base64.RawURLEncoding
-   // 1. base64 raw URL decode secret key
-   decoded_key, err := encoding.DecodeString(secret_key)
-   if err != nil {
-      return "", err
-   }
-   // Prepare timestamp as string immediately
-   timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-   body_checksum := sha256.Sum256(body)
-   encoded_body_hash := encoding.EncodeToString(body_checksum[:])
-   // 2. hmac.New(sha256.New, secret key)
-   hash := hmac.New(sha256.New, decoded_key)
-   // 3, 4, 5. Write components to the hasher
-   io.WriteString(hash, url_data.String())
-   io.WriteString(hash, encoded_body_hash)
-   io.WriteString(hash, timestamp)
-   // 6. base64 raw URL encode the hmac sum
-   signature := encoding.EncodeToString(hash.Sum(nil))
-   // Construct final result string using strings.Builder
-   var data strings.Builder
-   data.WriteString("Client key=")
-   data.WriteString(client_key)
-   data.WriteString(",time=")
-   data.WriteString(timestamp)
-   data.WriteString(",sig=")
-   data.WriteString(signature)
-   return data.String(), nil
-}
+///
 
 func (a *Asset) String() string {
    var data strings.Builder
@@ -288,80 +366,4 @@ type Player struct {
       Url *Url
    }
    Url *Url // MPD
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   body, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
-      },
-      map[string]string{
-         "authorization": "Bearer " + s.Token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
 }
