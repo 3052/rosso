@@ -7,6 +7,44 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_address() error {
+   path, err := plex.ParsePath(c.Address.Value)
+   if err != nil {
+      return err
+   }
+   user, err := plex.CreateUser()
+   if err != nil {
+      return err
+   }
+   match, err := plex.GetMetadataMatches(path, user)
+   if err != nil {
+      return err
+   }
+   vod_metadata, err := plex.GetVodMetadata(&match.Metadata[0], user)
+   if err != nil {
+      return err
+   }
+   media, err := vod_metadata.GetDash()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(media.GetManifest(user))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, media, user)
+}
+
+///
+
 type client struct {
    cache          maya.Cache
    WidevineFolder maya.Flag[string]
@@ -53,40 +91,4 @@ func (c *client) do_dash_id() error {
    })
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 type WidevineFolder string
-
-func (c *client) do_address() error {
-   path, err := plex.ParsePath(c.Address.Value)
-   if err != nil {
-      return err
-   }
-   user, err := plex.CreateUser()
-   if err != nil {
-      return err
-   }
-   match, err := plex.GetMetadataMatches(path, user)
-   if err != nil {
-      return err
-   }
-   vod_metadata, err := plex.GetVodMetadata(&match.Metadata[0], user)
-   if err != nil {
-      return err
-   }
-   media, err := vod_metadata.GetDash()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(media.GetManifest(user))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, media, user)
-}
