@@ -8,6 +8,31 @@ import (
    "os"
 )
 
+func (c *client) do_edit_id() error {
+   var login hboMax.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   playback, err := hboMax.PlayReadyRequest(login.Token, c.EditId.Value)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(playback.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_initiate() error {
    st, err := hboMax.StRequest()
    if err != nil {
@@ -57,55 +82,6 @@ func (c *client) do_search() error {
    return nil
 }
 
-type client struct {
-   cache           maya.Cache
-   PlayReadyFolder maya.Flag[string]
-   Initiate        maya.Flag[string] `usage:"amer apac emea latam"`
-   Login           maya.Flag[bool]
-   Search          maya.Flag[string]
-   MovieId         maya.Flag[string]
-   ShowId          maya.Flag[string] `depends:"Season"`
-   Season          maya.Flag[int]    `depends:"ShowId"`
-   EditId          maya.Flag[string]
-   DashId          maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/hboMax"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.PlayReadyFolder.Set {
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
-   }
-   if c.Initiate.Set {
-      return c.do_initiate()
-   }
-   if c.Login.Set {
-      return c.do_login()
-   }
-   if c.Search.Set {
-      return c.do_search()
-   }
-   if c.MovieId.Set {
-      return c.do_movie_id()
-   }
-   if c.ShowId.Set {
-      if c.Season.Set {
-         return c.do_show_id_season()
-      }
-   }
-   if c.EditId.Set {
-      return c.do_edit_id()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "hboMax", c)
-}
-
 func (c *client) do_show_id_season() error {
    var login hboMax.Login
    err := c.cache.Decode(&login)
@@ -146,7 +122,58 @@ func (c *client) do_movie_id() error {
    return nil
 }
 
-type PlayReadyFolder string
+type PlayReadyFolder maya.Flag[string]
+
+type client struct {
+   cache           maya.Cache
+   PlayReadyFolder PlayReadyFolder
+   Initiate        maya.Flag[string] `usage:"amer apac emea latam"`
+   Login           maya.Flag[bool]
+   Search          maya.Flag[string]
+   MovieId         maya.Flag[string]
+   ShowId          maya.Flag[string] `depends:"Season"`
+   Season          maya.Flag[int]    `depends:"ShowId"`
+   EditId          maya.Flag[string]
+   DashId          maya.Flag[string]
+}
+
+///
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/hboMax"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.PlayReadyFolder.Set {
+      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+   }
+   if c.Initiate.Set {
+      return c.do_initiate()
+   }
+   if c.Login.Set {
+      return c.do_login()
+   }
+   if c.Search.Set {
+      return c.do_search()
+   }
+   if c.MovieId.Set {
+      return c.do_movie_id()
+   }
+   if c.ShowId.Set {
+      if c.Season.Set {
+         return c.do_show_id_season()
+      }
+   }
+   if c.EditId.Set {
+      return c.do_edit_id()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "hboMax", c)
+}
 
 func (c *client) do_dash_id() error {
    var (
@@ -163,29 +190,4 @@ func (c *client) do_dash_id() error {
       Drm:     maya.DrmPlayReady,
       License: playback.PlayReadyRequest,
    })
-}
-
-func (c *client) do_edit_id() error {
-   var login hboMax.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   playback, err := hboMax.PlayReadyRequest(login.Token, c.EditId.Value)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(playback.GetManifest())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }

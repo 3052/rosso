@@ -8,6 +8,32 @@ import (
    "os"
 )
 
+func (c *client) do_passcode() error {
+   var (
+      email_data Email
+      token      disney.Token
+   )
+   err := c.cache.Decode(&email_data, &token)
+   if err != nil {
+      return err
+   }
+   otp, err := token.AuthenticateWithOtp(email_data.Value, c.Passcode.Value)
+   if err != nil {
+      return err
+   }
+   login, err := token.LoginWithActionGrant(otp.ActionGrant)
+   if err != nil {
+      return err
+   }
+   for i, profile := range login.Account.Profiles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&profile)
+   }
+   return c.cache.Encode(token)
+}
+
 func (c *client) do_hls_id() error {
    var (
       manifest  maya.Manifest
@@ -31,47 +57,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type EmailString string
-
-func (c *client) do_email() error {
-   token, err := disney.RegisterDevice()
-   if err != nil {
-      return err
-   }
-   request_otp, err := token.RequestOtp(c.Email.Value)
-   if err != nil {
-      return err
-   }
-   fmt.Println(request_otp)
-   return c.cache.Encode(EmailString(c.Email.Value), token)
-}
-
-func (c *client) do_passcode() error {
-   var (
-      email EmailString
-      token disney.Token
-   )
-   err := c.cache.Decode(&email, &token)
-   if err != nil {
-      return err
-   }
-   otp, err := token.AuthenticateWithOtp(string(email), c.Passcode.Value)
-   if err != nil {
-      return err
-   }
-   login, err := token.LoginWithActionGrant(otp.ActionGrant)
-   if err != nil {
-      return err
-   }
-   for i, profile := range login.Account.Profiles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&profile)
-   }
-   return c.cache.Encode(token)
 }
 
 func (c *client) do_profile_id() error {
@@ -154,10 +139,12 @@ func (c *client) do_media_id() error {
 
 type PlayReadyFolder maya.Flag[string]
 
+type Email maya.Flag[string]
+
 type client struct {
    cache           maya.Cache
    PlayReadyFolder PlayReadyFolder
-   Email           maya.Flag[string]
+   Email           Email
    Passcode        maya.Flag[string]
    ProfileId       maya.Flag[string]
    Refresh         maya.Flag[bool]
@@ -195,4 +182,17 @@ func (c *client) do() error {
       return c.do_hls_id()
    }
    return maya.FormatFlags(os.Stderr, "disney", c)
+}
+
+func (c *client) do_email() error {
+   token, err := disney.RegisterDevice()
+   if err != nil {
+      return err
+   }
+   request_otp, err := token.RequestOtp(c.Email.Value)
+   if err != nil {
+      return err
+   }
+   fmt.Println(request_otp)
+   return c.cache.Encode(c.Email, token)
 }
