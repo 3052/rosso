@@ -9,6 +9,23 @@ import (
    "path"
 )
 
+func (c *client) do_dash_id() error {
+   var (
+      manifest maya.Manifest
+      session  mubi.Session
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &session, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: session.FetchWidevine,
+   })
+}
+
 type SetProxy string
 
 func (c *client) do_link_code() error {
@@ -96,13 +113,11 @@ func main() {
    }
 }
 
-///
-
-type WidevineFolder string
+type WidevineFolder maya.Flag[string]
 
 type client struct {
    cache          maya.Cache
-   WidevineFolder maya.Flag[string]
+   WidevineFolder WidevineFolder
    SetProxy       maya.Flag[string]
    LinkCode       maya.Flag[bool]
    Session        maya.Flag[bool]
@@ -121,7 +136,7 @@ func (c *client) do() error {
       return err
    }
    if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+      return c.cache.Encode(c.WidevineFolder)
    }
    if c.SetProxy.Set {
       return c.cache.Encode(SetProxy(c.SetProxy.Value))
@@ -150,21 +165,4 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return maya.FormatFlags(os.Stderr, "mubi", c)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      session  mubi.Session
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &session, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: session.FetchWidevine,
-   })
 }

@@ -7,6 +7,30 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/molotov"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(c.WidevineFolder)
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Address.Set {
+      return c.do_address()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "molotov", c)
+}
+
 func (c *client) do_address() error {
    var auth molotov.Auth
    err := c.cache.Decode(&auth)
@@ -44,14 +68,23 @@ func main() {
    }
 }
 
-type WidevineFolder string
-
 func (c *client) do_email_password() error {
    auth, err := molotov.FetchAuth(c.Email.Value, c.Password.Value)
    if err != nil {
       return err
    }
    return c.cache.Encode(auth)
+}
+
+type WidevineFolder maya.Flag[string]
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder WidevineFolder
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
+   Address        maya.Flag[string]
+   DashId         maya.Flag[string]
 }
 
 func (c *client) do_dash_id() error {
@@ -65,41 +98,8 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: asset.FetchWidevine,
    })
-}
-
-type client struct {
-   cache          maya.Cache
-   WidevineFolder maya.Flag[string]
-   Email          maya.Flag[string] `depends:"Password"`
-   Password       maya.Flag[string] `depends:"Email"`
-   Address        maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/molotov"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Address.Set {
-      return c.do_address()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "molotov", c)
 }

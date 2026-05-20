@@ -8,6 +8,27 @@ import (
    "os"
 )
 
+func (c *client) do_dash_id() error {
+   var (
+      login         kanopy.Login
+      manifest      kanopy.Manifest
+      maya_manifest maya.Manifest
+      widevine      WidevineFolder
+   )
+   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return kanopy.CreateLicense(&login, &manifest, body)
+   }
+   return maya.DownloadDash(c.DashId.Value, &maya_manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
 func (c *client) do_address() error {
    login := &kanopy.Login{}
    err := c.cache.Decode(login)
@@ -64,11 +85,11 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(login)
 }
 
-///
+type WidevineFolder maya.Flag[string]
 
 type client struct {
    cache          maya.Cache
-   WidevineFolder maya.Flag[string]
+   WidevineFolder WidevineFolder
    Email          maya.Flag[string] `depends:"Password"`
    Password       maya.Flag[string] `depends:"Email"`
    Address        maya.Flag[string]
@@ -83,7 +104,7 @@ func (c *client) do() error {
       return err
    }
    if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+      return c.cache.Encode(c.WidevineFolder)
    }
    if c.Email.Set {
       if c.Password.Set {
@@ -98,26 +119,3 @@ func (c *client) do() error {
    }
    return maya.FormatFlags(os.Stderr, "kanopy", c)
 }
-
-func (c *client) do_dash_id() error {
-   var (
-      login         kanopy.Login
-      manifest      kanopy.Manifest
-      maya_manifest maya.Manifest
-      widevine      WidevineFolder
-   )
-   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return kanopy.CreateLicense(&login, &manifest, body)
-   }
-   return maya.DownloadDash(c.DashId.Value, &maya_manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-type WidevineFolder string
