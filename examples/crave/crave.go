@@ -8,6 +8,14 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_address() error {
    profile_token := &crave.ProfileToken{}
    err := c.cache.Decode(profile_token)
@@ -39,15 +47,19 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, media, playback)
 }
 
+type PlayReadyFolder maya.Flag[string]
+
 type client struct {
    cache           maya.Cache
-   PlayReadyFolder maya.Flag[string]
+   PlayReadyFolder PlayReadyFolder
    Username        maya.Flag[string] `depends:"Password"`
    Password        maya.Flag[string] `depends:"Username"`
    ProfileId       maya.Flag[string]
    Address         maya.Flag[string]
    DashId          maya.Flag[string]
 }
+
+///
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/crave"); err != nil {
@@ -57,7 +69,7 @@ func (c *client) do() error {
       return err
    }
    if c.PlayReadyFolder.Set {
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+      return c.cache.Encode(c.PlayReadyFolder)
    }
    if c.Username.Set {
       if c.Password.Set {
@@ -76,16 +88,6 @@ func (c *client) do() error {
    return maya.FormatFlags(os.Stderr, "crave", c)
 }
 
-type PlayReadyFolder string
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 func (c *client) do_dash_id() error {
    var (
       manifest      maya.Manifest
@@ -101,7 +103,7 @@ func (c *client) do_dash_id() error {
       return crave.AcquireLicense(body, &profile_token, &playback)
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
+      Device:  playReady.Value,
       Drm:     maya.DrmPlayReady,
       License: license,
    })

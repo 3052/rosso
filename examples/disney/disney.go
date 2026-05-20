@@ -8,103 +8,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache           maya.Cache
-   PlayReadyFolder maya.Flag[string]
-   Email           maya.Flag[string]
-   Passcode        maya.Flag[string]
-   ProfileId       maya.Flag[string]
-   Refresh         maya.Flag[bool]
-   Address         maya.Flag[string]
-   SeasonId        maya.Flag[string]
-   MediaId         maya.Flag[string]
-   HlsId           maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/disney"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.PlayReadyFolder.Set:
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
-   case c.Email.Set:
-      return c.do_email()
-   case c.Passcode.Set:
-      return c.do_passcode()
-   case c.ProfileId.Set:
-      return c.do_profile_id()
-   case c.Refresh.Set:
-      return c.do_refresh()
-   case c.Address.Set:
-      return c.do_address()
-   case c.SeasonId.Set:
-      return c.do_season_id()
-   case c.MediaId.Set:
-      return c.do_media_id()
-   case c.HlsId.Set:
-      return c.do_hls_id()
-   }
-   return maya.FormatFlags(os.Stderr, "disney", c)
-}
-
-type PlayReadyFolder string
-
-func (c *client) do_address() error {
-   entity_id, err := disney.GetEntityId(c.Address.Value)
-   if err != nil {
-      return err
-   }
-   entity, err := disney.GetEntityId(entity_id)
-   if err != nil {
-      return err
-   }
-   var token disney.Token
-   if err = c.cache.Decode(&token); err != nil {
-      return err
-   }
-   page, err := token.FetchPage(entity)
-   if err != nil {
-      return err
-   }
-   fmt.Println(page)
-   return nil
-}
-
-func (c *client) do_season_id() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   season, err := token.FetchSeason(c.SeasonId.Value)
-   if err != nil {
-      return err
-   }
-   fmt.Println(season)
-   return nil
-}
-
-func (c *client) do_media_id() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(c.MediaId.Value)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
-}
-
 func (c *client) do_hls_id() error {
    var (
       manifest  maya.Manifest
@@ -116,7 +19,7 @@ func (c *client) do_hls_id() error {
       return err
    }
    return maya.DownloadHls(c.HlsId.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
+      Device:  playReady.Value,
       Drm:     maya.DrmPlayReady,
       License: token.FetchPlayReady,
    })
@@ -195,4 +98,101 @@ func (c *client) do_refresh() error {
       return err
    }
    return c.cache.Encode(token)
+}
+
+func (c *client) do_address() error {
+   entity_id, err := disney.GetEntityId(c.Address.Value)
+   if err != nil {
+      return err
+   }
+   entity, err := disney.GetEntityId(entity_id)
+   if err != nil {
+      return err
+   }
+   var token disney.Token
+   if err = c.cache.Decode(&token); err != nil {
+      return err
+   }
+   page, err := token.FetchPage(entity)
+   if err != nil {
+      return err
+   }
+   fmt.Println(page)
+   return nil
+}
+
+func (c *client) do_season_id() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   season, err := token.FetchSeason(c.SeasonId.Value)
+   if err != nil {
+      return err
+   }
+   fmt.Println(season)
+   return nil
+}
+
+func (c *client) do_media_id() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   stream, err := token.FetchStream(c.MediaId.Value)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
+}
+
+type PlayReadyFolder maya.Flag[string]
+
+type client struct {
+   cache           maya.Cache
+   PlayReadyFolder PlayReadyFolder
+   Email           maya.Flag[string]
+   Passcode        maya.Flag[string]
+   ProfileId       maya.Flag[string]
+   Refresh         maya.Flag[bool]
+   Address         maya.Flag[string]
+   SeasonId        maya.Flag[string]
+   MediaId         maya.Flag[string]
+   HlsId           maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/disney"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.PlayReadyFolder.Set:
+      return c.cache.Encode(c.PlayReadyFolder)
+   case c.Email.Set:
+      return c.do_email()
+   case c.Passcode.Set:
+      return c.do_passcode()
+   case c.ProfileId.Set:
+      return c.do_profile_id()
+   case c.Refresh.Set:
+      return c.do_refresh()
+   case c.Address.Set:
+      return c.do_address()
+   case c.SeasonId.Set:
+      return c.do_season_id()
+   case c.MediaId.Set:
+      return c.do_media_id()
+   case c.HlsId.Set:
+      return c.do_hls_id()
+   }
+   return maya.FormatFlags(os.Stderr, "disney", c)
 }
