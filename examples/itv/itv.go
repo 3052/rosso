@@ -8,44 +8,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache          maya.Cache
-   WidevineFolder maya.Flag[string]
-   Address        maya.Flag[string]
-   Playlist       maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   case c.Address.Set:
-      return c.do_address()
-   case c.Playlist.Set:
-      return c.do_playlist()
-   case c.DashId.Set:
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "itv", c)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type WidevineFolder string
-
 func (c *client) do_dash_id() error {
    var (
       manifest   maya.Manifest
@@ -57,7 +19,7 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: media_file.FetchKeyService,
    })
@@ -91,4 +53,42 @@ func (c *client) do_playlist() error {
       return err
    }
    return c.cache.Encode(manifest, media_file)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type WidevineFolder maya.Flag[string]
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder WidevineFolder
+   Address        maya.Flag[string]
+   Playlist       maya.Flag[string]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(c.WidevineFolder)
+   case c.Address.Set:
+      return c.do_address()
+   case c.Playlist.Set:
+      return c.do_playlist()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "itv", c)
 }

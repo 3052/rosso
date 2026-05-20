@@ -7,41 +7,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache           maya.Cache
-   PlayReadyFolder maya.Flag[string]
-   Email           maya.Flag[string] `depends:"Password"`
-   Password        maya.Flag[string] `depends:"Email"`
-   Address         maya.Flag[string]
-   DashId          maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/hulu"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.PlayReadyFolder.Set {
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Address.Set {
-      return c.do_address()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "hulu", c)
-}
-
-type PlayReadyFolder string
-
 func (c *client) do_dash_id() error {
    var (
       manifest  maya.Manifest
@@ -53,7 +18,7 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
+      Device:  playReady.Value,
       Drm:     maya.DrmPlayReady,
       License: playlist.FetchPlayReady,
    })
@@ -98,4 +63,39 @@ func (c *client) do_email_password() error {
       return err
    }
    return c.cache.Encode(device)
+}
+
+type PlayReadyFolder maya.Flag[string]
+
+type client struct {
+   cache           maya.Cache
+   PlayReadyFolder PlayReadyFolder
+   Email           maya.Flag[string] `depends:"Password"`
+   Password        maya.Flag[string] `depends:"Email"`
+   Address         maya.Flag[string]
+   DashId          maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/hulu"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.PlayReadyFolder.Set {
+      return c.cache.Encode(c.PlayReadyFolder)
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Address.Set {
+      return c.do_address()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "hulu", c)
 }

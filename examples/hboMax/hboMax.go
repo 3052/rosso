@@ -8,6 +8,23 @@ import (
    "os"
 )
 
+func (c *client) do_dash_id() error {
+   var (
+      manifest  maya.Manifest
+      playReady PlayReadyFolder
+      playback  hboMax.Playback
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playback)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  playReady.Value,
+      Drm:     maya.DrmPlayReady,
+      License: playback.PlayReadyRequest,
+   })
+}
+
 func (c *client) do_edit_id() error {
    var login hboMax.Login
    err := c.cache.Decode(&login)
@@ -137,8 +154,6 @@ type client struct {
    DashId          maya.Flag[string]
 }
 
-///
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/hboMax"); err != nil {
       return err
@@ -147,7 +162,7 @@ func (c *client) do() error {
       return err
    }
    if c.PlayReadyFolder.Set {
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+      return c.cache.Encode(c.PlayReadyFolder)
    }
    if c.Initiate.Set {
       return c.do_initiate()
@@ -173,21 +188,4 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return maya.FormatFlags(os.Stderr, "hboMax", c)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest  maya.Manifest
-      playReady PlayReadyFolder
-      playback  hboMax.Playback
-   )
-   err := c.cache.Decode(&manifest, &playReady, &playback)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
-      Drm:     maya.DrmPlayReady,
-      License: playback.PlayReadyRequest,
-   })
 }
