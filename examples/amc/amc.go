@@ -8,51 +8,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache          maya.Cache
-   WidevineFolder maya.Flag[string]
-   Email          maya.Flag[string] `depends:"Password"`
-   Password       maya.Flag[string] `depends:"Email"`
-   Refresh        maya.Flag[bool]
-   Series         maya.Flag[int]
-   Season         maya.Flag[int]
-   EpisodeOrMovie maya.Flag[int]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/amc"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Refresh.Set {
-      return c.do_refresh()
-   }
-   if c.Series.Set {
-      return c.do_series()
-   }
-   if c.Season.Set {
-      return c.do_season()
-   }
-   if c.EpisodeOrMovie.Set {
-      return c.do_episode_or_movie()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "amc", c)
-}
-
 func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
@@ -72,13 +27,11 @@ func (c *client) do_dash_id() error {
       )
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: license,
    })
 }
-
-type WidevineFolder string
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -174,4 +127,51 @@ func (c *client) do_episode_or_movie() error {
       return err
    }
    return c.cache.Encode(manifest, playback, source)
+}
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder WidevineFolder
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
+   Refresh        maya.Flag[bool]
+   Series         maya.Flag[int]
+   Season         maya.Flag[int]
+   EpisodeOrMovie maya.Flag[int]
+   DashId         maya.Flag[string]
+}
+
+type WidevineFolder maya.Flag[string]
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/amc"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(c.WidevineFolder)
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Refresh.Set {
+      return c.do_refresh()
+   }
+   if c.Series.Set {
+      return c.do_series()
+   }
+   if c.Season.Set {
+      return c.do_season()
+   }
+   if c.EpisodeOrMovie.Set {
+      return c.do_episode_or_movie()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "amc", c)
 }

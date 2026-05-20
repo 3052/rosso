@@ -10,6 +10,50 @@ import (
    "path"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/canal"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(c.WidevineFolder)
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Refresh.Set {
+      return c.do_refresh()
+   }
+   if c.Query.Set {
+      return c.do_query()
+   }
+   if c.Tracking.Set {
+      if c.Season.Set {
+         return c.do_tracking_season()
+      }
+      return c.do_tracking()
+   }
+   if c.Subtitles.Set {
+      return c.do_subtitles()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "canal", c)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 func (c *client) do_tracking_season() error {
    var session canal.Session
    err := c.cache.Decode(&session)
@@ -114,23 +158,6 @@ func (c *client) do_subtitles() error {
    return nil
 }
 
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      player   canal.Player
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &player, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Drm:     maya.DrmWidevine,
-      Device:  string(widevine),
-      License: player.FetchWidevine,
-   })
-}
-
 func get(address *url.URL) error {
    resp, err := maya.Get(address, nil)
    if err != nil {
@@ -146,9 +173,28 @@ func get(address *url.URL) error {
    return err
 }
 
+type WidevineFolder maya.Flag[string]
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest maya.Manifest
+      player   canal.Player
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &player, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: player.FetchWidevine,
+   })
+}
+
 type client struct {
    cache          maya.Cache
-   WidevineFolder maya.Flag[string]
+   WidevineFolder WidevineFolder
    Email          maya.Flag[string] `depends:"Password"`
    Password       maya.Flag[string] `depends:"Email"`
    Refresh        maya.Flag[bool]
@@ -157,50 +203,4 @@ type client struct {
    Season         maya.Flag[int] `depends:"Tracking"`
    Subtitles      maya.Flag[bool]
    DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/canal"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Refresh.Set {
-      return c.do_refresh()
-   }
-   if c.Query.Set {
-      return c.do_query()
-   }
-   if c.Tracking.Set {
-      if c.Season.Set {
-         return c.do_tracking_season()
-      }
-      return c.do_tracking()
-   }
-   if c.Subtitles.Set {
-      return c.do_subtitles()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "canal", c)
-}
-
-type WidevineFolder string
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
