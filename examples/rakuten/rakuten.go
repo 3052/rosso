@@ -97,9 +97,11 @@ func (c *client) do_audio_language() error {
    return c.cache.Encode(manifest, stream_info)
 }
 
+type PlayReadyFolder maya.Flag[string]
+
 type client struct {
    cache           maya.Cache
-   PlayReadyFolder maya.Flag[string]
+   PlayReadyFolder PlayReadyFolder
    Address         maya.Flag[string]
    SeasonId        maya.Flag[string]
    AudioLanguage   maya.Flag[string]
@@ -116,7 +118,7 @@ func (c *client) do() error {
    }
    switch {
    case c.PlayReadyFolder.Set:
-      return c.cache.Encode(PlayReadyFolder(c.PlayReadyFolder.Value))
+      return c.cache.Encode(c.PlayReadyFolder)
    case c.Address.Set:
       return c.do_address()
    case c.SeasonId.Set:
@@ -129,8 +131,6 @@ func (c *client) do() error {
    return maya.FormatFlags(os.Stderr, "rakuten", c)
 }
 
-type PlayReadyFolder string
-
 func (c *client) do_dash_id() error {
    var (
       manifest    maya.Manifest
@@ -142,7 +142,7 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(playReady),
+      Device:  playReady.Value,
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,
    })

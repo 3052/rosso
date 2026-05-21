@@ -9,55 +9,6 @@ import (
    "path"
 )
 
-type client struct {
-   cache          maya.Cache
-   WidevineFolder maya.Flag[string]
-   MovieAddress   maya.Flag[string]
-   ShowAddress    maya.Flag[string]
-   EpisodeId      maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/pluto"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   case c.MovieAddress.Set:
-      return c.do_movie_address()
-   case c.ShowAddress.Set:
-      return c.do_show_address()
-   case c.EpisodeId.Set:
-      return c.do_episode_id()
-   case c.DashId.Set:
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "pluto", c)
-}
-
-type WidevineFolder string
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: pluto.FetchWidevine,
-   })
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -102,4 +53,53 @@ func (c *client) do_episode_id() error {
       return err
    }
    return c.cache.Encode(manifest)
+}
+
+type WidevineFolder maya.Flag[string]
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder WidevineFolder
+   MovieAddress   maya.Flag[string]
+   ShowAddress    maya.Flag[string]
+   EpisodeId      maya.Flag[string]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/pluto"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(c.WidevineFolder)
+   case c.MovieAddress.Set:
+      return c.do_movie_address()
+   case c.ShowAddress.Set:
+      return c.do_show_address()
+   case c.EpisodeId.Set:
+      return c.do_episode_id()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "pluto", c)
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest maya.Manifest
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: pluto.FetchWidevine,
+   })
 }

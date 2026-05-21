@@ -8,60 +8,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache             maya.Cache
-   WidevineFolder    maya.Flag[string]
-   AccountActivation maya.Flag[bool]
-   ActivationStatus  maya.Flag[bool]
-   RokuId            maya.Flag[string]
-   UseAccount        maya.Flag[bool] `depends:"RokuId"`
-   DashId            maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/roku"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   }
-   if c.AccountActivation.Set {
-      return c.do_account_activation()
-   }
-   if c.ActivationStatus.Set {
-      return c.do_activation_status()
-   }
-   if c.RokuId.Set {
-      return c.do_roku_id()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "roku", c)
-}
-
-type WidevineFolder string
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      playback roku.Playback
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &playback, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
-      Drm:     maya.DrmWidevine,
-      License: playback.LicenseWidevine,
-   })
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -121,4 +67,58 @@ func (c *client) do_roku_id() error {
       return err
    }
    return c.cache.Encode(account_token, manifest, playback)
+}
+
+type WidevineFolder maya.Flag[string]
+
+type client struct {
+   cache             maya.Cache
+   WidevineFolder    WidevineFolder
+   AccountActivation maya.Flag[bool]
+   ActivationStatus  maya.Flag[bool]
+   RokuId            maya.Flag[string]
+   UseAccount        maya.Flag[bool] `depends:"RokuId"`
+   DashId            maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/roku"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(c.WidevineFolder)
+   }
+   if c.AccountActivation.Set {
+      return c.do_account_activation()
+   }
+   if c.ActivationStatus.Set {
+      return c.do_activation_status()
+   }
+   if c.RokuId.Set {
+      return c.do_roku_id()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "roku", c)
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest maya.Manifest
+      playback roku.Playback
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &playback, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: playback.LicenseWidevine,
+   })
 }

@@ -43,11 +43,11 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, media, user)
 }
 
-///
+type WidevineFolder maya.Flag[string]
 
 type client struct {
    cache          maya.Cache
-   WidevineFolder maya.Flag[string]
+   WidevineFolder WidevineFolder
    Address        maya.Flag[string]
    DashId         maya.Flag[string]
 }
@@ -61,7 +61,7 @@ func (c *client) do() error {
    }
    switch {
    case c.WidevineFolder.Set:
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+      return c.cache.Encode(c.WidevineFolder)
    case c.Address.Set:
       return c.do_address()
    case c.DashId.Set:
@@ -85,10 +85,8 @@ func (c *client) do_dash_id() error {
       return plex.AcquireWidevineLicense(&media, &user, body)
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: license,
    })
 }
-
-type WidevineFolder string
