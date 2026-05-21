@@ -7,6 +7,22 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_email_password() error {
+   account, err := rtbf.FetchAccount(c.Email.Value, c.Password.Value)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(account)
+}
+
 func (c *client) do_address() error {
    var account rtbf.Account
    err := c.cache.Decode(&account)
@@ -44,9 +60,11 @@ func (c *client) do_address() error {
    return c.cache.Encode(entitlement, manifest)
 }
 
+type WidevineFolder maya.Flag[string]
+
 type client struct {
    cache          maya.Cache
-   WidevineFolder maya.Flag[string]
+   WidevineFolder WidevineFolder
    Email          maya.Flag[string] `depends:"Password"`
    Password       maya.Flag[string] `depends:"Email"`
    Address        maya.Flag[string]
@@ -61,7 +79,7 @@ func (c *client) do() error {
       return err
    }
    if c.WidevineFolder.Set {
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
+      return c.cache.Encode(c.WidevineFolder)
    }
    if c.Email.Set {
       if c.Password.Set {
@@ -77,8 +95,6 @@ func (c *client) do() error {
    return maya.FormatFlags(os.Stderr, "rtbf", c)
 }
 
-type WidevineFolder string
-
 func (c *client) do_dash_id() error {
    var (
       entitlement rtbf.Entitlement
@@ -90,24 +106,8 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: entitlement.FetchWidevine,
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(c.Email.Value, c.Password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(account)
 }

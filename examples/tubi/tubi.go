@@ -7,31 +7,6 @@ import (
    "os"
 )
 
-type client struct {
-   cache          maya.Cache
-   WidevineFolder maya.Flag[string]
-   ContentId      maya.Flag[int]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/tubi"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(WidevineFolder(c.WidevineFolder.Value))
-   case c.ContentId.Set:
-      return c.do_content_id()
-   case c.DashId.Set:
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "tubi", c)
-}
-
 func (c *client) do_content_id() error {
    content, err := tubi.GetContent(c.ContentId.Value)
    if err != nil {
@@ -53,7 +28,32 @@ func main() {
    }
 }
 
-type WidevineFolder string
+type WidevineFolder maya.Flag[string]
+
+type client struct {
+   cache          maya.Cache
+   WidevineFolder WidevineFolder
+   ContentId      maya.Flag[int]
+   DashId         maya.Flag[string]
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/tubi"); err != nil {
+      return err
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(c.WidevineFolder)
+   case c.ContentId.Set:
+      return c.do_content_id()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "tubi", c)
+}
 
 func (c *client) do_dash_id() error {
    var (
@@ -69,7 +69,7 @@ func (c *client) do_dash_id() error {
       return tubi.AcquireLicense(&server, body)
    }
    return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  string(widevine),
+      Device:  widevine.Value,
       Drm:     maya.DrmWidevine,
       License: license,
    })

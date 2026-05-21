@@ -55,6 +55,59 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+func (e *Episode) String() string {
+   data := &strings.Builder{}
+   fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
+   fmt.Fprintln(data, "title:", e.Title)
+   fmt.Fprintln(data, "desc:", e.Desc)
+   fmt.Fprint(data, "tracking: ", e.Id)
+   return data.String()
+}
+
+type Episode struct {
+   Desc   string
+   Id     string
+   Params struct {
+      SeriesEpisode int
+   }
+   Title string
+}
+
+func (l *Login) Error() string {
+   var data strings.Builder
+   data.WriteString("label: ")
+   data.WriteString(l.Label)
+   data.WriteString("\nmessage: ")
+   data.WriteString(l.Message)
+   return data.String()
+}
+
+type Login struct {
+   Label    string
+   Message  string
+   SsoToken string // this last one day
+}
+
+func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl *Url
+   }
+   Message   string
+   Subtitles []struct {
+      Url *Url
+   }
+   Url *Url // MPD
+}
+
 func FetchSession(ssoToken string) (*Session, error) {
    body, err := json.Marshal(map[string]string{
       "brand":        "m7cp",
@@ -313,57 +366,4 @@ type Asset struct {
 
 type Collection struct {
    Assets []Asset
-}
-
-func (e *Episode) String() string {
-   data := &strings.Builder{}
-   fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
-   fmt.Fprintln(data, "title:", e.Title)
-   fmt.Fprintln(data, "desc:", e.Desc)
-   fmt.Fprint(data, "tracking: ", e.Id)
-   return data.String()
-}
-
-type Episode struct {
-   Desc   string
-   Id     string
-   Params struct {
-      SeriesEpisode int
-   }
-   Title string
-}
-
-func (l *Login) Error() string {
-   var data strings.Builder
-   data.WriteString("label: ")
-   data.WriteString(l.Label)
-   data.WriteString("\nmessage: ")
-   data.WriteString(l.Message)
-   return data.String()
-}
-
-type Login struct {
-   Label    string
-   Message  string
-   SsoToken string // this last one day
-}
-
-func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-type Player struct {
-   Drm struct {
-      LicenseUrl *Url
-   }
-   Message   string
-   Subtitles []struct {
-      Url *Url
-   }
-   Url *Url // MPD
 }
