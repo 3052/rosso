@@ -61,23 +61,6 @@ func (c *client) do() error {
    return maya.FormatFlags(os.Stderr, "mubi", c)
 }
 
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      session  mubi.Session
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &session, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: session.FetchWidevine,
-   })
-}
-
 type SetProxy string
 
 func (c *client) do_link_code() error {
@@ -110,6 +93,25 @@ func (c *client) do_address() error {
    }
    fmt.Println(film)
    return nil
+}
+
+///
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest maya.Manifest
+      session  mubi.Session
+      widevine WidevineFolder
+   )
+   err := c.cache.Decode(&manifest, &session, &widevine)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  widevine.Value,
+      Drm:     maya.DrmWidevine,
+      License: session.FetchWidevine,
+   })
 }
 
 func (c *client) do_mubi_id() error {
