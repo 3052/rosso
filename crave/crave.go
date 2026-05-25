@@ -13,6 +13,77 @@ import (
    "strings"
 )
 
+//go:embed GetShowpage.gql
+var get_showpage string
+
+type Profile struct {
+   Id                string   `json:"id"`
+   AccountId         string   `json:"accountId"`
+   Nickname          string   `json:"nickname"`
+   HasPin            bool     `json:"hasPin"`
+   Master            bool     `json:"master"`
+   Maturity          string   `json:"maturity"`
+   Onboarded         bool     `json:"onboarded"`
+   UiLanguage        string   `json:"uiLanguage"`
+   PlaybackLanguages []string `json:"playbackLanguages"`
+   LastModifiedDate  string   `json:"lastModifiedDate"`
+   AvatarUrl         string   `json:"avatarUrl"`
+}
+
+func GetProfiles(account *AccountToken) ([]Profile, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/profile/v2/account/" + account.AccountId,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + account.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var activeProfiles []Profile
+   if err := json.NewDecoder(resp.Body).Decode(&activeProfiles); err != nil {
+      return nil, err
+   }
+
+   return activeProfiles, nil
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("nickname: ")
+   data.WriteString(p.Nickname)
+   if p.HasPin {
+      data.WriteString("\nhas pin: true")
+   } else {
+      data.WriteString("\nhas pin: false")
+   }
+   if p.Master {
+      data.WriteString("\nmaster: true")
+   } else {
+      data.WriteString("\nmaster: false")
+   }
+   data.WriteString("\nmaturity: ")
+   data.WriteString(p.Maturity)
+   data.WriteString("\nid: ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
+type ProfileToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   Scope        string `json:"scope"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
 func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -92,8 +163,7 @@ func (s *Subscription) String() string {
    return data.String()
 }
 
-//go:embed GetShowpage.gql
-var get_showpage string
+///
 
 func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
    endpoint := &url.URL{
@@ -388,72 +458,4 @@ type Playback struct {
    ContentPackage ContentPackage `json:"contentPackage"`
    DestinationId  int            `json:"destinationId"`
    Error          string         // 2026-05-03
-}
-
-type Profile struct {
-   Id                string   `json:"id"`
-   AccountId         string   `json:"accountId"`
-   Nickname          string   `json:"nickname"`
-   HasPin            bool     `json:"hasPin"`
-   Master            bool     `json:"master"`
-   Maturity          string   `json:"maturity"`
-   Onboarded         bool     `json:"onboarded"`
-   UiLanguage        string   `json:"uiLanguage"`
-   PlaybackLanguages []string `json:"playbackLanguages"`
-   LastModifiedDate  string   `json:"lastModifiedDate"`
-   AvatarUrl         string   `json:"avatarUrl"`
-}
-
-func GetProfiles(account *AccountToken) ([]Profile, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/profile/v2/account/" + account.AccountId,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + account.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var activeProfiles []Profile
-   if err := json.NewDecoder(resp.Body).Decode(&activeProfiles); err != nil {
-      return nil, err
-   }
-
-   return activeProfiles, nil
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("nickname: ")
-   data.WriteString(p.Nickname)
-   if p.HasPin {
-      data.WriteString("\nhas pin: true")
-   } else {
-      data.WriteString("\nhas pin: false")
-   }
-   if p.Master {
-      data.WriteString("\nmaster: true")
-   } else {
-      data.WriteString("\nmaster: false")
-   }
-   data.WriteString("\nmaturity: ")
-   data.WriteString(p.Maturity)
-   data.WriteString("\nid: ")
-   data.WriteString(p.Id)
-   return data.String()
-}
-
-type ProfileToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   Scope        string `json:"scope"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
 }

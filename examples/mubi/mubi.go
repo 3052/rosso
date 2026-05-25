@@ -10,17 +10,105 @@ import (
 )
 
 type client struct {
-   Proxy     maya.FlagString
-   Widevine  maya.FlagString
-   
+   Widevine maya.FlagString
+   Proxy    maya.FlagString
+
    address   maya.FlagString
    dash      maya.FlagString
    link_code maya.FlagBool
    mubi      maya.FlagInt
    season    maya.FlagInt
    session   maya.FlagBool
-   
+   use_proxy maya.FlagBool
+
    cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/mubi"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      if !os.IsNotExist(err) {
+         return err
+      }
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "set-proxy", Value: &c.Proxy},
+      {Name: "link-code", Value: &c.link_code},
+      {Name: "session", Value: &c.session},
+      {Name: "address", Value: &c.address},
+      {Name: "season", Value: &c.season, Needs: "address"},
+      {Name: "mubi-id", Value: &c.mubi},
+      {Name: "use-proxy", Value: &c.use_proxy, Needs: "mubi-id"},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   if flags.IsSet(&c.Widevine) {
+      return c.cache.Encode(c)
+   }
+   if flags.IsSet(&c.Proxy) {
+      return c.cache.Encode(c)
+   }
+   if c.use_proxy {
+      if err := maya.SetProxy(string(c.Proxy)); err != nil {
+         return err
+      }
+   }
+   if c.link_code {
+      return c.do_link_code()
+   }
+   if c.session {
+      return c.do_session()
+   }
+   if flags.IsSet(&c.address) {
+      if flags.IsSet(&c.season) {
+         return c.do_address_season()
+      }
+      return c.do_address()
+   }
+   if flags.IsSet(&c.mubi) {
+      return c.do_mubi()
+   }
+   if flags.IsSet(&c.dash) {
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "mubi")
+}
+
+func (c *client) do_link_code() error {
+   link_code, err := mubi.FetchLinkCode()
+   if err != nil {
+      return err
+   }
+   fmt.Println(link_code)
+   return c.cache.Encode(link_code)
+}
+
+func (c *client) do_session() error {
+   var link_code mubi.LinkCode
+   err := c.cache.Decode(&link_code)
+   if err != nil {
+      return err
+   }
+   session, err := link_code.FetchSession()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_address() error {
+   slug := path.Base(string(c.address))
+   film, err := mubi.FetchFilm(slug)
+   if err != nil {
+      return err
+   }
+   fmt.Println(film)
+   return nil
 }
 
 func (c *client) do_dash() error {
@@ -35,7 +123,7 @@ func (c *client) do_dash() error {
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
       Drm:     maya.DrmWidevine,
       License: session.FetchWidevine,
-      Device: string(c.Widevine),
+      Device:  string(c.Widevine),
    })
 }
 
@@ -80,95 +168,5 @@ func (c *client) do_address_season() error {
       }
       fmt.Println(episode)
    }
-   return nil
-}
-
-func (c *client) do_use_proxy() error {
-   var proxy SetProxy
-   err := c.cache.Decode(&proxy)
-   if err != nil {
-      return err
-   }
-   return maya.SetProxy(string(proxy))
-}
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/mubi"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
-   }
-   flags := maya.FlagSet{
-      {Name: "proxy", Value: &c.Proxy},
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "link-code", Value: &c.link_code},
-      {Name: "session", Value: &c.session},
-      {Name: "address", Value: &c.address},
-      {Name: "season", Value: &c.season, Needs: "address"},
-      {Name: "mubi-id", Value: &c.mubi},
-      {Name: "dash-id", Value: &c.dash},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   if flags.IsSet(&c.Proxy) {
-      return c.cache.Encode(c)
-   }
-   if flags.IsSet(&c.Widevine) {
-      return c.cache.Encode(c)
-   }
-   if c.link_code {
-      return c.do_link_code()
-   }
-   if c.session {
-      return c.do_session()
-   }
-   if flags.IsSet(&c.address) {
-      if flags.IsSet(&c.season) {
-         return c.do_address_season()
-      }
-      return c.do_address()
-   }
-   if flags.IsSet(&c.mubi) {
-      return c.do_mubi()
-   }
-   if flags.IsSet(&c.dash) {
-      return c.do_dash()
-   }
-   return flags.Usage(os.Stderr, "mubi")
-}
-
-type SetProxy string
-
-func (c *client) do_link_code() error {
-   link_code, err := mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(link_code)
-   return c.cache.Encode(link_code)
-}
-
-func (c *client) do_session() error {
-   var link_code mubi.LinkCode
-   err := c.cache.Decode(&link_code)
-   if err != nil {
-      return err
-   }
-   session, err := link_code.FetchSession()
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-func (c *client) do_address() error {
-   slug := path.Base(string(c.address))
-   film, err := mubi.FetchFilm(slug)
-   if err != nil {
-      return err
-   }
-   fmt.Println(film)
    return nil
 }
