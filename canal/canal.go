@@ -55,6 +55,27 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+func (a *Asset) String() string {
+   var data strings.Builder
+   data.WriteString("title: ")
+   data.WriteString(a.Title)
+   data.WriteString("\ntype: ")
+   data.WriteString(a.Type)
+   data.WriteString("\nid: ")
+   data.WriteString(a.Id)
+   return data.String()
+}
+
+type Asset struct {
+   Id    string
+   Title string
+   Type  string
+}
+
+type Collection struct {
+   Assets []Asset
+}
+
 func (e *Episode) String() string {
    data := &strings.Builder{}
    fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
@@ -343,27 +364,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-func (a *Asset) String() string {
-   var data strings.Builder
-   data.WriteString("title: ")
-   data.WriteString(a.Title)
-   data.WriteString("\ntype: ")
-   data.WriteString(a.Type)
-   data.WriteString("\nid: ")
-   data.WriteString(a.Id)
-   return data.String()
-}
-
-type Asset struct {
-   Id    string
-   Title string
-   Type  string
-}
-
-type Collection struct {
-   Assets []Asset
 }
