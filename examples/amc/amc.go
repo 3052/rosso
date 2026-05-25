@@ -8,14 +8,13 @@ import (
    "os"
 )
 
-func (c *client) do_dash_id() error {
+func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       playback amc.Playback
       source   amc.Source
-      widevine WidevineFolder
    )
-   err := c.cache.Decode(&manifest, &playback, &source, &widevine)
+   err := c.cache.Decode(&manifest, &playback, &source)
    if err != nil {
       return err
    }
@@ -26,11 +25,25 @@ func (c *client) do_dash_id() error {
          body,
       )
    }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,
    })
+}
+
+func (c *client) do_email_password() error {
+   auth_data, err := amc.Unauth()
+   if err != nil {
+      return err
+   }
+   auth_data, err = amc.Login(
+      auth_data.AccessToken, string(c.email), string(c.password),
+   )
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth_data)
 }
 
 func main() {
@@ -41,18 +54,18 @@ func main() {
    }
 }
 
-func (c *client) do_email_password() error {
-   auth_data, err := amc.Unauth()
-   if err != nil {
-      return err
-   }
-   auth_data, err = amc.Login(
-      auth_data.AccessToken, c.Email.Value, c.Password.Value,
-   )
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth_data)
+type client struct {
+   Widevine maya.FlagString
+
+   email            maya.FlagString
+   password         maya.FlagString
+   refresh          maya.FlagBool
+   series           maya.FlagInt
+   season           maya.FlagInt
+   episode_or_movie maya.FlagInt
+   dash             maya.FlagString
+
+   cache maya.Cache
 }
 
 func (c *client) do_refresh() error {
@@ -74,7 +87,7 @@ func (c *client) do_series() error {
    if err != nil {
       return err
    }
-   series, err := amc.SeriesDetail(auth_data.AccessToken, c.Series.Value)
+   series, err := amc.SeriesDetail(auth_data.AccessToken, int(c.series))
    if err != nil {
       return err
    }
@@ -93,7 +106,7 @@ func (c *client) do_season() error {
    if err != nil {
       return err
    }
-   season, err := amc.SeasonEpisodes(auth_data.AccessToken, c.Season.Value)
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, int(c.season))
    if err != nil {
       return err
    }
@@ -113,7 +126,7 @@ func (c *client) do_episode_or_movie() error {
       return err
    }
    playback, err := amc.GetPlayback(
-      auth_data.AccessToken, c.EpisodeOrMovie.Value,
+      auth_data.AccessToken, int(c.episode_or_movie),
    )
    if err != nil {
       return err
@@ -129,49 +142,50 @@ func (c *client) do_episode_or_movie() error {
    return c.cache.Encode(manifest, playback, source)
 }
 
-type client struct {
-   cache          maya.Cache
-   WidevineFolder WidevineFolder
-   Email          maya.Flag[string] `depends:"Password"`
-   Password       maya.Flag[string] `depends:"Email"`
-   Refresh        maya.Flag[bool]
-   Series         maya.Flag[int]
-   Season         maya.Flag[int]
-   EpisodeOrMovie maya.Flag[int]
-   DashId         maya.Flag[string]
-}
-
-type WidevineFolder maya.Flag[string]
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/amc"); err != nil {
       return err
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+   if err := c.cache.Decode(c); err != nil {
+      if !os.IsNotExist(err) {
+         return err
+      }
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "refresh", Value: &c.refresh},
+      {Name: "series", Value: &c.series},
+      {Name: "season", Value: &c.season},
+      {Name: "episode-or-movie", Value: &c.episode_or_movie},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(c.WidevineFolder)
+   if flags.IsSet(&c.Widevine) {
+      return c.cache.Encode(c)
    }
-   if c.Email.Set {
-      if c.Password.Set {
+   if c.email != "" {
+      if c.password != "" {
          return c.do_email_password()
       }
    }
-   if c.Refresh.Set {
+   if c.refresh {
       return c.do_refresh()
    }
-   if c.Series.Set {
+   if c.series >= 1 {
       return c.do_series()
    }
-   if c.Season.Set {
+   if c.season >= 1 {
       return c.do_season()
    }
-   if c.EpisodeOrMovie.Set {
+   if c.episode_or_movie >= 1 {
       return c.do_episode_or_movie()
    }
-   if c.DashId.Set {
-      return c.do_dash_id()
+   if c.dash != "" {
+      return c.do_dash()
    }
-   return maya.FormatFlags(os.Stderr, "amc", c)
+   return flags.Usage(os.Stderr, "amc")
 }

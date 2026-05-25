@@ -9,6 +9,20 @@ import (
    "path"
 )
 
+type client struct {
+   Widevine maya.FlagString
+   Proxy    maya.FlagString
+
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
@@ -26,7 +40,6 @@ func (c *client) do() error {
       {Name: "address", Value: &c.address},
       {Name: "season", Value: &c.season, Needs: "address"},
       {Name: "mubi-id", Value: &c.mubi_id},
-      {Name: "use-proxy", Value: &c.use_proxy, Needs: "mubi-id"},
       {Name: "dash-id", Value: &c.dash},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -38,10 +51,8 @@ func (c *client) do() error {
    if flags.IsSet(&c.Proxy) {
       return c.cache.Encode(c)
    }
-   if c.use_proxy {
-      if err := maya.SetProxy(string(c.Proxy)); err != nil {
-         return err
-      }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
    }
    if c.link_code {
       return c.do_link_code()
@@ -154,19 +165,4 @@ func (c *client) do_address_season() error {
       fmt.Println(episode)
    }
    return nil
-}
-
-type client struct {
-   Widevine maya.FlagString
-   Proxy    maya.FlagString
-
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi_id   maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
-   use_proxy maya.FlagBool
-
-   cache maya.Cache
 }
