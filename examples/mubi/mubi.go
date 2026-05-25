@@ -22,7 +22,37 @@ type client struct {
    mubi      maya.FlagInt
 }
 
-///
+func (c *client) do_address_season() error {
+   slug := path.Base(c.Address.Value)
+   episodes, err := mubi.FetchEpisodes(slug, int(c.season))
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
+func (c *client) do_use_proxy() error {
+   var proxy SetProxy
+   err := c.cache.Decode(&proxy)
+   if err != nil {
+      return err
+   }
+   return maya.SetProxy(string(proxy))
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
 
 func (c *client) do() error {
    flags := maya.FlagSet{
@@ -69,8 +99,6 @@ func (c *client) do() error {
 }
 
 type SetProxy string
-
-///
 
 func (c *client) do_link_code() error {
    link_code, err := mubi.FetchLinkCode()
@@ -140,36 +168,4 @@ func (c *client) do_mubi() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-func (c *client) do_address_season() error {
-   slug := path.Base(c.Address.Value)
-   episodes, err := mubi.FetchEpisodes(slug, c.Season.Value)
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func (c *client) do_use_proxy() error {
-   var proxy SetProxy
-   err := c.cache.Decode(&proxy)
-   if err != nil {
-      return err
-   }
-   return maya.SetProxy(string(proxy))
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
