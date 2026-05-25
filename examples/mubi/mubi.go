@@ -34,10 +34,10 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "set-proxy", Value: &c.Proxy},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "link-code", Value: &c.link_code},
       {Name: "session", Value: &c.session},
-      {Name: "address", Value: &c.address},
+      {Name: "address", Value: &c.address, Usage: "film or series URL"},
       {Name: "season", Value: &c.season, Needs: "address"},
       {Name: "mubi-id", Value: &c.mubi_id},
       {Name: "dash-id", Value: &c.dash},
