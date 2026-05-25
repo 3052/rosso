@@ -16,6 +16,143 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+func GetMedia(showId int) (*Media, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "rte-api.bellmedia.ca",
+      Path:   "/graphql",
+   }
+
+   headers := map[string]string{
+      // {"platform":"platform_web"}
+      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
+   }
+
+   bodyMap := map[string]interface{}{
+      "query": get_showpage,
+      "variables": map[string]interface{}{
+         "ids": []string{strconv.Itoa(showId)},
+         "sessionContext": map[string]interface{}{
+            "userLanguage": "EN",
+            "userMaturity": "ADULT",
+         },
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Data struct {
+         Medias []Media `json:"medias"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Data.Medias[0], nil
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+/*
+https://crave.ca/en/movie/anaconda-2025-59881
+https://crave.ca/en/play/anaconda-2025-3300246
+https://crave.ca/movie/anaconda-2025-59881
+https://crave.ca/play/anaconda-2025-3300246
+https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
+*/
+func ParseMedia(rawUrl string) (*Media, error) {
+   parsedUrl, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+   // Split the path directly.
+   parts := strings.Split(parsedUrl.Path, "/")
+   if len(parts) < 3 {
+      return nil, errors.New("invalid URL path format")
+   }
+   // Anchor the URL by looking for the explicit media type
+   var typePart string
+   for _, part := range parts {
+      if part == "movie" || part == "play" {
+         typePart = part
+         break
+      }
+   }
+   if typePart == "" {
+      return nil, errors.New("missing media type (movie/play) in URL")
+   }
+   // Safely grab the last segment (the slug containing the ID)
+   lastPart := parts[len(parts)-1]
+   // Find the last dash to extract the ID
+   dashIdx := strings.LastIndex(lastPart, "-")
+   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
+      return nil, errors.New("no ID found at the end of the URL")
+   }
+   idStr := lastPart[dashIdx+1:]
+   // Convert extracted string to integer
+   id, err := strconv.Atoi(idStr)
+   if err != nil {
+      return nil, fmt.Errorf("invalid ID format: %w", err)
+   }
+   // Populate struct based on the anchored type
+   media_data := &Media{}
+   switch typePart {
+   case "movie":
+      media_data.Id = id
+   case "play":
+      media_data.FirstContent.Id = id
+   }
+   return media_data, nil
+}
+
+func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "playback.rte-api.bellmedia.ca",
+      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
+   }
+
+   headers := map[string]string{
+      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
+      "authorization":       "Bearer " + token.AccessToken,
+      "x-playback-language": "EN",
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playback
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Error != "" {
+      return nil, errors.New(result.Error)
+   }
+   return &result, nil
+}
+
+type Playback struct {
+   ContentId      int            `json:"contentId,string"`
+   ContentPackage ContentPackage `json:"contentPackage"`
+   DestinationId  int            `json:"destinationId"`
+   Error          string         // 2026-05-03
+}
+
 type Profile struct {
    Id                string   `json:"id"`
    AccountId         string   `json:"accountId"`
@@ -321,141 +458,4 @@ type LocalizedUrl struct {
 
 type Logos struct {
    Circle Circle `json:"circle"`
-}
-
-func GetMedia(showId int) (*Media, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "rte-api.bellmedia.ca",
-      Path:   "/graphql",
-   }
-
-   headers := map[string]string{
-      // {"platform":"platform_web"}
-      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
-   }
-
-   bodyMap := map[string]interface{}{
-      "query": get_showpage,
-      "variables": map[string]interface{}{
-         "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]interface{}{
-            "userLanguage": "EN",
-            "userMaturity": "ADULT",
-         },
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Data struct {
-         Medias []Media `json:"medias"`
-      } `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Data.Medias[0], nil
-}
-
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
-/*
-https://crave.ca/en/movie/anaconda-2025-59881
-https://crave.ca/en/play/anaconda-2025-3300246
-https://crave.ca/movie/anaconda-2025-59881
-https://crave.ca/play/anaconda-2025-3300246
-https://crave.ca/play/heated-rivalry/ill-believe-in-anything-s1e5-3233873
-*/
-func ParseMedia(rawUrl string) (*Media, error) {
-   parsedUrl, err := url.Parse(rawUrl)
-   if err != nil {
-      return nil, err
-   }
-   // Split the path directly.
-   parts := strings.Split(parsedUrl.Path, "/")
-   if len(parts) < 3 {
-      return nil, errors.New("invalid URL path format")
-   }
-   // Anchor the URL by looking for the explicit media type
-   var typePart string
-   for _, part := range parts {
-      if part == "movie" || part == "play" {
-         typePart = part
-         break
-      }
-   }
-   if typePart == "" {
-      return nil, errors.New("missing media type (movie/play) in URL")
-   }
-   // Safely grab the last segment (the slug containing the ID)
-   lastPart := parts[len(parts)-1]
-   // Find the last dash to extract the ID
-   dashIdx := strings.LastIndex(lastPart, "-")
-   if dashIdx == -1 || dashIdx == len(lastPart)-1 {
-      return nil, errors.New("no ID found at the end of the URL")
-   }
-   idStr := lastPart[dashIdx+1:]
-   // Convert extracted string to integer
-   id, err := strconv.Atoi(idStr)
-   if err != nil {
-      return nil, fmt.Errorf("invalid ID format: %w", err)
-   }
-   // Populate struct based on the anchored type
-   media_data := &Media{}
-   switch typePart {
-   case "movie":
-      media_data.Id = id
-   case "play":
-      media_data.FirstContent.Id = id
-   }
-   return media_data, nil
-}
-
-func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "playback.rte-api.bellmedia.ca",
-      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
-   }
-
-   headers := map[string]string{
-      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
-      "authorization":       "Bearer " + token.AccessToken,
-      "x-playback-language": "EN",
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Playback
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Error != "" {
-      return nil, errors.New(result.Error)
-   }
-   return &result, nil
-}
-
-type Playback struct {
-   ContentId      int            `json:"contentId,string"`
-   ContentPackage ContentPackage `json:"contentPackage"`
-   DestinationId  int            `json:"destinationId"`
-   Error          string         // 2026-05-03
 }

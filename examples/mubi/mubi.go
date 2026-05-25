@@ -9,21 +9,6 @@ import (
    "path"
 )
 
-type client struct {
-   Widevine maya.FlagString
-   Proxy    maya.FlagString
-
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi      maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
-   use_proxy maya.FlagBool
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
@@ -40,7 +25,7 @@ func (c *client) do() error {
       {Name: "session", Value: &c.session},
       {Name: "address", Value: &c.address},
       {Name: "season", Value: &c.season, Needs: "address"},
-      {Name: "mubi-id", Value: &c.mubi},
+      {Name: "mubi-id", Value: &c.mubi_id},
       {Name: "use-proxy", Value: &c.use_proxy, Needs: "mubi-id"},
       {Name: "dash-id", Value: &c.dash},
    }
@@ -64,16 +49,16 @@ func (c *client) do() error {
    if c.session {
       return c.do_session()
    }
-   if flags.IsSet(&c.address) {
-      if flags.IsSet(&c.season) {
+   if c.address != "" {
+      if c.season >= 1 {
          return c.do_address_season()
       }
       return c.do_address()
    }
-   if flags.IsSet(&c.mubi) {
+   if c.mubi_id >= 1 {
       return c.do_mubi()
    }
-   if flags.IsSet(&c.dash) {
+   if c.dash != "" {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "mubi")
@@ -141,11 +126,11 @@ func (c *client) do_mubi() error {
    if err != nil {
       return err
    }
-   err = session.FetchViewing(int(c.mubi))
+   err = session.FetchViewing(int(c.mubi_id))
    if err != nil {
       return err
    }
-   secure_url, err := session.FetchSecureUrl(int(c.mubi))
+   secure_url, err := session.FetchSecureUrl(int(c.mubi_id))
    if err != nil {
       return err
    }
@@ -169,4 +154,19 @@ func (c *client) do_address_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+type client struct {
+   Widevine maya.FlagString
+   Proxy    maya.FlagString
+
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+   use_proxy maya.FlagBool
+
+   cache maya.Cache
 }
