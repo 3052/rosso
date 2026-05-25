@@ -10,58 +10,67 @@ import (
 )
 
 type client struct {
-   cache          maya.Cache
-   WidevineFolder WidevineFolder
-   SetProxy       maya.Flag[string]
-   LinkCode       maya.Flag[bool]
-   Session        maya.Flag[bool]
-   Address        maya.Flag[string]
-   Season         maya.Flag[int] `depends:"Address"`
-   MubiId         maya.Flag[int]
-   UseProxy       maya.Flag[bool] `depends:"MubiId"`
-   DashId         maya.Flag[string]
+   cache maya.Cache
+
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   proxy     maya.FlagString
+   season    maya.FlagInt
+   session   maya.FlagBool
+   widevine  maya.FlagString
+   mubi      maya.FlagInt
 }
 
+///
+
 func (c *client) do() error {
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.widevine},
+      {Name: "proxy", Value: &c.proxy},
+      {Name: "link-code", Value: &c.link_code},
+      {Name: "session", Value: &c.session},
+      {Name: "address", Value: &c.address},
+      {Name: "season", Value: &c.season, Needs: "address"},
+      {Name: "mubi-id", Value: &c.mubi},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
+   if flags.IsSet(&c.widevine) {
       return c.cache.Encode(c.WidevineFolder)
    }
-   if c.SetProxy.Set {
+   if flags.IsSet(&c.proxy) {
       return c.cache.Encode(SetProxy(c.SetProxy.Value))
    }
-   if c.UseProxy.Set {
-      if err := c.do_use_proxy(); err != nil {
-         return err
-      }
-   }
-   if c.LinkCode.Set {
+   if c.link_code {
       return c.do_link_code()
    }
-   if c.Session.Set {
+   if c.session {
       return c.do_session()
    }
-   if c.Address.Set {
-      if c.Season.Set {
+   if flags.IsSet(&c.address) {
+      if flags.IsSet(&c.season) {
          return c.do_address_season()
       }
       return c.do_address()
    }
-   if c.MubiId.Set {
-      return c.do_mubi_id()
+   if flags.IsSet(&c.mubi) {
+      return c.do_mubi()
    }
-   if c.DashId.Set {
-      return c.do_dash_id()
+   if flags.IsSet(&c.dash) {
+      return c.do_dash()
    }
-   return maya.FormatFlags(os.Stderr, "mubi", c)
+   return flags.Usage(os.Stderr, "mubi")
 }
 
 type SetProxy string
+
+///
 
 func (c *client) do_link_code() error {
    link_code, err := mubi.FetchLinkCode()
@@ -95,9 +104,7 @@ func (c *client) do_address() error {
    return nil
 }
 
-///
-
-func (c *client) do_dash_id() error {
+func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       session  mubi.Session
@@ -114,7 +121,7 @@ func (c *client) do_dash_id() error {
    })
 }
 
-func (c *client) do_mubi_id() error {
+func (c *client) do_mubi() error {
    var session mubi.Session
    err := c.cache.Decode(&session)
    if err != nil {
@@ -166,5 +173,3 @@ func main() {
       log.Fatal(err)
    }
 }
-
-type WidevineFolder maya.Flag[string]
