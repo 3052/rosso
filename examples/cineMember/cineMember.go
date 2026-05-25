@@ -7,33 +7,13 @@ import (
    "os"
 )
 
-type client struct {
-   cache    maya.Cache
-   Email    maya.Flag[string] `depends:"Password"`
-   Password maya.Flag[string] `depends:"Email"`
-   Address  maya.Flag[string]
-   DashId   maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/cineMember"); err != nil {
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
       return err
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Address.Set {
-      return c.do_address()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "cineMember", c)
+   return maya.DownloadDash(string(c.dash), &manifest, nil)
 }
 
 func main() {
@@ -44,25 +24,52 @@ func main() {
    }
 }
 
+type client struct {
+   email    maya.FlagString
+   password maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do_email_password() error {
    phpSessId, err := cineMember.GetPhpSessId()
    if err != nil {
       return err
    }
-   err = cineMember.FetchLogin(phpSessId, c.Email.Value, c.Password.Value)
+   err = cineMember.FetchLogin(phpSessId, string(c.email), string(c.password))
    if err != nil {
       return err
    }
    return c.cache.Encode(phpSessId)
 }
 
-func (c *client) do_dash_id() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
-   if err != nil {
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/cineMember"); err != nil {
       return err
    }
-   return maya.DownloadDash(c.DashId.Value, &manifest, nil)
+   flags := maya.FlagSet{
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "address", Value: &c.address},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   if c.email != "" {
+      if c.password != "" {
+         return c.do_email_password()
+      }
+   }
+   if c.address != "" {
+      return c.do_address()
+   }
+   if c.dash != "" {
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "cineMember")
 }
 
 func (c *client) do_address() error {
@@ -71,7 +78,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   id, err := cineMember.FetchId(c.Address.Value)
+   id, err := cineMember.FetchId(string(c.address))
    if err != nil {
       return err
    }
