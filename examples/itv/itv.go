@@ -8,6 +8,22 @@ import (
    "os"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest   maya.Manifest
+      media_file itv.MediaFile
+   )
+   err := c.cache.Decode(&manifest, &media_file)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: media_file.FetchKeyService,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -24,6 +40,22 @@ type client struct {
    dash     maya.FlagString
 
    cache maya.Cache
+}
+
+func (c *client) do_address() error {
+   titles, err := itv.FetchTitles(
+      itv.ParseLegacyId(string(c.address)),
+   )
+   if err != nil {
+      return err
+   }
+   for i, title := range titles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&title)
+   }
+   return nil
 }
 
 func (c *client) do() error {
@@ -57,24 +89,8 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "itv")
 }
 
-///
-
-func (c *client) do_address() error {
-   titles, err := itv.FetchTitles(itv.ParseLegacyId(c.Address.Value))
-   if err != nil {
-      return err
-   }
-   for i, title := range titles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&title)
-   }
-   return nil
-}
-
 func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(c.Playlist.Value)
+   playlist, err := itv.FetchWidevine(string(c.playlist))
    if err != nil {
       return err
    }
@@ -87,21 +103,4 @@ func (c *client) do_playlist() error {
       return err
    }
    return c.cache.Encode(manifest, media_file)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest   maya.Manifest
-      media_file itv.MediaFile
-      widevine   WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &media_file, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: media_file.FetchKeyService,
-   })
 }
