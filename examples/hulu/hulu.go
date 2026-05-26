@@ -7,6 +7,22 @@ import (
    "os"
 )
 
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      playlist hulu.Playlist
+   )
+   err := c.cache.Decode(&manifest, &playlist)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: playlist.FetchPlayReady,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -15,17 +31,23 @@ func main() {
    }
 }
 
-///
-
 type client struct {
    PlayReady maya.FlagString
 
-   Email    maya.Flag[string] `depends:"Password"`
-   Password maya.Flag[string] `depends:"Email"`
-   Address  maya.Flag[string]
-   DashId   maya.Flag[string]
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
 
    cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   device, err := hulu.FetchDevice(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(device)
 }
 
 func (c *client) do() error {
@@ -39,25 +61,29 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "address", Value: &c.address},
+      {Name: "dash-id", Value: &c.dash},
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+   if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if c.PlayReadyFolder.Set {
-      return c.cache.Encode(c.PlayReadyFolder)
+   if flags.IsSet(&c.PlayReady) {
+      return c.cache.Encode(c)
    }
-   if c.Email.Set {
-      if c.Password.Set {
+   if c.email != "" {
+      if c.password != "" {
          return c.do_email_password()
       }
    }
-   if c.Address.Set {
+   if c.address != "" {
       return c.do_address()
    }
-   if c.DashId.Set {
-      return c.do_dash_id()
+   if c.dash != "" {
+      return c.do_dash()
    }
-   return maya.FormatFlags(os.Stderr, "hulu", c)
+   return flags.Usage(os.Stderr, "hulu")
 }
 
 func (c *client) do_address() error {
@@ -70,7 +96,9 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   deep_link, err := device.DeepLink(hulu.ParseId(c.Address.Value))
+   deep_link, err := device.DeepLink(
+      hulu.ParseId(string(c.address)),
+   )
    if err != nil {
       return err
    }
@@ -83,29 +111,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, playlist)
-}
-
-func (c *client) do_email_password() error {
-   device, err := hulu.FetchDevice(c.Email.Value, c.Password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(device)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest  maya.Manifest
-      playReady PlayReadyFolder
-      playlist  hulu.Playlist
-   )
-   err := c.cache.Decode(&manifest, &playReady, &playlist)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  playReady.Value,
-      Drm:     maya.DrmPlayReady,
-      License: playlist.FetchPlayReady,
-   })
 }
