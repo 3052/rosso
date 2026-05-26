@@ -8,6 +8,85 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/disney"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      if !os.IsNotExist(err) {
+         return err
+      }
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "email", Value: &c.Email},
+      {Name: "passcode", Value: &c.passcode},
+      {Name: "profile-id", Value: &c.profile},
+      {Name: "refresh", Value: &c.refresh},
+      {Name: "address", Value: &c.address},
+      {Name: "season-id", Value: &c.season},
+      {Name: "media-id", Value: &c.media},
+      {Name: "hls-id", Value: &c.hls},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.PlayReady):
+      return c.cache.Encode(c)
+   case flags.IsSet(&c.Email):
+      return c.do_email()
+   case c.passcode != "":
+      return c.do_passcode()
+   case c.profile != "":
+      return c.do_profile()
+   case bool(c.refresh):
+      return c.do_refresh()
+   case c.address != "":
+      return c.do_address()
+   case c.season != "":
+      return c.do_season()
+   case c.media != "":
+      return c.do_media()
+   case c.hls != "":
+      return c.do_hls()
+   }
+   return flags.Usage(os.Stderr, "disney")
+}
+
+func (c *client) do_media() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   stream, err := token.FetchStream(string(c.media))
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
+}
+
+func (c *client) do_hls() error {
+   var (
+      manifest maya.Manifest
+      token    disney.Token
+   )
+   err := c.cache.Decode(&manifest, &token)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadHls(string(c.hls), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: token.FetchPlayReady,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -67,61 +146,13 @@ func (c *client) do_passcode() error {
    return c.cache.Encode(token)
 }
 
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/disney"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
-   }
-   flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "email", Value: &c.Email},
-      {Name: "passcode", Value: &c.passcode},
-      {Name: "profile-id", Value: &c.profile},
-      {Name: "refresh", Value: &c.refresh},
-      {Name: "address", Value: &c.address},
-      {Name: "season-id", Value: &c.season},
-      {Name: "media-id", Value: &c.media},
-      {Name: "hls-id", Value: &c.hls},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.PlayReady):
-      return c.cache.Encode(c)
-   case flags.IsSet(&c.Email):
-      return c.do_email()
-   case c.passcode != "":
-      return c.do_passcode()
-   case c.profile != "":
-      return c.do_profile()
-   case c.refresh:
-      return c.do_refresh()
-   case c.address != "":
-      return c.do_address()
-   case c.season != "":
-      return c.do_season()
-   case c.media != "":
-      return c.do_media()
-   case c.hls != "":
-      return c.do_hls()
-   }
-   return flags.Usage(os.Stderr, "disney")
-}
-
-///
-
 func (c *client) do_profile() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   err = token.SwitchProfile(c.ProfileId.Value)
+   err = token.SwitchProfile(string(c.profile))
    if err != nil {
       return err
    }
@@ -142,7 +173,7 @@ func (c *client) do_refresh() error {
 }
 
 func (c *client) do_address() error {
-   entity_id, err := disney.GetEntityId(c.Address.Value)
+   entity_id, err := disney.GetEntityId(string(c.address))
    if err != nil {
       return err
    }
@@ -168,44 +199,10 @@ func (c *client) do_season() error {
    if err != nil {
       return err
    }
-   season, err := token.FetchSeason(c.SeasonId.Value)
+   season, err := token.FetchSeason(string(c.season))
    if err != nil {
       return err
    }
    fmt.Println(season)
    return nil
-}
-
-func (c *client) do_media() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(c.MediaId.Value)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
-}
-
-func (c *client) do_hls() error {
-   var (
-      manifest  maya.Manifest
-      playReady PlayReadyFolder
-      token     disney.Token
-   )
-   err := c.cache.Decode(&manifest, &playReady, &token)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadHls(c.HlsId.Value, &manifest, &maya.Options{
-      Device:  playReady.Value,
-      Drm:     maya.DrmPlayReady,
-      License: token.FetchPlayReady,
-   })
 }

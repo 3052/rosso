@@ -8,40 +8,6 @@ import (
    "os"
 )
 
-func (c *client) do_dash_id() error {
-   var (
-      manifest  maya.Manifest
-      playReady PlayReadyFolder
-      playback  hboMax.Playback
-   )
-   err := c.cache.Decode(&manifest, &playReady, &playback)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  playReady.Value,
-      Drm:     maya.DrmPlayReady,
-      License: playback.PlayReadyRequest,
-   })
-}
-
-func (c *client) do_edit_id() error {
-   var login hboMax.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   playback, err := hboMax.PlayReadyRequest(login.Token, c.EditId.Value)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(playback.GetManifest())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback)
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -49,6 +15,8 @@ func main() {
       log.Fatal(err)
    }
 }
+
+///
 
 func (c *client) do_initiate() error {
    st, err := hboMax.StRequest()
@@ -188,4 +156,38 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return maya.FormatFlags(os.Stderr, "hboMax", c)
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      manifest  maya.Manifest
+      playReady PlayReadyFolder
+      playback  hboMax.Playback
+   )
+   err := c.cache.Decode(&manifest, &playReady, &playback)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
+      Device:  playReady.Value,
+      Drm:     maya.DrmPlayReady,
+      License: playback.PlayReadyRequest,
+   })
+}
+
+func (c *client) do_edit_id() error {
+   var login hboMax.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   playback, err := hboMax.PlayReadyRequest(login.Token, c.EditId.Value)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(playback.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback)
 }
