@@ -11,6 +11,47 @@ import (
    "strings"
 )
 
+// request: Device
+func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOtp, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_authenticate_with_otp,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":    email,
+            "passcode": passcode,
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Data struct {
+         AuthenticateWithOtp AuthenticateWithOtp
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.AuthenticateWithOtp, nil
+}
+
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
@@ -265,47 +306,6 @@ func (t *Token) LoginWithActionGrant(actionGrant string) (*LoginWithActionGrant,
    }
    *t = result.Extensions.Sdk.Token
    return &result.Data.LoginWithActionGrant, nil
-}
-
-// request: Device
-func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOtp, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_authenticate_with_otp,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "email":    email,
-            "passcode": passcode,
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.api.edge.bamgrid.com",
-         Path:   "/v1/public/graphql",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         AuthenticateWithOtp AuthenticateWithOtp
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.AuthenticateWithOtp, nil
 }
 
 // request: Device

@@ -16,50 +16,19 @@ func main() {
    }
 }
 
-///
-
 type client struct {
-   PlayReadyFolder maya.Flag[string]
-   Email           maya.Flag[string]
-   Passcode        maya.Flag[string]
-   ProfileId       maya.Flag[string]
-   Refresh         maya.Flag[bool]
-   Address         maya.Flag[string]
-   SeasonId        maya.Flag[string]
-   MediaId         maya.Flag[string]
-   HlsId           maya.Flag[string]
+   PlayReady maya.FlagString
+   Email     maya.FlagString
+
+   address  maya.FlagString
+   hls      maya.FlagString
+   media    maya.FlagString
+   passcode maya.FlagString
+   profile  maya.FlagString
+   refresh  maya.FlagBool
+   season   maya.FlagString
 
    cache maya.Cache
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/disney"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.PlayReadyFolder.Set:
-      return c.cache.Encode(c.PlayReadyFolder)
-   case c.Email.Set:
-      return c.do_email()
-   case c.Passcode.Set:
-      return c.do_passcode()
-   case c.ProfileId.Set:
-      return c.do_profile_id()
-   case c.Refresh.Set:
-      return c.do_refresh()
-   case c.Address.Set:
-      return c.do_address()
-   case c.SeasonId.Set:
-      return c.do_season_id()
-   case c.MediaId.Set:
-      return c.do_media_id()
-   case c.HlsId.Set:
-      return c.do_hls_id()
-   }
-   return maya.FormatFlags(os.Stderr, "disney", c)
 }
 
 func (c *client) do_email() error {
@@ -67,24 +36,21 @@ func (c *client) do_email() error {
    if err != nil {
       return err
    }
-   request_otp, err := token.RequestOtp(c.Email.Value)
+   request_otp, err := token.RequestOtp(string(c.Email))
    if err != nil {
       return err
    }
    fmt.Println(request_otp)
-   return c.cache.Encode(c.Email, token)
+   return c.cache.Encode(c, token)
 }
 
 func (c *client) do_passcode() error {
-   var (
-      email_data Email
-      token      disney.Token
-   )
-   err := c.cache.Decode(&email_data, &token)
+   var token disney.Token
+   err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   otp, err := token.AuthenticateWithOtp(email_data.Value, c.Passcode.Value)
+   otp, err := token.AuthenticateWithOtp(string(c.Email), string(c.passcode))
    if err != nil {
       return err
    }
@@ -101,24 +67,55 @@ func (c *client) do_passcode() error {
    return c.cache.Encode(token)
 }
 
-func (c *client) do_hls_id() error {
-   var (
-      manifest  maya.Manifest
-      playReady PlayReadyFolder
-      token     disney.Token
-   )
-   err := c.cache.Decode(&manifest, &playReady, &token)
-   if err != nil {
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
    }
-   return maya.DownloadHls(c.HlsId.Value, &manifest, &maya.Options{
-      Device:  playReady.Value,
-      Drm:     maya.DrmPlayReady,
-      License: token.FetchPlayReady,
-   })
+   if err := c.cache.Decode(c); err != nil {
+      if !os.IsNotExist(err) {
+         return err
+      }
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "email", Value: &c.Email},
+      {Name: "passcode", Value: &c.passcode},
+      {Name: "profile-id", Value: &c.profile},
+      {Name: "refresh", Value: &c.refresh},
+      {Name: "address", Value: &c.address},
+      {Name: "season-id", Value: &c.season},
+      {Name: "media-id", Value: &c.media},
+      {Name: "hls-id", Value: &c.hls},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.PlayReady):
+      return c.cache.Encode(c)
+   case flags.IsSet(&c.Email):
+      return c.do_email()
+   case c.passcode != "":
+      return c.do_passcode()
+   case c.profile != "":
+      return c.do_profile()
+   case c.refresh:
+      return c.do_refresh()
+   case c.address != "":
+      return c.do_address()
+   case c.season != "":
+      return c.do_season()
+   case c.media != "":
+      return c.do_media()
+   case c.hls != "":
+      return c.do_hls()
+   }
+   return flags.Usage(os.Stderr, "disney")
 }
 
-func (c *client) do_profile_id() error {
+///
+
+func (c *client) do_profile() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
@@ -165,7 +162,7 @@ func (c *client) do_address() error {
    return nil
 }
 
-func (c *client) do_season_id() error {
+func (c *client) do_season() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
@@ -179,7 +176,7 @@ func (c *client) do_season_id() error {
    return nil
 }
 
-func (c *client) do_media_id() error {
+func (c *client) do_media() error {
    var token disney.Token
    err := c.cache.Decode(&token)
    if err != nil {
@@ -194,4 +191,21 @@ func (c *client) do_media_id() error {
       return err
    }
    return c.cache.Encode(manifest)
+}
+
+func (c *client) do_hls() error {
+   var (
+      manifest  maya.Manifest
+      playReady PlayReadyFolder
+      token     disney.Token
+   )
+   err := c.cache.Decode(&manifest, &playReady, &token)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadHls(c.HlsId.Value, &manifest, &maya.Options{
+      Device:  playReady.Value,
+      Drm:     maya.DrmPlayReady,
+      License: token.FetchPlayReady,
+   })
 }
