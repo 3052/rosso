@@ -8,6 +8,51 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/itv"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "address", Value: &c.address},
+      {Name: "playlist", Value: &c.playlist},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.Widevine):
+      return c.cache.Encode(c)
+   case c.address != "":
+      return c.do_address()
+   case c.playlist != "":
+      return c.do_playlist()
+   case c.dash != "":
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "itv")
+}
+
+func (c *client) do_playlist() error {
+   playlist, err := itv.FetchWidevine(string(c.playlist))
+   if err != nil {
+      return err
+   }
+   media_file, err := playlist.Get1080()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&media_file.Href.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, media_file)
+}
+
 func (c *client) do_dash() error {
    var (
       manifest   maya.Manifest
@@ -56,51 +101,4 @@ func (c *client) do_address() error {
       fmt.Println(&title)
    }
    return nil
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
-   }
-   flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "address", Value: &c.address},
-      {Name: "playlist", Value: &c.playlist},
-      {Name: "dash-id", Value: &c.dash},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.Widevine):
-      return c.cache.Encode(c)
-   case c.address != "":
-      return c.do_address()
-   case c.playlist != "":
-      return c.do_playlist()
-   case c.dash != "":
-      return c.do_dash()
-   }
-   return flags.Usage(os.Stderr, "itv")
-}
-
-func (c *client) do_playlist() error {
-   playlist, err := itv.FetchWidevine(string(c.playlist))
-   if err != nil {
-      return err
-   }
-   media_file, err := playlist.Get1080()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&media_file.Href.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, media_file)
 }

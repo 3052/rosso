@@ -7,57 +7,12 @@ import (
    "os"
 )
 
-func (c *client) do_dash() error {
-   var (
-      asset    molotov.Asset
-      manifest maya.Manifest
-   )
-   err := c.cache.Decode(&asset, &manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: asset.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_email_password() error {
-   auth, err := molotov.FetchAuth(string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(auth)
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/molotov"); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
@@ -113,4 +68,47 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(asset, auth, manifest)
+}
+
+func (c *client) do_dash() error {
+   var (
+      asset    molotov.Asset
+      manifest maya.Manifest
+   )
+   err := c.cache.Decode(&asset, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: asset.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Widevine maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   auth, err := molotov.FetchAuth(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(auth)
 }
