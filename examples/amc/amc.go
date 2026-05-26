@@ -8,6 +8,52 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/amc"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "refresh", Value: &c.refresh},
+      {Name: "series", Value: &c.series},
+      {Name: "season", Value: &c.season},
+      {Name: "episode-or-movie", Value: &c.episode_or_movie},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   if flags.IsSet(&c.Widevine) {
+      return c.cache.Encode(c)
+   }
+   if c.email != "" {
+      if c.password != "" {
+         return c.do_email_password()
+      }
+   }
+   if c.refresh {
+      return c.do_refresh()
+   }
+   if c.series >= 1 {
+      return c.do_series()
+   }
+   if c.season >= 1 {
+      return c.do_season()
+   }
+   if c.episode_or_movie >= 1 {
+      return c.do_episode_or_movie()
+   }
+   if c.dash != "" {
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "amc")
+}
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -140,52 +186,4 @@ func (c *client) do_episode_or_movie() error {
       return err
    }
    return c.cache.Encode(manifest, playback, source)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/amc"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
-   }
-   flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "email", Value: &c.email, Needs: "password"},
-      {Name: "password", Value: &c.password, Needs: "email"},
-      {Name: "refresh", Value: &c.refresh},
-      {Name: "series", Value: &c.series},
-      {Name: "season", Value: &c.season},
-      {Name: "episode-or-movie", Value: &c.episode_or_movie},
-      {Name: "dash-id", Value: &c.dash},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   if flags.IsSet(&c.Widevine) {
-      return c.cache.Encode(c)
-   }
-   if c.email != "" {
-      if c.password != "" {
-         return c.do_email_password()
-      }
-   }
-   if c.refresh {
-      return c.do_refresh()
-   }
-   if c.series >= 1 {
-      return c.do_series()
-   }
-   if c.season >= 1 {
-      return c.do_season()
-   }
-   if c.episode_or_movie >= 1 {
-      return c.do_episode_or_movie()
-   }
-   if c.dash != "" {
-      return c.do_dash()
-   }
-   return flags.Usage(os.Stderr, "amc")
 }

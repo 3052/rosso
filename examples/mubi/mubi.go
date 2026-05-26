@@ -9,28 +9,12 @@ import (
    "path"
 )
 
-type client struct {
-   Widevine maya.FlagString
-   Proxy    maya.FlagString
-
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi_id   maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
@@ -165,4 +149,18 @@ func (c *client) do_address_season() error {
       fmt.Println(episode)
    }
    return nil
+}
+
+type client struct {
+   Proxy    maya.FlagString
+   Widevine maya.FlagString
+
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+
+   cache maya.Cache
 }
