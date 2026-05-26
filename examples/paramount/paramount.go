@@ -7,6 +7,102 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/paramount"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "app", Value: &c.App, Usage: paramount.AppIds()},
+      {Name: "username", Value: &c.username, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "username"},
+      {Name: "content-id", Value: &c.ContentId},
+      {Name: "use-cookie", Value: &c.cookie, Needs: "content-id"},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   if flags.IsSet(&c.App) {
+      return c.cache.Encode(c)
+   }
+   if flags.IsSet(&c.PlayReady) {
+      return c.cache.Encode(c)
+   }
+   if c.username != "" {
+      if c.password != "" {
+         return c.do_username_password()
+      }
+   }
+   if flags.IsSet(&c.ContentId) {
+      return c.do_content_id()
+   }
+   if c.dash != "" {
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "paramount")
+}
+
+func (c *client) do_content_id() error {
+   app, err := paramount.GetApp(string(c.App))
+   if err != nil {
+      return err
+   }
+   var cbs_com *paramount.Cookie
+   if c.cookie {
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
+   }
+   session, err := app.FetchStreamingUrl(string(c.ContentId), cbs_com)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(c, manifest)
+}
+
+func (c *client) do_dash() error {
+   // 1. manifest
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   // 2. app
+   app, err := paramount.GetApp(string(c.App))
+   if err != nil {
+      return err
+   }
+   // 3. cookie
+   var cbs_com *paramount.Cookie
+   if c.cookie {
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
+   }
+   // 4. session
+   session, err := app.FetchPlayReady(string(c.ContentId), cbs_com)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: session.Fetch,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -38,100 +134,4 @@ func (c *client) do_username_password() error {
       return err
    }
    return c.cache.Encode(cbs_com)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/paramount"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
-   }
-   flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "cbs-app", Value: &c.CbsApp, Usage: paramount.AppIds()},
-      {Name: "username", Value: &c.username, Needs: "password"},
-      {Name: "password", Value: &c.password, Needs: "username"},
-      {Name: "content-id", Value: &c.ContentId},
-      {Name: "use-cookie", Value: &c.cookie, Needs: "content-id"},
-      {Name: "dash-id", Value: &c.dash},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   if flags.IsSet(&c.App) {
-      return c.cache.Encode(c)
-   }
-   if flags.IsSet(&c.PlayReady) {
-      return c.cache.Encode(c)
-   }
-   if c.username != "" {
-      if c.password != "" {
-         return c.do_username_password()
-      }
-   }
-   if flags.IsSet(&c.ContentId) {
-      return c.do_content_id()
-   }
-   if c.dash != "" {
-      return c.do_dash()
-   }
-   return flags.Usage(os.Stderr, "paramount")
-}
-
-///
-
-func (c *client) do_content_id() error {
-   var cbs_app paramount.CbsApp
-   err := c.cache.Decode(&cbs_app)
-   if err != nil {
-      return err
-   }
-   var cbs_com *paramount.Cookie
-   if c.UseCookie.Set {
-      cbs_com = &paramount.Cookie{}
-      err = c.cache.Decode(cbs_com)
-      if err != nil {
-         return err
-      }
-   }
-   session, err := cbs_app.FetchStreamingUrl(c.ContentId.Value, cbs_com)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(c.ContentId, manifest)
-}
-
-func (c *client) do_dash() error {
-   var (
-      cbs_app    paramount.CbsApp
-      content_id ContentId
-      manifest   maya.Manifest
-      playReady  PlayReadyFolder
-   )
-   err := c.cache.Decode(&cbs_app, &content_id, &manifest, &playReady)
-   if err != nil {
-      return err
-   }
-   var cbs_com *paramount.Cookie
-   if c.UseCookie.Set {
-      cbs_com = &paramount.Cookie{}
-      err = c.cache.Decode(cbs_com)
-      if err != nil {
-         return err
-      }
-   }
-   session, err := cbs_app.FetchPlayReady(content_id.Value, cbs_com)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  playReady.Value,
-      Drm:     maya.DrmPlayReady,
-      License: session.Fetch,
-   })
 }
