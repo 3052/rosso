@@ -8,6 +8,44 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/crave"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "username", Value: &c.username, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "username"},
+      {Name: "profile-id", Value: &c.profile},
+      {Name: "address", Value: &c.address},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   if flags.IsSet(&c.PlayReady) {
+      return c.cache.Encode(c)
+   }
+   if c.username != "" {
+      if c.password != "" {
+         return c.do_username_password()
+      }
+   }
+   if c.profile != "" {
+      return c.do_profile()
+   }
+   if c.address != "" {
+      return c.do_address()
+   }
+   if c.dash != "" {
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "crave")
+}
+
 func (c *client) do_dash() error {
    var (
       manifest      maya.Manifest
@@ -120,44 +158,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, playback)
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/crave"); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
-   }
-   flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "username", Value: &c.username, Needs: "password"},
-      {Name: "password", Value: &c.password, Needs: "username"},
-      {Name: "profile-id", Value: &c.profile},
-      {Name: "address", Value: &c.address},
-      {Name: "dash-id", Value: &c.dash},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   if flags.IsSet(&c.PlayReady) {
-      return c.cache.Encode(c)
-   }
-   if c.username != "" {
-      if c.password != "" {
-         return c.do_username_password()
-      }
-   }
-   if c.profile != "" {
-      return c.do_profile()
-   }
-   if c.address != "" {
-      return c.do_address()
-   }
-   if c.dash != "" {
-      return c.do_dash()
-   }
-   return flags.Usage(os.Stderr, "crave")
 }

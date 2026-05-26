@@ -8,57 +8,12 @@ import (
    "path"
 )
 
-func (c *client) do_dash() error {
-   var (
-      file     criterion.File
-      manifest maya.Manifest
-   )
-   err := c.cache.Decode(&file, &manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: file.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_email_password() error {
-   token, err := criterion.FetchToken(string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(token)
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/criterion"); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
@@ -116,4 +71,47 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(file, manifest, token)
+}
+
+func (c *client) do_dash() error {
+   var (
+      file     criterion.File
+      manifest maya.Manifest
+   )
+   err := c.cache.Decode(&file, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: file.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Widevine maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   token, err := criterion.FetchToken(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
 }
