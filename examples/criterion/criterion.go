@@ -8,6 +8,22 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var (
+      file     criterion.File
+      manifest maya.Manifest
+   )
+   err := c.cache.Decode(&file, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: file.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -27,12 +43,20 @@ type client struct {
    cache maya.Cache
 }
 
+func (c *client) do_email_password() error {
+   token, err := criterion.FetchToken(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/criterion"); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.ErrNotExist(err) {
+      if !os.IsNotExist(err) {
          return err
       }
    }
@@ -63,16 +87,6 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "criterion")
 }
 
-///
-
-func (c *client) do_email_password() error {
-   token, err := criterion.FetchToken(c.Email.Value, c.Password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(token)
-}
-
 func (c *client) do_address() error {
    var token criterion.Token
    err := c.cache.Decode(&token)
@@ -84,7 +98,7 @@ func (c *client) do_address() error {
       return err
    }
    files_href, err := criterion.FetchFilesHref(
-      token.AccessToken, path.Base(c.Address.Value),
+      token.AccessToken, path.Base(string(c.address)),
    )
    if err != nil {
       return err
@@ -102,21 +116,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(file, manifest, token)
-}
-
-func (c *client) do_dash() error {
-   var (
-      file     criterion.File
-      manifest maya.Manifest
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&file, &manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: file.FetchWidevine,
-   })
 }
