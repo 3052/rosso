@@ -7,57 +7,12 @@ import (
    "os"
 )
 
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      playlist hulu.Playlist
-   )
-   err := c.cache.Decode(&manifest, &playlist)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.PlayReady),
-      Drm:     maya.DrmPlayReady,
-      License: playlist.FetchPlayReady,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   PlayReady maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_email_password() error {
-   device, err := hulu.FetchDevice(string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(device)
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/hulu"); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
@@ -111,4 +66,47 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, playlist)
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      playlist hulu.Playlist
+   )
+   err := c.cache.Decode(&manifest, &playlist)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: playlist.FetchPlayReady,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   PlayReady maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   device, err := hulu.FetchDevice(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(device)
 }

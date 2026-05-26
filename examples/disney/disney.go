@@ -13,9 +13,7 @@ func (c *client) do() error {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
