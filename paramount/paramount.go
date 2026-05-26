@@ -18,25 +18,44 @@ import (
    "strings"
 )
 
-var CbsApps = []CbsApp{
-   {
-      Id:      "com.cbs.app",
-      Host:    "www.paramountplus.com",
-      Secret:  "7081400bd4143bf3",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.ca",
-      Host:    "www.paramountplus.com",
-      Secret:  "1c5d27627d71b420",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.tve",
-      Host:    "www.cbs.com",
-      Secret:  "cef32931dc01412e",
-      Version: "CBS 15.6.0",
-   },
+// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
+// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
+func (a *App) FetchCbsCom(username, password string) (*Cookie, error) {
+   at, err := get_at(a.Secret)
+   if err != nil {
+      return nil, err
+   }
+   body := url.Values{
+      "j_username": {username},
+      "j_password": {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme:   "https",
+         Host:     a.Host,
+         Path:     "/apps-api/v2.0/androidphone/auth/login.json",
+         RawQuery: url.Values{"at": {at}}.Encode(),
+      },
+      map[string]string{
+         "content-type": "application/x-www-form-urlencoded",
+         "user-agent":   "!", // randomly fails if this is missing
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   _, err = io.Copy(io.Discard, resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   for _, c := range resp.Cookies() {
+      if c.Name == "CBS_COM" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("CBS_COM cookie not present")
 }
 
 // ExtractDexHexBytes returns a set (map) of unique 16-character hex strings
@@ -74,25 +93,6 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-func (c *CbsApp) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
-   return c.fetch_session("xboxone", contentId, cbsCom)
-}
-
-func (c *CbsApp) FetchWidevine(contentId string, cbsCom *Cookie) (*Session, error) {
-   return c.fetch_session("androidphone", contentId, cbsCom)
-}
-
-func (c *CbsApp) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, error) {
-   result, err := c.fetch_session("androidphone", contentId, cbsCom)
-   if err != nil {
-      return nil, err
-   }
-   if result.StreamingUrl == nil {
-      return nil, errors.New("streamingUrl (MPD) is missing")
-   }
-   return result, nil
-}
-
 type Session struct {
    LsSession    string `json:"ls_session"`
    Message      string
@@ -100,8 +100,8 @@ type Session struct {
    Url          *Url // License Server
 }
 
-func (c *CbsApp) fetch_session(platform, contentId string, cbs_com *Cookie) (*Session, error) {
-   at, err := get_at(c.Secret)
+func (a *App) fetch_session(platform, contentId string, cbs_com *Cookie) (*Session, error) {
+   at, err := get_at(a.Secret)
    if err != nil {
       return nil, err
    }
@@ -114,7 +114,7 @@ func (c *CbsApp) fetch_session(platform, contentId string, cbs_com *Cookie) (*Se
    resp, err := maya.Get(
       &url.URL{
          Scheme: "https",
-         Host:   c.Host,
+         Host:   a.Host,
          Path:   fmt.Sprintf("/apps-api/v3.1/%s/irdeto-control/%s", platform, endpoint),
          RawQuery: url.Values{
             "at":        {at},
@@ -157,20 +157,23 @@ type Cookie struct {
    Value string
 }
 
-type CbsApp struct {
-   Id      string
-   Host    string
-   Secret  string
-   Version string
+func (a *App) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
+   return a.fetch_session("xboxone", contentId, cbsCom)
 }
 
-func GetCbsApp(id string) (*CbsApp, error) {
-   for _, app := range CbsApps {
-      if app.Id == id {
-         return &app, nil
-      }
+func (a *App) FetchWidevine(contentId string, cbsCom *Cookie) (*Session, error) {
+   return a.fetch_session("androidphone", contentId, cbsCom)
+}
+
+func (a *App) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, error) {
+   result, err := a.fetch_session("androidphone", contentId, cbsCom)
+   if err != nil {
+      return nil, err
    }
-   return nil, fmt.Errorf("CBS app not found %q", id)
+   if result.StreamingUrl == nil {
+      return nil, errors.New("streamingUrl (MPD) is missing")
+   }
+   return result, nil
 }
 
 var hexPattern = regexp.MustCompile(`\x00\x10([0-9a-f]{16})\x00`)
@@ -231,42 +234,50 @@ func (c *Cookie) String() string {
    return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
-// WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
-// IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
-func (c *CbsApp) FetchCbsCom(username, password string) (*Cookie, error) {
-   at, err := get_at(c.Secret)
-   if err != nil {
-      return nil, err
+type App struct {
+   Id      string
+   Host    string
+   Secret  string
+   Version string
+}
+
+var Apps = []App{
+   {
+      Id:      "com.cbs.app",
+      Host:    "www.paramountplus.com",
+      Secret:  "7081400bd4143bf3",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.ca",
+      Host:    "www.paramountplus.com",
+      Secret:  "1c5d27627d71b420",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.tve",
+      Host:    "www.cbs.com",
+      Secret:  "cef32931dc01412e",
+      Version: "CBS 15.6.0",
+   },
+}
+
+func AppIds() string {
+   var data strings.Builder
+   for i, each := range Apps {
+      if i >= 1 {
+         data.WriteByte(' ')
+      }
+      data.WriteString(each.Id)
    }
-   body := url.Values{
-      "j_username": {username},
-      "j_password": {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme:   "https",
-         Host:     c.Host,
-         Path:     "/apps-api/v2.0/androidphone/auth/login.json",
-         RawQuery: url.Values{"at": {at}}.Encode(),
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "user-agent":   "!", // randomly fails if this is missing
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   _, err = io.Copy(io.Discard, resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   for _, c := range resp.Cookies() {
-      if c.Name == "CBS_COM" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
+   return data.String()
+}
+
+func GetApp(id string) (*App, error) {
+   for _, each := range Apps {
+      if each.Id == id {
+         return &each, nil
       }
    }
-   return nil, errors.New("CBS_COM cookie not present")
+   return nil, fmt.Errorf("app not found %q", id)
 }

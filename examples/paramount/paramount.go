@@ -17,49 +17,29 @@ func main() {
 
 ///
 
-type PlayReadyFolder maya.Flag[string]
-
-type ContentId maya.Flag[string]
-
 type client struct {
-   cache           maya.Cache
-   CbsApp          maya.Flag[string] `usage:"com.cbs.app com.cbs.tve com.cbs.ca"`
-   PlayReadyFolder PlayReadyFolder
-   Username        maya.Flag[string] `depends:"Password"`
-   Password        maya.Flag[string] `depends:"Username"`
-   ContentId       ContentId
-   UseCookie       maya.Flag[bool] `depends:"ContentId"`
-   DashId          maya.Flag[string]
-}
+   PlayReady maya.FlagString
 
-func (c *client) do_content_id() error {
-   var cbs_app paramount.CbsApp
-   err := c.cache.Decode(&cbs_app)
-   if err != nil {
-      return err
-   }
-   var cbs_com *paramount.Cookie
-   if c.UseCookie.Set {
-      cbs_com = &paramount.Cookie{}
-      err = c.cache.Decode(cbs_com)
-      if err != nil {
-         return err
-      }
-   }
-   session, err := cbs_app.FetchStreamingUrl(c.ContentId.Value, cbs_com)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(c.ContentId, manifest)
+   CbsApp    maya.Flag[string] `usage:"com.cbs.app com.cbs.tve com.cbs.ca"`
+   Username  maya.Flag[string] `depends:"Password"`
+   Password  maya.Flag[string] `depends:"Username"`
+   ContentId maya.Flag[string]
+   UseCookie maya.Flag[bool] `depends:"ContentId"`
+   DashId    maya.Flag[string]
+
+   cache maya.Cache
 }
 
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/paramount"); err != nil {
       return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "cbs-app", Value: &c.CbsApp},
    }
    if err := maya.ParseFlags(os.Args[1:], c); err != nil {
       return err
@@ -133,4 +113,29 @@ func (c *client) do_username_password() error {
       return err
    }
    return c.cache.Encode(cbs_com)
+}
+
+func (c *client) do_content_id() error {
+   var cbs_app paramount.CbsApp
+   err := c.cache.Decode(&cbs_app)
+   if err != nil {
+      return err
+   }
+   var cbs_com *paramount.Cookie
+   if c.UseCookie.Set {
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
+   }
+   session, err := cbs_app.FetchStreamingUrl(c.ContentId.Value, cbs_com)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(c.ContentId, manifest)
 }
