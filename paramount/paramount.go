@@ -18,6 +18,54 @@ import (
    "strings"
 )
 
+type App struct {
+   Id      string
+   Host    string
+   Secret  string
+   Version string
+}
+
+var Apps = []App{
+   {
+      Id:      "com.cbs.app",
+      Host:    "www.paramountplus.com",
+      Secret:  "7081400bd4143bf3",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.ca",
+      Host:    "www.paramountplus.com",
+      Secret:  "1c5d27627d71b420",
+      Version: "Paramount+ 16.8.0",
+   },
+   {
+      Id:      "com.cbs.tve",
+      Host:    "www.cbs.com",
+      Secret:  "cef32931dc01412e",
+      Version: "CBS 15.6.0",
+   },
+}
+
+func AppIds() string {
+   var data strings.Builder
+   for i, each := range Apps {
+      if i >= 1 {
+         data.WriteByte(' ')
+      }
+      data.WriteString(each.Id)
+   }
+   return data.String()
+}
+
+func GetApp(id string) (*App, error) {
+   for _, each := range Apps {
+      if each.Id == id {
+         return &each, nil
+      }
+   }
+   return nil, fmt.Errorf("app not found %q", id)
+}
+
 // WARNING IF YOU RUN THIS TOO MANY TIMES YOU WILL GET AN IP BAN. HOWEVER THE BAN
 // IS ONLY FOR THE ANDROID CLIENT NOT WEB CLIENT
 func (a *App) FetchCbsCom(username, password string) (*Cookie, error) {
@@ -232,52 +280,4 @@ func pkcs7_pad(data []byte, block_size int) []byte {
 
 func (c *Cookie) String() string {
    return fmt.Sprintf("%v=%v", c.Name, c.Value)
-}
-
-type App struct {
-   Id      string
-   Host    string
-   Secret  string
-   Version string
-}
-
-var Apps = []App{
-   {
-      Id:      "com.cbs.app",
-      Host:    "www.paramountplus.com",
-      Secret:  "7081400bd4143bf3",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.ca",
-      Host:    "www.paramountplus.com",
-      Secret:  "1c5d27627d71b420",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
-      Id:      "com.cbs.tve",
-      Host:    "www.cbs.com",
-      Secret:  "cef32931dc01412e",
-      Version: "CBS 15.6.0",
-   },
-}
-
-func AppIds() string {
-   var data strings.Builder
-   for i, each := range Apps {
-      if i >= 1 {
-         data.WriteByte(' ')
-      }
-      data.WriteString(each.Id)
-   }
-   return data.String()
-}
-
-func GetApp(id string) (*App, error) {
-   for _, each := range Apps {
-      if each.Id == id {
-         return &each, nil
-      }
-   }
-   return nil, fmt.Errorf("app not found %q", id)
 }
