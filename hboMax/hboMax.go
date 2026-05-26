@@ -12,12 +12,7 @@ import (
    "strings"
 )
 
-var Markets = []string{
-   "amer",
-   "apac",
-   "emea",
-   "latam",
-}
+const Markets = "amer apac emea latam"
 
 func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
    values := url.Values{}
