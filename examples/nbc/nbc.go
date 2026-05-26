@@ -7,6 +7,19 @@ import (
    "os"
 )
 
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: nbc.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -29,9 +42,7 @@ func (c *client) do() error {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
-      if !os.IsNotExist(err) {
-         return err
-      }
+      return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
@@ -52,10 +63,8 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "nbc")
 }
 
-///
-
 func (c *client) do_address() error {
-   name, err := nbc.GetName(c.Address.Value)
+   name, err := nbc.GetName(string(c.address))
    if err != nil {
       return err
    }
@@ -72,20 +81,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: nbc.FetchWidevine,
-   })
 }
