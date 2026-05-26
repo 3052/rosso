@@ -8,6 +8,26 @@ import (
    "os"
 )
 
+func (c *client) do_dash() error {
+   var (
+      login         kanopy.Login
+      manifest      kanopy.Manifest
+      maya_manifest maya.Manifest
+   )
+   err := c.cache.Decode(&login, &manifest, &maya_manifest)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return kanopy.CreateLicense(&login, &manifest, body)
+   }
+   return maya.DownloadDash(string(c.dash), &maya_manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -33,6 +53,46 @@ func (c *client) do_email_password() error {
       return err
    }
    return c.cache.Encode(login)
+}
+
+func (c *client) do_address() error {
+   login := &kanopy.Login{}
+   err := c.cache.Decode(login)
+   if err != nil {
+      return err
+   }
+   video, err := kanopy.ParseVideo(string(c.address))
+   if err != nil {
+      return err
+   }
+   if video.VideoId == 0 {
+      video, err = kanopy.GetVideo(login, video.Alias)
+      if err != nil {
+         return err
+      }
+   }
+   memberships, err := kanopy.GetMemberships(login)
+   if err != nil {
+      return err
+   }
+   play, err := kanopy.CreatePlay(login, &memberships[0], video)
+   if err != nil {
+      return err
+   }
+   for _, caption := range play.Captions {
+      for _, file := range caption.Files {
+         fmt.Println(file.Url)
+      }
+   }
+   manifest, err := play.GetDash()
+   if err != nil {
+      return err
+   }
+   maya_manifest, err := maya.ListDash(&manifest.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, maya_manifest)
 }
 
 func (c *client) do() error {
@@ -69,67 +129,4 @@ func (c *client) do() error {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "kanopy")
-}
-
-///
-
-func (c *client) do_address() error {
-   login := &kanopy.Login{}
-   err := c.cache.Decode(login)
-   if err != nil {
-      return err
-   }
-   video, err := kanopy.ParseVideo(c.Address.Value)
-   if err != nil {
-      return err
-   }
-   if video.VideoId == 0 {
-      video, err = kanopy.GetVideo(login, video.Alias)
-      if err != nil {
-         return err
-      }
-   }
-   memberships, err := kanopy.GetMemberships(login)
-   if err != nil {
-      return err
-   }
-   play, err := kanopy.CreatePlay(login, &memberships[0], video)
-   if err != nil {
-      return err
-   }
-   for _, caption := range play.Captions {
-      for _, file := range caption.Files {
-         fmt.Println(file.Url)
-      }
-   }
-   manifest, err := play.GetDash()
-   if err != nil {
-      return err
-   }
-   maya_manifest, err := maya.ListDash(&manifest.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, maya_manifest)
-}
-
-func (c *client) do_dash() error {
-   var (
-      login         kanopy.Login
-      manifest      kanopy.Manifest
-      maya_manifest maya.Manifest
-      widevine      WidevineFolder
-   )
-   err := c.cache.Decode(&login, &manifest, &maya_manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return kanopy.CreateLicense(&login, &manifest, body)
-   }
-   return maya.DownloadDash(c.DashId.Value, &maya_manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
 }
