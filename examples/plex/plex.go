@@ -7,25 +7,6 @@ import (
    "os"
 )
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-///
-
-type client struct {
-   Widevine maya.FlagString
-
-   Address maya.Flag[string]
-   DashId  maya.Flag[string]
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/plex"); err != nil {
       return err
@@ -35,23 +16,25 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "address", Value: &c.address},
+      {Name: "dash-id", Value: &c.dash},
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+   if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
    switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(c.WidevineFolder)
-   case c.Address.Set:
+   case flags.IsSet(&c.Widevine):
+      return c.cache.Encode(c)
+   case c.address != "":
       return c.do_address()
-   case c.DashId.Set:
-      return c.do_dash_id()
+   case c.dash != "":
+      return c.do_dash()
    }
-   return maya.FormatFlags(os.Stderr, "plex", c)
+   return flags.Usage(os.Stderr, "plex")
 }
 
 func (c *client) do_address() error {
-   path, err := plex.ParsePath(c.Address.Value)
+   path, err := plex.ParsePath(string(c.address))
    if err != nil {
       return err
    }
@@ -78,23 +61,39 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, media, user)
 }
 
-func (c *client) do_dash_id() error {
+func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
       media    plex.Media
       user     plex.User
-      widevine WidevineFolder
    )
-   err := c.cache.Decode(&manifest, &media, &user, &widevine)
+   err := c.cache.Decode(&manifest, &media, &user)
    if err != nil {
       return err
    }
    license := func(body []byte) ([]byte, error) {
       return plex.AcquireWidevineLicense(&media, &user, body)
    }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,
    })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Widevine maya.FlagString
+
+   address maya.FlagString
+   dash    maya.FlagString
+
+   cache maya.Cache
 }

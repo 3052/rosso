@@ -9,6 +9,19 @@ import (
    "path"
 )
 
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: pluto.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -17,17 +30,21 @@ func main() {
    }
 }
 
-func (c *client) do_show_address() error {
-   series, err := pluto.FetchSeries(path.Base(c.ShowAddress.Value))
-   if err != nil {
-      return err
-   }
-   fmt.Println(&series.Vod[0])
-   return c.cache.Encode(series)
+type client struct {
+   Widevine maya.FlagString
+
+   movie   maya.FlagString
+   show    maya.FlagString
+   episode maya.FlagString
+   dash    maya.FlagString
+
+   cache maya.Cache
 }
 
-func (c *client) do_movie_address() error {
-   series, err := pluto.FetchSeries(path.Base(c.MovieAddress.Value))
+func (c *client) do_movie() error {
+   series, err := pluto.FetchSeries(
+      path.Base(string(c.movie)),
+   )
    if err != nil {
       return err
    }
@@ -38,13 +55,56 @@ func (c *client) do_movie_address() error {
    return c.cache.Encode(manifest)
 }
 
-func (c *client) do_episode_id() error {
+func (c *client) do_show() error {
+   series, err := pluto.FetchSeries(
+      path.Base(string(c.show)),
+   )
+   if err != nil {
+      return err
+   }
+   fmt.Println(&series.Vod[0])
+   return c.cache.Encode(series)
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/pluto"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "movie-address", Value: &c.movie},
+      {Name: "show-address", Value: &c.show},
+      {Name: "episode-id", Value: &c.episode},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.Widevine):
+      return c.cache.Encode(c)
+   case c.movie != "":
+      return c.do_movie()
+   case c.show != "":
+      return c.do_show()
+   case c.episode != "":
+      return c.do_episode()
+   case c.dash != "":
+      return c.do_dash()
+   }
+   return flags.Usage(os.Stderr, "pluto")
+}
+
+func (c *client) do_episode() error {
    var series pluto.Series
    err := c.cache.Decode(&series)
    if err != nil {
       return err
    }
-   episode, err := series.GetEpisodeUrl(c.EpisodeId.Value)
+   episode, err := series.GetEpisodeUrl(string(c.episode))
    if err != nil {
       return err
    }
@@ -53,53 +113,4 @@ func (c *client) do_episode_id() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-type WidevineFolder maya.Flag[string]
-
-type client struct {
-   cache          maya.Cache
-   WidevineFolder WidevineFolder
-   MovieAddress   maya.Flag[string]
-   ShowAddress    maya.Flag[string]
-   EpisodeId      maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/pluto"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(c.WidevineFolder)
-   case c.MovieAddress.Set:
-      return c.do_movie_address()
-   case c.ShowAddress.Set:
-      return c.do_show_address()
-   case c.EpisodeId.Set:
-      return c.do_episode_id()
-   case c.DashId.Set:
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "pluto", c)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      manifest maya.Manifest
-      widevine WidevineFolder
-   )
-   err := c.cache.Decode(&manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: pluto.FetchWidevine,
-   })
 }

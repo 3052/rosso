@@ -8,57 +8,6 @@ import (
    "os"
 )
 
-func (c *client) do_address() error {
-   address, err := rakuten.ParseAddress(c.Address.Value)
-   if err != nil {
-      return err
-   }
-   start, err := rakuten.FetchStart(address.MarketCode)
-   if err != nil {
-      return err
-   }
-   switch {
-   case address.IsMovie():
-      movie, err := rakuten.FetchMovie(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(movie)
-   case address.IsTvShow():
-      show, err := rakuten.FetchTvShow(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(show)
-   }
-   return c.cache.Encode(address, start)
-}
-
-func (c *client) do_season_id() error {
-   var start rakuten.Start
-   err := c.cache.Decode(&start)
-   if err != nil {
-      return err
-   }
-   season, err := rakuten.FetchSeason(
-      c.SeasonId.Value, start.Profile.Classification, start.Market,
-   )
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.Episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -66,6 +15,8 @@ func main() {
       log.Fatal(err)
    }
 }
+
+///
 
 func (c *client) do_audio_language() error {
    var (
@@ -146,4 +97,55 @@ func (c *client) do_dash_id() error {
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,
    })
+}
+
+func (c *client) do_address() error {
+   address, err := rakuten.ParseAddress(c.Address.Value)
+   if err != nil {
+      return err
+   }
+   start, err := rakuten.FetchStart(address.MarketCode)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      movie, err := rakuten.FetchMovie(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(movie)
+   case address.IsTvShow():
+      show, err := rakuten.FetchTvShow(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(show)
+   }
+   return c.cache.Encode(address, start)
+}
+
+func (c *client) do_season_id() error {
+   var start rakuten.Start
+   err := c.cache.Decode(&start)
+   if err != nil {
+      return err
+   }
+   season, err := rakuten.FetchSeason(
+      c.SeasonId.Value, start.Profile.Classification, start.Market,
+   )
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.Episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
 }
