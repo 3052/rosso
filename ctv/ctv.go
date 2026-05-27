@@ -23,6 +23,42 @@ func GetPath(urlData string) (string, error) {
    return parse.Path, nil
 }
 
+func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "capi.9c9media.com",
+         Path: fmt.Sprint(
+            "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
+            "/platforms/desktop/playback/contents/", a.AxisId,
+            "/contentPackages/", play.ContentPackages[0].Id,
+            "/manifest.mpd",
+         ),
+         RawQuery: "action=reference",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   data, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      var result struct {
+         Message string // 2026-05-07
+      }
+      err = json.Unmarshal(data, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return url.Parse(strings.Replace(string(data), "/best/", "/ultimate/", 1))
+}
+
 func Resolve(path string) (*ResolvedPath, error) {
    body, err := json.Marshal(map[string]any{
       "query": query_resolve_path,
@@ -66,41 +102,7 @@ func Resolve(path string) (*ResolvedPath, error) {
    return result.Data.ResolvedPath, nil
 }
 
-func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprint(
-            "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
-            "/platforms/desktop/playback/contents/", a.AxisId,
-            "/contentPackages/", play.ContentPackages[0].Id,
-            "/manifest.mpd",
-         ),
-         RawQuery: "action=reference",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   data, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      var result struct {
-         Message string // 2026-05-07
-      }
-      err = json.Unmarshal(data, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return url.Parse(strings.Replace(string(data), "/best/", "/ultimate/", 1))
-}
+///
 
 type Playback struct {
    ContentPackages []struct {
