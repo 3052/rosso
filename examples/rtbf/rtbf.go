@@ -15,6 +15,45 @@ func main() {
    }
 }
 
+///
+
+type client struct {
+   WidevineFolder maya.Flag[string]
+   Email          maya.Flag[string] `depends:"Password"`
+   Password       maya.Flag[string] `depends:"Email"`
+   Address        maya.Flag[string]
+   DashId         maya.Flag[string]
+
+   cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/rtbf"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   if c.WidevineFolder.Set {
+      return c.cache.Encode(c.WidevineFolder)
+   }
+   if c.Email.Set {
+      if c.Password.Set {
+         return c.do_email_password()
+      }
+   }
+   if c.Address.Set {
+      return c.do_address()
+   }
+   if c.DashId.Set {
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "rtbf", c)
+}
+
 func (c *client) do_email_password() error {
    account, err := rtbf.FetchAccount(c.Email.Value, c.Password.Value)
    if err != nil {
@@ -58,41 +97,6 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(entitlement, manifest)
-}
-
-type WidevineFolder maya.Flag[string]
-
-type client struct {
-   cache          maya.Cache
-   WidevineFolder WidevineFolder
-   Email          maya.Flag[string] `depends:"Password"`
-   Password       maya.Flag[string] `depends:"Email"`
-   Address        maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/rtbf"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(c.WidevineFolder)
-   }
-   if c.Email.Set {
-      if c.Password.Set {
-         return c.do_email_password()
-      }
-   }
-   if c.Address.Set {
-      return c.do_address()
-   }
-   if c.DashId.Set {
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "rtbf", c)
 }
 
 func (c *client) do_dash_id() error {
