@@ -7,6 +7,22 @@ import (
    "os"
 )
 
+func (c *client) do_dash() error {
+   var (
+      entitlement rtbf.Entitlement
+      manifest    maya.Manifest
+   )
+   err := c.cache.Decode(&entitlement, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: entitlement.FetchWidevine,
+   })
+}
+
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -15,16 +31,23 @@ func main() {
    }
 }
 
-///
-
 type client struct {
-   WidevineFolder maya.Flag[string]
-   Email          maya.Flag[string] `depends:"Password"`
-   Password       maya.Flag[string] `depends:"Email"`
-   Address        maya.Flag[string]
-   DashId         maya.Flag[string]
+   Widevine maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
 
    cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   account, err := rtbf.FetchAccount(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(account)
 }
 
 func (c *client) do() error {
@@ -34,32 +57,31 @@ func (c *client) do() error {
    if err := c.cache.Decode(c); err != nil {
       return c.cache.Encode(c)
    }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "address", Value: &c.address},
+      {Name: "dash-id", Value: &c.dash},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if c.WidevineFolder.Set {
-      return c.cache.Encode(c.WidevineFolder)
+   if flags.IsSet(&c.Widevine) {
+      return c.cache.Encode(c)
    }
-   if c.Email.Set {
-      if c.Password.Set {
+   if c.email != "" {
+      if c.password != "" {
          return c.do_email_password()
       }
    }
-   if c.Address.Set {
+   if c.address != "" {
       return c.do_address()
    }
-   if c.DashId.Set {
-      return c.do_dash_id()
+   if c.dash != "" {
+      return c.do_dash()
    }
-   return maya.FormatFlags(os.Stderr, "rtbf", c)
-}
-
-func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(c.Email.Value, c.Password.Value)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(account)
+   return flags.Usage(os.Stderr, "rtbf")
 }
 
 func (c *client) do_address() error {
@@ -68,7 +90,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   path, err := rtbf.GetPath(c.Address.Value)
+   path, err := rtbf.GetPath(string(c.address))
    if err != nil {
       return err
    }
@@ -97,21 +119,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(entitlement, manifest)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      entitlement rtbf.Entitlement
-      manifest    maya.Manifest
-      widevine    WidevineFolder
-   )
-   err := c.cache.Decode(&entitlement, &manifest, &widevine)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(c.DashId.Value, &manifest, &maya.Options{
-      Device:  widevine.Value,
-      Drm:     maya.DrmWidevine,
-      License: entitlement.FetchWidevine,
-   })
 }

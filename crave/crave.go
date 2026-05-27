@@ -16,6 +16,18 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+type Experience struct {
+   Id              string          `json:"id"`
+   Sku             string          `json:"sku"`
+   BrandId         string          `json:"brandId"`
+   DisplayName     string          `json:"displayName"`
+   ContentPolicies []ContentPolicy `json:"contentPolicies"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
+}
+
 func GetMedia(showId int) (*Media, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -418,11 +430,6 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
    return account, nil
 }
 
-type Circle struct {
-   Svg ImageSet `json:"svg"`
-   Png ImageSet `json:"png"`
-}
-
 type ContentPackage struct {
    DurationInSeconds int    `json:"durationInSeconds"`
    Id                int    `json:"id"`
@@ -432,30 +439,4 @@ type ContentPackage struct {
 
 type ContentPolicy struct {
    Sku string `json:"sku"`
-}
-
-type Experience struct {
-   Id              string          `json:"id"`
-   Sku             string          `json:"sku"`
-   BrandId         string          `json:"brandId"`
-   DisplayName     string          `json:"displayName"`
-   Logos           Logos           `json:"logos"`
-   ContentPolicies []ContentPolicy `json:"contentPolicies"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
-}
-
-type ImageSet struct {
-   Small LocalizedUrl `json:"small"`
-}
-
-type LocalizedUrl struct {
-   Fr string `json:"fr"`
-   En string `json:"en"`
-}
-
-type Logos struct {
-   Circle Circle `json:"circle"`
 }
