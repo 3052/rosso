@@ -11,6 +11,12 @@ import (
    "strings"
 )
 
+//go:embed resolvePath.gql
+var query_resolve_path string
+
+//go:embed axisContent.gql
+var query_axis_content string
+
 func FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(
       &url.URL{Scheme: "https", Host: "license.9c9media.ca", Path: "/widevine"},
@@ -155,6 +161,24 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
    return &result.Data.AxisContent, nil
 }
 
+type ResolvedPath struct {
+   LastSegment struct {
+      Content struct {
+         FirstPlayableContent *struct {
+            Id string
+         }
+         Id string
+      }
+   }
+}
+
+func (r *ResolvedPath) get_id() string {
+   if fpc := r.LastSegment.Content.FirstPlayableContent; fpc != nil {
+      return fpc.Id
+   }
+   return r.LastSegment.Content.Id
+}
+
 func Resolve(path string) (*ResolvedPath, error) {
    body, err := json.Marshal(map[string]any{
       "query": query_resolve_path,
@@ -197,29 +221,3 @@ func Resolve(path string) (*ResolvedPath, error) {
    }
    return result.Data.ResolvedPath, nil
 }
-
-///
-
-type ResolvedPath struct {
-   LastSegment struct {
-      Content struct {
-         FirstPlayableContent *struct {
-            Id string
-         }
-         Id string
-      }
-   }
-}
-
-func (r *ResolvedPath) get_id() string {
-   if fpc := r.LastSegment.Content.FirstPlayableContent; fpc != nil {
-      return fpc.Id
-   }
-   return r.LastSegment.Content.Id
-}
-
-//go:embed resolvePath.gql
-var query_resolve_path string
-
-//go:embed axisContent.gql
-var query_axis_content string
