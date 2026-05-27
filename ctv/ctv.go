@@ -11,6 +11,22 @@ import (
    "strings"
 )
 
+func FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{Scheme: "https", Host: "license.9c9media.ca", Path: "/widevine"},
+      map[string]string{"content-type": "application/x-protobuf"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 // https://ctv.ca/shows/friends/the-one-with-the-bullies-s2e21
 func GetPath(urlData string) (string, error) {
    parse, err := url.Parse(urlData)
@@ -21,6 +37,38 @@ func GetPath(urlData string) (string, error) {
       return "", errors.New("invalid URL: scheme is missing")
    }
    return parse.Path, nil
+}
+
+type AxisContent struct {
+   AxisId                int
+   AxisPlaybackLanguages []struct {
+      DestinationCode string
+   }
+}
+
+func (a *AxisContent) Playback() (*Playback, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "capi.9c9media.com",
+         Path: fmt.Sprintf(
+            "/destinations/%v/platforms/desktop/contents/%v",
+            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
+         ),
+         RawQuery: "$include=[ContentPackages]",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Playback{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
 }
 
 func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
@@ -57,6 +105,54 @@ func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
       return nil, errors.New(result.Message)
    }
    return url.Parse(strings.Replace(string(data), "/best/", "/ultimate/", 1))
+}
+
+type Playback struct {
+   ContentPackages []struct {
+      Id int
+   }
+}
+
+func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": query_axis_content,
+      "variables": map[string]string{
+         "id": r.get_id(),
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.ctv.ca",
+         Path:   "/space-graphql/apq/graphql",
+      },
+      // you need this for the first request, then can omit
+      map[string]string{"graphql-client-platform": "entpay_web"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         AxisContent AxisContent
+      }
+      Errors []struct {
+         Message string
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, errors.New(result.Errors[0].Message)
+   }
+   return &result.Data.AxisContent, nil
 }
 
 func Resolve(path string) (*ResolvedPath, error) {
@@ -104,12 +200,6 @@ func Resolve(path string) (*ResolvedPath, error) {
 
 ///
 
-type Playback struct {
-   ContentPackages []struct {
-      Id int
-   }
-}
-
 type ResolvedPath struct {
    LastSegment struct {
       Content struct {
@@ -133,93 +223,3 @@ var query_resolve_path string
 
 //go:embed axisContent.gql
 var query_axis_content string
-
-type AxisContent struct {
-   AxisId                int
-   AxisPlaybackLanguages []struct {
-      DestinationCode string
-   }
-}
-
-func (a *AxisContent) Playback() (*Playback, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprintf(
-            "/destinations/%v/platforms/desktop/contents/%v",
-            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
-         ),
-         RawQuery: "$include=[ContentPackages]",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Playback{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{Scheme: "https", Host: "license.9c9media.ca", Path: "/widevine"},
-      map[string]string{"content-type": "application/x-protobuf"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": query_axis_content,
-      "variables": map[string]string{
-         "id": r.get_id(),
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.ctv.ca",
-         Path:   "/space-graphql/apq/graphql",
-      },
-      // you need this for the first request, then can omit
-      map[string]string{"graphql-client-platform": "entpay_web"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         AxisContent AxisContent
-      }
-      Errors []struct {
-         Message string
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Message)
-   }
-   return &result.Data.AxisContent, nil
-}
