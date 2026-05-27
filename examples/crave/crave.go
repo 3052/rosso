@@ -8,6 +8,19 @@ import (
    "os"
 )
 
+type client struct {
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   password maya.FlagString
+   profile  maya.FlagString
+   username maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/crave"); err != nil {
       return err
@@ -17,6 +30,7 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "username", Value: &c.username, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "username"},
       {Name: "profile-id", Value: &c.profile},
@@ -28,6 +42,12 @@ func (c *client) do() error {
    }
    if flags.IsSet(&c.PlayReady) {
       return c.cache.Encode(c)
+   }
+   if flags.IsSet(&c.Proxy) {
+      return c.cache.Encode(c)
+   }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
    }
    if c.username != "" {
       if c.password != "" {
@@ -72,18 +92,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   PlayReady maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   password maya.FlagString
-   profile  maya.FlagString
-   username maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_username_password() error {
