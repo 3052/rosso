@@ -18,13 +18,6 @@ import (
    "strings"
 )
 
-type App struct {
-   Id      string
-   Host    string
-   Secret  string
-   Version string
-}
-
 var Apps = []App{
    {
       Id:      "com.cbs.app",
@@ -33,17 +26,24 @@ var Apps = []App{
       Version: "Paramount+ 16.8.0",
    },
    {
-      Id:      "com.cbs.ca",
-      Host:    "www.paramountplus.com",
-      Secret:  "1c5d27627d71b420",
-      Version: "Paramount+ 16.8.0",
-   },
-   {
       Id:      "com.cbs.tve",
       Host:    "www.cbs.com",
       Secret:  "cef32931dc01412e",
       Version: "CBS 15.6.0",
    },
+   {
+      Id:      "com.cbs.ca",
+      Host:    "www.paramountplus.com",
+      Secret:  "1c5d27627d71b420",
+      Version: "Paramount+ 16.8.0",
+   },
+}
+
+type App struct {
+   Id      string
+   Host    string
+   Secret  string
+   Version string
 }
 
 func AppIds() string {

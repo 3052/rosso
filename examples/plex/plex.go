@@ -15,6 +15,41 @@ func main() {
    }
 }
 
+///
+
+type client struct {
+   Widevine maya.FlagString
+
+   Address maya.Flag[string]
+   DashId  maya.Flag[string]
+
+   cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup("rosso/plex"); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+   }
+   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
+      return err
+   }
+   switch {
+   case c.WidevineFolder.Set:
+      return c.cache.Encode(c.WidevineFolder)
+   case c.Address.Set:
+      return c.do_address()
+   case c.DashId.Set:
+      return c.do_dash_id()
+   }
+   return maya.FormatFlags(os.Stderr, "plex", c)
+}
+
 func (c *client) do_address() error {
    path, err := plex.ParsePath(c.Address.Value)
    if err != nil {
@@ -41,33 +76,6 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, user)
-}
-
-type WidevineFolder maya.Flag[string]
-
-type client struct {
-   cache          maya.Cache
-   WidevineFolder WidevineFolder
-   Address        maya.Flag[string]
-   DashId         maya.Flag[string]
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup("rosso/plex"); err != nil {
-      return err
-   }
-   if err := maya.ParseFlags(os.Args[1:], c); err != nil {
-      return err
-   }
-   switch {
-   case c.WidevineFolder.Set:
-      return c.cache.Encode(c.WidevineFolder)
-   case c.Address.Set:
-      return c.do_address()
-   case c.DashId.Set:
-      return c.do_dash_id()
-   }
-   return maya.FormatFlags(os.Stderr, "plex", c)
 }
 
 func (c *client) do_dash_id() error {
