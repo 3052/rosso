@@ -9,6 +9,21 @@ import (
    "path"
 )
 
+type client struct {
+   Proxy    maya.FlagString
+   Widevine maya.FlagString
+
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+   threads   maya.FlagInt
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/mubi"); err != nil {
       return err
@@ -17,14 +32,15 @@ func (c *client) do() error {
       return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "proxy", Value: &c.Proxy},
+      {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "link-code", Value: &c.link_code},
       {Name: "session", Value: &c.session},
       {Name: "address", Value: &c.address, Usage: "film or series URL"},
       {Name: "season", Value: &c.season, Needs: "address"},
       {Name: "mubi-id", Value: &c.mubi_id},
       {Name: "dash-id", Value: &c.dash},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -59,38 +75,6 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "mubi")
 }
 
-func (c *client) do_link_code() error {
-   link_code, err := mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(link_code)
-   return c.cache.Encode(link_code)
-}
-
-func (c *client) do_session() error {
-   var link_code mubi.LinkCode
-   err := c.cache.Decode(&link_code)
-   if err != nil {
-      return err
-   }
-   session, err := link_code.FetchSession()
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
-func (c *client) do_address() error {
-   slug := path.Base(string(c.address))
-   film, err := mubi.FetchFilm(slug)
-   if err != nil {
-      return err
-   }
-   fmt.Println(film)
-   return nil
-}
-
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -101,9 +85,10 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: session.FetchWidevine,
-      Device:  string(c.Widevine),
+      Threads: int(c.threads),
    })
 }
 
@@ -151,16 +136,34 @@ func (c *client) do_address_season() error {
    return nil
 }
 
-type client struct {
-   Proxy    maya.FlagString
-   Widevine maya.FlagString
+func (c *client) do_link_code() error {
+   link_code, err := mubi.FetchLinkCode()
+   if err != nil {
+      return err
+   }
+   fmt.Println(link_code)
+   return c.cache.Encode(link_code)
+}
 
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi_id   maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
+func (c *client) do_session() error {
+   var link_code mubi.LinkCode
+   err := c.cache.Decode(&link_code)
+   if err != nil {
+      return err
+   }
+   session, err := link_code.FetchSession()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(session)
+}
 
-   cache maya.Cache
+func (c *client) do_address() error {
+   slug := path.Base(string(c.address))
+   film, err := mubi.FetchFilm(slug)
+   if err != nil {
+      return err
+   }
+   fmt.Println(film)
+   return nil
 }
