@@ -4,25 +4,8 @@
 
 1. FRANCE VPN
 2. molotov.tv
-3. try now (1st month at 0.99)
-4. e-mail
+3. e-mail
    - mail.tm
-5. password
-6. day
-7. month
-8. year
-9. sex
-10. subscribe
-11. continue
-12. molotov extended
-13. continue
-14. card number
-15. month
-16. year
-17. security code
-18. you agree that your subscription will start immediately and you waive the
-   legal right of withdrawal
-19. Essayer maintenant (try now)
 
 ## service info
 

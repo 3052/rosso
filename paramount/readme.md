@@ -1,56 +1,5 @@
 # Paramount+
 
-## paypal.com United Kingdom
-
-1. United Kingdom VPN
-2. address
-   - https://paramountplus.com/gb/movies
-      - if you go here it says free
-   - https://paramountplus.com/gb
-      - $2.99
-3. full name
-4. email
-5. password
-6. By pressing “Agree & Continue”, you confirm that you have read and agree to
-   the Terms of Use
-7. agree & continue
-8. continue
-9. premium
-   - select plan
-10. monthly
-   - continue
-11. paypal
-12. DELETE ALL PAYPAL COOKIES
-13. continue to paypal
-14. agree and continue
-15. buy now
-16. paypal.com/myaccount/autopay
-17. paramount
-18. stop paying with paypal
-19. stop paying with paypal (again)
-20. stop paying with paypal (again again)
-
-## paypal.com United States
-
-1. paramountplus.com
-2. get started
-3. paramount+ premium
-   - continue
-4. full name
-5. email
-6. password
-7. zip code
-8. birthdate
-9. gender
-10. agree & continue
-11. paypal
-12. continue to paypal
-13. agree and continue
-14. subscribe
-15. paypal.com/myaccount/autopay
-16. paramount
-17. stop paying with paypal
-
 ## How to get secret\_key?
 
 ~~~
