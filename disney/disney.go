@@ -55,6 +55,11 @@ type AuthenticateWithOtp struct {
    ActionGrant string
 }
 
+type Error struct {
+   Code        string // 2026-04-05
+   Description string // 2026-04-05
+}
+
 type Login struct {
    Account struct {
       Profiles []Profile
@@ -64,6 +69,25 @@ type Login struct {
 type LoginWithActionGrant struct {
    Account struct {
       Profiles []Profile
+   }
+}
+
+type Page struct {
+   Actions []struct {
+      InternalTitle string // movie
+   }
+   Containers []struct {
+      Seasons []struct { // series
+         Visuals struct {
+            Name string
+         }
+         Id string
+      }
+   }
+   Visuals struct {
+      Restriction struct {
+         Message string
+      }
    }
 }
 
@@ -107,263 +131,6 @@ type Season struct {
          InternalTitle string
       }
    }
-}
-
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
-}
-
-func (t *Token) assert(expected string) error {
-   if t.AccessTokenType != expected {
-      return errors.New("expected token type " + expected)
-   }
-   return nil
-}
-
-// request: Account
-func (t *Token) FetchPage(entity string) (*Page, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "disney.api.edge.bamgrid.com",
-         Path:     "/explore/v1.12/page/" + entity,
-         RawQuery: "limit=0",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Errors []Error // 2026-04-11
-         Page   Page
-      }
-      Errors []Error // 2026-05-03
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, &result.Errors[0]
-   }
-   if len(result.Data.Errors) >= 1 {
-      return nil, &result.Data.Errors[0]
-   }
-   return &result.Data.Page, nil
-}
-
-// request: Device
-func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOtp, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_authenticate_with_otp,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "email":    email,
-            "passcode": passcode,
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.api.edge.bamgrid.com",
-         Path:   "/v1/public/graphql",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         AuthenticateWithOtp AuthenticateWithOtp
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.AuthenticateWithOtp, nil
-}
-
-///
-
-// request: Account
-func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
-   if err := t.assert("Account"); err != nil {
-      return nil, err
-   }
-   playback_id, err := json.Marshal(map[string]string{
-      "mediaId": mediaId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "playback": map[string]any{
-         "attributes": map[string]any{
-            "assetInsertionStrategy": "SGAI",
-            "codecs": map[string]any{
-               "supportsMultiCodecMaster": true, // 4K
-               "video": []string{
-                  "h.264",
-                  "h.265",
-               },
-            },
-            "videoRanges": []string{"HDR10"},
-         },
-      },
-      "playbackId": playback_id,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.playback.edge.bamgrid.com",
-         // /v7/playback/ctr-high
-         // /v7/playback/tv-drm-ctr-h265-atmos
-         Path: "/v7/playback/ctr-regular",
-      },
-      map[string]string{
-         "authorization":           "Bearer " + t.AccessToken,
-         "content-type":            "application/json",
-         "x-application-version":   "",
-         "x-bamsdk-client-id":      "",
-         "x-bamsdk-platform":       "",
-         "x-bamsdk-version":        "",
-         "x-dss-feature-filtering": "true",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Stream struct {
-         Sources []struct {
-            Complete struct {
-               Url string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return url.Parse(result.Stream.Sources[0].Complete.Url)
-}
-
-// request: Device
-func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
-   if err := t.assert("Device"); err != nil {
-      return nil, err
-   }
-   body, err := json.Marshal(map[string]any{
-      "query": mutation_request_otp,
-      "variables": map[string]any{
-         "input": map[string]string{
-            "email":  email,
-            "reason": "Login",
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "disney.api.edge.bamgrid.com",
-         Path:   "/v1/public/graphql",
-      },
-      map[string]string{"authorization": "Bearer " + t.AccessToken},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         RequestOtp RequestOtp
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.RequestOtp, nil
-}
-
-func (p *Page) String() string {
-   var data strings.Builder
-   if len(p.Containers[0].Seasons) >= 1 {
-      var line bool
-      for _, seasonItem := range p.Containers[0].Seasons {
-         if line {
-            data.WriteString("\n\n")
-         } else {
-            line = true
-         }
-         data.WriteString("name: ")
-         data.WriteString(seasonItem.Visuals.Name)
-         data.WriteString("\nid: ")
-         data.WriteString(seasonItem.Id)
-      }
-   } else {
-      data.WriteString(p.Actions[0].InternalTitle)
-   }
-   return data.String()
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code: ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription: ")
-   data.WriteString(e.Description)
-   return data.String()
-}
-
-func (t *Token) String() string {
-   var data strings.Builder
-   data.WriteString("type: ")
-   data.WriteString(t.AccessTokenType)
-   data.WriteString("\naccess token: ")
-   data.WriteString(t.AccessToken)
-   if t.RefreshToken != "" {
-      data.WriteString("\nrefresh token: ")
-      data.WriteString(t.RefreshToken)
-   }
-   return data.String()
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name: ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid: ")
-   data.WriteString(p.Id)
-   return data.String()
 }
 
 // request: Account
@@ -678,26 +445,259 @@ func (t *Token) FetchPlayReady(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type Page struct {
-   Actions []struct {
-      InternalTitle string // movie
-   }
-   Containers []struct {
-      Seasons []struct { // series
-         Visuals struct {
-            Name string
-         }
-         Id string
-      }
-   }
-   Visuals struct {
-      Restriction struct {
-         Message string
-      }
-   }
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
 }
 
-type Error struct {
-   Code        string // 2026-04-05
-   Description string // 2026-04-05
+func (t *Token) assert(expected string) error {
+   if t.AccessTokenType != expected {
+      return errors.New("expected token type " + expected)
+   }
+   return nil
+}
+
+// request: Account
+func (t *Token) FetchPage(entity string) (*Page, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "disney.api.edge.bamgrid.com",
+         Path:     "/explore/v1.12/page/" + entity,
+         RawQuery: "limit=0",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Errors []Error // 2026-04-11
+         Page   Page
+      }
+      Errors []Error // 2026-05-03
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, &result.Errors[0]
+   }
+   if len(result.Data.Errors) >= 1 {
+      return nil, &result.Data.Errors[0]
+   }
+   return &result.Data.Page, nil
+}
+
+// request: Device
+func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOtp, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_authenticate_with_otp,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":    email,
+            "passcode": passcode,
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Data struct {
+         AuthenticateWithOtp AuthenticateWithOtp
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.AuthenticateWithOtp, nil
+}
+
+///
+
+// request: Account
+func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
+   if err := t.assert("Account"); err != nil {
+      return nil, err
+   }
+   playback_id, err := json.Marshal(map[string]string{
+      "mediaId": mediaId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "playback": map[string]any{
+         "attributes": map[string]any{
+            "assetInsertionStrategy": "SGAI",
+            "codecs": map[string]any{
+               "supportsMultiCodecMaster": true, // 4K
+               "video": []string{
+                  "h.264",
+                  "h.265",
+               },
+            },
+            "videoRanges": []string{"HDR10"},
+         },
+      },
+      "playbackId": playback_id,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.playback.edge.bamgrid.com",
+         // /v7/playback/ctr-high
+         // /v7/playback/tv-drm-ctr-h265-atmos
+         Path: "/v7/playback/ctr-regular",
+      },
+      map[string]string{
+         "authorization":           "Bearer " + t.AccessToken,
+         "content-type":            "application/json",
+         "x-application-version":   "",
+         "x-bamsdk-client-id":      "",
+         "x-bamsdk-platform":       "",
+         "x-bamsdk-version":        "",
+         "x-dss-feature-filtering": "true",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Stream struct {
+         Sources []struct {
+            Complete struct {
+               Url string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return url.Parse(result.Stream.Sources[0].Complete.Url)
+}
+
+// request: Device
+func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
+   if err := t.assert("Device"); err != nil {
+      return nil, err
+   }
+   body, err := json.Marshal(map[string]any{
+      "query": mutation_request_otp,
+      "variables": map[string]any{
+         "input": map[string]string{
+            "email":  email,
+            "reason": "Login",
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "disney.api.edge.bamgrid.com",
+         Path:   "/v1/public/graphql",
+      },
+      map[string]string{"authorization": "Bearer " + t.AccessToken},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         RequestOtp RequestOtp
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.RequestOtp, nil
+}
+
+func (p *Page) String() string {
+   var data strings.Builder
+   if len(p.Containers[0].Seasons) >= 1 {
+      var line bool
+      for _, seasonItem := range p.Containers[0].Seasons {
+         if line {
+            data.WriteString("\n\n")
+         } else {
+            line = true
+         }
+         data.WriteString("name: ")
+         data.WriteString(seasonItem.Visuals.Name)
+         data.WriteString("\nid: ")
+         data.WriteString(seasonItem.Id)
+      }
+   } else {
+      data.WriteString(p.Actions[0].InternalTitle)
+   }
+   return data.String()
+}
+
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code: ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription: ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
+func (t *Token) String() string {
+   var data strings.Builder
+   data.WriteString("type: ")
+   data.WriteString(t.AccessTokenType)
+   data.WriteString("\naccess token: ")
+   data.WriteString(t.AccessToken)
+   if t.RefreshToken != "" {
+      data.WriteString("\nrefresh token: ")
+      data.WriteString(t.RefreshToken)
+   }
+   return data.String()
+}
+
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name: ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid: ")
+   data.WriteString(p.Id)
+   return data.String()
 }
