@@ -12,6 +12,91 @@ import (
    "strings"
 )
 
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL: ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code: ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
+}
+
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *Cookie) (*Login, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "default.prd.api.hbomax.com",
+         Path:   "/authentication/linkDevice/login",
+      },
+      map[string]string{"cookie": st.String()},
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data struct {
+         Attributes Login
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+type Login struct {
+   Token string
+}
+
+func (p *Playback) GetManifest() *url.URL {
+   manifest := p.Fallback.Manifest.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
+   return &manifest
+}
+
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
+      map[string]string{"content-type": "text/xml"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func playback_request(token, edit_id, drm string) (*Playback, error) {
    body, err := json.Marshal(map[string]any{
       "editId":               edit_id,
@@ -103,23 +188,23 @@ type Playback struct {
    }
 }
 
-type Login struct {
-   Token string
+type Scheme struct {
+   LicenseUrl *Url
 }
 
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
+type Url struct {
+   Url url.URL
 }
 
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL: ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code: ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
 
 func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
@@ -391,87 +476,4 @@ func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
       return nil, err
    }
    return &result.Data.Attributes, nil
-}
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *Cookie) (*Login, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/authentication/linkDevice/login",
-      },
-      map[string]string{"cookie": st.String()},
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-type Scheme struct {
-   LicenseUrl *Url
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (p *Playback) GetManifest() *url.URL {
-   manifest := p.Fallback.Manifest.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
-   return &manifest
-}
-
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
-      map[string]string{"content-type": "text/xml"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
 }

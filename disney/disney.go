@@ -55,6 +55,15 @@ type AuthenticateWithOtp struct {
    ActionGrant string
 }
 
+func (e *Error) Error() string {
+   var data strings.Builder
+   data.WriteString("code: ")
+   data.WriteString(e.Code)
+   data.WriteString("\ndescription: ")
+   data.WriteString(e.Description)
+   return data.String()
+}
+
 type Error struct {
    Code        string // 2026-04-05
    Description string // 2026-04-05
@@ -89,6 +98,27 @@ type Page struct {
          Message string
       }
    }
+}
+
+func (p *Page) String() string {
+   var data strings.Builder
+   if len(p.Containers[0].Seasons) >= 1 {
+      var line bool
+      for _, seasonItem := range p.Containers[0].Seasons {
+         if line {
+            data.WriteString("\n\n")
+         } else {
+            line = true
+         }
+         data.WriteString("name: ")
+         data.WriteString(seasonItem.Visuals.Name)
+         data.WriteString("\nid: ")
+         data.WriteString(seasonItem.Id)
+      }
+   } else {
+      data.WriteString(p.Actions[0].InternalTitle)
+   }
+   return data.String()
 }
 
 func (p *Profile) String() string {
@@ -559,8 +589,6 @@ func (t *Token) AuthenticateWithOtp(email, passcode string) (*AuthenticateWithOt
    return &result.Data.AuthenticateWithOtp, nil
 }
 
-///
-
 // request: Account
 func (t *Token) FetchStream(mediaId string) (*url.URL, error) {
    if err := t.assert("Account"); err != nil {
@@ -670,34 +698,4 @@ func (t *Token) RequestOtp(email string) (*RequestOtp, error) {
       return nil, err
    }
    return &result.Data.RequestOtp, nil
-}
-
-func (p *Page) String() string {
-   var data strings.Builder
-   if len(p.Containers[0].Seasons) >= 1 {
-      var line bool
-      for _, seasonItem := range p.Containers[0].Seasons {
-         if line {
-            data.WriteString("\n\n")
-         } else {
-            line = true
-         }
-         data.WriteString("name: ")
-         data.WriteString(seasonItem.Visuals.Name)
-         data.WriteString("\nid: ")
-         data.WriteString(seasonItem.Id)
-      }
-   } else {
-      data.WriteString(p.Actions[0].InternalTitle)
-   }
-   return data.String()
-}
-
-func (e *Error) Error() string {
-   var data strings.Builder
-   data.WriteString("code: ")
-   data.WriteString(e.Code)
-   data.WriteString("\ndescription: ")
-   data.WriteString(e.Description)
-   return data.String()
 }

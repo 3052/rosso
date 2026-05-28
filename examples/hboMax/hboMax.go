@@ -43,7 +43,7 @@ func (c *client) do() error {
       {Name: "season", Value: &c.season, Needs: "show-id"},
       {Name: "edit-id", Value: &c.edit},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "threads", Value: &c.threads},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
