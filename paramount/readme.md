@@ -1,26 +1,5 @@
 # Paramount+
 
-## paypal.com United States
-
-1. paramountplus.com
-2. get started
-3. paramount+ premium
-   - continue
-4. full name
-5. email
-6. password
-7. zip code
-8. birthdate
-9. gender
-10. agree & continue
-11. paypal
-12. continue to paypal
-13. agree and continue
-14. subscribe
-15. paypal.com/myaccount/autopay
-16. paramount
-17. stop paying with paypal
-
 ## paypal.com United Kingdom
 
 1. United Kingdom VPN
@@ -50,6 +29,27 @@
 18. stop paying with paypal
 19. stop paying with paypal (again)
 20. stop paying with paypal (again again)
+
+## paypal.com United States
+
+1. paramountplus.com
+2. get started
+3. paramount+ premium
+   - continue
+4. full name
+5. email
+6. password
+7. zip code
+8. birthdate
+9. gender
+10. agree & continue
+11. paypal
+12. continue to paypal
+13. agree and continue
+14. subscribe
+15. paypal.com/myaccount/autopay
+16. paramount
+17. stop paying with paypal
 
 ## How to get secret\_key?
 
