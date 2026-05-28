@@ -20,6 +20,7 @@ type client struct {
    search   maya.FlagString
    season   maya.FlagInt
    show     maya.FlagString
+   threads  maya.FlagInt
 
    cache maya.Cache
 }
@@ -42,6 +43,7 @@ func (c *client) do() error {
       {Name: "season", Value: &c.season, Needs: "show-id"},
       {Name: "edit-id", Value: &c.edit},
       {Name: "dash-id", Value: &c.dash},
+      {Name: "threads", Value: &c.threads},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -81,23 +83,6 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "hboMax")
 }
 
-func (c *client) do_edit() error {
-   var login hboMax.Login
-   err := c.cache.Decode(&login)
-   if err != nil {
-      return err
-   }
-   playback, err := hboMax.PlayReadyRequest(login.Token, string(c.edit))
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(playback.GetManifest())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, playback)
-}
-
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -111,6 +96,7 @@ func (c *client) do_dash() error {
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: playback.PlayReadyRequest,
+      Threads: int(c.threads),
    })
 }
 
@@ -209,4 +195,21 @@ func (c *client) do_show_season() error {
       fmt.Println(result)
    }
    return nil
+}
+
+func (c *client) do_edit() error {
+   var login hboMax.Login
+   err := c.cache.Decode(&login)
+   if err != nil {
+      return err
+   }
+   playback, err := hboMax.PlayReadyRequest(login.Token, string(c.edit))
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(playback.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, playback)
 }

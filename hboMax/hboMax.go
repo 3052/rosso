@@ -12,6 +12,72 @@ import (
    "strings"
 )
 
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Errors []struct { // 2026-05-27
+         Detail string // 2026-05-27
+      }
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, errors.New(result.Errors[0].Detail)
+   }
+   return result.Included, nil
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+}
+
+func StRequest() (*Cookie, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com",
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      map[string]string{
+         "x-device-info":  device_info,
+         "x-disco-client": disco_client,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, c := range resp.Cookies() {
+      if c.Name == "st" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("named cookie not present")
+}
+
 func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -402,64 +468,4 @@ func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
       RawQuery: values.Encode(),
    }
    return entity_request(token, parsedUrl)
-}
-
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      endpoint, map[string]string{"authorization": "Bearer " + token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Included, nil
-}
-
-type Cookie struct {
-   Name  string
-   Value string
-}
-
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
-}
-
-func StRequest() (*Cookie, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, c := range resp.Cookies() {
-      if c.Name == "st" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
-      }
-   }
-   return nil, errors.New("named cookie not present")
 }

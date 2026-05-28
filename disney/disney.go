@@ -91,6 +91,15 @@ type Page struct {
    }
 }
 
+func (p *Profile) String() string {
+   var data strings.Builder
+   data.WriteString("name: ")
+   data.WriteString(p.Name)
+   data.WriteString("\nid: ")
+   data.WriteString(p.Id)
+   return data.String()
+}
+
 type Profile struct {
    Name string
    Id   string
@@ -131,6 +140,19 @@ type Season struct {
          InternalTitle string
       }
    }
+}
+
+func (t *Token) String() string {
+   var data strings.Builder
+   data.WriteString("type: ")
+   data.WriteString(t.AccessTokenType)
+   data.WriteString("\naccess token: ")
+   data.WriteString(t.AccessToken)
+   if t.RefreshToken != "" {
+      data.WriteString("\nrefresh token: ")
+      data.WriteString(t.RefreshToken)
+   }
+   return data.String()
 }
 
 // request: Account
@@ -677,27 +699,5 @@ func (e *Error) Error() string {
    data.WriteString(e.Code)
    data.WriteString("\ndescription: ")
    data.WriteString(e.Description)
-   return data.String()
-}
-
-func (t *Token) String() string {
-   var data strings.Builder
-   data.WriteString("type: ")
-   data.WriteString(t.AccessTokenType)
-   data.WriteString("\naccess token: ")
-   data.WriteString(t.AccessToken)
-   if t.RefreshToken != "" {
-      data.WriteString("\nrefresh token: ")
-      data.WriteString(t.RefreshToken)
-   }
-   return data.String()
-}
-
-func (p *Profile) String() string {
-   var data strings.Builder
-   data.WriteString("name: ")
-   data.WriteString(p.Name)
-   data.WriteString("\nid: ")
-   data.WriteString(p.Id)
    return data.String()
 }
