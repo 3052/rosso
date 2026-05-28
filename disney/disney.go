@@ -11,6 +11,31 @@ import (
    "strings"
 )
 
+// ZGlzbmV5JmJyb3dzZXImMS4wLjA
+// disney&browser&1.0.0
+const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
+
+//go:embed authenticateWithOtp.gql
+var mutation_authenticate_with_otp string
+
+//go:embed loginWithActionGrant.gql
+var mutation_login_with_action_grant string
+
+//go:embed registerDevice.gql
+var mutation_register_device string
+
+//go:embed login.gql
+var mutation_login string
+
+//go:embed requestOtp.gql
+var mutation_request_otp string
+
+//go:embed refreshToken.gql
+var mutation_refresh_token string
+
+//go:embed switchProfile.gql
+var mutation_switch_profile string
+
 // https://disneyplus.com/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/cs-cz/browse/entity-7df81cf5-6be5-4e05-9ff6-da33baf0b94d
 // https://disneyplus.com/play/7df81cf5-6be5-4e05-9ff6-da33baf0b94d
@@ -24,6 +49,38 @@ func GetEntityId(rawUrl string) (string, error) {
       return "", errors.New("entity value missing from URL")
    }
    return base, nil
+}
+
+type AuthenticateWithOtp struct {
+   ActionGrant string
+}
+
+type Login struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+type LoginWithActionGrant struct {
+   Account struct {
+      Profiles []Profile
+   }
+}
+
+type Profile struct {
+   Name string
+   Id   string
+}
+
+type RequestOtp struct {
+   Accepted bool
+}
+
+func (r *RequestOtp) String() string {
+   if r.Accepted {
+      return "accepted = true"
+   }
+   return "accepted = false"
 }
 
 func (s Season) String() string {
@@ -50,6 +107,12 @@ type Season struct {
          InternalTitle string
       }
    }
+}
+
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
 }
 
 func (t *Token) assert(expected string) error {
@@ -637,67 +700,4 @@ type Page struct {
 type Error struct {
    Code        string // 2026-04-05
    Description string // 2026-04-05
-}
-
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
-}
-
-// ZGlzbmV5JmJyb3dzZXImMS4wLjA
-// disney&browser&1.0.0
-const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
-
-//go:embed authenticateWithOtp.gql
-var mutation_authenticate_with_otp string
-
-//go:embed loginWithActionGrant.gql
-var mutation_login_with_action_grant string
-
-//go:embed registerDevice.gql
-var mutation_register_device string
-
-//go:embed login.gql
-var mutation_login string
-
-//go:embed requestOtp.gql
-var mutation_request_otp string
-
-//go:embed refreshToken.gql
-var mutation_refresh_token string
-
-//go:embed switchProfile.gql
-var mutation_switch_profile string
-
-type AuthenticateWithOtp struct {
-   ActionGrant string
-}
-
-type Login struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-type LoginWithActionGrant struct {
-   Account struct {
-      Profiles []Profile
-   }
-}
-
-type Profile struct {
-   Name string
-   Id   string
-}
-
-type RequestOtp struct {
-   Accepted bool
-}
-
-func (r *RequestOtp) String() string {
-   if r.Accepted {
-      return "accepted = true"
-   }
-   return "accepted = false"
 }

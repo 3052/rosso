@@ -1,5 +1,18 @@
 # AMC+
 
+> The album's recording was characterized by Granduciel's anxiety and
+> second-guessing, with Granduciel remarking "I started going off the rails a
+> little bit in my own head, getting a little too sucked in".  Granduciel
+> scrapped the original demo for "An Ocean in Between the Waves" two weeks before
+> the album was supposed to be turned in to the record company after spending a
+> year writing the song, saying that "it wasn't the vibe of the song that I was
+> searching for". "Suffering" went through several variations before Granduciel
+> decided to go back to the original demo. "Under the Pressure" is based on Adam
+> Granduciel and how he split with his girlfriend and was feeling alone and
+> depressed after being back in the city.
+>
+> https://youtube.com/watch?v=ByrKdwQMGYc
+
 ## try 7 days free
 
 1. amcplus.com/create
