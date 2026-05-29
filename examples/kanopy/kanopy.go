@@ -8,6 +8,46 @@ import (
    "os"
 )
 
+func (c *client) do_address() error {
+   login := &kanopy.Login{}
+   err := c.cache.Decode(login)
+   if err != nil {
+      return err
+   }
+   video, err := kanopy.ParseVideo(string(c.address))
+   if err != nil {
+      return err
+   }
+   if video.VideoId == 0 {
+      video, err = kanopy.GetVideo(login, video.Alias)
+      if err != nil {
+         return err
+      }
+   }
+   memberships, err := kanopy.GetMemberships(login)
+   if err != nil {
+      return err
+   }
+   play, err := kanopy.CreatePlay(login, &memberships[0], video)
+   if err != nil {
+      return err
+   }
+   for _, caption := range play.Captions {
+      for _, file := range caption.Files {
+         fmt.Println(file.Url)
+      }
+   }
+   manifest, err := play.GetDash()
+   if err != nil {
+      return err
+   }
+   maya_manifest, err := maya.ListDash(&manifest.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, maya_manifest)
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/kanopy"); err != nil {
       return err
@@ -87,44 +127,4 @@ func (c *client) do_email_password() error {
       return err
    }
    return c.cache.Encode(login)
-}
-
-func (c *client) do_address() error {
-   login := &kanopy.Login{}
-   err := c.cache.Decode(login)
-   if err != nil {
-      return err
-   }
-   video, err := kanopy.ParseVideo(string(c.address))
-   if err != nil {
-      return err
-   }
-   if video.VideoId == 0 {
-      video, err = kanopy.GetVideo(login, video.Alias)
-      if err != nil {
-         return err
-      }
-   }
-   memberships, err := kanopy.GetMemberships(login)
-   if err != nil {
-      return err
-   }
-   play, err := kanopy.CreatePlay(login, &memberships[0], video)
-   if err != nil {
-      return err
-   }
-   for _, caption := range play.Captions {
-      for _, file := range caption.Files {
-         fmt.Println(file.Url)
-      }
-   }
-   manifest, err := play.GetDash()
-   if err != nil {
-      return err
-   }
-   maya_manifest, err := maya.ListDash(&manifest.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, maya_manifest)
 }

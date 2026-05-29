@@ -11,6 +11,12 @@ import (
    "strings"
 )
 
+type PlayResponse struct {
+   Captions  []Caption  
+   Manifests []Manifest 
+   PlayId    string     
+}
+
 func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
    body, err := json.Marshal(PlayRequest{
       DomainId: membershipData.DomainId,
@@ -171,12 +177,6 @@ func (p *PlayResponse) GetDash() (*Manifest, error) {
       }
    }
    return nil, errors.New("dash manifest not found")
-}
-
-type PlayResponse struct {
-   PlayId    string     `json:"playId"`
-   Manifests []Manifest `json:"manifests"`
-   Captions  []Caption  `json:"captions"`
 }
 
 type Url struct {
