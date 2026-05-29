@@ -12,6 +12,107 @@ import (
    "strings"
 )
 
+func MovieResults(entities []*Entity) []*Entity {
+   var movies []*Entity
+   for _, item := range entities {
+      // Identify the primary video entity for the movie
+      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
+         movies = append(movies, item)
+      }
+   }
+   return movies
+}
+
+func SeasonResults(entities []*Entity) []*Entity {
+   var results []*Entity
+   for _, item := range entities {
+      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
+         results = append(results, item)
+      }
+   }
+   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
+   slices.SortFunc(results, func(entityA, entityB *Entity) int {
+      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
+   })
+   return results
+}
+
+// Entity represents a single unified node in the Max API response
+type Entity struct {
+   Attributes struct {
+      Name          string
+      Alias         string
+      ShowType      string
+      VideoType     string
+      MaterialType  string
+      Description   string
+      SeasonNumber  int
+      EpisodeNumber int
+      AirDate       string
+   }
+   Id            string
+   Relationships struct {
+      Edit struct {
+         Data Resource
+      }
+      Items struct {
+         Data []Resource
+      }
+      Show struct {
+         Data Resource
+      }
+      Video struct {
+         Data Resource
+      }
+   }
+   Type string
+}
+
+func SearchResults(entities []*Entity) ([]*Entity, error) {
+   // Pre-allocate map capacity for better performance
+   entitiesMap := make(map[string]*Entity, len(entities))
+   var searchResultsCollection *Entity
+
+   // Combine map building and target collection searching into a single loop
+   for _, each := range entities {
+      entitiesMap[each.Id] = each
+
+      if searchResultsCollection == nil && each.Type == "collection" && each.Attributes.Alias == "search-page-rail-results" {
+         searchResultsCollection = each
+      }
+   }
+
+   if searchResultsCollection == nil {
+      return nil, fmt.Errorf("could not find the search results collection in the response payload")
+   }
+
+   var results []*Entity
+   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
+      colItem, exists := entitiesMap[itemRes.Id]
+      if !exists {
+         continue
+      }
+
+      targetId := colItem.Relationships.Show.Data.Id
+      if targetId == "" {
+         targetId = colItem.Relationships.Video.Data.Id
+      }
+
+      if targetId == "" {
+         continue
+      }
+
+      mediaEntity, exists := entitiesMap[targetId]
+      if !exists {
+         continue
+      }
+
+      // Append the actual show/movie entity
+      results = append(results, mediaEntity)
+   }
+   return results, nil
+}
+
 type Initiate struct {
    LinkingCode string
    TargetUrl   string
@@ -205,107 +306,6 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 ///
-
-func MovieResults(entities []*Entity) []*Entity {
-   var movies []*Entity
-   for _, item := range entities {
-      // Identify the primary video entity for the movie
-      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
-         movies = append(movies, item)
-      }
-   }
-   return movies
-}
-
-func SeasonResults(entities []*Entity) []*Entity {
-   var results []*Entity
-   for _, item := range entities {
-      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         results = append(results, item)
-      }
-   }
-   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
-   slices.SortFunc(results, func(entityA, entityB *Entity) int {
-      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
-   })
-   return results
-}
-
-// Entity represents a single unified node in the Max API response
-type Entity struct {
-   Attributes struct {
-      Name          string
-      Alias         string
-      ShowType      string
-      VideoType     string
-      MaterialType  string
-      Description   string
-      SeasonNumber  int
-      EpisodeNumber int
-      AirDate       string
-   }
-   Id            string
-   Relationships struct {
-      Edit struct {
-         Data Resource
-      }
-      Items struct {
-         Data []Resource
-      }
-      Show struct {
-         Data Resource
-      }
-      Video struct {
-         Data Resource
-      }
-   }
-   Type string
-}
-
-func SearchResults(entities []*Entity) ([]*Entity, error) {
-   // Pre-allocate map capacity for better performance
-   entitiesMap := make(map[string]*Entity, len(entities))
-   var searchResultsCollection *Entity
-
-   // Combine map building and target collection searching into a single loop
-   for _, each := range entities {
-      entitiesMap[each.Id] = each
-
-      if searchResultsCollection == nil && each.Type == "collection" && each.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = each
-      }
-   }
-
-   if searchResultsCollection == nil {
-      return nil, fmt.Errorf("could not find the search results collection in the response payload")
-   }
-
-   var results []*Entity
-   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
-      colItem, exists := entitiesMap[itemRes.Id]
-      if !exists {
-         continue
-      }
-
-      targetId := colItem.Relationships.Show.Data.Id
-      if targetId == "" {
-         targetId = colItem.Relationships.Video.Data.Id
-      }
-
-      if targetId == "" {
-         continue
-      }
-
-      mediaEntity, exists := entitiesMap[targetId]
-      if !exists {
-         continue
-      }
-
-      // Append the actual show/movie entity
-      results = append(results, mediaEntity)
-   }
-   return results, nil
-}
 
 // Resource represents a relationship pointer in the JSON:API graph
 type Resource struct {

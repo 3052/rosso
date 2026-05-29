@@ -8,6 +8,22 @@ import (
    "os"
 )
 
+type client struct {
+   Email     maya.FlagString
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+   address   maya.FlagString
+   hls       maya.FlagString
+   media     maya.FlagString
+   passcode  maya.FlagString
+   profile   maya.FlagString
+   refresh   maya.FlagBool
+   season    maya.FlagString
+   threads   maya.FlagInt
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/disney"); err != nil {
       return err
@@ -17,6 +33,7 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "email", Value: &c.Email},
       {Name: "passcode", Value: &c.passcode},
       {Name: "profile-id", Value: &c.profile},
@@ -25,48 +42,42 @@ func (c *client) do() error {
       {Name: "season-id", Value: &c.season},
       {Name: "media-id", Value: &c.media},
       {Name: "hls-id", Value: &c.hls},
+      {Name: "threads", Value: &c.threads, Needs: "hls-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   switch {
-   case flags.IsSet(&c.PlayReady):
+   if flags.IsSet(&c.PlayReady) || flags.IsSet(&c.Proxy) {
       return c.cache.Encode(c)
-   case flags.IsSet(&c.Email):
+   }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
+   }
+   if flags.IsSet(&c.Email) {
       return c.do_email()
-   case c.passcode != "":
+   }
+   if c.passcode != "" {
       return c.do_passcode()
-   case c.profile != "":
+   }
+   if c.profile != "" {
       return c.do_profile()
-   case bool(c.refresh):
+   }
+   if bool(c.refresh) {
       return c.do_refresh()
-   case c.address != "":
+   }
+   if c.address != "" {
       return c.do_address()
-   case c.season != "":
+   }
+   if c.season != "" {
       return c.do_season()
-   case c.media != "":
+   }
+   if c.media != "" {
       return c.do_media()
-   case c.hls != "":
+   }
+   if c.hls != "" {
       return c.do_hls()
    }
    return flags.Usage(os.Stderr, "disney")
-}
-
-func (c *client) do_media() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(string(c.media))
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
 }
 
 func (c *client) do_hls() error {
@@ -82,6 +93,7 @@ func (c *client) do_hls() error {
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: token.FetchPlayReady,
+      Threads: int(c.threads),
    })
 }
 
@@ -91,21 +103,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   PlayReady maya.FlagString
-   Email     maya.FlagString
-
-   address  maya.FlagString
-   hls      maya.FlagString
-   media    maya.FlagString
-   passcode maya.FlagString
-   profile  maya.FlagString
-   refresh  maya.FlagBool
-   season   maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_email() error {
@@ -203,4 +200,21 @@ func (c *client) do_season() error {
    }
    fmt.Println(season)
    return nil
+}
+
+func (c *client) do_media() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
+   if err != nil {
+      return err
+   }
+   stream, err := token.FetchStream(string(c.media))
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
 }

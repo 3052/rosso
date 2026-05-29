@@ -8,6 +8,16 @@ import (
    "os"
 )
 
+type client struct {
+   Proxy    maya.FlagString
+   Widevine maya.FlagString
+   address  maya.FlagString
+   playlist maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup("rosso/itv"); err != nil {
       return err
@@ -17,6 +27,7 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "address", Value: &c.address},
       {Name: "playlist", Value: &c.playlist},
       {Name: "dash-id", Value: &c.dash},
@@ -24,17 +35,41 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   switch {
-   case flags.IsSet(&c.Widevine):
+   if flags.IsSet(&c.Widevine) {
       return c.cache.Encode(c)
-   case c.address != "":
+   }
+   if flags.IsSet(&c.Proxy) {
+      return c.cache.Encode(c)
+   }
+   if c.address != "" {
       return c.do_address()
-   case c.playlist != "":
+   }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
+   }
+   if c.playlist != "" {
       return c.do_playlist()
-   case c.dash != "":
+   }
+   if c.dash != "" {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "itv")
+}
+
+func (c *client) do_address() error {
+   titles, err := itv.FetchTitles(
+      itv.ParseLegacyId(string(c.address)),
+   )
+   if err != nil {
+      return err
+   }
+   for i, title := range titles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&title)
+   }
+   return nil
 }
 
 func (c *client) do_playlist() error {
@@ -75,30 +110,4 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   address  maya.FlagString
-   playlist maya.FlagString
-   dash     maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_address() error {
-   titles, err := itv.FetchTitles(
-      itv.ParseLegacyId(string(c.address)),
-   )
-   if err != nil {
-      return err
-   }
-   for i, title := range titles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&title)
-   }
-   return nil
 }
