@@ -9,6 +9,17 @@ import (
    "strconv"
 )
 
+func (*LicenseServer) CachePath() string {
+   return "rosso/tubi/LicenseServer"
+}
+
+type LicenseServer struct {
+   Url             *Url
+   HdcpVersion     string `json:"hdcp_version"`
+   AuthHeaderKey   string `json:"auth_header_key"`
+   AuthHeaderValue string `json:"auth_header_value"`
+}
+
 type ContentResponse struct {
    HeroImages           []string        `json:"hero_images"`
    UpdatedAt            string          `json:"updated_at"`
@@ -96,13 +107,6 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-type LicenseServer struct {
-   Url             *Url
-   HdcpVersion     string `json:"hdcp_version"`
-   AuthHeaderKey   string `json:"auth_header_key"`
-   AuthHeaderValue string `json:"auth_header_value"`
 }
 
 func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {

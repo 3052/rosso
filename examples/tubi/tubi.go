@@ -7,6 +7,18 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/tubi/client"
+}
+
+type client struct {
+   Widevine   maya.FlagString
+   content_id maya.FlagInt
+   dash       maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -43,7 +55,7 @@ func (c *client) do_content_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(manifest, video.LicenseServer)
+   return c.cache.Encode(manifest, &video.LicenseServer)
 }
 
 func (c *client) do_dash() error {
@@ -71,13 +83,4 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   content_id maya.FlagInt
-   dash       maya.FlagString
-
-   cache maya.Cache
 }

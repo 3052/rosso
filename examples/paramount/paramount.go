@@ -7,6 +7,22 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/paramount/client"
+}
+
+type client struct {
+   App       maya.FlagString
+   ContentId maya.FlagString
+   PlayReady maya.FlagString
+   cookie    maya.FlagBool
+   dash      maya.FlagString
+   password  maya.FlagString
+   username  maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -109,19 +125,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   App       maya.FlagString
-   ContentId maya.FlagString
-   PlayReady maya.FlagString
-
-   cookie   maya.FlagBool
-   dash     maya.FlagString
-   password maya.FlagString
-   username maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_username_password() error {

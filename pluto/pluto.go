@@ -10,6 +10,15 @@ import (
    "strings"
 )
 
+func (*Series) CachePath() string {
+   return "rosso/pluto/Series"
+}
+
+type Series struct {
+   SessionToken string
+   Vod          []Vod
+}
+
 func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
    // Iterate through all seasons and episodes to find the matching ID
    for _, season := range s.Vod[0].Seasons {
@@ -110,11 +119,6 @@ func FetchWidevine(body []byte) ([]byte, error) {
 func (s *Series) GetMovieUrl() *url.URL {
    // Directly access the required path based on the data guarantees
    return build_stitcher(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
-}
-
-type Series struct {
-   SessionToken string
-   Vod          []Vod
 }
 
 func build_stitcher(session_token, path string) *url.URL {

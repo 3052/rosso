@@ -9,6 +9,26 @@ import (
    "strings"
 )
 
+func (*Media) CachePath() string {
+   return "rosso/plex/Media"
+}
+
+type Media struct {
+   Id       string    `json:"id"`
+   Protocol string    `json:"protocol"`
+   Part     []VodPart `json:"Part"`
+}
+
+func (*User) CachePath() string {
+   return "rosso/plex/User"
+}
+
+type User struct {
+   Id        int    `json:"id"`
+   Uuid      string `json:"uuid"`
+   AuthToken string `json:"authToken"`
+}
+
 // https://watch.plex.tv/embed/movie/memento-2000
 // https://watch.plex.tv/movie/memento-2000
 // https://watch.plex.tv/watch/movie/memento-2000
@@ -46,12 +66,6 @@ type MetadataItem struct {
    Guid  string  `json:"guid"`
    Title string  `json:"title"`
    Media []Media `json:"Media"`
-}
-
-type Media struct {
-   Id       string    `json:"id"`
-   Protocol string    `json:"protocol"`
-   Part     []VodPart `json:"Part"`
 }
 
 type VodPart struct {
@@ -164,12 +178,6 @@ func AcquireWidevineLicense(mediaData *Media, userData *User, body []byte) ([]by
    defer resp.Body.Close()
 
    return io.ReadAll(resp.Body)
-}
-
-type User struct {
-   Id        int    `json:"id"`
-   Uuid      string `json:"uuid"`
-   AuthToken string `json:"authToken"`
 }
 
 func CreateUser() (*User, error) {

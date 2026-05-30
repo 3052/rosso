@@ -9,6 +9,20 @@ import (
    "path"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/pluto/client"
+}
+
+type client struct {
+   Widevine maya.FlagString
+   movie    maya.FlagString
+   show     maya.FlagString
+   episode  maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -77,17 +91,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   movie   maya.FlagString
-   show    maya.FlagString
-   episode maya.FlagString
-   dash    maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_movie() error {

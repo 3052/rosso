@@ -18,6 +18,15 @@ import (
    "strings"
 )
 
+func (*Cookie) CachePath() string {
+   return "rosso/paramount/Cookie"
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
 var Apps = []App{
    {
       Id:      "com.cbs.app",
@@ -98,9 +107,9 @@ func (a *App) FetchCbsCom(username, password string) (*Cookie, error) {
    if err != nil {
       return nil, err
    }
-   for _, c := range resp.Cookies() {
-      if c.Name == "CBS_COM" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
+   for _, each := range resp.Cookies() {
+      if each.Name == "CBS_COM" {
+         return &Cookie{Name: each.Name, Value: each.Value}, nil
       }
    }
    return nil, errors.New("CBS_COM cookie not present")
@@ -198,11 +207,6 @@ func (s *Session) Fetch(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-type Cookie struct {
-   Name  string
-   Value string
 }
 
 func (a *App) FetchPlayReady(contentId string, cbsCom *Cookie) (*Session, error) {
