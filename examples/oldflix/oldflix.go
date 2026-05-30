@@ -8,7 +8,7 @@ import (
 )
 
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/oldflix"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    flags := maya.FlagSet{

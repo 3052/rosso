@@ -7,46 +7,8 @@ import (
    "os"
 )
 
-func (c *client) do_dash() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, nil)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   email    maya.FlagString
-   password maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_email_password() error {
-   phpSessId, err := cineMember.GetPhpSessId()
-   if err != nil {
-      return err
-   }
-   err = cineMember.FetchLogin(phpSessId, string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(phpSessId)
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/cineMember"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    flags := maya.FlagSet{
@@ -95,4 +57,42 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest)
+}
+
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, nil)
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   email    maya.FlagString
+   password maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   phpSessId, err := cineMember.GetPhpSessId()
+   if err != nil {
+      return err
+   }
+   err = cineMember.FetchLogin(phpSessId, string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(phpSessId)
 }
