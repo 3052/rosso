@@ -11,6 +11,43 @@ import (
    "strings"
 )
 
+// https://kanopy.com/product/6440418
+// https://kanopy.com/en/product/6440418
+// https://kanopy.com/video/6440418
+// https://kanopy.com/en/irving/product/6440418
+// https://kanopy.com/en/irving/product/genius-party
+// https://kanopy.com/en/irving/video/6440418
+// https://kanopy.com/en/irving/video/genius-party
+// https://kanopy.com/en/irving/video/justwatch-6440418
+// https://kanopy.com/en/product/genius-party
+// https://kanopy.com/en/video/6440418
+// https://kanopy.com/en/video/genius-party
+// https://kanopy.com/en/video/justwatch-6440418
+// https://kanopy.com/irving/product/6440418
+// https://kanopy.com/irving/product/genius-party
+// https://kanopy.com/irving/video/6440418
+// https://kanopy.com/irving/video/genius-party
+// https://kanopy.com/irving/video/justwatch-6440418
+// https://kanopy.com/product/genius-party
+// https://kanopy.com/product/justwatch-6440418
+// https://kanopy.com/video/genius-party
+// https://kanopy.com/video/justwatch-6440418
+func ParseVideo(rawUrl string) (*Video, error) {
+   parsedUrl, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+   slug := path.Base(parsedUrl.Path)
+   video := &Video{}
+   idStr := strings.TrimPrefix(slug, "justwatch-")
+   if id, err := strconv.Atoi(idStr); err == nil {
+      video.VideoId = id
+   } else {
+      video.Alias = slug
+   }
+   return video, nil
+}
+
 func (*Login) CachePath() string {
    return "rosso/kanopy/Login"
 }
@@ -168,49 +205,6 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-// Supports URLs such as:
-// - https://kanopy.com/video/6440418
-// - https://kanopy.com/video/genius-party
-// - https://kanopy.com/en/video/genius-party
-// - https://kanopy.com/en/product/genius-party
-func ParseVideo(urlData string) (*Video, error) {
-   parse, err := url.Parse(urlData)
-   if err != nil {
-      return nil, err
-   }
-   if !strings.Contains(parse.Host, "kanopy.com") {
-      return nil, errors.New("invalid domain")
-   }
-   // Get the directory of the path (removes the final identifier).
-   // e.g., "/en/product/genius-party" -> "/en/product"
-   dir := path.Dir(parse.Path)
-   // Check if the directory ends with "/video" OR "/product".
-   // This supports:
-   // - /video/{id}
-   // - /en/video/{id}
-   // - /en/product/{id}
-   if !strings.HasSuffix(dir, "/video") && !strings.HasSuffix(dir, "/product") {
-      return nil, errors.New("invalid path structure")
-   }
-   var result Video
-   identifier := path.Base(parse.Path)
-   numeric_id, err := strconv.Atoi(identifier)
-   if err != nil {
-      result.Alias = identifier
-   } else {
-      result.VideoId = numeric_id
-   }
-   return &result, nil
-}
-
-type Video struct {
-   VideoId         int    `json:"videoId"`
-   Title           string `json:"title"`
-   DescriptionHtml string `json:"descriptionHtml"`
-   DurationSeconds int    `json:"durationSeconds"`
-   Alias           string `json:"alias"`
-}
-
 type Membership struct {
    IdentityId         int    `json:"identityId"`
    DomainId           int    `json:"domainId"`
@@ -279,4 +273,12 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
    }
 
    return &play, nil
+}
+
+type Video struct {
+   VideoId         int    `json:"videoId"`
+   Title           string `json:"title"`
+   DescriptionHtml string `json:"descriptionHtml"`
+   DurationSeconds int    `json:"durationSeconds"`
+   Alias           string `json:"alias"`
 }

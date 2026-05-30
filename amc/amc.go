@@ -24,6 +24,80 @@ type AuthData struct {
    ExpiresIn    int    `json:"expires_in"`
 }
 
+// String implements the fmt.Stringer interface for easy printing.
+func (m *Metadata) String() string {
+   hasShow := m.ShowName != "" && m.ShowName != "none"
+
+   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
+         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
+   }
+
+   if m.SeasonNumber > 0 {
+      if hasShow {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   if m.Title != "" {
+      if hasShow && m.ShowName != m.Title {
+         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
+            m.ShowName, m.Title, m.Nid)
+      }
+      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
+   }
+
+   return fmt.Sprintf("NID: %d", m.Nid)
+}
+
+type Metadata struct {
+   AmcnID                   string `json:"amcnId,omitempty"`
+   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
+   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
+   SeasonNumber             int    `json:"seasonNumber,omitempty"`
+   ShowName                 string `json:"showName,omitempty"`
+   Title                    string `json:"title,omitempty"`
+   Nid                      int    `json:"nid,omitempty"`
+   PageType                 string `json:"pageType,omitempty"`
+   URL                      string `json:"url,omitempty"`
+   Action                   string `json:"action,omitempty"`
+   ElementType              string `json:"elementType,omitempty"`
+   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
+   ElementName              string `json:"elementName,omitempty"`
+   ItemText                 string `json:"itemText,omitempty"`
+   Label                    string `json:"label,omitempty"`
+   NavComponentName         string `json:"navComponentName,omitempty"`
+   NavigationTitle          string `json:"navigationTitle,omitempty"`
+   IsNavigation             bool   `json:"isNavigation,omitempty"`
+   ListTitle                string `json:"listTitle,omitempty"`
+   IsPlayback               bool   `json:"isPlayback,omitempty"`
+   ListMode                 string `json:"listMode,omitempty"`
+   SearchValue              string `json:"searchValue,omitempty"`
+   ListPosition             int    `json:"listPosition,omitempty"`
+   ComponentName            string `json:"componentName,omitempty"`
+}
+
+type Navigation struct {
+   ClientRequest struct {
+      Endpoint string `json:"endpoint,omitempty"`
+   } `json:"client_request,omitempty"`
+   ContentID    string `json:"content_id,omitempty"`
+   ContentType  string `json:"contentType,omitempty"`
+   MicroAppType string `json:"micro_app_type,omitempty"`
+   Properties   struct {
+      Fullscreen bool   `json:"fullscreen,omitempty"`
+      IsLive     bool   `json:"isLive,omitempty"`
+      VideoTitle string `json:"videoTitle,omitempty"`
+   } `json:"properties,omitempty"`
+   ScreenDesignType string `json:"screenDesignType,omitempty"`
+}
+
 func (*Playback) CachePath() string {
    return "rosso/amc/Playback"
 }
@@ -396,78 +470,4 @@ type KeySystems struct {
    ComMicrosoftPlayready struct {
       LicenseURL string `json:"license_url"`
    } `json:"com.microsoft.playready"`
-}
-
-// String implements the fmt.Stringer interface for easy printing.
-func (m *Metadata) String() string {
-   hasShow := m.ShowName != "" && m.ShowName != "none"
-
-   if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nSeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-            m.ShowName, m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("SeasonNumber: %d\nEpisodeNumber: %d\nTitle: %s\nNID: %d",
-         m.SeasonNumber, m.EpisodeNumber, m.Title, m.Nid)
-   }
-
-   if m.SeasonNumber > 0 {
-      if hasShow {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   if m.Title != "" {
-      if hasShow && m.ShowName != m.Title {
-         return fmt.Sprintf("ShowName: %s\nTitle: %s\nNID: %d",
-            m.ShowName, m.Title, m.Nid)
-      }
-      return fmt.Sprintf("Title: %s\nNID: %d", m.Title, m.Nid)
-   }
-
-   return fmt.Sprintf("NID: %d", m.Nid)
-}
-
-type Metadata struct {
-   AmcnID                   string `json:"amcnId,omitempty"`
-   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
-   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
-   SeasonNumber             int    `json:"seasonNumber,omitempty"`
-   ShowName                 string `json:"showName,omitempty"`
-   Title                    string `json:"title,omitempty"`
-   Nid                      int    `json:"nid,omitempty"`
-   PageType                 string `json:"pageType,omitempty"`
-   URL                      string `json:"url,omitempty"`
-   Action                   string `json:"action,omitempty"`
-   ElementType              string `json:"elementType,omitempty"`
-   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
-   ElementName              string `json:"elementName,omitempty"`
-   ItemText                 string `json:"itemText,omitempty"`
-   Label                    string `json:"label,omitempty"`
-   NavComponentName         string `json:"navComponentName,omitempty"`
-   NavigationTitle          string `json:"navigationTitle,omitempty"`
-   IsNavigation             bool   `json:"isNavigation,omitempty"`
-   ListTitle                string `json:"listTitle,omitempty"`
-   IsPlayback               bool   `json:"isPlayback,omitempty"`
-   ListMode                 string `json:"listMode,omitempty"`
-   SearchValue              string `json:"searchValue,omitempty"`
-   ListPosition             int    `json:"listPosition,omitempty"`
-   ComponentName            string `json:"componentName,omitempty"`
-}
-
-type Navigation struct {
-   ClientRequest struct {
-      Endpoint string `json:"endpoint,omitempty"`
-   } `json:"client_request,omitempty"`
-   ContentID    string `json:"content_id,omitempty"`
-   ContentType  string `json:"contentType,omitempty"`
-   MicroAppType string `json:"micro_app_type,omitempty"`
-   Properties   struct {
-      Fullscreen bool   `json:"fullscreen,omitempty"`
-      IsLive     bool   `json:"isLive,omitempty"`
-      VideoTitle string `json:"videoTitle,omitempty"`
-   } `json:"properties,omitempty"`
-   ScreenDesignType string `json:"screenDesignType,omitempty"`
 }

@@ -8,20 +8,6 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/kanopy/client"
-}
-
-type client struct {
-   Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
-}
-
 func (c *client) do_address() error {
    login := &kanopy.Login{}
    err := c.cache.Decode(login)
@@ -60,6 +46,20 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, maya_manifest)
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/kanopy/client"
+}
+
+type client struct {
+   Widevine maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
 }
 
 func (c *client) do() error {
