@@ -8,6 +8,23 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/amc/client"
+}
+
+type client struct {
+   Widevine         maya.FlagString
+   email            maya.FlagString
+   password         maya.FlagString
+   refresh          maya.FlagBool
+   series           maya.FlagInt
+   season           maya.FlagInt
+   episode_or_movie maya.FlagInt
+   dash             maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -100,20 +117,6 @@ func main() {
    }
 }
 
-type client struct {
-   Widevine maya.FlagString
-
-   email            maya.FlagString
-   password         maya.FlagString
-   refresh          maya.FlagBool
-   series           maya.FlagInt
-   season           maya.FlagInt
-   episode_or_movie maya.FlagInt
-   dash             maya.FlagString
-
-   cache maya.Cache
-}
-
 func (c *client) do_refresh() error {
    var auth_data amc.AuthData
    err := c.cache.Decode(&auth_data)
@@ -124,7 +127,7 @@ func (c *client) do_refresh() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(auth_data)
+   return c.cache.Encode(&auth_data)
 }
 
 func (c *client) do_series() error {

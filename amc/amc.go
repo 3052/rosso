@@ -12,6 +12,120 @@ import (
 //go:embed playback.json
 var playback_json []byte
 
+func (*AuthData) CachePath() string {
+   return "rosso/amc/AuthData"
+}
+
+// AuthData represents the inner payload of authentication responses.
+type AuthData struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
+func (*Playback) CachePath() string {
+   return "rosso/amc/Playback"
+}
+
+type Playback struct {
+   BcovAuth string
+   Sources  []Source
+}
+
+func GetPlayback(authToken string, videoId int) (*Playback, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
+      },
+      map[string]string{
+         "authorization":       "Bearer " + authToken,
+         "content-type":        "application/json",
+         "x-amcn-language":     "en",
+         "x-amcn-network":      "amcplus",
+         "x-amcn-platform":     "web",
+         "x-amcn-service-id":   "amcplus",
+         "x-amcn-tenant":       "amcn",
+         "x-amcn-device-ad-id": "-",
+         "x-ccpa-do-not-sell":  "doNotPassData",
+      },
+      playback_json,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
+   }
+   var result struct {
+      Data struct {
+         PlaybackJsonData struct {
+            Sources []Source
+         }
+      }
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &Playback{
+      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
+      Sources:  result.Data.PlaybackJsonData.Sources,
+   }, nil
+}
+
+func (p *Playback) GetDash() (*Source, error) {
+   for _, source_data := range p.Sources {
+      if source_data.Type == "application/dash+xml" {
+         return &source_data, nil
+      }
+   }
+   return nil, fmt.Errorf("application/dash+xml source not found")
+}
+
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
+type Properties struct {
+   ID           string    `json:"id,omitempty"`
+   PageType     string    `json:"pageType,omitempty"`
+   ManifestType string    `json:"manifestType,omitempty"`
+   CountryCode  string    `json:"countryCode,omitempty"`
+   Mode         string    `json:"mode,omitempty"`
+   Orientation  string    `json:"orientation,omitempty"`
+   Layout       string    `json:"layout,omitempty"`
+   Scrollable   bool      `json:"scrollable,omitempty"`
+   ContentType  string    `json:"contentType,omitempty"`
+   Nid          int       `json:"nid,omitempty"`
+   Metadata     *Metadata `json:"metadata,omitempty"`
+}
+
+func (*Source) CachePath() string {
+   return "rosso/amc/Source"
+}
+
+type Source struct {
+   Codecs     string
+   KeySystems KeySystems `json:"key_systems"`
+   Src        *Url       // MPD
+   Type       string
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
+
 func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    target, err := url.Parse(licenseUrl)
    if err != nil {
@@ -57,14 +171,6 @@ func (a *AuthData) Refresh() error {
    }
    *a = result.Data
    return nil
-}
-
-// AuthData represents the inner payload of authentication responses.
-type AuthData struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
 }
 
 // Login authenticates the user. It requires the guest token (access_token)
@@ -364,105 +470,4 @@ type Navigation struct {
       VideoTitle string `json:"videoTitle,omitempty"`
    } `json:"properties,omitempty"`
    ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-func GetPlayback(authToken string, videoId int) (*Playback, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   fmt.Sprint("/playback-id/api/v1/playback/", videoId),
-      },
-      map[string]string{
-         "authorization":       "Bearer " + authToken,
-         "content-type":        "application/json",
-         "x-amcn-language":     "en",
-         "x-amcn-network":      "amcplus",
-         "x-amcn-platform":     "web",
-         "x-amcn-service-id":   "amcplus",
-         "x-amcn-tenant":       "amcn",
-         "x-amcn-device-ad-id": "-",
-         "x-ccpa-do-not-sell":  "doNotPassData",
-      },
-      playback_json,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("playback failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Data struct {
-         PlaybackJsonData struct {
-            Sources []Source
-         }
-      }
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &Playback{
-      BcovAuth: resp.Header.Get("x-amcn-bc-jwt"),
-      Sources:  result.Data.PlaybackJsonData.Sources,
-   }, nil
-}
-
-type Playback struct {
-   BcovAuth string
-   Sources  []Source
-}
-
-func (p *Playback) GetDash() (*Source, error) {
-   for _, source_data := range p.Sources {
-      if source_data.Type == "application/dash+xml" {
-         return &source_data, nil
-      }
-   }
-   return nil, fmt.Errorf("application/dash+xml source not found")
-}
-
-// Properties holds all possible strongly-typed properties found in the UI
-// nodes
-type Properties struct {
-   ID           string    `json:"id,omitempty"`
-   PageType     string    `json:"pageType,omitempty"`
-   ManifestType string    `json:"manifestType,omitempty"`
-   CountryCode  string    `json:"countryCode,omitempty"`
-   Mode         string    `json:"mode,omitempty"`
-   Orientation  string    `json:"orientation,omitempty"`
-   Layout       string    `json:"layout,omitempty"`
-   Scrollable   bool      `json:"scrollable,omitempty"`
-   ContentType  string    `json:"contentType,omitempty"`
-   Nid          int       `json:"nid,omitempty"`
-   Metadata     *Metadata `json:"metadata,omitempty"`
-}
-
-type Source struct {
-   Codecs     string
-   KeySystems KeySystems `json:"key_systems"`
-   Src        *Url       // MPD
-   Type       string
-}
-
-type Text struct {
-   Title       *TextElement `json:"title,omitempty"`
-   Description *TextElement `json:"description,omitempty"`
-}
-
-type TextElement struct {
-   Title string `json:"title,omitempty"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
 }

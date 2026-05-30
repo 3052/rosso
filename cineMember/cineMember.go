@@ -11,6 +11,15 @@ import (
    "strings"
 )
 
+func (*Cookie) CachePath() string {
+   return "rosso/cineMember/Cookie"
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
 func FetchLogin(phpSessId *Cookie, email, password string) error {
    body := url.Values{
       "emaillogin": {email},
@@ -66,11 +75,6 @@ func FetchId(address string) (int, error) {
    return strconv.Atoi(idStr)
 }
 
-type Cookie struct {
-   Name  string
-   Value string
-}
-
 func GetPhpSessId() (*Cookie, error) {
    resp, err := maya.Head(
       &url.URL{Scheme: "https", Host: "www.cinemember.nl", Path: "/nl"},
@@ -81,9 +85,9 @@ func GetPhpSessId() (*Cookie, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   for _, c := range resp.Cookies() {
-      if c.Name == "PHPSESSID" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
+   for _, each := range resp.Cookies() {
+      if each.Name == "PHPSESSID" {
+         return &Cookie{Name: each.Name, Value: each.Value}, nil
       }
    }
    return nil, errors.New("PHPSESSID cookie not found in response")
