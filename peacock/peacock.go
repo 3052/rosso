@@ -18,6 +18,20 @@ import (
    "time"
 )
 
+func (*Playout) CachePath() string {
+   return "rosso/peacock/Playout"
+}
+
+type Playout struct {
+   Asset struct {
+      Endpoints []Endpoint
+   }
+   Description string
+   Protection  struct {
+      LicenceAcquisitionUrl *Url
+   }
+}
+
 type Url struct {
    Url url.URL
 }
@@ -118,16 +132,6 @@ func (p *Playout) GetFastly() (*url.URL, error) {
       }
    }
    return nil, errors.New("FASTLY endpoint not found")
-}
-
-type Playout struct {
-   Asset struct {
-      Endpoints []Endpoint
-   }
-   Description string
-   Protection  struct {
-      LicenceAcquisitionUrl *Url
-   }
 }
 
 // L3 max 1080p

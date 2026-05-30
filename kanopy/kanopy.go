@@ -11,6 +11,33 @@ import (
    "strings"
 )
 
+func (*Login) CachePath() string {
+   return "rosso/kanopy/Login"
+}
+
+func (*Manifest) CachePath() string {
+   return "rosso/kanopy/Manifest"
+}
+
+type Manifest struct {
+   Url            *Url
+   ManifestType   string `json:"manifestType"`
+   DrmType        string `json:"drmType"`
+   StorageService string `json:"storageService"`
+   Cdn            string `json:"cdn"`
+   DrmLicenseId   string `json:"drmLicenseID"`
+}
+
+type Login struct {
+   Jwt               string `json:"jwt"`
+   VisitorId         string `json:"visitorId"`
+   UserId            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopId         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
+}
+
 func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -176,15 +203,6 @@ func ParseVideo(urlData string) (*Video, error) {
    return &result, nil
 }
 
-type Manifest struct {
-   Url            *Url
-   ManifestType   string `json:"manifestType"`
-   DrmType        string `json:"drmType"`
-   StorageService string `json:"storageService"`
-   Cdn            string `json:"cdn"`
-   DrmLicenseId   string `json:"drmLicenseID"`
-}
-
 type Video struct {
    VideoId         int    `json:"videoId"`
    Title           string `json:"title"`
@@ -261,14 +279,4 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
    }
 
    return &play, nil
-}
-
-type Login struct {
-   Jwt               string `json:"jwt"`
-   VisitorId         string `json:"visitorId"`
-   UserId            int    `json:"userId"`
-   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
-   WebshopId         int    `json:"webshopId"`
-   WebshopCode       string `json:"webshopCode"`
-   UserRole          string `json:"userRole"`
 }

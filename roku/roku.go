@@ -8,6 +8,10 @@ import (
    "strings"
 )
 
+type AccountActivation struct {
+   Code string `json:"code"`
+}
+
 func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
    target := &url.URL{
       Scheme: "https",
@@ -79,10 +83,6 @@ func GetActivationStatus(token *AccountToken, activation *AccountActivation) (*A
       return nil, err
    }
    return &status, nil
-}
-
-type AccountActivation struct {
-   Code string `json:"code"`
 }
 
 func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {

@@ -11,6 +11,34 @@ import (
    "strings"
 )
 
+func (*StreamInfo) CachePath() string {
+   return "rosso/rakuten/StreamInfo"
+}
+
+type StreamInfo struct {
+   LicenseUrl *Url `json:"license_url"`
+   Url        *Url // MPD
+}
+
+func (*Address) CachePath() string {
+   return "rosso/rakuten/Address"
+}
+
+type Address struct {
+   MarketCode  string
+   ContentType string
+   ContentId   string
+}
+
+func (*Start) CachePath() string {
+   return "rosso/rakuten/Start"
+}
+
+type Start struct {
+   Profile Profile
+   Market  Market
+}
+
 func ParseAddress(targetUrl string) (*Address, error) {
    target, err := url.Parse(targetUrl)
    if err != nil {
@@ -264,16 +292,6 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-type StreamInfo struct {
-   LicenseUrl *Url `json:"license_url"`
-   Url        *Url // MPD
-}
-
-type Start struct {
-   Profile Profile `json:"profile"`
-   Market  Market  `json:"market"`
-}
-
 type Profile struct {
    Classification Classification `json:"classification"`
    AudioLanguage  Language       `json:"audio_language"`
@@ -421,10 +439,4 @@ func formatPlayableDetails(identifier string, title string, playbackStreams []St
    }
    formattedAudio := strings.Join(availableLanguages, ", ")
    return fmt.Sprintf("%s (%s) - Audio: %s", title, identifier, formattedAudio)
-}
-
-type Address struct {
-   MarketCode  string
-   ContentType string
-   ContentId   string
 }

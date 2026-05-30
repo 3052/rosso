@@ -48,7 +48,7 @@ func (c *client) do_roku_id() error {
    var status *roku.ActivationStatus
    if c.use_account {
       status = &roku.ActivationStatus{}
-      err := c.cache.Decode(&status)
+      err := c.cache.Decode(status)
       if err != nil {
          return err
       }

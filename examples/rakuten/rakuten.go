@@ -8,6 +8,21 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/rakuten/client"
+}
+
+type client struct {
+   PlayReady maya.FlagString
+   address   maya.FlagString
+   audio     maya.FlagString
+   dash      maya.FlagString
+   episode   maya.FlagString
+   season    maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -93,18 +108,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   PlayReady maya.FlagString
-
-   address maya.FlagString
-   audio   maya.FlagString
-   dash    maya.FlagString
-   episode maya.FlagString
-   season  maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_address() error {
