@@ -8,18 +8,8 @@ import (
    "os"
 )
 
-type client struct {
-   Proxy    maya.FlagString
-   Widevine maya.FlagString
-   address  maya.FlagString
-   playlist maya.FlagString
-   dash     maya.FlagString
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/itv"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
@@ -110,4 +100,14 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
+}
+
+type client struct {
+   Proxy    maya.FlagString
+   Widevine maya.FlagString
+   address  maya.FlagString
+   playlist maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
 }

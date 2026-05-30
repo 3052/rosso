@@ -8,22 +8,8 @@ import (
    "os"
 )
 
-type client struct {
-   PlayReady maya.FlagString
-   Proxy     maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   password maya.FlagString
-   profile  maya.FlagString
-   threads  maya.FlagInt
-   username maya.FlagString
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/crave"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
@@ -169,4 +155,17 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, playback)
+}
+
+type client struct {
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+   address   maya.FlagString
+   dash      maya.FlagString
+   password  maya.FlagString
+   profile   maya.FlagString
+   threads   maya.FlagInt
+   username  maya.FlagString
+
+   cache maya.Cache
 }

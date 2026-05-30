@@ -113,6 +113,38 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    return results, nil
 }
 
+func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+         Path:   "/authentication/linkDevice/initiate",
+      },
+      map[string]string{
+         "cookie":        st.String(),
+         "x-device-info": device_info,
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
 type Initiate struct {
    LinkingCode string
    TargetUrl   string
@@ -289,6 +321,12 @@ type Playback struct {
    }
 }
 
+// Resource represents a relationship pointer in the JSON:API graph
+type Resource struct {
+   Id   string
+   Type string
+}
+
 type Scheme struct {
    LicenseUrl *Url
 }
@@ -306,12 +344,6 @@ func (u *Url) MarshalText() ([]byte, error) {
 }
 
 ///
-
-// Resource represents a relationship pointer in the JSON:API graph
-type Resource struct {
-   Id   string
-   Type string
-}
 
 const (
    disco_client = "!:!:beam:!"
@@ -444,36 +476,4 @@ func StRequest() (*Cookie, error) {
       }
    }
    return nil, errors.New("named cookie not present")
-}
-
-func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      map[string]string{
-         "cookie":        st.String(),
-         "x-device-info": device_info,
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
 }

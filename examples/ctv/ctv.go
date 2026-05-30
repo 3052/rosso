@@ -8,7 +8,7 @@ import (
 )
 
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/ctv"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {

@@ -7,19 +7,8 @@ import (
    "os"
 )
 
-type client struct {
-   Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-   threads  maya.FlagInt
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/molotov"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
@@ -113,4 +102,15 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(asset, auth, manifest)
+}
+
+type client struct {
+   Widevine maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+   threads  maya.FlagInt
+
+   cache maya.Cache
 }
