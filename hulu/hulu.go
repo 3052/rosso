@@ -9,6 +9,26 @@ import (
    "path"
 )
 
+func (*Playlist) CachePath() string {
+   return "rosso/hulu/Playlist"
+}
+
+type Playlist struct {
+   DashPrServer *Url `json:"dash_pr_server"`
+   StreamUrl    *Url `json:"stream_url"` // MPD
+   WvServer     *Url `json:"wv_server"`
+}
+
+func (*Device) CachePath() string {
+   return "rosso/hulu/Device"
+}
+
+type Device struct {
+   DeviceToken string `json:"device_token"`
+   Message     string // 2026-05-02
+   UserToken   string `json:"user_token"`
+}
+
 type Url struct {
    Url url.URL
 }
@@ -19,19 +39,6 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-type Playlist struct {
-   DashPrServer *Url `json:"dash_pr_server"`
-   Message      string
-   StreamUrl    *Url `json:"stream_url"` // MPD
-   WvServer     *Url `json:"wv_server"`
-}
-
-type Device struct {
-   DeviceToken string `json:"device_token"`
-   Message     string // 2026-05-02
-   UserToken   string `json:"user_token"`
 }
 
 type DeepLink struct {
@@ -62,17 +69,9 @@ func (d *Device) DeepLink(id string) (*DeepLink, error) {
    if err != nil {
       return nil, err
    }
-
-   // Check if the API returned an explicit error message
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-
-   // NEW: Check if eab_id is missing (which means it's not playable)
    if result.EabId == "" {
       return nil, errors.New("content is not playable: missing eab_id in response")
    }
-
    return &result, nil
 }
 
@@ -240,9 +239,6 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
    }
    return &result, nil
 }

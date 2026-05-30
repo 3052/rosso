@@ -8,6 +8,20 @@ import (
    "path"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/criterion/client"
+}
+
+type client struct {
+   Widevine maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -70,7 +84,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(file, manifest, token)
+   return c.cache.Encode(file, manifest, &token)
 }
 
 func (c *client) do_dash() error {
@@ -95,17 +109,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_email_password() error {

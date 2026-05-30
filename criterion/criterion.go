@@ -9,6 +9,29 @@ import (
    "net/url"
 )
 
+func (*File) CachePath() string {
+   return "rosso/criterion/File"
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href *Url // MPD
+      }
+   } `json:"_links"`
+   Method string
+}
+
+func (*Token) CachePath() string {
+   return "rosso/criterion/Token"
+}
+
+type Token struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
 func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
@@ -59,16 +82,6 @@ func (f *File) FetchWidevine(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href *Url // MPD
-      }
-   } `json:"_links"`
-   Method string
 }
 
 func GetDash(files []File) (*File, error) {
@@ -124,26 +137,7 @@ func FetchToken(username, password string) (*Token, error) {
    if err != nil {
       return nil, err
    }
-   if err := result.AsError(); err != nil {
-      return nil, err
-   }
    return &result, nil
-}
-
-// AsError returns a standard Go error if the token response was an error,
-// otherwise it returns nil.
-func (t *Token) AsError() error {
-   if t.Error == "" {
-      return nil
-   }
-   return fmt.Errorf("%s: %s", t.Error, t.ErrorDescription)
-}
-
-type Token struct {
-   AccessToken      string `json:"access_token"`
-   Error            string
-   ErrorDescription string `json:"error_description"`
-   RefreshToken     string `json:"refresh_token"`
 }
 
 func (t *Token) Refresh() error {
@@ -165,11 +159,7 @@ func (t *Token) Refresh() error {
       return err
    }
    defer resp.Body.Close()
-   err = json.NewDecoder(resp.Body).Decode(t)
-   if err != nil {
-      return err
-   }
-   return t.AsError()
+   return json.NewDecoder(resp.Body).Decode(t)
 }
 
 type Url struct {

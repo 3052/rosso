@@ -12,6 +12,16 @@ import (
    "strings"
 )
 
+func (*MediaFile) CachePath() string {
+   return "rosso/itv/MediaFile"
+}
+
+type MediaFile struct {
+   Href          *Url // MPD
+   KeyServiceUrl *Url // DRM
+   Resolution    string
+}
+
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
 func FetchPlayReady(address string) (*Playlist, error) {
    return fetchPlaylist(address, "playready", "SL3000")
@@ -122,12 +132,6 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-type MediaFile struct {
-   Href          *Url // MPD
-   KeyServiceUrl *Url // DRM
-   Resolution    string
 }
 
 func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
