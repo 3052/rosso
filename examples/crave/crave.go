@@ -8,6 +8,23 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/crave/client"
+}
+
+type client struct {
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+   address   maya.FlagString
+   dash      maya.FlagString
+   password  maya.FlagString
+   profile   maya.FlagString
+   threads   maya.FlagInt
+   username  maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -155,17 +172,4 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, media, playback)
-}
-
-type client struct {
-   PlayReady maya.FlagString
-   Proxy     maya.FlagString
-   address   maya.FlagString
-   dash      maya.FlagString
-   password  maya.FlagString
-   profile   maya.FlagString
-   threads   maya.FlagInt
-   username  maya.FlagString
-
-   cache maya.Cache
 }

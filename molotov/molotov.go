@@ -10,6 +10,28 @@ import (
    "strings"
 )
 
+func (*Asset) CachePath() string {
+   return "rosso/molotov/Asset"
+}
+
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Stream struct {
+      Url *Url // MPD
+   }
+}
+
+func (*Auth) CachePath() string {
+   return "rosso/molotov/Auth"
+}
+
+type Auth struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
 func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -197,18 +219,4 @@ func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
       return nil, err
    }
    return &result, nil
-}
-
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Stream struct {
-      Url *Url // MPD
-   }
-}
-
-type Auth struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
 }

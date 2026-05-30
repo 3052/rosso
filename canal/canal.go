@@ -15,6 +15,31 @@ import (
    "time"
 )
 
+func (*Player) CachePath() string {
+   return "rosso/canal/Player"
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl *Url
+   }
+   Message   string
+   Subtitles []struct {
+      Url *Url
+   }
+   Url *Url // MPD
+}
+
+func (*Session) CachePath() string {
+   return "rosso/canal/Session"
+}
+
+type Session struct {
+   Message  string
+   SsoToken string
+   Token    string // this last one hour
+}
+
 const user_agent = "Mozilla/5.0 Windows"
 
 const device_serial = "!!!!"
@@ -118,17 +143,6 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type Player struct {
-   Drm struct {
-      LicenseUrl *Url
-   }
-   Message   string
-   Subtitles []struct {
-      Url *Url
-   }
-   Url *Url // MPD
-}
-
 func FetchSession(ssoToken string) (*Session, error) {
    body, err := json.Marshal(map[string]string{
       "brand":        "m7cp",
@@ -158,12 +172,6 @@ func FetchSession(ssoToken string) (*Session, error) {
       return nil, errors.New(result.Message)
    }
    return &result, nil
-}
-
-type Session struct {
-   Message  string
-   SsoToken string
-   Token    string // this last one hour
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {

@@ -7,6 +7,21 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/molotov/client"
+}
+
+type client struct {
+   Widevine maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+   threads  maya.FlagInt
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -101,16 +116,5 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(asset, auth, manifest)
-}
-
-type client struct {
-   Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-   threads  maya.FlagInt
-
-   cache maya.Cache
+   return c.cache.Encode(asset, &auth, manifest)
 }

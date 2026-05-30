@@ -13,6 +13,49 @@ import (
    "strings"
 )
 
+func (*AccountToken) CachePath() string {
+   return "rosso/crave/AccountToken"
+}
+
+type AccountToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountId    string `json:"account_id"`
+   Jti          string `json:"jti"`
+}
+
+func (*Media) CachePath() string {
+   return "rosso/crave/Media"
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
+}
+
+func (*Playback) CachePath() string {
+   return "rosso/crave/Playback"
+}
+
+type Playback struct {
+   ContentId      int            `json:"contentId,string"`
+   ContentPackage ContentPackage `json:"contentPackage"`
+   DestinationId  int            `json:"destinationId"`
+   Error          string         // 2026-05-03
+}
+
+func (*ProfileToken) CachePath() string {
+   return "rosso/crave/ProfileToken"
+}
+
+type ProfileToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   Scope        string `json:"scope"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
 //go:embed GetShowpage.gql
 var get_showpage string
 
@@ -89,13 +132,6 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-type AccountToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id"`
-   Jti          string `json:"jti"`
 }
 
 func PerformLogin(username string, password string) (*AccountToken, error) {
@@ -195,11 +231,6 @@ func GetMedia(showId int) (*Media, error) {
    return &result.Data.Medias[0], nil
 }
 
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
 /*
 https://crave.ca/en/movie/anaconda-2025-59881
 https://crave.ca/en/play/anaconda-2025-3300246
@@ -280,13 +311,6 @@ func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
    return &result, nil
 }
 
-type Playback struct {
-   ContentId      int            `json:"contentId,string"`
-   ContentPackage ContentPackage `json:"contentPackage"`
-   DestinationId  int            `json:"destinationId"`
-   Error          string         // 2026-05-03
-}
-
 type Profile struct {
    Id                string   `json:"id"`
    AccountId         string   `json:"accountId"`
@@ -345,14 +369,6 @@ func (p *Profile) String() string {
    data.WriteString("\nid: ")
    data.WriteString(p.Id)
    return data.String()
-}
-
-type ProfileToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   Scope        string `json:"scope"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
 }
 
 func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {

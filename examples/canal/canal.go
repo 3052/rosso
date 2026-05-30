@@ -10,6 +10,24 @@ import (
    "path"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/canal/client"
+}
+
+type client struct {
+   Widevine  maya.FlagString
+   email     maya.FlagString
+   password  maya.FlagString
+   refresh   maya.FlagBool
+   query     maya.FlagString
+   tracking  maya.FlagString
+   season    maya.FlagInt
+   subtitles maya.FlagBool
+   dash      maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -165,21 +183,6 @@ func (c *client) do_query() error {
       }
    }
    return nil
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   email     maya.FlagString
-   password  maya.FlagString
-   refresh   maya.FlagBool
-   query     maya.FlagString
-   tracking  maya.FlagString
-   season    maya.FlagInt
-   subtitles maya.FlagBool
-   dash      maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_tracking_season() error {
