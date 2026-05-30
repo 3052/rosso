@@ -7,44 +7,8 @@ import (
    "os"
 )
 
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      server   tubi.LicenseServer
-   )
-   err := c.cache.Decode(&manifest, &server)
-   if err != nil {
-      return err
-   }
-   license := func(body []byte) ([]byte, error) {
-      return tubi.AcquireLicense(&server, body)
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   content_id maya.FlagInt
-   dash       maya.FlagString
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/tubi"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
@@ -80,4 +44,40 @@ func (c *client) do_content_id() error {
       return err
    }
    return c.cache.Encode(manifest, video.LicenseServer)
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      server   tubi.LicenseServer
+   )
+   err := c.cache.Decode(&manifest, &server)
+   if err != nil {
+      return err
+   }
+   license := func(body []byte) ([]byte, error) {
+      return tubi.AcquireLicense(&server, body)
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Widevine maya.FlagString
+
+   content_id maya.FlagInt
+   dash       maya.FlagString
+
+   cache maya.Cache
 }

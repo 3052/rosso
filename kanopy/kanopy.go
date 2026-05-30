@@ -11,69 +11,19 @@ import (
    "strings"
 )
 
-type PlayResponse struct {
-   Captions  []Caption  
-   Manifests []Manifest 
-   PlayId    string     
-}
-
-func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
-   body, err := json.Marshal(PlayRequest{
-      DomainId: membershipData.DomainId,
-      UserId:   loginData.UserId,
-      VideoId:  videoData.VideoId,
-   })
-   if err != nil {
-      return nil, err
-   }
+func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
          Host:   "www.kanopy.com",
-         Path:   "/kapi/plays",
+         Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
       },
       map[string]string{
          "authorization": "Bearer " + loginData.Jwt,
-         "content-type":  "application/json",
          "x-version":     "web/undefined/undefined/undefined",
       },
-      body,
+      challenge,
    )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var play PlayResponse
-   if err := json.NewDecoder(resp.Body).Decode(&play); err != nil {
-      return nil, err
-   }
-
-   return &play, nil
-}
-
-type Login struct {
-   Jwt               string `json:"jwt"`
-   VisitorId         string `json:"visitorId"`
-   UserId            int    `json:"userId"`
-   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
-   WebshopId         int    `json:"webshopId"`
-   WebshopCode       string `json:"webshopCode"`
-   UserRole          string `json:"userRole"`
-}
-
-func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-   }
-
-   resp, err := maya.Post(endpoint, headers, challenge)
    if err != nil {
       return nil, err
    }
@@ -270,4 +220,55 @@ type Caption struct {
    Language string `json:"language"`
    Files    []File `json:"files"`
    Label    string `json:"label"`
+}
+
+type PlayResponse struct {
+   Captions  []Caption
+   Manifests []Manifest
+   PlayId    string
+}
+
+func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
+   body, err := json.Marshal(PlayRequest{
+      DomainId: membershipData.DomainId,
+      UserId:   loginData.UserId,
+      VideoId:  videoData.VideoId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.kanopy.com",
+         Path:   "/kapi/plays",
+      },
+      map[string]string{
+         "authorization": "Bearer " + loginData.Jwt,
+         "content-type":  "application/json",
+         "x-version":     "web/undefined/undefined/undefined",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var play PlayResponse
+   if err := json.NewDecoder(resp.Body).Decode(&play); err != nil {
+      return nil, err
+   }
+
+   return &play, nil
+}
+
+type Login struct {
+   Jwt               string `json:"jwt"`
+   VisitorId         string `json:"visitorId"`
+   UserId            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopId         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
 }

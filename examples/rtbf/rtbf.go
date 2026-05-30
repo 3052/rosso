@@ -7,51 +7,8 @@ import (
    "os"
 )
 
-func (c *client) do_dash() error {
-   var (
-      entitlement rtbf.Entitlement
-      manifest    maya.Manifest
-   )
-   err := c.cache.Decode(&entitlement, &manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: entitlement.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do_email_password() error {
-   account, err := rtbf.FetchAccount(string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(account)
-}
-
 func (c *client) do() error {
-   if err := c.cache.Setup("rosso/rtbf"); err != nil {
+   if err := c.cache.Setup(); err != nil {
       return err
    }
    if err := c.cache.Decode(c); err != nil {
@@ -119,4 +76,47 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(entitlement, manifest)
+}
+
+func (c *client) do_dash() error {
+   var (
+      entitlement rtbf.Entitlement
+      manifest    maya.Manifest
+   )
+   err := c.cache.Decode(&entitlement, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: entitlement.FetchWidevine,
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Widevine maya.FlagString
+
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do_email_password() error {
+   account, err := rtbf.FetchAccount(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(account)
 }
