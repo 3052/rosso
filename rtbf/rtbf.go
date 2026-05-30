@@ -9,6 +9,30 @@ import (
    "net/url"
 )
 
+func (*Entitlement) CachePath() string {
+   return "rosso/rtbf/Entitlement"
+}
+
+type Entitlement struct {
+   AssetId string
+   Formats []struct {
+      Format       string
+      MediaLocator string // MPD
+   }
+   Message   string
+   PlayToken string
+}
+
+func (*Account) CachePath() string {
+   return "rosso/rtbf/Account"
+}
+
+type Account struct {
+   SessionInfo struct {
+      CookieValue string
+   }
+}
+
 func GetPath(urlData string) (string, error) {
    parse, err := url.Parse(urlData)
    if err != nil {
@@ -73,9 +97,6 @@ func FetchAccount(id, password string) (*Account, error) {
    if err != nil {
       return nil, err
    }
-   if result.ErrorMessage != "" {
-      return nil, errors.New(result.ErrorMessage)
-   }
    return &result, nil
 }
 
@@ -101,9 +122,6 @@ func (a *Account) Identity() (*Identity, error) {
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
-   }
-   if result.ErrorMessage != "" {
-      return nil, errors.New(result.ErrorMessage)
    }
    return &result, nil
 }
@@ -212,8 +230,7 @@ func (e *Entitlement) FetchWidevine(body []byte) ([]byte, error) {
 }
 
 type Identity struct {
-   ErrorMessage string
-   IdToken      string `json:"id_token"`
+   IdToken string `json:"id_token"`
 }
 
 type Session struct {
@@ -222,23 +239,6 @@ type Session struct {
 
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
-
-type Account struct {
-   ErrorMessage string
-   SessionInfo  struct {
-      CookieValue string
-   }
-}
-
-type Entitlement struct {
-   AssetId string
-   Formats []struct {
-      Format       string
-      MediaLocator string // MPD
-   }
-   Message   string
-   PlayToken string
-}
 
 func (e *Entitlement) GetDash() (*url.URL, error) {
    for _, format := range e.Formats {

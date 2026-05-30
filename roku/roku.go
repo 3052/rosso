@@ -8,6 +8,45 @@ import (
    "strings"
 )
 
+func (*Playback) CachePath() string {
+   return "rosso/roku/Playback"
+}
+
+type Playback struct {
+   Url         *Url   // MPD
+   Drm         Drm    `json:"drm"`
+   MediaFormat string `json:"mediaFormat"`
+   TraceId     string `json:"traceId"`
+}
+
+func (*AccountToken) CachePath() string {
+   return "rosso/roku/AccountToken"
+}
+
+type AccountToken struct {
+   AuthToken  string `json:"authToken"`
+   IsLoggedIn bool   `json:"isLoggedIn"`
+   Ip         string `json:"ip"`
+   Rida       string `json:"rida"`
+}
+
+func (*ActivationStatus) CachePath() string {
+   return "rosso/roku/ActivationStatus"
+}
+
+type ActivationStatus struct {
+   Code      string    `json:"code"`
+   Token     string    `json:"token"`
+   CreatedAt int64     `json:"createdAt"`
+   Profiles  []Profile `json:"profiles"`
+   Platform  string    `json:"platform"`
+   Status    string    `json:"status"`
+}
+
+func (*AccountActivation) CachePath() string {
+   return "rosso/roku/AccountActivation"
+}
+
 type AccountActivation struct {
    Code string `json:"code"`
 }
@@ -44,15 +83,6 @@ func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
       return nil, err
    }
    return &result, nil
-}
-
-type ActivationStatus struct {
-   Code      string    `json:"code"`
-   Token     string    `json:"token"`
-   CreatedAt int64     `json:"createdAt"`
-   Profiles  []Profile `json:"profiles"`
-   Platform  string    `json:"platform"`
-   Status    string    `json:"status"`
 }
 
 type Profile struct {
@@ -117,13 +147,6 @@ func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {
    return &activation, nil
 }
 
-type AccountToken struct {
-   AuthToken  string `json:"authToken"`
-   IsLoggedIn bool   `json:"isLoggedIn"`
-   Ip         string `json:"ip"`
-   Rida       string `json:"rida"`
-}
-
 // status can be nil
 func GetAccountToken(status *ActivationStatus) (*AccountToken, error) {
    target := &url.URL{
@@ -167,13 +190,6 @@ type Drm struct {
 
 type Widevine struct {
    LicenseServer *Url `json:"licenseServer"`
-}
-
-type Playback struct {
-   Url         *Url   // MPD
-   Drm         Drm    `json:"drm"`
-   MediaFormat string `json:"mediaFormat"`
-   TraceId     string `json:"traceId"`
 }
 
 func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {

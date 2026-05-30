@@ -18,6 +18,15 @@ import (
    "time"
 )
 
+func (*Cookie) CachePath() string {
+   return "rosso/peacock/Cookie"
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
 func (*Playout) CachePath() string {
    return "rosso/peacock/Playout"
 }
@@ -254,11 +263,6 @@ func generate_sky_ott(method, path string, header map[string]string, body []byte
       timestampStr,
       sky_version,
    )
-}
-
-type Cookie struct {
-   Name  string
-   Value string
 }
 
 func (c *Cookie) String() string {

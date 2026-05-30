@@ -8,6 +8,21 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/roku/client"
+}
+
+type client struct {
+   Widevine           maya.FlagString
+   account_activation maya.FlagBool
+   activation_status  maya.FlagBool
+   dash               maya.FlagString
+   roku_id            maya.FlagString
+   use_account        maya.FlagBool
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -90,18 +105,6 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
-}
-
-type client struct {
-   Widevine maya.FlagString
-
-   account_activation maya.FlagBool
-   activation_status  maya.FlagBool
-   dash               maya.FlagString
-   roku_id            maya.FlagString
-   use_account        maya.FlagBool
-
-   cache maya.Cache
 }
 
 func (c *client) do_account_activation() error {
