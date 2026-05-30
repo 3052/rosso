@@ -8,6 +8,26 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/hboMax/client"
+}
+
+type client struct {
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+   dash      maya.FlagString
+   edit      maya.FlagString
+   initiate  maya.FlagString
+   login     maya.FlagBool
+   movie     maya.FlagString
+   search    maya.FlagString
+   season    maya.FlagInt
+   show      maya.FlagString
+   threads   maya.FlagInt
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -195,20 +215,4 @@ func (c *client) do_edit() error {
       return err
    }
    return c.cache.Encode(manifest, playback)
-}
-
-type client struct {
-   PlayReady maya.FlagString
-   Proxy     maya.FlagString
-   dash      maya.FlagString
-   edit      maya.FlagString
-   initiate  maya.FlagString
-   login     maya.FlagBool
-   movie     maya.FlagString
-   search    maya.FlagString
-   season    maya.FlagInt
-   show      maya.FlagString
-   threads   maya.FlagInt
-
-   cache maya.Cache
 }

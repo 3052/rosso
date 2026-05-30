@@ -11,6 +11,16 @@ import (
    "strings"
 )
 
+func (*Token) CachePath() string {
+   return "rosso/disney/Token"
+}
+
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
+}
+
 // ZGlzbmV5JmJyb3dzZXImMS4wLjA
 // disney&browser&1.0.0
 const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
@@ -495,12 +505,6 @@ func (t *Token) FetchPlayReady(body []byte) ([]byte, error) {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
-}
-
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
 }
 
 func (t *Token) assert(expected string) error {

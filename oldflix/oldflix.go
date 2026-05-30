@@ -9,6 +9,15 @@ import (
    "net/url"
 )
 
+func (*Login) CachePath() string {
+   return "rosso/oldflix/Login"
+}
+
+type Login struct {
+   Status int
+   Token  string
+}
+
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
 func (l *Login) FetchBrowse(id string) (*Browse, error) {
    body := url.Values{"id": {id}}.Encode()
@@ -91,11 +100,6 @@ type Browse struct {
       Id     string
       Tracks []Track
    }
-}
-
-type Login struct {
-   Status int
-   Token  string
 }
 
 type Track struct {

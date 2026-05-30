@@ -12,6 +12,47 @@ import (
    "strings"
 )
 
+func (*Cookie) CachePath() string {
+   return "rosso/hboMax/Cookie"
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func (*Playback) CachePath() string {
+   return "rosso/hboMax/Playback"
+}
+
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
+   }
+   Errors []struct { // 2026-05-27
+      Detail string // 2026-05-27
+   }
+   Fallback struct {
+      Manifest struct {
+         Url *Url // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
+}
+
+func (*Login) CachePath() string {
+   return "rosso/hboMax/Login"
+}
+
+type Login struct {
+   Token string
+}
+
 func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
    for _, item := range entities {
@@ -188,10 +229,6 @@ func LoginRequest(st *Cookie) (*Login, error) {
    return &result.Data.Attributes, nil
 }
 
-type Login struct {
-   Token string
-}
-
 func (p *Playback) GetManifest() *url.URL {
    manifest := p.Fallback.Manifest.Url.Url
    manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
@@ -299,26 +336,6 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
       return nil, errors.New(result.Errors[0].Detail)
    }
    return &result, nil
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors []struct { // 2026-05-27
-      Detail string // 2026-05-27
-   }
-   Fallback struct {
-      Manifest struct {
-         Url *Url // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
 }
 
 // Resource represents a relationship pointer in the JSON:API graph
@@ -444,11 +461,6 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    return result.Included, nil
 }
 
-type Cookie struct {
-   Name  string
-   Value string
-}
-
 func (c *Cookie) String() string {
    return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
@@ -470,9 +482,9 @@ func StRequest() (*Cookie, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   for _, c := range resp.Cookies() {
-      if c.Name == "st" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
+   for _, each := range resp.Cookies() {
+      if each.Name == "st" {
+         return &Cookie{Name: each.Name, Value: each.Value}, nil
       }
    }
    return nil, errors.New("named cookie not present")

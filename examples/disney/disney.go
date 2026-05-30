@@ -8,6 +8,26 @@ import (
    "os"
 )
 
+func (*client) CachePath() string {
+   return "rosso/examples/disney/client"
+}
+
+type client struct {
+   Email     maya.FlagString
+   PlayReady maya.FlagString
+   Proxy     maya.FlagString
+   address   maya.FlagString
+   hls       maya.FlagString
+   media     maya.FlagString
+   passcode  maya.FlagString
+   profile   maya.FlagString
+   refresh   maya.FlagBool
+   season    maya.FlagString
+   threads   maya.FlagInt
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -122,7 +142,7 @@ func (c *client) do_passcode() error {
       }
       fmt.Println(&profile)
    }
-   return c.cache.Encode(token)
+   return c.cache.Encode(&token)
 }
 
 func (c *client) do_profile() error {
@@ -135,7 +155,7 @@ func (c *client) do_profile() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(token)
+   return c.cache.Encode(&token)
 }
 
 func (c *client) do_refresh() error {
@@ -148,7 +168,7 @@ func (c *client) do_refresh() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(token)
+   return c.cache.Encode(&token)
 }
 
 func (c *client) do_address() error {
@@ -201,20 +221,4 @@ func (c *client) do_media() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-type client struct {
-   Email     maya.FlagString
-   PlayReady maya.FlagString
-   Proxy     maya.FlagString
-   address   maya.FlagString
-   hls       maya.FlagString
-   media     maya.FlagString
-   passcode  maya.FlagString
-   profile   maya.FlagString
-   refresh   maya.FlagBool
-   season    maya.FlagString
-   threads   maya.FlagInt
-
-   cache maya.Cache
 }
