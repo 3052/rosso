@@ -10,6 +10,26 @@ import (
    "strings"
 )
 
+func (*LinkCode) CachePath() string {
+   return "rosso/mubi/LinkCode"
+}
+
+type LinkCode struct {
+   AuthToken string `json:"auth_token"`
+   LinkCode  string `json:"link_code"`
+}
+
+func (*Session) CachePath() string {
+   return "rosso/mubi/Session"
+}
+
+type Session struct {
+   Token string
+   User  struct {
+      Id int
+   }
+}
+
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
 func (s *Session) FetchViewing(id int) error {
@@ -132,11 +152,6 @@ func (l *LinkCode) FetchSession() (*Session, error) {
    return result, nil
 }
 
-type LinkCode struct {
-   AuthToken string `json:"auth_token"`
-   LinkCode  string `json:"link_code"`
-}
-
 // "android" requires headers:
 // client-device-identifier
 // client-version
@@ -147,13 +162,6 @@ var ClientCountry = "US"
 type Film struct {
    Title string
    Id    int
-}
-
-type Session struct {
-   Token string
-   User  struct {
-      Id int
-   }
 }
 
 type SecureUrl struct {

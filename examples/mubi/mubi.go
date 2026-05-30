@@ -9,10 +9,13 @@ import (
    "path"
 )
 
-type client struct {
-   Proxy    maya.FlagString
-   Widevine maya.FlagString
+func (*client) CachePath() string {
+   return "rosso/examples/mubi/client"
+}
 
+type client struct {
+   Proxy     maya.FlagString
+   Widevine  maya.FlagString
    address   maya.FlagString
    dash      maya.FlagString
    link_code maya.FlagBool
