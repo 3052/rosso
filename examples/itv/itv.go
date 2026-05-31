@@ -8,16 +8,13 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/itv/client"
-}
-
 type client struct {
    Proxy    maya.FlagString
    Widevine maya.FlagString
    address  maya.FlagString
-   playlist maya.FlagString
    dash     maya.FlagString
+   playlist maya.FlagString
+   threads  maya.FlagInt
 
    cache maya.Cache
 }
@@ -35,6 +32,7 @@ func (c *client) do() error {
       {Name: "address", Value: &c.address},
       {Name: "playlist", Value: &c.playlist},
       {Name: "dash-id", Value: &c.dash},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -58,6 +56,35 @@ func (c *client) do() error {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "itv")
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest   maya.Manifest
+      media_file itv.MediaFile
+   )
+   err := c.cache.Decode(&manifest, &media_file)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: media_file.FetchKeyService,
+      Threads: int(c.threads),
+   })
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/itv/client"
 }
 
 func (c *client) do_address() error {
@@ -90,28 +117,4 @@ func (c *client) do_playlist() error {
       return err
    }
    return c.cache.Encode(manifest, media_file)
-}
-
-func (c *client) do_dash() error {
-   var (
-      manifest   maya.Manifest
-      media_file itv.MediaFile
-   )
-   err := c.cache.Decode(&manifest, &media_file)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: media_file.FetchKeyService,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
