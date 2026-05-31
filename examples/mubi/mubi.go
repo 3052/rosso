@@ -9,24 +9,6 @@ import (
    "path"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/mubi/client"
-}
-
-type client struct {
-   Proxy     maya.FlagString
-   Widevine  maya.FlagString
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi_id   maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
-   threads   maya.FlagInt
-
-   cache maya.Cache
-}
-
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -35,8 +17,8 @@ func (c *client) do() error {
       return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "link-code", Value: &c.link_code},
       {Name: "session", Value: &c.session},
       {Name: "address", Value: &c.address, Usage: "film or series URL"},
@@ -169,4 +151,22 @@ func (c *client) do_address() error {
    }
    fmt.Println(film)
    return nil
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/mubi/client"
+}
+
+type client struct {
+   Proxy     maya.FlagString
+   Widevine  maya.FlagString
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+   threads   maya.FlagInt
+
+   cache maya.Cache
 }
