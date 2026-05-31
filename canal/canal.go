@@ -15,6 +15,70 @@ import (
    "time"
 )
 
+func (a *Asset) String() string {
+   var data strings.Builder
+   data.WriteString("title: ")
+   data.WriteString(a.Title)
+   for _, image := range a.Images {
+      if image.Size == "lg" {
+         if image.Type == "la" {
+            data.WriteString("\nimage: ")
+            data.WriteString(image.Url)
+         }
+      }
+   }
+   data.WriteString("\nid: ")
+   data.WriteString(a.Id)
+   return data.String()
+}
+
+type Asset struct {
+   Title  string
+   Images []struct {
+      Size string
+      Type string
+      Url  string
+   }
+   Id string
+}
+
+func (s *Session) Search(query string) ([]Asset, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "tvapi-hlm2.solocoo.tv",
+         Path:     "/v1/search",
+         RawQuery: url.Values{"query": {query}}.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + s.Token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Collection []struct {
+         Assets []Asset
+         Label  string
+      }
+      Message string // 2026-05-30
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   for _, collection := range result.Collection {
+      if collection.Label == "sg.ui.search.vod" {
+         return collection.Assets, nil
+      }
+   }
+   return nil, errors.New("no vod found")
+}
+
 func (t *Ticket) Login(username, password string) (*Login, error) {
    body, err := json.Marshal(map[string]any{
       "ticket": t.Ticket,
@@ -280,27 +344,6 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
-func (a *Asset) String() string {
-   var data strings.Builder
-   data.WriteString("title: ")
-   data.WriteString(a.Title)
-   data.WriteString("\ntype: ")
-   data.WriteString(a.Type)
-   data.WriteString("\nid: ")
-   data.WriteString(a.Id)
-   return data.String()
-}
-
-type Asset struct {
-   Id    string
-   Title string
-   Type  string
-}
-
-type Collection struct {
-   Assets []Asset
-}
-
 func (e *Episode) String() string {
    data := &strings.Builder{}
    fmt.Fprintln(data, "episode:", e.Params.SeriesEpisode)
@@ -317,28 +360,4 @@ type Episode struct {
       SeriesEpisode int
    }
    Title string
-}
-
-func (s *Session) Search(query string) ([]Collection, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "tvapi-hlm2.solocoo.tv",
-         Path:     "/v1/search",
-         RawQuery: url.Values{"query": {query}}.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Collection []Collection
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Collection, nil
 }

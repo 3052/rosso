@@ -10,6 +10,61 @@ import (
    "path"
 )
 
+func (c *client) do_query() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   assets, err := session.Search(string(c.query))
+   if err != nil {
+      return err
+   }
+   for i, asset := range assets {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&asset)
+   }
+   return nil
+}
+
+func (c *client) do_tracking_season() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   episodes, err := session.Episodes(string(c.tracking), int(c.season))
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&episode)
+   }
+   return nil
+}
+
+func (c *client) do_tracking() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
+   if err != nil {
+      return err
+   }
+   player, err := session.Player(string(c.tracking))
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&player.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, player)
+}
+
 func (*client) CachePath() string {
    return "rosso/examples/canal/client"
 }
@@ -159,64 +214,4 @@ func (c *client) do_refresh() error {
       return err
    }
    return c.cache.Encode(session)
-}
-
-func (c *client) do_query() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   collections, err := session.Search(string(c.query))
-   if err != nil {
-      return err
-   }
-   var line bool
-   for _, collection := range collections {
-      for _, asset := range collection.Assets {
-         if line {
-            fmt.Println()
-         } else {
-            line = true
-         }
-         fmt.Println(&asset)
-      }
-   }
-   return nil
-}
-
-func (c *client) do_tracking_season() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   episodes, err := session.Episodes(string(c.tracking), int(c.season))
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&episode)
-   }
-   return nil
-}
-
-func (c *client) do_tracking() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
-   if err != nil {
-      return err
-   }
-   player, err := session.Player(string(c.tracking))
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&player.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, player)
 }
