@@ -7,11 +7,8 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/tubi/client"
-}
-
 type client struct {
+   Proxy      maya.FlagString
    Widevine   maya.FlagString
    content_id maya.FlagInt
    dash       maya.FlagString
@@ -28,34 +25,29 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "content-id", Value: &c.content_id},
       {Name: "dash-id", Value: &c.dash},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   switch {
-   case flags.IsSet(&c.Widevine):
+   if flags.IsSet(&c.Widevine) {
       return c.cache.Encode(c)
-   case c.content_id >= 1:
+   }
+   if flags.IsSet(&c.Proxy) {
+      return c.cache.Encode(c)
+   }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
+   }
+   if c.content_id >= 1 {
       return c.do_content_id()
-   case c.dash != "":
+   }
+   if c.dash != "" {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "tubi")
-}
-
-func (c *client) do_content_id() error {
-   content, err := tubi.GetContent(int(c.content_id))
-   if err != nil {
-      return err
-   }
-   video := content.VideoResources[0]
-   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest, &video.LicenseServer)
 }
 
 func (c *client) do_dash() error {
@@ -83,4 +75,21 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/tubi/client"
+}
+
+func (c *client) do_content_id() error {
+   content, err := tubi.GetContent(int(c.content_id))
+   if err != nil {
+      return err
+   }
+   video := content.VideoResources[0]
+   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest, &video.LicenseServer)
 }
