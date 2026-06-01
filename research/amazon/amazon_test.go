@@ -12,6 +12,7 @@ import (
    "path/filepath"
    "strings"
    "testing"
+   "time"
 )
 
 type SavedState struct {
@@ -73,57 +74,66 @@ func TestLoginAndSave(t *testing.T) {
 
    videoID := "B075RND57T"
 
-   jar, err := cookiejar.New(nil)
-   if err != nil {
-      t.Fatalf("Failed to create cookie jar: %v", err)
-   }
+   for i := 1; i <= 2; i++ {
+      t.Logf("--- Starting login attempt %d ---", i)
 
-   session := &Session{
-      Client:   &http.Client{Jar: jar},
-      Email:    email,
-      Password: password,
-      VideoID:  videoID,
-      DeviceID: GenerateUUID(),
-   }
+      jar, err := cookiejar.New(nil)
+      if err != nil {
+         t.Fatalf("Failed to create cookie jar: %v", err)
+      }
 
-   // Step 1: Get Sign-in page
-   action, inputs, err := GetSignIn(session)
-   if err != nil {
-      t.Fatalf("GetSignIn failed: %v", err)
-   }
+      session := &Session{
+         Client:   &http.Client{Jar: jar},
+         Email:    email,
+         Password: password,
+         VideoID:  videoID,
+         DeviceID: GenerateUUID(),
+      }
 
-   // Step 2: Post Email
-   nextAction, nextInputs, err := PostEmail(session, action, inputs)
-   if err != nil {
-      t.Fatalf("PostEmail failed: %v", err)
-   }
+      // Step 1: Get Sign-in page
+      action, inputs, err := GetSignIn(session)
+      if err != nil {
+         t.Fatalf("Attempt %d GetSignIn failed: %v", i, err)
+      }
 
-   // Step 3: Post Password
-   err = PostPassword(session, nextAction, nextInputs)
-   if err != nil {
-      t.Fatalf("PostPassword failed: %v", err)
-   }
+      // Step 2: Post Email
+      nextAction, nextInputs, err := PostEmail(session, action, inputs)
+      if err != nil {
+         t.Fatalf("Attempt %d PostEmail failed: %v", i, err)
+      }
 
-   // Extract cookies to save
-   amazonURL, _ := url.Parse("https://www.amazon.com")
-   state := SavedState{
-      Cookies:  session.Client.Jar.Cookies(amazonURL),
-      VideoID:  session.VideoID,
-      DeviceID: session.DeviceID,
-   }
+      // Step 3: Post Password
+      err = PostPassword(session, nextAction, nextInputs)
+      if err != nil {
+         t.Fatalf("Attempt %d PostPassword failed: %v", i, err)
+      }
 
-   data, err := json.Marshal(state)
-   if err != nil {
-      t.Fatalf("Failed to marshal state: %v", err)
-   }
+      // Extract cookies to save
+      amazonURL, _ := url.Parse("https://www.amazon.com")
+      state := SavedState{
+         Cookies:  session.Client.Jar.Cookies(amazonURL),
+         VideoID:  session.VideoID,
+         DeviceID: session.DeviceID,
+      }
 
-   filePath := getTempFilePath()
-   err = os.WriteFile(filePath, data, 0600)
-   if err != nil {
-      t.Fatalf("Failed to write state file: %v", err)
-   }
+      data, err := json.Marshal(state)
+      if err != nil {
+         t.Fatalf("Attempt %d Failed to marshal state: %v", i, err)
+      }
 
-   t.Logf("Successfully logged in as %s and saved state to %s", email, filePath)
+      filePath := getTempFilePath()
+      err = os.WriteFile(filePath, data, 0600)
+      if err != nil {
+         t.Fatalf("Attempt %d Failed to write state file: %v", i, err)
+      }
+
+      t.Logf("Attempt %d successfully logged in as %s and saved state to %s", i, email, filePath)
+
+      if i < 2 {
+         t.Log("Sleeping for 20 seconds before next attempt...")
+         time.Sleep(20 * time.Second)
+      }
+   }
 }
 
 func TestLoadAndFetchRemaining(t *testing.T) {
