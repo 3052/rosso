@@ -1,5 +1,9 @@
 # amazon
 
+## tv login
+
+https://amazon.com/gp/video/ontv
+
 ## https://watch.amazon.com/detail?gti=amzn1.dv.gti.a5ecdc15-befb-4ce3-952f-daedae5d34d7
 
 country: US

@@ -22,10 +22,7 @@ func PostEmail(s *Session, action string, inputs map[string]string) (string, map
    if err != nil {
       return "", nil, err
    }
-   req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-   req.Header.Set("Accept-Language", "en-US,en;q=0.5")
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   req.Header.Set("Origin", "https://www.amazon.com")
    req.Header.Set("Referer", "https://www.amazon.com/ap/signin")
    req.Header.Set("Sec-Fetch-Dest", "document")
    req.Header.Set("Sec-Fetch-Mode", "navigate")
