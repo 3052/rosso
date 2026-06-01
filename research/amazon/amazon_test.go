@@ -11,7 +11,9 @@ import (
    "os"
    "os/exec"
    "path/filepath"
+   "strings"
    "testing"
+   "time"
 )
 
 // Helper function to get the temporary file path for storing cookies
@@ -65,8 +67,15 @@ func loadCookies(filename string) ([]*http.Cookie, error) {
    return cookies, err
 }
 
-// TEST 1: Perform the login flow using dynamically fetched credentials and save the cookies to a temp file
+// TEST 1: Perform the login flow using dynamically fetched credentials and save the cookies to a temp file.
+// Runs twice to ensure stability against Amazon's anti-bot mechanics.
 func TestLoginAndSaveSession(t *testing.T) {
+   // --- Tweak these variables if Amazon acts up ---
+   const numRuns = 2
+   const sleepBetweenSteps = 4 * time.Second // Simulates human typing speed
+   const sleepBetweenRuns = 15 * time.Second // Longer delay between full login attempts to avoid IP flags
+   // -----------------------------------------------
+
    fmt.Println("Fetching credentials from credential.exe...")
    email, password, err := fetchCredentials()
    if err != nil {
@@ -74,45 +83,62 @@ func TestLoginAndSaveSession(t *testing.T) {
    }
    fmt.Printf("Using email: %s\n", email)
 
-   jar, err := cookiejar.New(nil)
-   if err != nil {
-      t.Fatal(err)
+   for i := 1; i <= numRuns; i++ {
+      fmt.Printf("\n--- Starting Login Run %d ---\n", i)
+
+      // Create a fresh cookie jar and client for each run to avoid state contamination
+      jar, err := cookiejar.New(nil)
+      if err != nil {
+         t.Fatal(err)
+      }
+
+      client := &http.Client{
+         Jar: jar,
+      }
+
+      fmt.Println("Step 1: Fetching initial sign-in page...")
+      pageData, err := GetSigninPage(client)
+      if err != nil {
+         t.Fatalf("Run %d: GetSigninPage failed: %v", i, err)
+      }
+
+      fmt.Printf("Sleeping for %v (Simulating typing email)...\n", sleepBetweenSteps)
+      time.Sleep(sleepBetweenSteps)
+
+      fmt.Println("Step 2: Submitting email claim...")
+      nextPageData, err := PostClaim(client, pageData, email)
+      if err != nil {
+         t.Fatalf("Run %d: PostClaim failed: %v", i, err)
+      }
+
+      fmt.Printf("Sleeping for %v (Simulating typing password)...\n", sleepBetweenSteps)
+      time.Sleep(sleepBetweenSteps)
+
+      fmt.Println("Step 3: Submitting password...")
+      err = PostSignin(client, nextPageData, email, password)
+      if err != nil {
+         t.Fatalf("Run %d: PostSignin failed: %v", i, err)
+      }
+
+      // Extract cookies for the amazon domain
+      amazonURL, _ := url.Parse("https://www.amazon.com")
+      cookies := client.Jar.Cookies(amazonURL)
+
+      // Save the session cookies to the temp file
+      cookieFile := getCookieFilePath()
+      err = saveCookies(cookieFile, cookies)
+      if err != nil {
+         t.Fatalf("Run %d: Failed to save cookies: %v", i, err)
+      }
+
+      fmt.Printf("Run %d: Successfully saved %d cookies to %s\n", i, len(cookies), cookieFile)
+
+      // Sleep before the next run (if not the last run)
+      if i < numRuns {
+         fmt.Printf("Sleeping for %v to cool down Amazon's rate-limiting before the next run...\n", sleepBetweenRuns)
+         time.Sleep(sleepBetweenRuns)
+      }
    }
-
-   client := &http.Client{
-      Jar: jar,
-   }
-
-   fmt.Println("Step 1: Fetching initial sign-in page...")
-   pageData, err := GetSigninPage(client)
-   if err != nil {
-      t.Fatalf("GetSigninPage failed: %v", err)
-   }
-
-   fmt.Println("Step 2: Submitting email claim...")
-   nextPageData, err := PostClaim(client, pageData, email)
-   if err != nil {
-      t.Fatalf("PostClaim failed: %v", err)
-   }
-
-   fmt.Println("Step 3: Submitting password...")
-   err = PostSignin(client, nextPageData, email, password)
-   if err != nil {
-      t.Fatalf("PostSignin failed: %v", err)
-   }
-
-   // Extract cookies for the amazon domain
-   amazonURL, _ := url.Parse("https://www.amazon.com")
-   cookies := client.Jar.Cookies(amazonURL)
-
-   // Save the session cookies to the temp file
-   cookieFile := getCookieFilePath()
-   err = saveCookies(cookieFile, cookies)
-   if err != nil {
-      t.Fatalf("Failed to save cookies: %v", err)
-   }
-
-   fmt.Printf("Successfully saved %d cookies to %s\n", len(cookies), cookieFile)
 }
 
 // TEST 2: Read the cookies from the temp file and request playback resources
@@ -151,6 +177,20 @@ func TestGetPlaybackResources(t *testing.T) {
       t.Fatalf("GetPlaybackResources failed: %v", err)
    }
 
-   fmt.Println("Successfully retrieved playback resources!")
-   fmt.Println(string(playbackData))
+   // Convert response to string to search for the MPD extension
+   responseStr := string(playbackData)
+
+   // Validate the response contains the expected DASH manifest (.mpd)
+   if !strings.Contains(responseStr, ".mpd") {
+      t.Fatalf("Test Failed: .mpd manifest URL not found in the response. Response snippet: %s", responseStr[:500])
+   }
+
+   fmt.Println("Success! Found .mpd manifest URL in the response.")
+
+   // Optional: Print a snippet of the response to keep the console clean
+   if len(responseStr) > 500 {
+      fmt.Printf("Response snippet: %s...\n", responseStr[:500])
+   } else {
+      fmt.Printf("Response: %s\n", responseStr)
+   }
 }

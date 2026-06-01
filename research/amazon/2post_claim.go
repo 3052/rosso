@@ -12,7 +12,7 @@ import (
 // PostClaim submits the email address (the "claim") using the dynamic Action URL and hidden tokens.
 func PostClaim(client *http.Client, pageData *PageData, email string) (*PageData, error) {
    if pageData == nil || pageData.ActionURL == "" {
-      return nil, fmt.Errorf("invalid page data or missing action URL")
+      return nil, fmt.Errorf("PostClaim: invalid page data or missing action URL")
    }
 
    data := url.Values{}
@@ -24,7 +24,7 @@ func PostClaim(client *http.Client, pageData *PageData, email string) (*PageData
 
    req, err := http.NewRequest("POST", pageData.ActionURL, strings.NewReader(data.Encode()))
    if err != nil {
-      return nil, fmt.Errorf("error creating request: %w", err)
+      return nil, fmt.Errorf("PostClaim: error creating request: %w", err)
    }
 
    req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
@@ -40,17 +40,17 @@ func PostClaim(client *http.Client, pageData *PageData, email string) (*PageData
 
    resp, err := client.Do(req)
    if err != nil {
-      return nil, fmt.Errorf("error executing request: %w", err)
+      return nil, fmt.Errorf("PostClaim: error executing request: %w", err)
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != 200 {
-      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("PostClaim: unexpected status code: %d", resp.StatusCode)
    }
 
    bodyBytes, err := ioutil.ReadAll(resp.Body)
    if err != nil {
-      return nil, fmt.Errorf("error reading response body: %w", err)
+      return nil, fmt.Errorf("PostClaim: error reading response body: %w", err)
    }
 
    // Extract the new action URL and tokens for the password step
