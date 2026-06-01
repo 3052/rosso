@@ -14,36 +14,26 @@ func PostSignin(client *http.Client, pageData *PageData, email, password string)
    if pageData == nil || pageData.ActionURL == "" {
       return fmt.Errorf("PostSignin: invalid page data or missing action URL")
    }
-
    data := url.Values{}
    // Populate dynamically extracted hidden fields
-   for k, v := range pageData.HiddenParams {
-      data.Set(k, v)
+   hidden_params := []string{
+      "appAction",
+      "appActionToken",
+      "workflowState",
+   }
+   for _, each := range hidden_params {
+      data.Set(each, pageData.HiddenParams[each])
    }
    data.Set("email", email)
-   data.Set("password", password)
-
    req, err := http.NewRequest("POST", pageData.ActionURL, strings.NewReader(data.Encode()))
    if err != nil {
       return fmt.Errorf("PostSignin: error creating request: %w", err)
    }
-
-   req.Header.Set("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-   req.Header.Set("accept-language", "en-US,en;q=0.5")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("origin", "https://www.amazon.com")
-   req.Header.Set("upgrade-insecure-requests", "1")
-   req.Header.Set("sec-fetch-dest", "document")
-   req.Header.Set("sec-fetch-mode", "navigate")
-   req.Header.Set("sec-fetch-site", "same-origin")
-   req.Header.Set("sec-fetch-user", "?1")
-
    // Intercept the 302 Found redirect to prevent Go from blindly following it
    client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
       return http.ErrUseLastResponse
    }
-
    resp, err := client.Do(req)
    if err != nil {
       return fmt.Errorf("PostSignin: error executing request: %w", err)
