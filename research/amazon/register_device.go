@@ -1,4 +1,3 @@
-// register_device.go
 package amazon
 
 import (
@@ -14,12 +13,15 @@ type RegisterResponse struct {
       Success struct {
          Tokens struct {
             Bearer struct {
-               AccessToken string `json:"access_token"`
-               ExpiresIn   int    `json:"expires_in"`
+               AccessToken  string `json:"access_token"`
+               RefreshToken string `json:"refresh_token"`
+               ExpiresIn    string `json:"expires_in"` // Set to string based on Amazon's JSON response
             } `json:"bearer"`
          } `json:"tokens"`
       } `json:"success"`
    } `json:"response"`
+   Error            string `json:"error,omitempty"`
+   ErrorDescription string `json:"error_description,omitempty"`
 }
 
 func RegisterDevice(client *http.Client, endpoint string, codePair *CodePairResponse, device map[string]string) (*RegisterResponse, error) {
@@ -52,12 +54,16 @@ func RegisterDevice(client *http.Client, endpoint string, codePair *CodePairResp
 
    if resp.StatusCode != http.StatusOK {
       respBody, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("unable to register: %s [%d]", string(respBody), resp.StatusCode)
+      return nil, fmt.Errorf("unable to register (has the code been entered?): %s [%d]", string(respBody), resp.StatusCode)
    }
 
    var result RegisterResponse
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
+   }
+
+   if result.Error != "" {
+      return nil, fmt.Errorf("API error: %s [%s]", result.ErrorDescription, result.Error)
    }
 
    return &result, nil

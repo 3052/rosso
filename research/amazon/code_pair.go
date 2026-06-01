@@ -1,4 +1,3 @@
-// get_code_pair.go
 package amazon
 
 import (
