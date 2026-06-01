@@ -7,6 +7,7 @@ import (
    "html"
    "net/http"
    "regexp"
+   "strings"
 )
 
 type Session struct {
@@ -75,4 +76,44 @@ func ExtractForm(htmlStr string, formName string) (string, map[string]string) {
       }
    }
    return action, inputs
+}
+
+// CheckAmazonErrors scans the HTML body for known Amazon error patterns to provide better failure reasons
+func CheckAmazonErrors(body []byte) error {
+   bodyStr := string(body)
+
+   if strings.Contains(bodyStr, "Looking for Something?") {
+      return fmt.Errorf("404 Not Found (Looking for Something?)")
+   }
+
+   contentPattern := regexp.MustCompile(`(?is)<div[^>]*class=["'][^"']*a-alert-content[^"']*["'][^>]*>(.*?)</div>`)
+   matches := contentPattern.FindAllStringSubmatch(bodyStr, -1)
+
+   var errMsgs []string
+   for _, m := range matches {
+      cleanText := regexp.MustCompile(`(?is)<[^>]+>`).ReplaceAllString(m[1], " ")
+      cleanText = strings.Join(strings.Fields(cleanText), " ")
+      // Ignore warnings about cookies or JS being disabled
+      if cleanText != "" && !strings.Contains(cleanText, "Enable Cookies") && !strings.Contains(cleanText, "JavaScript") {
+         errMsgs = append(errMsgs, cleanText)
+      }
+   }
+
+   if len(errMsgs) > 0 {
+      unique := make(map[string]bool)
+      var finalMsgs []string
+      for _, msg := range errMsgs {
+         if !unique[msg] {
+            unique[msg] = true
+            finalMsgs = append(finalMsgs, msg)
+         }
+      }
+      return fmt.Errorf("%s", strings.Join(finalMsgs, " | "))
+   }
+
+   if strings.Contains(bodyStr, "Enter the characters as they are shown") || strings.Contains(bodyStr, "Type characters") {
+      return fmt.Errorf("CAPTCHA required")
+   }
+
+   return nil
 }

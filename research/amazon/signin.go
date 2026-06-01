@@ -7,6 +7,7 @@ import (
    "net/http"
    "net/url"
    "os"
+   "path/filepath"
    "strings"
 )
 
@@ -46,8 +47,9 @@ func GetSignIn(s *Session) (string, map[string]string, error) {
    action, inputs := ExtractForm(string(body), "signIn")
 
    if action == "" {
-      os.WriteFile("error_get_signin.html", body, 0644)
-      return "", nil, fmt.Errorf("signIn form not found. Response body saved to error_get_signin.html")
+      errFile := filepath.Join(os.TempDir(), "error_get_signin.html")
+      os.WriteFile(errFile, body, 0644)
+      return "", nil, fmt.Errorf("signIn form not found. Response body saved to %s", errFile)
    }
 
    if strings.HasPrefix(action, "/") {

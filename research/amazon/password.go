@@ -7,32 +7,30 @@ import (
    "net/http"
    "net/url"
    "os"
+   "path/filepath"
    "strings"
 )
 
 func PostPassword(s *Session, action string, inputs map[string]string) error {
    data := url.Values{}
-   for k, v := range inputs {
-      data.Set(k, v)
-   }
    data.Set("password", s.Password)
-   if _, exists := data["email"]; !exists {
-      data.Set("email", s.Email)
+   keys := []string{
+      "anti-csrftoken-a2z",
+      "appAction",
+      "appActionToken",
+      "email",
+      "metadata1",
+      "openid.return_to",
+      "workflowState",
+   }
+   for _, key := range keys {
+      data.Set(key, inputs[key])
    }
    req, err := http.NewRequest("POST", action, strings.NewReader(data.Encode()))
    if err != nil {
       return err
    }
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-   req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-   req.Header.Set("Accept-Language", "en-US,en;q=0.5")
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   req.Header.Set("Origin", "https://www.amazon.com")
-   req.Header.Set("Upgrade-Insecure-Requests", "1")
-   req.Header.Set("Sec-Fetch-Dest", "document")
-   req.Header.Set("Sec-Fetch-Mode", "navigate")
-   req.Header.Set("Sec-Fetch-Site", "same-origin")
-   req.Header.Set("Referer", "https://www.amazon.com/ap/signin")
    resp, err := s.Client.Do(req)
    if err != nil {
       return err
@@ -40,10 +38,28 @@ func PostPassword(s *Session, action string, inputs map[string]string) error {
    defer resp.Body.Close()
 
    body, _ := io.ReadAll(resp.Body)
+   bodyStr := string(body)
 
-   if strings.Contains(string(body), "There was a problem") || strings.Contains(string(body), "Important Message") {
-      os.WriteFile("error_post_password.html", body, 0644)
-      return fmt.Errorf("login failed. See error_post_password.html")
+   // Check for raw HTTP errors (like 404 or 500)
+   if resp.StatusCode >= 400 {
+      errFile := filepath.Join(os.TempDir(), "error_post_password.html")
+      os.WriteFile(errFile, body, 0644)
+      if strings.Contains(bodyStr, "Looking for Something?") {
+         return fmt.Errorf("password submission failed: 404 Not Found. Bad action URL: %s", action)
+      }
+      return fmt.Errorf("password submission failed with HTTP %d. See %s", resp.StatusCode, errFile)
+   }
+
+   // Check if we are still on the sign-in/verification page
+   finalPath := resp.Request.URL.Path
+   if strings.Contains(finalPath, "/ap/signin") || strings.Contains(finalPath, "/ap/cvf") {
+      errDetails := CheckAmazonErrors(body)
+      if errDetails == nil {
+         errDetails = fmt.Errorf("still on sign-in or verification page")
+      }
+      errFile := filepath.Join(os.TempDir(), "error_post_password.html")
+      os.WriteFile(errFile, body, 0644)
+      return fmt.Errorf("password submission failed: %v. Response saved to %s", errDetails, errFile)
    }
 
    return nil
