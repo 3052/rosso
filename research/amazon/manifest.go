@@ -1,4 +1,3 @@
-// START OF FILE manifest.go
 package amazon
 
 import (
@@ -9,6 +8,7 @@ import (
    "net/url"
    "regexp"
    "sort"
+   "strconv"
    "strings"
 )
 
@@ -29,7 +29,7 @@ type ManifestResponse struct {
 
 type AvCdnUrlSet struct {
    Cdn            string `json:"cdn"`
-   CdnWeightsRank int    `json:"cdnWeightsRank"`
+   CdnWeightsRank string `json:"cdnWeightsRank"` // Amazon returns this as a string, e.g., "1"
    AvUrlInfoList  []struct {
       Url string `json:"url"`
    } `json:"avUrlInfoList"`
@@ -153,7 +153,9 @@ func GetBestMPDURL(manifest *ManifestResponse) (string, error) {
 
    // Sort ascending by CdnWeightsRank (lower number = higher priority / rank 1 is best)
    sort.Slice(sets, func(i, j int) bool {
-      return sets[i].CdnWeightsRank < sets[j].CdnWeightsRank
+      rankI, _ := strconv.Atoi(sets[i].CdnWeightsRank)
+      rankJ, _ := strconv.Atoi(sets[j].CdnWeightsRank)
+      return rankI < rankJ
    })
 
    if len(sets[0].AvUrlInfoList) == 0 {

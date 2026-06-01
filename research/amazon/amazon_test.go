@@ -134,8 +134,8 @@ func TestStep3_GetMPD(t *testing.T) {
    }
    accessToken := strings.TrimSpace(string(tokenBytes))
 
-   // For testing, pick a free/owned ASIN or Prime included ASIN (if you have Prime).
-   asin := "B002Y27P3M" // Example ASIN (Iron Man / usually free with ads / Prime)
+   // Changed to the ASIN that successfully returned manifest data in your latest output
+   asin := "B075RND57T"
 
    opts := DefaultPlaybackOptions()
    opts.VideoQuality = "HD"
