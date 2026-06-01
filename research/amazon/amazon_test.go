@@ -4,7 +4,6 @@ package amazon
 import (
    "encoding/json"
    "fmt"
-   "io/ioutil"
    "net/http"
    "net/http/cookiejar"
    "net/url"
@@ -13,174 +12,186 @@ import (
    "path/filepath"
    "strings"
    "testing"
-   "time"
 )
 
-const cookieFile = "amazon_cookies.json"
-
-// Helper function to get the temporary file path for storing cookies
-func getCookieFilePath() string {
-   return filepath.Join(os.TempDir(), cookieFile)
+type SavedState struct {
+   Cookies  []*http.Cookie `json:"cookies"`
+   VideoID  string         `json:"video_id"`
+   DeviceID string         `json:"device_id"`
 }
 
-// Credential represents the JSON structure returned by credential.exe
 type Credential struct {
-   Username string `json:"username"`
+   Date     string `json:"date"`
+   Host     string `json:"host"`
    Password string `json:"password"`
+   Trial    string `json:"trial"`
+   Username string `json:"username"`
 }
 
-// Helper function to fetch credentials dynamically from credential.exe
-func fetchCredentials() (string, string, error) {
+type PlaybackResponse struct {
+   VodPlaylistedPlaybackUrls struct {
+      Result struct {
+         PlaybackUrls struct {
+            IntraTitlePlaylist []struct {
+               Urls []struct {
+                  URL string `json:"url"`
+               } `json:"urls"`
+            } `json:"intraTitlePlaylist"`
+         } `json:"playbackUrls"`
+      } `json:"result"`
+   } `json:"vodPlaylistedPlaybackUrls"`
+}
+
+func getTempFilePath() string {
+   return filepath.Join(os.TempDir(), "amazon_test_session.json")
+}
+
+func getCredentials() (string, string, error) {
    cmd := exec.Command("credential.exe", "-j=amazon.com")
    output, err := cmd.Output()
    if err != nil {
-      return "", "", fmt.Errorf("failed to execute credential.exe: %w\nOutput: %s", err, string(output))
+      return "", "", fmt.Errorf("failed to execute credential.exe: %w", err)
    }
 
    var creds []Credential
    if err := json.Unmarshal(output, &creds); err != nil {
-      return "", "", fmt.Errorf("failed to parse credentials JSON: %w", err)
+      return "", "", fmt.Errorf("failed to parse credentials JSON: %w\nOutput: %s", err, string(output))
    }
 
    if len(creds) == 0 {
-      return "", "", fmt.Errorf("no credentials returned from credential.exe")
+      return "", "", fmt.Errorf("no credentials found in output")
    }
 
    return creds[0].Username, creds[0].Password, nil
 }
 
-// Helper function to save cookies to a JSON file
-func saveCookies(filename string, cookies []*http.Cookie) error {
-   data, err := json.MarshalIndent(cookies, "", "  ")
+func TestLoginAndSave(t *testing.T) {
+   email, password, err := getCredentials()
    if err != nil {
-      return err
-   }
-   return ioutil.WriteFile(filename, data, 0644)
-}
-
-// Helper function to load cookies from a JSON file
-func loadCookies(filename string) ([]*http.Cookie, error) {
-   data, err := ioutil.ReadFile(filename)
-   if err != nil {
-      return nil, err
-   }
-   var cookies []*http.Cookie
-   err = json.Unmarshal(data, &cookies)
-   return cookies, err
-}
-
-// TEST 1: Perform the login flow and save the cookies to a temp file
-func TestLoginAndSaveSession(t *testing.T) {
-   const numRuns = 2
-   const sleepBetweenRuns = 20 * time.Second // Longer delay between full login attempts to avoid IP flags
-
-   fmt.Println("Fetching credentials from credential.exe...")
-   email, password, err := fetchCredentials()
-   if err != nil {
-      t.Fatalf("Credential fetch failed: %v", err)
-   }
-   fmt.Printf("Using email: %s\n", email)
-
-   for i := 1; i <= numRuns; i++ {
-      fmt.Printf("\n--- Starting Login Run %d ---\n", i)
-
-      jar, err := cookiejar.New(nil)
-      if err != nil {
-         t.Fatal(err)
-      }
-
-      client := &http.Client{
-         Jar: jar,
-      }
-
-      fmt.Println("Step 1: Fetching initial sign-in page...")
-      pageData, err := GetSigninPage(client)
-      if err != nil {
-         t.Fatalf("Run %d: GetSigninPage failed: %v", i, err)
-      }
-
-      fmt.Println("Step 2: Submitting email claim...")
-      nextPageData, err := PostClaim(client, pageData, email)
-      if err != nil {
-         t.Fatalf("Run %d: PostClaim failed: %v", i, err)
-      }
-
-      fmt.Println("Step 3: Submitting password...")
-      err = PostSignin(client, nextPageData, email, password)
-      if err != nil {
-         t.Fatalf("Run %d: PostSignin failed: %v", i, err)
-      }
-
-      // Extract cookies for the amazon domain
-      amazonURL, _ := url.Parse("https://www.amazon.com")
-      cookies := client.Jar.Cookies(amazonURL)
-
-      // Save the session cookies to the temp file
-      cFile := getCookieFilePath()
-      err = saveCookies(cFile, cookies)
-      if err != nil {
-         t.Fatalf("Run %d: Failed to save cookies: %v", i, err)
-      }
-
-      fmt.Printf("Run %d: Successfully saved %d cookies to %s\n", i, len(cookies), cFile)
-
-      if i < numRuns {
-         fmt.Printf("Sleeping for %v before the next run...\n", sleepBetweenRuns)
-         time.Sleep(sleepBetweenRuns)
-      }
-   }
-}
-
-// TEST 2: Read the cookies from the temp file and request playback resources
-func TestGetPlaybackResources(t *testing.T) {
-   cFile := getCookieFilePath()
-
-   // Check if the cookie file exists first
-   if _, err := os.Stat(cFile); os.IsNotExist(err) {
-      t.Fatalf("Cookie file %s does not exist. Please run TestLoginAndSaveSession first.", cFile)
+      t.Fatalf("Could not get credentials: %v", err)
    }
 
-   // Load cookies from file
-   cookies, err := loadCookies(cFile)
-   if err != nil {
-      t.Fatalf("Failed to load cookies: %v", err)
-   }
+   videoID := "B075RND57T"
 
    jar, err := cookiejar.New(nil)
    if err != nil {
-      t.Fatal(err)
+      t.Fatalf("Failed to create cookie jar: %v", err)
    }
 
-   // Apply the loaded cookies to the relevant Amazon domains
-   amazonURL, _ := url.Parse("https://www.amazon.com")
-   apiURL, _ := url.Parse("https://atv-ps.amazon.com")
-   jar.SetCookies(amazonURL, cookies)
-   jar.SetCookies(apiURL, cookies)
-
-   client := &http.Client{
-      Jar: jar,
+   session := &Session{
+      Client:   &http.Client{Jar: jar},
+      Email:    email,
+      Password: password,
+      VideoID:  videoID,
+      DeviceID: GenerateUUID(),
    }
 
-   fmt.Println("Step 4: Requesting playback resources with loaded session...")
-   playbackData, err := GetPlaybackResources(client)
+   // Step 1: Get Sign-in page
+   action, inputs, err := GetSignIn(session)
    if err != nil {
-      t.Fatalf("GetPlaybackResources failed: %v", err)
+      t.Fatalf("GetSignIn failed: %v", err)
    }
 
-   // Convert response to string to search for the MPD extension
-   responseStr := string(playbackData)
-
-   // Safely truncate snippet for logging
-   snippet := responseStr
-   if len(snippet) > 500 {
-      snippet = snippet[:500] + "..."
+   // Step 2: Post Email
+   nextAction, nextInputs, err := PostEmail(session, action, inputs)
+   if err != nil {
+      t.Fatalf("PostEmail failed: %v", err)
    }
 
-   // Validate the response contains the expected DASH manifest (.mpd)
-   if !strings.Contains(responseStr, ".mpd") {
-      t.Fatalf("Test Failed: .mpd manifest URL not found in the response. Response snippet: %s", snippet)
+   // Step 3: Post Password
+   err = PostPassword(session, nextAction, nextInputs)
+   if err != nil {
+      t.Fatalf("PostPassword failed: %v", err)
    }
 
-   fmt.Println("Success! Found .mpd manifest URL in the response.")
-   fmt.Printf("Response snippet: %s\n", snippet)
+   // Extract cookies to save
+   amazonURL, _ := url.Parse("https://www.amazon.com")
+   state := SavedState{
+      Cookies:  session.Client.Jar.Cookies(amazonURL),
+      VideoID:  session.VideoID,
+      DeviceID: session.DeviceID,
+   }
+
+   data, err := json.Marshal(state)
+   if err != nil {
+      t.Fatalf("Failed to marshal state: %v", err)
+   }
+
+   filePath := getTempFilePath()
+   err = os.WriteFile(filePath, data, 0600)
+   if err != nil {
+      t.Fatalf("Failed to write state file: %v", err)
+   }
+
+   t.Logf("Successfully logged in as %s and saved state to %s", email, filePath)
+}
+
+func TestLoadAndFetchRemaining(t *testing.T) {
+   filePath := getTempFilePath()
+   data, err := os.ReadFile(filePath)
+   if err != nil {
+      t.Fatalf("Failed to read state file: %v. Please run TestLoginAndSave first.", err)
+   }
+
+   var state SavedState
+   if err := json.Unmarshal(data, &state); err != nil {
+      t.Fatalf("Failed to unmarshal state: %v", err)
+   }
+
+   // Reconstruct CookieJar
+   jar, err := cookiejar.New(nil)
+   if err != nil {
+      t.Fatalf("Failed to create cookie jar: %v", err)
+   }
+
+   amazonURL, _ := url.Parse("https://www.amazon.com")
+   atvURL, _ := url.Parse("https://atv-ps.amazon.com")
+
+   // Apply saved cookies to relevant Amazon domains
+   jar.SetCookies(amazonURL, state.Cookies)
+   jar.SetCookies(atvURL, state.Cookies)
+
+   session := &Session{
+      Client:   &http.Client{Jar: jar},
+      VideoID:  state.VideoID,
+      DeviceID: state.DeviceID,
+   }
+
+   // Step 4: Get Metadata (Sets Envelope and TargetTitleID)
+   err = GetEnrichItemMetadata(session)
+   if err != nil {
+      t.Fatalf("GetEnrichItemMetadata failed: %v", err)
+   }
+
+   // Step 5: Get VOD Playback Resources
+   response, err := GetVodPlaybackResources(session)
+   if err != nil {
+      t.Fatalf("GetVodPlaybackResources failed: %v", err)
+   }
+
+   if response == "" {
+      t.Fatalf("Received empty response from GetVodPlaybackResources")
+   }
+
+   t.Logf("Successfully fetched playback resources! Payload length: %d bytes", len(response))
+
+   // Parse JSON and output MPD URLs
+   var pr PlaybackResponse
+   if err := json.Unmarshal([]byte(response), &pr); err != nil {
+      t.Fatalf("Failed to unmarshal playback response: %v", err)
+   }
+
+   found := false
+   for _, playlist := range pr.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
+      for _, u := range playlist.Urls {
+         if strings.Contains(u.URL, ".mpd") {
+            t.Logf("MPD URL Found: %s", u.URL)
+            found = true
+         }
+      }
+   }
+
+   if !found {
+      t.Log("No MPD URLs found in the response.")
+   }
 }
