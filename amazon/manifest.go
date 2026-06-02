@@ -7,10 +7,87 @@ import (
    "net/http"
    "net/url"
    "regexp"
-   "sort"
-   "strconv"
    "strings"
 )
+
+func DefaultPlaybackOptions() *PlaybackOptions {
+   return &PlaybackOptions{
+      VideoQuality: "HD",
+      VideoCodec:   "H264",
+      BitrateMode:  "CVBR,CBR",
+      HDRFormat:    "None",
+      IsPrimeVideo: false,
+   }
+}
+
+// ManifestResponse represents the JSON returned by the GetPlaybackResources endpoint.
+type ManifestResponse struct {
+   AudioVideoUrls struct {
+      AvCdnUrlSets []AvCdnUrlSet `json:"avCdnUrlSets"`
+   } `json:"audioVideoUrls"`
+   ErrorsByResource map[string]struct {
+      ErrorCode string `json:"errorCode"`
+      Message   string `json:"message"`
+   } `json:"errorsByResource"`
+   ReturnedTitleRendition struct {
+      ContentId           string      `json:"contentId"`
+      SelectedEntitlement Entitlement `json:"selectedEntitlement"`
+   } `json:"returnedTitleRendition"`
+}
+
+type Entitlement struct {
+   GrantedByCustomerId string                `json:"grantedByCustomerId"`
+   RightsException     *EntitlementException `json:"rightsException,omitempty"`
+}
+
+type EntitlementException struct {
+   ErrorCode string `json:"errorCode,omitempty"`
+   Message   string `json:"message,omitempty"`
+}
+
+type AvCdnUrlSet struct {
+   Cdn            string `json:"cdn"`
+   CdnWeightsRank string `json:"cdnWeightsRank"` // Amazon returns this as a string, e.g., "1"
+   AvUrlInfoList  []struct {
+      Url string `json:"url"`
+   } `json:"avUrlInfoList"`
+}
+
+// PlaybackOptions holds the customizable options for the manifest request.
+type PlaybackOptions struct {
+   VideoQuality string // SD, HD, UHD
+   VideoCodec   string // H264, H265
+   BitrateMode  string // CVBR, CBR, CVBR,CBR
+   HDRFormat    string // None, Hdr10, DolbyVision
+   IsPrimeVideo bool
+}
+
+// CleanMPDURL translates the Python MPD URL cleaning logic safely using Go's net/url.
+func CleanMPDURL(mpdURL string) string {
+   var cleanRegex = regexp.MustCompile(`^(https?://.*/)d.?/.*~/(.*)$`)
+   // Try regex match first: removes the proxying segments
+   matches := cleanRegex.FindStringSubmatch(mpdURL)
+   if len(matches) == 3 {
+      return matches[1] + matches[2]
+   }
+
+   // Fallback logic equivalent to: re.split(r"(?i)(/)", mpd_url)[:5] + re.split(r"(?i)(/)", mpd_url)[9:]
+   // Essentially removing the 1st and 2nd directories from the URL path.
+   u, err := url.Parse(mpdURL)
+   if err == nil {
+      parts := strings.Split(u.Path, "/")
+      // parts[0] is "" (before the first slash)
+      // parts[1] is 1st dir
+      // parts[2] is 2nd dir
+      // parts[3:] is the rest of the path
+      if len(parts) > 3 {
+         u.Path = "/" + strings.Join(parts[3:], "/")
+         return u.String()
+      }
+   }
+
+   return mpdURL
+}
 
 // GetPlaybackResources fetches the manifest metadata from Amazon.
 func GetPlaybackResources(
@@ -98,105 +175,4 @@ func GetPlaybackResources(
    }
 
    return &manifestResp, nil
-}
-
-// GetBestMPDURL sorts available CDN manifests by rank and returns the highest priority URL.
-func GetBestMPDURL(manifest *ManifestResponse) (string, error) {
-   sets := manifest.AudioVideoUrls.AvCdnUrlSets
-   if len(sets) == 0 {
-      return "", fmt.Errorf("no DASH manifests available")
-   }
-
-   // Sort ascending by CdnWeightsRank (lower number = higher priority / rank 1 is best)
-   sort.Slice(sets, func(i, j int) bool {
-      rankI, _ := strconv.Atoi(sets[i].CdnWeightsRank)
-      rankJ, _ := strconv.Atoi(sets[j].CdnWeightsRank)
-      return rankI < rankJ
-   })
-
-   if len(sets[0].AvUrlInfoList) == 0 {
-      return "", fmt.Errorf("CDN url list is empty")
-   }
-
-   return sets[0].AvUrlInfoList[0].Url, nil
-}
-
-var cleanRegex = regexp.MustCompile(`^(https?://.*/)d.?/.*~/(.*)$`)
-
-// CleanMPDURL translates the Python MPD URL cleaning logic safely using Go's net/url.
-func CleanMPDURL(mpdURL string) string {
-   // Try regex match first: removes the proxying segments
-   matches := cleanRegex.FindStringSubmatch(mpdURL)
-   if len(matches) == 3 {
-      return matches[1] + matches[2]
-   }
-
-   // Fallback logic equivalent to: re.split(r"(?i)(/)", mpd_url)[:5] + re.split(r"(?i)(/)", mpd_url)[9:]
-   // Essentially removing the 1st and 2nd directories from the URL path.
-   u, err := url.Parse(mpdURL)
-   if err == nil {
-      parts := strings.Split(u.Path, "/")
-      // parts[0] is "" (before the first slash)
-      // parts[1] is 1st dir
-      // parts[2] is 2nd dir
-      // parts[3:] is the rest of the path
-      if len(parts) > 3 {
-         u.Path = "/" + strings.Join(parts[3:], "/")
-         return u.String()
-      }
-   }
-
-   return mpdURL
-}
-
-// ManifestResponse represents the JSON returned by the GetPlaybackResources endpoint.
-type ManifestResponse struct {
-   AudioVideoUrls struct {
-      AvCdnUrlSets []AvCdnUrlSet `json:"avCdnUrlSets"`
-   } `json:"audioVideoUrls"`
-   ErrorsByResource map[string]struct {
-      ErrorCode string `json:"errorCode"`
-      Message   string `json:"message"`
-   } `json:"errorsByResource"`
-   ReturnedTitleRendition struct {
-      ContentId           string      `json:"contentId"`
-      SelectedEntitlement Entitlement `json:"selectedEntitlement"`
-   } `json:"returnedTitleRendition"`
-}
-
-type Entitlement struct {
-   GrantedByCustomerId string                `json:"grantedByCustomerId"`
-   RightsException     *EntitlementException `json:"rightsException,omitempty"`
-}
-
-type EntitlementException struct {
-   ErrorCode string `json:"errorCode,omitempty"`
-   Message   string `json:"message,omitempty"`
-}
-
-type AvCdnUrlSet struct {
-   Cdn            string `json:"cdn"`
-   CdnWeightsRank string `json:"cdnWeightsRank"` // Amazon returns this as a string, e.g., "1"
-   AvUrlInfoList  []struct {
-      Url string `json:"url"`
-   } `json:"avUrlInfoList"`
-}
-
-// PlaybackOptions holds the customizable options for the manifest request.
-type PlaybackOptions struct {
-   VideoQuality string // SD, HD, UHD
-   VideoCodec   string // H264, H265
-   BitrateMode  string // CVBR, CBR, CVBR,CBR
-   HDRFormat    string // None, Hdr10, DolbyVision
-   IsPrimeVideo bool
-}
-
-func DefaultPlaybackOptions() *PlaybackOptions {
-   return &PlaybackOptions{
-      VideoQuality: "HD",
-      VideoCodec:   "H264",
-      BitrateMode:  "CVBR,CBR",
-      HDRFormat:    "None",
-      IsPrimeVideo: false,
-   }
 }

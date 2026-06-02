@@ -38,17 +38,13 @@ func TestStep3_GetMPD(t *testing.T) {
    if err != nil {
       t.Fatalf("Failed to fetch playback resources: %v", err)
    }
-
-   rawMPD, err := GetBestMPDURL(manifestResp)
-   if err != nil {
-      t.Fatalf("Failed to get best MPD URL: %v", err)
-   }
-
-   cleanMPD := CleanMPDURL(rawMPD)
-
-   fmt.Println()
-   fmt.Println("=====================================================")
    fmt.Println("SUCCESS! Final DASH Manifest (MPD):")
-   fmt.Printf("%s\n", cleanMPD)
-   fmt.Println("=====================================================")
+   for _, set := range manifestResp.AudioVideoUrls.AvCdnUrlSets {
+      for _, list := range set.AvUrlInfoList {
+         cleanMPD := CleanMPDURL(list.Url)
+         fmt.Println("=====================================================")
+         fmt.Printf("%s\n", cleanMPD)
+         fmt.Println("=====================================================")
+      }
+   }
 }
