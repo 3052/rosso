@@ -33,10 +33,8 @@ func GetWidevineLicense(
    accessToken string,
    asin string,
    marketplaceID string,
-   device map[string]string,
    customerID string, // Obtained from the ManifestResponse SelectedEntitlement["grantedByCustomerId"]
    challenge []byte,
-   opts *PlaybackOptions,
 ) ([]byte, error) {
    reqUrl := url.URL{
       Scheme: "https",
@@ -45,14 +43,11 @@ func GetWidevineLicense(
    }
 
    gascEnabled := "false"
-   if opts.IsPrimeVideo {
-      gascEnabled = "true"
-   }
 
    // Python script logic: OS is Linux/unknown for SD, Windows/10.0 for higher.
    osName := "Windows"
    osVersion := "10.0"
-   if opts.VideoQuality == "SD" {
+   if DefaultPlaybackOptions.VideoQuality == "SD" {
       osName = "Linux"
       osVersion = "unknown"
    }
@@ -61,8 +56,8 @@ func GetWidevineLicense(
    q.Set("asin", asin)
    q.Set("consumptionType", "Streaming")
    q.Set("desiredResources", "Widevine2License") // Requests Widevine instead of PlaybackUrls/PlayReady
-   q.Set("deviceID", device["device_serial"])
-   q.Set("deviceTypeID", device["device_type"])
+   q.Set("deviceID", defaultDevice["device_serial"])
+   q.Set("deviceTypeID", defaultDevice["device_type"])
    q.Set("firmware", "1")
    q.Set("gascEnabled", gascEnabled)
    q.Set("marketplaceID", marketplaceID)
@@ -73,8 +68,8 @@ func GetWidevineLicense(
    q.Set("customerID", customerID)
    q.Set("deviceDrmOverride", "CENC")
    q.Set("deviceStreamingTechnologyOverride", "DASH")
-   q.Set("deviceVideoQualityOverride", opts.VideoQuality)
-   q.Set("deviceHdrFormatsOverride", opts.HDRFormat)
+   q.Set("deviceVideoQualityOverride", DefaultPlaybackOptions.VideoQuality)
+   q.Set("deviceHdrFormatsOverride", DefaultPlaybackOptions.HDRFormat)
 
    reqUrl.RawQuery = q.Encode()
 

@@ -40,10 +40,8 @@ func TestStep4_GetLicense(t *testing.T) {
 
    // 3. Setup playback options
    asin := "B075RND57T"
-   opts := DefaultPlaybackOptions()
    // DOCUMENTATION: Use "HD" or "UHD" here if you have an L1 CDM.
-   // opts.VideoQuality = "HD"
-   opts.VideoQuality = "SD" // Swapped to SD to match the MPD requested in Step 3!
+   DefaultPlaybackOptions.VideoQuality = "SD" // Swapped to SD to match the MPD requested in Step 3!
 
    // 4. Prepare the PSSH/Challenge data
    targetKeyIDs := []string{
@@ -83,8 +81,6 @@ func TestStep4_GetLicense(t *testing.T) {
       accessToken,
       asin,
       marketplaceIDUS,
-      defaultDevice,
-      opts,
    )
    if err != nil {
       t.Fatalf("Failed to fetch playback resources: %v", err)
@@ -102,10 +98,8 @@ func TestStep4_GetLicense(t *testing.T) {
       accessToken,
       asin,
       marketplaceIDUS,
-      defaultDevice,
       customerID,
       signedChallenge,
-      opts,
    )
    if err != nil {
       t.Fatalf("Amazon License request failed: %v", err)

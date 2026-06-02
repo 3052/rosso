@@ -10,14 +10,60 @@ import (
    "strings"
 )
 
-func DefaultPlaybackOptions() *PlaybackOptions {
-   return &PlaybackOptions{
-      VideoQuality: "HD",
-      VideoCodec:   "H264",
-      BitrateMode:  "CVBR,CBR",
-      HDRFormat:    "None",
-      IsPrimeVideo: false,
+// GetPlaybackResources fetches the manifest metadata from Amazon.
+func GetPlaybackResources(
+   accessToken string,
+   asin string,
+   marketplaceID string, // e.g. "ATVPDKIKX0DER" for US
+) (*ManifestResponse, error) {
+   reqUrl := url.URL{
+      Scheme: "https",
+      Host:   "atv-ps.amazon.com",
+      Path:   "/cdp/catalog/GetPlaybackResources",
    }
+   q := reqUrl.Query()
+   q.Set("desiredResources", "AudioVideoUrls")
+   q.Set("consumptionType", "Streaming")
+   q.Set("firmware", "1")
+   q.Set("resourceUsage", "CacheResources")
+   q.Set("videoMaterialType", "Feature")
+   q.Set("deviceStreamingTechnologyOverride", "DASH")
+   q.Set("asin", asin)
+   q.Set("deviceID", defaultDevice["device_serial"])
+   q.Set("deviceTypeID", defaultDevice["device_type"])
+   reqUrl.RawQuery = q.Encode()
+   req, err := http.NewRequest(http.MethodGet, reqUrl.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Authorization", "Bearer "+accessToken)
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+
+   var manifestResp ManifestResponse
+   if err := json.Unmarshal(bodyBytes, &manifestResp); err != nil {
+      return nil, fmt.Errorf("failed to decode response: %v\nBody: %s", err, string(bodyBytes))
+   }
+
+   // Check for rights/entitlement exceptions
+   if manifestResp.ReturnedTitleRendition.SelectedEntitlement.RightsException != nil {
+      return nil, fmt.Errorf("entitlement error: the profile used does not have the rights to this title")
+   }
+
+   // Check for Playback errors
+   if pbErr, ok := manifestResp.ErrorsByResource["PlaybackUrls"]; ok && pbErr.ErrorCode != "PRS.NoRights.NotOwned" {
+      return nil, fmt.Errorf("playback URLs error: %s [%s]", pbErr.Message, pbErr.ErrorCode)
+   }
+
+   return &manifestResp, nil
 }
 
 // ManifestResponse represents the JSON returned by the GetPlaybackResources endpoint.
@@ -59,7 +105,6 @@ type PlaybackOptions struct {
    VideoCodec   string // H264, H265
    BitrateMode  string // CVBR, CBR, CVBR,CBR
    HDRFormat    string // None, Hdr10, DolbyVision
-   IsPrimeVideo bool
 }
 
 // CleanMPDURL translates the Python MPD URL cleaning logic safely using Go's net/url.
@@ -89,90 +134,9 @@ func CleanMPDURL(mpdURL string) string {
    return mpdURL
 }
 
-// GetPlaybackResources fetches the manifest metadata from Amazon.
-func GetPlaybackResources(
-   accessToken string,
-   asin string,
-   marketplaceID string, // e.g. "ATVPDKIKX0DER" for US
-   device map[string]string,
-   opts *PlaybackOptions,
-) (*ManifestResponse, error) {
-   reqUrl := url.URL{
-      Scheme: "https",
-      Host:   "atv-ps.amazon.com",
-      Path:   "/cdp/catalog/GetPlaybackResources",
-   }
-
-   gascEnabled := "false"
-   if opts.IsPrimeVideo {
-      gascEnabled = "true"
-   }
-
-   q := reqUrl.Query()
-   q.Set("asin", asin)
-   q.Set("consumptionType", "Streaming")
-   q.Set("desiredResources", "PlaybackUrls,AudioVideoUrls,CatalogMetadata,ForcedNarratives,SubtitlePresets,SubtitleUrls,TransitionTimecodes,TrickplayUrls,CuepointPlaylist,XRayMetadata,PlaybackSettings")
-   q.Set("deviceID", device["device_serial"])
-   q.Set("deviceTypeID", device["device_type"])
-   q.Set("firmware", "1")
-   q.Set("gascEnabled", gascEnabled)
-   q.Set("marketplaceID", marketplaceID)
-   q.Set("resourceUsage", "CacheResources")
-   q.Set("videoMaterialType", "Feature")
-   q.Set("playerType", "html5")
-   q.Set("clientId", "f22dbddb-ef2c-48c5-8876-bed0d47594fd") // Browser client ID from python
-   q.Set("deviceDrmOverride", "CENC")
-   q.Set("deviceStreamingTechnologyOverride", "DASH")
-   q.Set("deviceProtocolOverride", "Https")
-   q.Set("deviceVideoCodecOverride", opts.VideoCodec)
-   q.Set("deviceBitrateAdaptationsOverride", opts.BitrateMode)
-   q.Set("deviceVideoQualityOverride", opts.VideoQuality)
-   q.Set("deviceHdrFormatsOverride", opts.HDRFormat)
-   q.Set("supportedDRMKeyScheme", "DUAL_KEY")
-   q.Set("liveManifestType", "live,accumulating")
-   q.Set("titleDecorationScheme", "primary-content")
-   q.Set("subtitleFormat", "TTMLv2")
-   q.Set("languageFeature", "MLFv2")
-   q.Set("uxLocale", "en_US")
-   q.Set("xrayDeviceClass", "normal")
-   q.Set("xrayPlaybackMode", "playback")
-   q.Set("xrayToken", "XRAY_WEB_2020_V1")
-   q.Set("playbackSettingsFormatVersion", "1.0.0")
-   q.Set("playerAttributes", `{"frameRate": "HFR"}`)
-
-   reqUrl.RawQuery = q.Encode()
-
-   req, err := http.NewRequest(http.MethodGet, reqUrl.String(), nil)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("Authorization", "Bearer "+accessToken)
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   bodyBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-
-   var manifestResp ManifestResponse
-   if err := json.Unmarshal(bodyBytes, &manifestResp); err != nil {
-      return nil, fmt.Errorf("failed to decode response: %v\nBody: %s", err, string(bodyBytes))
-   }
-
-   // Check for rights/entitlement exceptions
-   if manifestResp.ReturnedTitleRendition.SelectedEntitlement.RightsException != nil {
-      return nil, fmt.Errorf("entitlement error: the profile used does not have the rights to this title")
-   }
-
-   // Check for Playback errors
-   if pbErr, ok := manifestResp.ErrorsByResource["PlaybackUrls"]; ok && pbErr.ErrorCode != "PRS.NoRights.NotOwned" {
-      return nil, fmt.Errorf("playback URLs error: %s [%s]", pbErr.Message, pbErr.ErrorCode)
-   }
-
-   return &manifestResp, nil
+var DefaultPlaybackOptions = PlaybackOptions{
+   VideoQuality: "HD",
+   VideoCodec:   "H264",
+   BitrateMode:  "CVBR,CBR",
+   HDRFormat:    "None",
 }

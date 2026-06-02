@@ -20,20 +20,16 @@ func TestStep3_GetMPD(t *testing.T) {
 
    asin := "B075RND57T"
 
-   opts := DefaultPlaybackOptions()
    // DOCUMENTATION: Use "HD" or "UHD" here if you have an L1 CDM.
-   // opts.VideoQuality = "HD"
-   opts.VideoQuality = "SD" // Swapped to SD for L3 CDMs
-   opts.VideoCodec = "H264"
-   opts.BitrateMode = "CVBR,CBR"
+   DefaultPlaybackOptions.VideoQuality = "SD" // Swapped to SD for L3 CDMs
+   DefaultPlaybackOptions.VideoCodec = "H264"
+   DefaultPlaybackOptions.BitrateMode = "CVBR,CBR"
 
    t.Logf("Fetching manifest for ASIN %s...", asin)
    manifestResp, err := GetPlaybackResources(
       accessToken,
       asin,
       marketplaceIDUS,
-      defaultDevice,
-      opts,
    )
    if err != nil {
       t.Fatalf("Failed to fetch playback resources: %v", err)
