@@ -68,8 +68,6 @@ func TestStep1_StartProcess(t *testing.T) {
    fmt.Println("========================================================================")
    fmt.Println("1. Go to: https://amazon.com/mytv")
    fmt.Println("2. Sign in to your Amazon account normally using your email & password.")
-   fmt.Println("   (⚠️  IMPORTANT: Do NOT click the 'Sign in with a code' button at the")
-   fmt.Println("   bottom of the login screen. That is a different Amazon feature.)")
    fmt.Println("3. Once signed in, you will be on the 'Register Your Device' screen.")
    fmt.Printf("4. Enter this code: %s\n", codePair.PublicCode)
    fmt.Println("5. Click 'Register Device'.")
@@ -134,13 +132,14 @@ func TestStep3_GetMPD(t *testing.T) {
    }
    accessToken := strings.TrimSpace(string(tokenBytes))
 
-   // Changed to the ASIN that successfully returned manifest data in your latest output
    asin := "B075RND57T"
 
    opts := DefaultPlaybackOptions()
-   opts.VideoQuality = "HD"
+   // DOCUMENTATION: Use "HD" or "UHD" here if you have an L1 CDM.
+   // opts.VideoQuality = "HD"
+   opts.VideoQuality = "SD" // Swapped to SD for L3 CDMs
    opts.VideoCodec = "H264"
-   opts.BitrateMode = "CVBR,CBR" // Fallback map to python logic
+   opts.BitrateMode = "CVBR,CBR"
 
    t.Logf("Fetching manifest for ASIN %s...", asin)
    manifestResp, err := GetPlaybackResources(
@@ -161,10 +160,7 @@ func TestStep3_GetMPD(t *testing.T) {
       t.Fatalf("Failed to get best MPD URL: %v", err)
    }
 
-   t.Logf("Raw MPD URL: %s", rawMPD)
-
    cleanMPD := CleanMPDURL(rawMPD)
-   t.Logf("Cleaned MPD URL: %s", cleanMPD)
 
    fmt.Println()
    fmt.Println("=====================================================")
