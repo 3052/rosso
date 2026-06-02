@@ -1,5 +1,9 @@
 # amazon
 
+Video Unavailable
+We're experiencing a problem playing this video.
+For assistance, please go to www.amazon.com/videohelp.
+
 ## tv login
 
 https://amazon.com/gp/video/ontv
