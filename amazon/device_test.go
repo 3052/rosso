@@ -3,10 +3,8 @@ package amazon
 import (
    "encoding/json"
    "fmt"
-   "net/http"
    "os"
    "path/filepath"
-   "strings"
    "testing"
 )
 
@@ -45,10 +43,8 @@ func getTempTokenPath() string {
 
 // 1. Run this to get the code
 func TestStep1_StartProcess(t *testing.T) {
-   client := &http.Client{}
-
    t.Log("Fetching Code Pair...")
-   codePair, err := GetCodePair(client, codePairEndpoint, defaultDevice)
+   codePair, err := GetCodePair(codePairEndpoint, defaultDevice)
    if err != nil {
       t.Fatalf("Failed to get Code Pair: %v", err)
    }
@@ -78,8 +74,6 @@ func TestStep1_StartProcess(t *testing.T) {
 
 // 2. Run this after approving the code in your browser
 func TestStep2_CompleteProcess(t *testing.T) {
-   client := &http.Client{}
-
    stateFile := getTempStatePath()
    data, err := os.ReadFile(stateFile)
    if err != nil {
@@ -92,7 +86,7 @@ func TestStep2_CompleteProcess(t *testing.T) {
    }
 
    t.Log("Registering device (checking if you entered the code)...")
-   regResponse, err := RegisterDevice(client, registerEndpoint, state.CodePair, state.Device)
+   regResponse, err := RegisterDevice(registerEndpoint, state.CodePair, state.Device)
    if err != nil {
       t.Fatalf("Failed to register device: %v\n(Did you forget to enter the code at amazon.com/mytv?)", err)
    }
@@ -119,52 +113,4 @@ func TestStep2_CompleteProcess(t *testing.T) {
 
    // Clean up the intermediate state file
    _ = os.Remove(stateFile)
-}
-
-// 3. Run this to grab an MPD after you have generated the token in Step 2.
-func TestStep3_GetMPD(t *testing.T) {
-   client := &http.Client{}
-
-   tokenFile := getTempTokenPath()
-   tokenBytes, err := os.ReadFile(tokenFile)
-   if err != nil || len(tokenBytes) == 0 {
-      t.Fatalf("Failed to read token from %s. Please run TestStep1 and TestStep2 first.", tokenFile)
-   }
-   accessToken := strings.TrimSpace(string(tokenBytes))
-
-   asin := "B075RND57T"
-
-   opts := DefaultPlaybackOptions()
-   // DOCUMENTATION: Use "HD" or "UHD" here if you have an L1 CDM.
-   // opts.VideoQuality = "HD"
-   opts.VideoQuality = "SD" // Swapped to SD for L3 CDMs
-   opts.VideoCodec = "H264"
-   opts.BitrateMode = "CVBR,CBR"
-
-   t.Logf("Fetching manifest for ASIN %s...", asin)
-   manifestResp, err := GetPlaybackResources(
-      client,
-      playbackEndpoint,
-      accessToken,
-      asin,
-      marketplaceIDUS,
-      defaultDevice,
-      opts,
-   )
-   if err != nil {
-      t.Fatalf("Failed to fetch playback resources: %v", err)
-   }
-
-   rawMPD, err := GetBestMPDURL(manifestResp)
-   if err != nil {
-      t.Fatalf("Failed to get best MPD URL: %v", err)
-   }
-
-   cleanMPD := CleanMPDURL(rawMPD)
-
-   fmt.Println()
-   fmt.Println("=====================================================")
-   fmt.Println("SUCCESS! Final DASH Manifest (MPD):")
-   fmt.Printf("%s\n", cleanMPD)
-   fmt.Println("=====================================================")
 }

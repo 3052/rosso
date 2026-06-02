@@ -56,7 +56,6 @@ func DefaultPlaybackOptions() PlaybackOptions {
 
 // GetPlaybackResources fetches the manifest metadata from Amazon.
 func GetPlaybackResources(
-   client *http.Client,
    endpoint string, // e.g. "https://atv-ps.amazon.com/cdp/catalog/GetPlaybackResources"
    accessToken string,
    asin string,
@@ -115,7 +114,7 @@ func GetPlaybackResources(
    }
    req.Header.Set("Authorization", "Bearer "+accessToken)
 
-   resp, err := client.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

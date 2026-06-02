@@ -1,19 +1,15 @@
 package amazon
 
 import (
+   "41.neocities.org/diana/widevine"
    "encoding/hex"
-   "net/http"
    "os"
    "strings"
    "testing"
-
-   "41.neocities.org/diana/widevine"
 )
 
 // Run this to test requesting a Widevine License with a real CDM
 func TestStep4_GetLicense(t *testing.T) {
-   client := &http.Client{}
-
    // 1. Read Amazon Access Token
    tokenFile := getTempTokenPath()
    tokenBytes, err := os.ReadFile(tokenFile)
@@ -84,7 +80,6 @@ func TestStep4_GetLicense(t *testing.T) {
    // 5. Fetch the Manifest to get the Customer ID
    t.Logf("Fetching manifest for ASIN %s to retrieve customerID...", asin)
    manifestResp, err := GetPlaybackResources(
-      client,
       playbackEndpoint,
       accessToken,
       asin,
@@ -106,7 +101,6 @@ func TestStep4_GetLicense(t *testing.T) {
    // 6. Request the Widevine License from Amazon
    t.Log("Requesting Widevine License from Amazon...")
    amazonLicenseBytes, err := GetWidevineLicense(
-      client,
       playbackEndpoint,
       accessToken,
       asin,

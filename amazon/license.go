@@ -30,7 +30,6 @@ type LicenseResponse struct {
 // GetWidevineLicense wraps the raw protobuf challenge, makes the request to Amazon,
 // and unwraps the response returning the final Widevine license bytes.
 func GetWidevineLicense(
-   client *http.Client,
    endpoint string, // Same as Playback endpoint: https://atv-ps.amazon.com/cdp/catalog/GetPlaybackResources
    accessToken string,
    asin string,
@@ -94,7 +93,7 @@ func GetWidevineLicense(
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
    req.Header.Set("Authorization", "Bearer "+accessToken)
 
-   resp, err := client.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }

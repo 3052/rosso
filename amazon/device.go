@@ -24,7 +24,7 @@ type RegisterResponse struct {
    ErrorDescription string `json:"error_description,omitempty"`
 }
 
-func RegisterDevice(client *http.Client, endpoint string, codePair *CodePairResponse, device map[string]string) (*RegisterResponse, error) {
+func RegisterDevice(endpoint string, codePair *CodePairResponse, device map[string]string) (*RegisterResponse, error) {
    payload := map[string]interface{}{
       "auth_data": map[string]interface{}{
          "code_pair": codePair,
@@ -46,7 +46,7 @@ func RegisterDevice(client *http.Client, endpoint string, codePair *CodePairResp
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Accept-Language", "en-US")
 
-   resp, err := client.Do(req)
+   resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
    }
@@ -64,6 +64,47 @@ func RegisterDevice(client *http.Client, endpoint string, codePair *CodePairResp
 
    if result.Error != "" {
       return nil, fmt.Errorf("API error: %s [%s]", result.ErrorDescription, result.Error)
+   }
+
+   return &result, nil
+}
+
+type CodePairResponse struct {
+   PublicCode       string `json:"public_code"`
+   PrivateCode      string `json:"private_code"`
+   Error            string `json:"error,omitempty"`
+   ErrorDescription string `json:"error_description,omitempty"`
+}
+
+func GetCodePair(endpoint string, device map[string]string) (*CodePairResponse, error) {
+   payload := map[string]interface{}{
+      "code_data": device,
+   }
+   bodyBytes, err := json.Marshal(payload)
+   if err != nil {
+      return nil, err
+   }
+
+   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(bodyBytes))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Content-Type", "application/json")
+   req.Header.Set("Accept-Language", "en-US")
+
+   resp, err := http.DefaultClient.Do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result CodePairResponse
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+
+   if result.Error != "" {
+      return nil, fmt.Errorf("unable to get code pair: %s [%s]", result.ErrorDescription, result.Error)
    }
 
    return &result, nil
