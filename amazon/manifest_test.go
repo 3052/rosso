@@ -7,6 +7,8 @@ import (
    "testing"
 )
 
+const marketplaceIDUS = "ATVPDKIKX0DER"
+
 // 3. Run this to grab an MPD after you have generated the token in Step 2.
 func TestStep3_GetMPD(t *testing.T) {
    tokenFile := getTempTokenPath()
@@ -27,7 +29,6 @@ func TestStep3_GetMPD(t *testing.T) {
 
    t.Logf("Fetching manifest for ASIN %s...", asin)
    manifestResp, err := GetPlaybackResources(
-      playbackEndpoint,
       accessToken,
       asin,
       marketplaceIDUS,

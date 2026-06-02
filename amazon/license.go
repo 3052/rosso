@@ -30,19 +30,18 @@ type LicenseResponse struct {
 // GetWidevineLicense wraps the raw protobuf challenge, makes the request to Amazon,
 // and unwraps the response returning the final Widevine license bytes.
 func GetWidevineLicense(
-   endpoint string, // Same as Playback endpoint: https://atv-ps.amazon.com/cdp/catalog/GetPlaybackResources
    accessToken string,
    asin string,
    marketplaceID string,
    device map[string]string,
    customerID string, // Obtained from the ManifestResponse SelectedEntitlement["grantedByCustomerId"]
    challenge []byte,
-   opts PlaybackOptions,
+   opts *PlaybackOptions,
 ) ([]byte, error) {
-
-   reqURL, err := url.Parse(endpoint)
-   if err != nil {
-      return nil, err
+   reqUrl := url.URL{
+      Scheme: "https",
+      Host:   "atv-ps.amazon.com",
+      Path:   "/cdp/catalog/GetPlaybackResources",
    }
 
    gascEnabled := "false"
@@ -58,7 +57,7 @@ func GetWidevineLicense(
       osVersion = "unknown"
    }
 
-   q := reqURL.Query()
+   q := reqUrl.Query()
    q.Set("asin", asin)
    q.Set("consumptionType", "Streaming")
    q.Set("desiredResources", "Widevine2License") // Requests Widevine instead of PlaybackUrls/PlayReady
@@ -77,14 +76,14 @@ func GetWidevineLicense(
    q.Set("deviceVideoQualityOverride", opts.VideoQuality)
    q.Set("deviceHdrFormatsOverride", opts.HDRFormat)
 
-   reqURL.RawQuery = q.Encode()
+   reqUrl.RawQuery = q.Encode()
 
    // Widevine Challenge goes in the x-www-form-urlencoded body as a base64 string
    form := url.Values{}
    form.Set("widevine2Challenge", base64.StdEncoding.EncodeToString(challenge))
    form.Set("includeHdcpTestKeyInLicense", "true")
 
-   req, err := http.NewRequest(http.MethodPost, reqURL.String(), strings.NewReader(form.Encode()))
+   req, err := http.NewRequest(http.MethodPost, reqUrl.String(), strings.NewReader(form.Encode()))
    if err != nil {
       return nil, err
    }

@@ -80,7 +80,6 @@ func TestStep4_GetLicense(t *testing.T) {
    // 5. Fetch the Manifest to get the Customer ID
    t.Logf("Fetching manifest for ASIN %s to retrieve customerID...", asin)
    manifestResp, err := GetPlaybackResources(
-      playbackEndpoint,
       accessToken,
       asin,
       marketplaceIDUS,
@@ -91,17 +90,15 @@ func TestStep4_GetLicense(t *testing.T) {
       t.Fatalf("Failed to fetch playback resources: %v", err)
    }
 
-   customerIDRaw, ok := manifestResp.ReturnedTitleRendition.SelectedEntitlement["grantedByCustomerId"]
-   if !ok {
+   customerID := manifestResp.ReturnedTitleRendition.SelectedEntitlement.GrantedByCustomerId
+   if customerID == "" {
       t.Fatalf("grantedByCustomerId not found in entitlement data")
    }
-   customerID := customerIDRaw.(string)
    t.Logf("Got customerID: %s", customerID)
 
    // 6. Request the Widevine License from Amazon
    t.Log("Requesting Widevine License from Amazon...")
    amazonLicenseBytes, err := GetWidevineLicense(
-      playbackEndpoint,
       accessToken,
       asin,
       marketplaceIDUS,

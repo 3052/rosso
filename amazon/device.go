@@ -8,6 +8,13 @@ import (
    "net/http"
 )
 
+type CodePairResponse struct {
+   PublicCode       string `json:"public_code"`
+   PrivateCode      string `json:"private_code"`
+   Error            string `json:"error,omitempty"`
+   ErrorDescription string `json:"error_description,omitempty"`
+}
+
 type RegisterResponse struct {
    Response struct {
       Success struct {
@@ -24,28 +31,64 @@ type RegisterResponse struct {
    ErrorDescription string `json:"error_description,omitempty"`
 }
 
-func RegisterDevice(endpoint string, codePair *CodePairResponse, device map[string]string) (*RegisterResponse, error) {
-   payload := map[string]interface{}{
-      "auth_data": map[string]interface{}{
+// Define the device identity we are pretending to be
+var defaultDevice = map[string]string{
+   "domain":        "Device",
+   "app_name":      "com.amazon.amazonvideo.livingroom",
+   "app_version":   "1.1",
+   "device_model":  "LG-Tv",
+   "os_version":    "6.0.1",
+   "device_type":   "A71I8788P1ZV8",
+   "device_name":   "My Go Device",
+   "device_serial": "a906a7f9bfd6a7ab",
+}
+
+func GetCodePair() (*CodePairResponse, error) {
+   bodyBytes, err := json.Marshal(map[string]any{
+      "code_data": defaultDevice,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := http.Post(
+      "https://api.amazon.com/auth/create/codepair", "",
+      bytes.NewBuffer(bodyBytes),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result CodePairResponse
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+
+   if result.Error != "" {
+      return nil, fmt.Errorf("unable to get code pair: %s [%s]", result.ErrorDescription, result.Error)
+   }
+
+   return &result, nil
+}
+
+func RegisterDevice(codePair *CodePairResponse) (*RegisterResponse, error) {
+   bodyBytes, err := json.Marshal(map[string]any{
+      "auth_data": map[string]any{
          "code_pair": codePair,
       },
-      "registration_data":    device,
+      "registration_data":    defaultDevice,
       "requested_token_type": []string{"bearer"},
-      "requested_extensions": []string{"device_info", "customer_info"},
-   }
-
-   bodyBytes, err := json.Marshal(payload)
+   })
    if err != nil {
       return nil, err
    }
-
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(bodyBytes))
+   req, err := http.NewRequest(
+      http.MethodPost, "https://api.amazon.com/auth/register",
+      bytes.NewBuffer(bodyBytes),
+   )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept-Language", "en-US")
-
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
@@ -64,47 +107,6 @@ func RegisterDevice(endpoint string, codePair *CodePairResponse, device map[stri
 
    if result.Error != "" {
       return nil, fmt.Errorf("API error: %s [%s]", result.ErrorDescription, result.Error)
-   }
-
-   return &result, nil
-}
-
-type CodePairResponse struct {
-   PublicCode       string `json:"public_code"`
-   PrivateCode      string `json:"private_code"`
-   Error            string `json:"error,omitempty"`
-   ErrorDescription string `json:"error_description,omitempty"`
-}
-
-func GetCodePair(endpoint string, device map[string]string) (*CodePairResponse, error) {
-   payload := map[string]interface{}{
-      "code_data": device,
-   }
-   bodyBytes, err := json.Marshal(payload)
-   if err != nil {
-      return nil, err
-   }
-
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(bodyBytes))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept-Language", "en-US")
-
-   resp, err := http.DefaultClient.Do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result CodePairResponse
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-
-   if result.Error != "" {
-      return nil, fmt.Errorf("unable to get code pair: %s [%s]", result.ErrorDescription, result.Error)
    }
 
    return &result, nil

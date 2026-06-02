@@ -12,61 +12,18 @@ import (
    "strings"
 )
 
-// ManifestResponse represents the JSON returned by the GetPlaybackResources endpoint.
-type ManifestResponse struct {
-   AudioVideoUrls struct {
-      AvCdnUrlSets []AvCdnUrlSet `json:"avCdnUrlSets"`
-   } `json:"audioVideoUrls"`
-   ErrorsByResource map[string]struct {
-      ErrorCode string `json:"errorCode"`
-      Message   string `json:"message"`
-   } `json:"errorsByResource"`
-   ReturnedTitleRendition struct {
-      ContentId           string                 `json:"contentId"`
-      SelectedEntitlement map[string]interface{} `json:"selectedEntitlement"`
-   } `json:"returnedTitleRendition"`
-}
-
-type AvCdnUrlSet struct {
-   Cdn            string `json:"cdn"`
-   CdnWeightsRank string `json:"cdnWeightsRank"` // Amazon returns this as a string, e.g., "1"
-   AvUrlInfoList  []struct {
-      Url string `json:"url"`
-   } `json:"avUrlInfoList"`
-}
-
-// PlaybackOptions holds the customizable options for the manifest request.
-type PlaybackOptions struct {
-   VideoQuality string // SD, HD, UHD
-   VideoCodec   string // H264, H265
-   BitrateMode  string // CVBR, CBR, CVBR,CBR
-   HDRFormat    string // None, Hdr10, DolbyVision
-   IsPrimeVideo bool
-}
-
-func DefaultPlaybackOptions() PlaybackOptions {
-   return PlaybackOptions{
-      VideoQuality: "HD",
-      VideoCodec:   "H264",
-      BitrateMode:  "CVBR,CBR",
-      HDRFormat:    "None",
-      IsPrimeVideo: false,
-   }
-}
-
 // GetPlaybackResources fetches the manifest metadata from Amazon.
 func GetPlaybackResources(
-   endpoint string, // e.g. "https://atv-ps.amazon.com/cdp/catalog/GetPlaybackResources"
    accessToken string,
    asin string,
    marketplaceID string, // e.g. "ATVPDKIKX0DER" for US
    device map[string]string,
-   opts PlaybackOptions,
+   opts *PlaybackOptions,
 ) (*ManifestResponse, error) {
-
-   reqURL, err := url.Parse(endpoint)
-   if err != nil {
-      return nil, err
+   reqUrl := url.URL{
+      Scheme: "https",
+      Host:   "atv-ps.amazon.com",
+      Path:   "/cdp/catalog/GetPlaybackResources",
    }
 
    gascEnabled := "false"
@@ -74,7 +31,7 @@ func GetPlaybackResources(
       gascEnabled = "true"
    }
 
-   q := reqURL.Query()
+   q := reqUrl.Query()
    q.Set("asin", asin)
    q.Set("consumptionType", "Streaming")
    q.Set("desiredResources", "PlaybackUrls,AudioVideoUrls,CatalogMetadata,ForcedNarratives,SubtitlePresets,SubtitleUrls,TransitionTimecodes,TrickplayUrls,CuepointPlaylist,XRayMetadata,PlaybackSettings")
@@ -106,9 +63,9 @@ func GetPlaybackResources(
    q.Set("playbackSettingsFormatVersion", "1.0.0")
    q.Set("playerAttributes", `{"frameRate": "HFR"}`)
 
-   reqURL.RawQuery = q.Encode()
+   reqUrl.RawQuery = q.Encode()
 
-   req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, reqUrl.String(), nil)
    if err != nil {
       return nil, err
    }
@@ -131,7 +88,7 @@ func GetPlaybackResources(
    }
 
    // Check for rights/entitlement exceptions
-   if _, hasException := manifestResp.ReturnedTitleRendition.SelectedEntitlement["rightsException"]; hasException {
+   if manifestResp.ReturnedTitleRendition.SelectedEntitlement.RightsException != nil {
       return nil, fmt.Errorf("entitlement error: the profile used does not have the rights to this title")
    }
 
@@ -190,4 +147,56 @@ func CleanMPDURL(mpdURL string) string {
    }
 
    return mpdURL
+}
+
+// ManifestResponse represents the JSON returned by the GetPlaybackResources endpoint.
+type ManifestResponse struct {
+   AudioVideoUrls struct {
+      AvCdnUrlSets []AvCdnUrlSet `json:"avCdnUrlSets"`
+   } `json:"audioVideoUrls"`
+   ErrorsByResource map[string]struct {
+      ErrorCode string `json:"errorCode"`
+      Message   string `json:"message"`
+   } `json:"errorsByResource"`
+   ReturnedTitleRendition struct {
+      ContentId           string      `json:"contentId"`
+      SelectedEntitlement Entitlement `json:"selectedEntitlement"`
+   } `json:"returnedTitleRendition"`
+}
+
+type Entitlement struct {
+   GrantedByCustomerId string                `json:"grantedByCustomerId"`
+   RightsException     *EntitlementException `json:"rightsException,omitempty"`
+}
+
+type EntitlementException struct {
+   ErrorCode string `json:"errorCode,omitempty"`
+   Message   string `json:"message,omitempty"`
+}
+
+type AvCdnUrlSet struct {
+   Cdn            string `json:"cdn"`
+   CdnWeightsRank string `json:"cdnWeightsRank"` // Amazon returns this as a string, e.g., "1"
+   AvUrlInfoList  []struct {
+      Url string `json:"url"`
+   } `json:"avUrlInfoList"`
+}
+
+// PlaybackOptions holds the customizable options for the manifest request.
+type PlaybackOptions struct {
+   VideoQuality string // SD, HD, UHD
+   VideoCodec   string // H264, H265
+   BitrateMode  string // CVBR, CBR, CVBR,CBR
+   HDRFormat    string // None, Hdr10, DolbyVision
+   IsPrimeVideo bool
+}
+
+func DefaultPlaybackOptions() *PlaybackOptions {
+   return &PlaybackOptions{
+      VideoQuality: "HD",
+      VideoCodec:   "H264",
+      BitrateMode:  "CVBR,CBR",
+      HDRFormat:    "None",
+      IsPrimeVideo: false,
+   }
 }

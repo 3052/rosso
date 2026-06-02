@@ -8,53 +8,15 @@ import (
    "testing"
 )
 
-type AuthState struct {
-   CodePair *CodePairResponse `json:"code_pair"`
-   Device   map[string]string `json:"device"`
-}
-
-const (
-   codePairEndpoint = "https://api.amazon.com/auth/create/codepair"
-   registerEndpoint = "https://api.amazon.com/auth/register"
-   playbackEndpoint = "https://atv-ps.amazon.com/cdp/catalog/GetPlaybackResources"
-   marketplaceIDUS  = "ATVPDKIKX0DER"
-)
-
-// Define the device identity we are pretending to be
-var defaultDevice = map[string]string{
-   "domain":        "Device",
-   "app_name":      "com.amazon.amazonvideo.livingroom",
-   "app_version":   "1.1",
-   "device_model":  "LG-Tv",
-   "os_version":    "6.0.1",
-   "device_type":   "A71I8788P1ZV8",
-   "device_name":   "My Go Device",
-   "device_serial": "a906a7f9bfd6a7ab",
-}
-
-// Helper functions for temp files
-func getTempStatePath() string {
-   return filepath.Join(os.TempDir(), "amazon_auth_state.json")
-}
-
-func getTempTokenPath() string {
-   return filepath.Join(os.TempDir(), "amazon_token.txt")
-}
-
 // 1. Run this to get the code
 func TestStep1_StartProcess(t *testing.T) {
    t.Log("Fetching Code Pair...")
-   codePair, err := GetCodePair(codePairEndpoint, defaultDevice)
+   codePair, err := GetCodePair()
    if err != nil {
       t.Fatalf("Failed to get Code Pair: %v", err)
    }
 
-   state := AuthState{
-      CodePair: codePair,
-      Device:   defaultDevice,
-   }
-
-   data, _ := json.MarshalIndent(state, "", "  ")
+   data, _ := json.MarshalIndent(codePair, "", "  ")
    stateFile := getTempStatePath()
    if err := os.WriteFile(stateFile, data, 0644); err != nil {
       t.Fatalf("Failed to write state file to temp dir: %v", err)
@@ -80,13 +42,14 @@ func TestStep2_CompleteProcess(t *testing.T) {
       t.Fatalf("Failed to read state file from temp dir. Run TestStep1 first. Error: %v", err)
    }
 
-   var state AuthState
-   if err := json.Unmarshal(data, &state); err != nil {
+   var codePair CodePairResponse
+
+   if err := json.Unmarshal(data, &codePair); err != nil {
       t.Fatalf("Failed to parse state file: %v", err)
    }
 
    t.Log("Registering device (checking if you entered the code)...")
-   regResponse, err := RegisterDevice(registerEndpoint, state.CodePair, state.Device)
+   regResponse, err := RegisterDevice(&codePair)
    if err != nil {
       t.Fatalf("Failed to register device: %v\n(Did you forget to enter the code at amazon.com/mytv?)", err)
    }
@@ -113,4 +76,18 @@ func TestStep2_CompleteProcess(t *testing.T) {
 
    // Clean up the intermediate state file
    _ = os.Remove(stateFile)
+}
+
+//type AuthState struct {
+//   CodePair *CodePairResponse `json:"code_pair"`
+//   Device   map[string]string `json:"device"`
+//}
+
+// Helper functions for temp files
+func getTempStatePath() string {
+   return filepath.Join(os.TempDir(), "amazon_auth_state.json")
+}
+
+func getTempTokenPath() string {
+   return filepath.Join(os.TempDir(), "amazon_token.txt")
 }
