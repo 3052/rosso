@@ -82,7 +82,6 @@ func GetVodPlaybackResources(ctx context.Context, client *http.Client, params Pl
    if params.DeviceToken == "" {
       globalParams = map[string]interface{}{
          "deviceCapabilityFamily": "WebPlayer",
-         "playbackEnvelope":       params.PlaybackEnvelope,
          "capabilityDiscriminators": map[string]interface{}{
             "operatingSystem":   map[string]string{"name": "Windows", "version": "10.0"},
             "middleware":        map[string]string{"name": "EdgeNext", "version": "136.0.0.0"},
@@ -90,6 +89,10 @@ func GetVodPlaybackResources(ctx context.Context, client *http.Client, params Pl
             "hfrControlMode":    "Legacy",
             "displayResolution": map[string]int{"height": 2304, "width": 4096},
          },
+      }
+
+      if params.PlaybackEnvelope != "" {
+         globalParams["playbackEnvelope"] = params.PlaybackEnvelope
       }
 
       drmType := "Widevine"
@@ -149,13 +152,16 @@ func GetVodPlaybackResources(ctx context.Context, client *http.Client, params Pl
    } else {
       globalParams = map[string]interface{}{
          "deviceCapabilityFamily": "AndroidPlayer",
-         "playbackEnvelope":       params.PlaybackEnvelope,
          "capabilityDiscriminators": map[string]interface{}{
             "discriminators": map[string]interface{}{
                "software": map[string]interface{}{},
                "version":  1,
             },
          },
+      }
+
+      if params.PlaybackEnvelope != "" {
+         globalParams["playbackEnvelope"] = params.PlaybackEnvelope
       }
 
       drmType := "Widevine"

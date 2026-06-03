@@ -13,8 +13,7 @@ import (
 var (
    apiBaseURL   = "api.amazon.com"
    manifestBase = "atv-ps.amazon.com"
-   hostBase     = "https://www.amazon.com/gp/video"
-   titleID      = "B075RND57T" // Updated TitleID
+   titleID      = "B075RND57T"
    marketplace  = "ATVPDKIKX0DER"
 
    // Mock Android TV device data
@@ -107,7 +106,6 @@ func TestRegister(t *testing.T) {
       t.Fatalf("Failed to write register output to temp dir: %v", err)
    }
 
-   // Safely extract and print the credentials to the console
    if respMap, ok := result["response"].(map[string]interface{}); ok {
       if successMap, ok := respMap["success"].(map[string]interface{}); ok {
          if tokensMap, ok := successMap["tokens"].(map[string]interface{}); ok {
@@ -148,7 +146,6 @@ func TestPlayback(t *testing.T) {
       t.Fatalf("Failed to unmarshal register data: %v", err)
    }
 
-   // Extract the bearer token safely
    var deviceToken string
    if resp, ok := registerData["response"].(map[string]interface{}); ok {
       if success, ok := resp["success"].(map[string]interface{}); ok {
@@ -166,31 +163,6 @@ func TestPlayback(t *testing.T) {
       t.Fatalf("Failed to extract device token from %s", inFile)
    }
 
-   metadataResp, err := EnrichItemMetadata(ctx, client, hostBase, []string{titleID})
-   if err != nil {
-      t.Fatalf("EnrichItemMetadata failed: %v", err)
-   }
-
-   var playbackEnvelope string
-   if enrichments, ok := metadataResp["enrichments"].(map[string]interface{}); ok {
-      if titleData, exists := enrichments[titleID].(map[string]interface{}); exists {
-         if playbackActions, ok := titleData["playbackActions"].([]interface{}); ok && len(playbackActions) > 0 {
-            firstAction := playbackActions[0].(map[string]interface{})
-            if expMeta, ok := firstAction["playbackExperienceMetadata"].(map[string]interface{}); ok {
-               if env, ok := expMeta["playbackEnvelope"].(string); ok {
-                  playbackEnvelope = env
-               }
-            }
-         }
-      }
-   }
-
-   if playbackEnvelope == "" {
-      t.Fatalf("Skipping playback request: Could not get playbackEnvelope. Title might be invalid or require cookies. Response: %v", metadataResp)
-   }
-
-   t.Logf("Successfully extracted PlaybackEnvelope!")
-
    params := PlaybackParams{
       BaseURL:          manifestBase,
       DeviceID:         deviceData["device_serial"].(string),
@@ -198,8 +170,8 @@ func TestPlayback(t *testing.T) {
       GascEnabled:      false,
       MarketplaceID:    marketplace,
       TitleID:          titleID,
-      DeviceToken:      deviceToken, // Populated from os.TempDir register file
-      PlaybackEnvelope: playbackEnvelope,
+      DeviceToken:      deviceToken,
+      PlaybackEnvelope: "", // Bypassed
       Quality:          "UHD",
       VideoCodec:       "H265",
       BitrateMode:      "CVBR",
@@ -218,4 +190,25 @@ func TestPlayback(t *testing.T) {
    }
 
    t.Log("Successfully fetched playback manifest.")
+
+   // Safely extract and print the MPD URL
+   if vodUrls, ok := manifestResp["vodPlaybackUrls"].(map[string]interface{}); ok {
+      if result, ok := vodUrls["result"].(map[string]interface{}); ok {
+         if playbackUrls, ok := result["playbackUrls"].(map[string]interface{}); ok {
+            if urlSets, ok := playbackUrls["urlSets"].([]interface{}); ok && len(urlSets) > 0 {
+               if firstSet, ok := urlSets[0].(map[string]interface{}); ok {
+                  if mpdURL, ok := firstSet["url"].(string); ok {
+                     t.Logf("\n")
+                     t.Logf("=================== MANIFEST URL ===================")
+                     t.Logf("%s", mpdURL)
+                     t.Logf("====================================================\n")
+                     return
+                  }
+               }
+            }
+         }
+      }
+   }
+
+   t.Logf("Could not find MPD URL in response. Full response: %v", manifestResp)
 }
