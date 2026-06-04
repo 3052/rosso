@@ -11,9 +11,13 @@ import (
 )
 
 var (
+   //titleID      = "B075RND57T"
+
+   // primevideo.com/detail/0HKE92W1PWXQ02L3KS5VETBBXG
+   titleID = "B085N5RWKZ"
+
    apiBaseURL   = "api.amazon.com"
    manifestBase = "atv-ps.amazon.com"
-   titleID      = "B075RND57T"
    marketplace  = "ATVPDKIKX0DER"
 
    // Mock Android TV device data
@@ -163,6 +167,15 @@ func TestPlayback(t *testing.T) {
       t.Fatalf("Failed to extract device token from %s", inFile)
    }
 
+   vod_data, err := create_vod()
+   if err != nil {
+      t.Fatal(err)
+   }
+   envelope, err := vod_data.playback_envelope()
+   if err != nil {
+      t.Fatal(err)
+   }
+
    params := PlaybackParams{
       BaseURL:          manifestBase,
       DeviceID:         deviceData["device_serial"].(string),
@@ -171,7 +184,7 @@ func TestPlayback(t *testing.T) {
       MarketplaceID:    marketplace,
       TitleID:          titleID,
       DeviceToken:      deviceToken,
-      PlaybackEnvelope: "", // Bypassed
+      PlaybackEnvelope: envelope,
       Quality:          "UHD",
       VideoCodec:       "H265",
       BitrateMode:      "CVBR",
