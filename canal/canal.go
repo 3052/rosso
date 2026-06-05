@@ -15,6 +15,16 @@ import (
    "time"
 )
 
+const user_agent = "Mozilla/5.0 Windows"
+
+const device_serial = "!!!!"
+
+// Global variables for authentication
+const (
+   client_key = "web.NhFyz4KsZ54"
+   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
+)
+
 func get_client(url_data *url.URL, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
    // 1. base64 raw URL decode secret key
@@ -90,8 +100,84 @@ type Episode struct {
    Title string
 }
 
+func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
 func (*Player) CachePath() string {
    return "rosso/canal/Player"
+}
+
+func (s *Session) Player(tracking string) (*Player, error) {
+   body, err := json.Marshal(map[string]any{
+      "player": map[string]any{
+         "capabilities": map[string]any{
+            "drmSystems": []string{"Widevine"},
+            "mediaTypes": []string{"DASH"},
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
+      },
+      map[string]string{
+         "authorization": "Bearer " + s.Token,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Player
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   "/v1/assets",
+         RawQuery: url.Values{
+            "limit": {"99"},
+            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + s.Token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Assets []Episode
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Assets, nil
+}
+
+func (*Session) CachePath() string {
+   return "rosso/canal/Session"
 }
 
 func (s *Session) Search(query string) ([]Asset, error) {
@@ -129,6 +215,51 @@ func (s *Session) Search(query string) ([]Asset, error) {
       }
    }
    return nil, errors.New("no vod found")
+}
+
+type Ticket struct {
+   Ticket string
+}
+
+func FetchTicket() (*Ticket, error) {
+   body, err := json.Marshal(map[string]any{
+      "deviceInfo": map[string]string{
+         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
+         "deviceModel":  "Firefox",
+         "deviceOem":    "Firefox",
+         "deviceSerial": device_serial,
+         "deviceType":   "PC",
+         "osVersion":    "Windows 10",
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   target := &url.URL{
+      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
+   }
+   client, err := get_client(target, body)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      target,
+      map[string]string{
+         "authorization": client,
+         "user-agent":    user_agent,
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Ticket
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
 }
 
 func (t *Ticket) Login(username, password string) (*Login, error) {
@@ -186,51 +317,6 @@ func (u *Url) MarshalText() ([]byte, error) {
 
 ///
 
-type Ticket struct {
-   Ticket string
-}
-
-func FetchTicket() (*Ticket, error) {
-   body, err := json.Marshal(map[string]any{
-      "deviceInfo": map[string]string{
-         "brand":        "m7cp", // sg.ui.sso.fatal.internal_error
-         "deviceModel":  "Firefox",
-         "deviceOem":    "Firefox",
-         "deviceSerial": device_serial,
-         "deviceType":   "PC",
-         "osVersion":    "Windows 10",
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
-   client, err := get_client(target, body)
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      target,
-      map[string]string{
-         "authorization": client,
-         "user-agent":    user_agent,
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Ticket
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
 type Login struct {
    SsoToken string // this last one day
 }
@@ -277,89 +363,3 @@ type Player struct {
    }
    Url *Url // MPD
 }
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   body, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
-      },
-      map[string]string{
-         "authorization": "Bearer " + s.Token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   "/v1/assets",
-         RawQuery: url.Values{
-            "limit": {"99"},
-            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Assets []Episode
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Assets, nil
-}
-
-func (*Session) CachePath() string {
-   return "rosso/canal/Session"
-}
-
-const user_agent = "Mozilla/5.0 Windows"
-
-const device_serial = "!!!!"
-
-// Global variables for authentication
-const (
-   client_key = "web.NhFyz4KsZ54"
-   secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
-)

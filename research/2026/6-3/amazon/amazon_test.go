@@ -33,8 +33,8 @@ var (
       "device_serial":  "13f5b56b4a17de5d136f0e4c28236109",
       "device_name":    "Test Hisense TV",
       //"device_type":    "A2RGJ95OVLR12U",
-      
-      "device_type":    "A43PXU4ZN2AL1",
+
+      "device_type": "A43PXU4ZN2AL1",
    }
 )
 
