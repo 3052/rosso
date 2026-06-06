@@ -8,10 +8,11 @@ import (
    "regexp"
 )
 
-// FetchCVFPage requests the CVF OTP page and parses the HTML to extract
-// all the hidden input fields required for the verification POST request.
-func FetchCVFPage(cvfUrl string, cookies []*http.Cookie) (url.Values, []*http.Cookie, error) {
-   req, err := http.NewRequest("GET", cvfUrl, nil)
+// FetchSignInPage requests the main sign-in page and parses the HTML to extract
+// all the hidden input fields required for the initial authentication POST request.
+// The URL passed in should be the initial GET /ap/signin URL.
+func FetchSignInPage(signInUrl string, cookies []*http.Cookie) (url.Values, []*http.Cookie, error) {
+   req, err := http.NewRequest("GET", signInUrl, nil)
    if err != nil {
       return nil, nil, err
    }
@@ -41,11 +42,11 @@ func FetchCVFPage(cvfUrl string, cookies []*http.Cookie) (url.Values, []*http.Co
    }
    html := string(bodyBytes)
 
-   // Isolate the specific form block to avoid grabbing inputs from the "Resend" or "WhatsApp" forms
-   formRegex := regexp.MustCompile(`(?s)<form[^>]*id="verification-code-form"[^>]*>(.*?)</form>`)
+   // Isolate the main sign-in form
+   formRegex := regexp.MustCompile(`(?s)<form[^>]*name="signIn"[^>]*method="post"[^>]*action="[^"]*signin[^"]*"[^>]*>(.*?)</form>`)
    formMatch := formRegex.FindStringSubmatch(html)
    if len(formMatch) < 2 {
-      return nil, nil, fmt.Errorf("verification-code-form not found in the HTML response")
+      return nil, nil, fmt.Errorf("signIn form not found in the HTML response")
    }
    formHtml := formMatch[1]
 
@@ -69,9 +70,6 @@ func FetchCVFPage(cvfUrl string, cookies []*http.Cookie) (url.Values, []*http.Co
          formValues.Set(name, value)
       }
    }
-
-   // NOTE: Before passing formValues to VerifyOTP(), you will need to add the actual OTP code:
-   // formValues.Set("code", "123456")
 
    return formValues, resp.Cookies(), nil
 }
