@@ -1,5 +1,7 @@
 # amazon
 
+https://wikipedia.org/wiki/Shuhari
+
 ~~~
 pip install frida-tools
 ~~~
