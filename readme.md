@@ -12,7 +12,6 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 6386 | us | [tubi-tv] |
 | 6000 | us | [kanopy] |
 | 4598 | us | [plex] |
 | 4492 | uk | [rakuten-tv] |
@@ -36,7 +35,6 @@ streaming API authentication, metadata, and DRM playback
 | 237 | be | [rtbf-auvio] |
 | 8 | us | [nbc] |
 
-[tubi-tv]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=60
 [kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=60
 [plex]:https://justwatch.com/us/provider/plex?tomatoMeter=60
 [rakuten-tv]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=60

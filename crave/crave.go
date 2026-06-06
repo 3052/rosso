@@ -13,6 +13,9 @@ import (
    "strings"
 )
 
+//go:embed GetShowpage.gql
+var get_showpage string
+
 func (*AccountToken) CachePath() string {
    return "rosso/crave/AccountToken"
 }
@@ -44,6 +47,40 @@ type Playback struct {
    Error          string         // 2026-05-03
 }
 
+func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.2",
+   }
+
+   headers := map[string]string{
+      // crave-web:default
+      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
+      "content-type":  "application/x-www-form-urlencoded",
+   }
+
+   values := url.Values{}
+   values.Set("grant_type", "refresh_token")
+   values.Set("profile_id", profileId)
+   values.Set("refresh_token", account.RefreshToken)
+
+   body := []byte(values.Encode())
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   token := &ProfileToken{}
+   if err := json.NewDecoder(resp.Body).Decode(token); err != nil {
+      return nil, err
+   }
+
+   return token, nil
+}
+
 func (*ProfileToken) CachePath() string {
    return "rosso/crave/ProfileToken"
 }
@@ -56,8 +93,52 @@ type ProfileToken struct {
    ExpiresIn    int    `json:"expires_in"`
 }
 
-//go:embed GetShowpage.gql
-var get_showpage string
+type Subscription struct {
+   Type              string     `json:"type"`
+   Experience        Experience `json:"experience"`
+   SubscriptionState string     `json:"subscriptionState"`
+   StoreName         string     `json:"storeName"`
+   ExpirationDate    string     `json:"expirationDate"`
+   AutoRenewStatus   bool       `json:"autoRenewStatus"`
+}
+
+func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/subscription/v5",
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + token.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var wrapper struct {
+      Subscriptions []Subscription `json:"subscriptions"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
+      return nil, err
+   }
+
+   return wrapper.Subscriptions, nil
+}
+
+func (s *Subscription) String() string {
+   var data strings.Builder
+   data.WriteString("display name: ")
+   data.WriteString(s.Experience.DisplayName)
+   data.WriteString("\nexpiration date: ")
+   data.WriteString(s.ExpirationDate)
+   return data.String()
+}
+
+///
 
 func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
    endpoint := &url.URL{
@@ -368,84 +449,5 @@ func (p *Profile) String() string {
    data.WriteString(p.Maturity)
    data.WriteString("\nid: ")
    data.WriteString(p.Id)
-   return data.String()
-}
-
-func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.2",
-   }
-
-   headers := map[string]string{
-      // crave-web:default
-      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
-      "content-type":  "application/x-www-form-urlencoded",
-   }
-
-   values := url.Values{}
-   values.Set("grant_type", "refresh_token")
-   values.Set("profile_id", profileId)
-   values.Set("refresh_token", account.RefreshToken)
-
-   body := []byte(values.Encode())
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   token := &ProfileToken{}
-   if err := json.NewDecoder(resp.Body).Decode(token); err != nil {
-      return nil, err
-   }
-
-   return token, nil
-}
-
-type Subscription struct {
-   Type              string     `json:"type"`
-   Experience        Experience `json:"experience"`
-   SubscriptionState string     `json:"subscriptionState"`
-   StoreName         string     `json:"storeName"`
-   ExpirationDate    string     `json:"expirationDate"`
-   AutoRenewStatus   bool       `json:"autoRenewStatus"`
-}
-
-func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/subscription/v5",
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var wrapper struct {
-      Subscriptions []Subscription `json:"subscriptions"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&wrapper); err != nil {
-      return nil, err
-   }
-
-   return wrapper.Subscriptions, nil
-}
-
-func (s *Subscription) String() string {
-   var data strings.Builder
-   data.WriteString("display name: ")
-   data.WriteString(s.Experience.DisplayName)
-   data.WriteString("\nexpiration date: ")
-   data.WriteString(s.ExpirationDate)
    return data.String()
 }

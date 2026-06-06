@@ -11,15 +11,6 @@ import (
    "strings"
 )
 
-func (*Cookie) CachePath() string {
-   return "rosso/cineMember/Cookie"
-}
-
-type Cookie struct {
-   Name  string
-   Value string
-}
-
 func FetchLogin(phpSessId *Cookie, email, password string) error {
    body := url.Values{
       "emaillogin": {email},
@@ -73,6 +64,15 @@ func FetchId(address string) (int, error) {
    }
    // 3. Convert string to integer
    return strconv.Atoi(idStr)
+}
+
+func (*Cookie) CachePath() string {
+   return "rosso/cineMember/Cookie"
+}
+
+type Cookie struct {
+   Name  string
+   Value string
 }
 
 func GetPhpSessId() (*Cookie, error) {

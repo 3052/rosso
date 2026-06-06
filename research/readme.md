@@ -26,23 +26,21 @@
    - February 20
 2. us | plex
    - April 6
-3. us | tubi-tv
-   - April 13
-4. us | pluto-tv
+3. us | pluto-tv
    - April 20
-5. ca | ctv
+4. ca | ctv
    - April 29
-6. nl | cinemember
+5. nl | cinemember
    - May 12
-7. us | criterion-channel
+6. us | criterion-channel
    - May 19
-8. uk | rakuten-tv
+7. uk | rakuten-tv
    - May 23
-9. be | rtbf-auvio
+8. be | rtbf-auvio
     - June 7
-10. us | hbo-max
+9. us | hbo-max
     - June 16
-11. uk | itvx
+10. uk | itvx
     - October 24
 
 ## 2023
