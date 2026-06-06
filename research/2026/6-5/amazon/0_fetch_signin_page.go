@@ -71,7 +71,7 @@ func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error
    req.Header.Set("sec-fetch-dest", "document")
    req.Header.Set("accept-language", "en-US,en;q=0.9")
 
-   // The frc cookie is omitted as requested
+   // The frc cookie is omitted to test if it's strictly required
    cookieStr := fmt.Sprintf("map-md=%s; sid=", mapMDCookie)
    req.Header.Set("cookie", cookieStr)
 
@@ -119,6 +119,15 @@ func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error
          }
          formValues.Set(name, value)
       }
+   }
+
+   // Verify that the critical hidden tokens were successfully extracted.
+   // If they are missing, Amazon may have rejected the request (e.g. CAPTCHA) due to the missing 'frc' cookie.
+   if formValues.Get("anti-csrftoken-a2z") == "" {
+      return nil, nil, "", fmt.Errorf("missing 'anti-csrftoken-a2z' in form: request may have been blocked or altered due to missing 'frc' cookie")
+   }
+   if formValues.Get("appActionToken") == "" {
+      return nil, nil, "", fmt.Errorf("missing 'appActionToken' in form: request may have been blocked or altered due to missing 'frc' cookie")
    }
 
    return formValues, resp.Cookies(), codeVerifier, nil
