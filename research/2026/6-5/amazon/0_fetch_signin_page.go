@@ -1,33 +1,34 @@
-// get_signin_page.go
 package amazon
 
 import (
-   "context"
    "fmt"
+   "io"
    "net/http"
    "net/url"
+   "regexp"
 )
 
 // AuthDeviceType is the constant Amazon identifier for this Android app during authentication
 const AuthDeviceType = "A1MPSLFC7L5AFK"
 
-// NewSignInPageRequest creates the GET request that fetches the sign-in page.
+// FetchSignInPage requests the main sign-in page dynamically using PKCE and Device ID.
 // deviceID should be a 32-character hex string.
-// frcCookie is the Fraud Risk Cookie (must be scraped/provided).
-func NewSignInPageRequest(ctx context.Context, deviceID, frcCookie string) (*http.Request, string, error) {
+// It parses the HTML to extract all the hidden input fields required for the initial authentication POST request.
+// It returns the form values, response cookies, and the codeVerifier generated for this session.
+func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error) {
    codeVerifier, codeChallenge, err := GeneratePKCE()
    if err != nil {
-      return nil, "", err
+      return nil, nil, "", err
    }
 
    mapMDCookie, err := GenerateMapMD()
    if err != nil {
-      return nil, "", err
+      return nil, nil, "", err
    }
 
    reqURL, err := url.Parse("https://www.amazon.com/ap/signin")
    if err != nil {
-      return nil, "", err
+      return nil, nil, "", err
    }
 
    clientID := GenerateClientID(deviceID, AuthDeviceType)
@@ -55,9 +56,9 @@ func NewSignInPageRequest(ctx context.Context, deviceID, frcCookie string) (*htt
 
    reqURL.RawQuery = q.Encode()
 
-   req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
    if err != nil {
-      return nil, "", err
+      return nil, nil, "", err
    }
 
    req.Header.Set("upgrade-insecure-requests", "1")
@@ -70,8 +71,55 @@ func NewSignInPageRequest(ctx context.Context, deviceID, frcCookie string) (*htt
    req.Header.Set("sec-fetch-dest", "document")
    req.Header.Set("accept-language", "en-US,en;q=0.9")
 
-   cookieStr := fmt.Sprintf("frc=%s; map-md=%s; sid=", frcCookie, mapMDCookie)
+   // The frc cookie is omitted as requested
+   cookieStr := fmt.Sprintf("map-md=%s; sid=", mapMDCookie)
    req.Header.Set("cookie", cookieStr)
 
-   return req, codeVerifier, nil
+   client := &http.Client{}
+   resp, err := client.Do(req)
+   if err != nil {
+      return nil, nil, "", err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, nil, "", fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
+   }
+
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, nil, "", err
+   }
+   html := string(bodyBytes)
+
+   // Isolate the main sign-in form
+   formRegex := regexp.MustCompile(`(?s)<form[^>]*name="signIn"[^>]*method="post"[^>]*action="[^"]*signin[^"]*"[^>]*>(.*?)</form>`)
+   formMatch := formRegex.FindStringSubmatch(html)
+   if len(formMatch) < 2 {
+      return nil, nil, "", fmt.Errorf("signIn form not found in the HTML response")
+   }
+   formHtml := formMatch[1]
+
+   // Extract all inputs within that form
+   inputRegex := regexp.MustCompile(`(?i)<input[^>]+>`)
+   nameRegex := regexp.MustCompile(`(?i)name=['"]([^'"]+)['"]`)
+   valueRegex := regexp.MustCompile(`(?i)value=['"]([^'"]*)['"]`)
+
+   formValues := url.Values{}
+   inputs := inputRegex.FindAllString(formHtml, -1)
+
+   for _, inputStr := range inputs {
+      nameMatch := nameRegex.FindStringSubmatch(inputStr)
+      if len(nameMatch) >= 2 {
+         name := nameMatch[1]
+         value := ""
+         valueMatch := valueRegex.FindStringSubmatch(inputStr)
+         if len(valueMatch) >= 2 {
+            value = valueMatch[1]
+         }
+         formValues.Set(name, value)
+      }
+   }
+
+   return formValues, resp.Cookies(), codeVerifier, nil
 }

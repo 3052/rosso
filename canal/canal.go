@@ -100,6 +100,20 @@ type Episode struct {
    Title string
 }
 
+type Login struct {
+   SsoToken string // this last one day
+}
+
+type Player struct {
+   Drm struct {
+      LicenseUrl *Url
+   }
+   Subtitles []struct {
+      Url *Url
+   }
+   Url *Url // MPD
+}
+
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
    if err != nil {
@@ -178,6 +192,39 @@ func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
 
 func (*Session) CachePath() string {
    return "rosso/canal/Session"
+}
+
+type Session struct {
+   SsoToken string
+   Token    string // this last one hour
+}
+
+func FetchSession(ssoToken string) (*Session, error) {
+   body, err := json.Marshal(map[string]string{
+      "brand":        "m7cp",
+      "deviceSerial": device_serial,
+      "deviceType":   "PC",
+      "ssoToken":     ssoToken,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
 }
 
 func (s *Session) Search(query string) ([]Asset, error) {
@@ -313,53 +360,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-type Login struct {
-   SsoToken string // this last one day
-}
-
-type Session struct {
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-type Player struct {
-   Drm struct {
-      LicenseUrl *Url
-   }
-   Subtitles []struct {
-      Url *Url
-   }
-   Url *Url // MPD
 }
