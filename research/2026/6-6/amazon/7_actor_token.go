@@ -16,6 +16,7 @@ type ActorTokenResponse struct {
    } `json:"device_tokens"`
 }
 
+// GetActorAccessToken exchanges the refresh_token and actorId for a playback-authorized access token.
 func GetActorAccessToken(refreshToken, actorId string) (string, error) {
    url := "https://api.amazon.com/auth/token"
 
@@ -36,7 +37,7 @@ func GetActorAccessToken(refreshToken, actorId string) (string, error) {
    }
 
    body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
    if err != nil {
       return "", err
    }
@@ -53,7 +54,7 @@ func GetActorAccessToken(refreshToken, actorId string) (string, error) {
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return "", fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
    }
 
    var tokenResp ActorTokenResponse
@@ -67,5 +68,5 @@ func GetActorAccessToken(refreshToken, actorId string) (string, error) {
       }
    }
 
-   return "", fmt.Errorf("actor access token not found in response")
+   return "", fmt.Errorf("actor access token not found in response for device type A43PXU4ZN2AL1")
 }

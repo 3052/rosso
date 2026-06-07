@@ -19,13 +19,11 @@ type Credential struct {
    Username string `json:"username"`
 }
 
-// SimpleCookie is used to safely serialize cookie state to JSON
 type SimpleCookie struct {
    Name  string `json:"name"`
    Value string `json:"value"`
 }
 
-// AuthState holds the data we need to persist between Part 1 and Part 2 of the test
 type AuthState struct {
    SessionID    string         `json:"session_id"`
    Cookies      []SimpleCookie `json:"cookies"`
@@ -33,7 +31,11 @@ type AuthState struct {
    CodeVerifier string         `json:"code_verifier"`
 }
 
-// mergeCookies safely overwrites older cookies with newer ones of the same name
+type SavedTokens struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
 func mergeCookies(existing []*http.Cookie, newCookies []*http.Cookie) []*http.Cookie {
    cookieMap := make(map[string]*http.Cookie)
    for _, c := range existing {
@@ -53,10 +55,13 @@ func getTempStatePath() string {
    return filepath.Join(os.TempDir(), "amazon_auth_state.json")
 }
 
+func getTempTokensPath() string {
+   return filepath.Join(os.TempDir(), "amazon_tokens.json")
+}
+
 func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
 
-   // 1. Fetch Sign-In Page
    t.Log("--- Executing FetchSignInPage ---")
    formValues, cookies, codeVerifier, err := FetchSignInPage(deviceID)
    if err != nil {
@@ -71,7 +76,6 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
       }
    }
 
-   // 2. Fetch Credentials
    t.Log("--- Executing credential.exe ---")
    cmd := exec.Command("credential.exe", "-j=amazon.com")
    output, err := cmd.Output()
@@ -85,7 +89,6 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    }
    testPhone := creds[0].Username
 
-   // 3. Submit Phone Number
    t.Log("--- Executing SubmitCredentials (SMS Login) ---")
    formValues.Set("email", testPhone)
 
@@ -95,7 +98,6 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    }
    cookies = mergeCookies(cookies, newCookies)
 
-   // 4. Fetch CVF (OTP) Page
    t.Log("--- Executing FetchCVFPage (Triggering SMS) ---")
    cvfFormValues, cvfNewCookies, err := FetchCVFPage(redirectURL, cookies)
    if err != nil {
@@ -103,7 +105,6 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    }
    cookies = mergeCookies(cookies, cvfNewCookies)
 
-   // Save State
    t.Log("--- Saving State to Disk ---")
    state := AuthState{
       SessionID:    sessionID,
@@ -122,7 +123,6 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
 func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
 
-   // Load State
    stateData, err := os.ReadFile(getTempStatePath())
    if err != nil {
       t.Fatalf("Failed to read state file: %v", err)
@@ -135,14 +135,12 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
       cookies = append(cookies, &http.Cookie{Name: sc.Name, Value: sc.Value})
    }
 
-   // Read OTP
    otpData, err := os.ReadFile("otp.txt")
    if err != nil {
       t.Fatalf("Failed to read 'otp.txt': %v", err)
    }
    state.FormValues.Set("code", strings.TrimSpace(string(otpData)))
 
-   // 5. Verify OTP
    t.Log("--- Executing VerifyOTP ---")
    claimRedirectURL, newCookies, err := VerifyOTP(state.FormValues, cookies)
    if err != nil {
@@ -153,9 +151,7 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    if !strings.Contains(claimRedirectURL, "claimToken=") {
       t.Fatalf("Expected redirect URL to contain 'claimToken=', got: %s", claimRedirectURL)
    }
-   t.Log("Successfully verified OTP. Received Claim Token redirect.")
 
-   // 6. Fetch Claim Page & Extract Authorization Code
    t.Log("--- Executing FetchClaimSignInPage ---")
    finalRedirectURL, _, err := FetchClaimSignInPage(claimRedirectURL, cookies)
    if err != nil {
@@ -172,30 +168,30 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
       t.Fatalf("Expected 'openid.oa2.authorization_code' in final redirect URL, got: %s", finalRedirectURL)
    }
 
-   t.Log("========================================")
-   t.Log("SUCCESS! WEB AUTHENTICATION COMPLETE!")
-   t.Logf("Authorization Code: %s", authCode)
-   t.Logf("Code Verifier: %s", state.CodeVerifier)
-   t.Log("========================================")
-
-   // 7. Exchange Auth Code for Access/Refresh Tokens
    t.Log("--- Executing RegisterDevice ---")
    accessToken, refreshToken, err := RegisterDevice(authCode, state.CodeVerifier, deviceID)
    if err != nil {
       t.Fatalf("RegisterDevice failed: %v", err)
    }
 
-   if accessToken == "" {
-      t.Error("RegisterDevice returned an empty access token")
-   } else {
-      // Log masked token for safety in test logs
-      t.Logf("Access Token:  %s... (length: %d)", accessToken[:15], len(accessToken))
+   if accessToken == "" || refreshToken == "" {
+      t.Fatal("RegisterDevice returned empty tokens")
    }
 
-   if refreshToken == "" {
-      t.Error("RegisterDevice returned an empty refresh token")
-   } else {
-      // Log masked token for safety in test logs
-      t.Logf("Refresh Token: %s... (length: %d)", refreshToken[:15], len(refreshToken))
+   tokens := SavedTokens{
+      AccessToken:  accessToken,
+      RefreshToken: refreshToken,
    }
+   tokenData, _ := json.MarshalIndent(tokens, "", "  ")
+   tokenPath := getTempTokensPath()
+   err = os.WriteFile(tokenPath, tokenData, 0644)
+   if err != nil {
+      t.Fatalf("Failed to save tokens to disk: %v", err)
+   }
+
+   t.Log("========================================")
+   t.Log("SUCCESS! WEB AUTHENTICATION COMPLETE!")
+   t.Logf("Saved access and refresh tokens to %s", tokenPath)
+   t.Log("You can now run the playback flow tests.")
+   t.Log("========================================")
 }
