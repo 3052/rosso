@@ -20,6 +20,7 @@ type RegisterResponse struct {
    } `json:"response"`
 }
 
+// RegisterDevice exchanges the authorization_code and code_verifier for API access tokens.
 func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string, error) {
    url := "https://api.amazon.com/auth/register"
 
@@ -43,6 +44,15 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
          "software_version": "130050002",
       },
       "requested_token_type": []string{"bearer"},
+      "device_metadata": map[string]string{
+         "device_os_family": "android",
+         "device_type":      "A1MPSLFC7L5AFK",
+         "device_serial":    deviceSerial,
+         "manufacturer":     "Google",
+         "model":            "sdk_gphone_x86_64",
+         "os_version":       "30",
+         "product":          "sdk_gphone_x86_64",
+      },
    }
 
    body, _ := json.Marshal(payload)
@@ -70,5 +80,12 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
       return "", "", err
    }
 
-   return regResp.Response.Success.Tokens.Bearer.AccessToken, regResp.Response.Success.Tokens.Bearer.RefreshToken, nil
+   accessToken := regResp.Response.Success.Tokens.Bearer.AccessToken
+   refreshToken := regResp.Response.Success.Tokens.Bearer.RefreshToken
+
+   if accessToken == "" || refreshToken == "" {
+      return "", "", fmt.Errorf("received 200 OK, but access_token or refresh_token was empty")
+   }
+
+   return accessToken, refreshToken, nil
 }

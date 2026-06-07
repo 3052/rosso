@@ -120,6 +120,8 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
 }
 
 func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
+   deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
+
    // Load State
    stateData, err := os.ReadFile(getTempStatePath())
    if err != nil {
@@ -171,8 +173,29 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    }
 
    t.Log("========================================")
-   t.Log("SUCCESS! AUTHENTICATION COMPLETE!")
+   t.Log("SUCCESS! WEB AUTHENTICATION COMPLETE!")
    t.Logf("Authorization Code: %s", authCode)
    t.Logf("Code Verifier: %s", state.CodeVerifier)
    t.Log("========================================")
+
+   // 7. Exchange Auth Code for Access/Refresh Tokens
+   t.Log("--- Executing RegisterDevice ---")
+   accessToken, refreshToken, err := RegisterDevice(authCode, state.CodeVerifier, deviceID)
+   if err != nil {
+      t.Fatalf("RegisterDevice failed: %v", err)
+   }
+
+   if accessToken == "" {
+      t.Error("RegisterDevice returned an empty access token")
+   } else {
+      // Log masked token for safety in test logs
+      t.Logf("Access Token:  %s... (length: %d)", accessToken[:15], len(accessToken))
+   }
+
+   if refreshToken == "" {
+      t.Error("RegisterDevice returned an empty refresh token")
+   } else {
+      // Log masked token for safety in test logs
+      t.Logf("Refresh Token: %s... (length: %d)", refreshToken[:15], len(refreshToken))
+   }
 }
