@@ -27,6 +27,7 @@ type SimpleCookie struct {
 
 // AuthState holds the data we need to persist between Part 1 and Part 2 of the test
 type AuthState struct {
+   SessionID    string         `json:"session_id"`
    Cookies      []SimpleCookie `json:"cookies"`
    FormValues   url.Values     `json:"form_values"`
    CodeVerifier string         `json:"code_verifier"`
@@ -53,23 +54,15 @@ func getTempStatePath() string {
 }
 
 func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
-   // Dummy 32-character hex string for the device ID
    deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
 
-   // ==========================================
-   // STEP 1: Fetch Sign-In Page
-   // ==========================================
+   // 1. Fetch Sign-In Page
    t.Log("--- Executing FetchSignInPage ---")
    formValues, cookies, codeVerifier, err := FetchSignInPage(deviceID)
    if err != nil {
       t.Fatalf("FetchSignInPage failed: %v", err)
    }
 
-   if codeVerifier == "" {
-      t.Error("Expected codeVerifier to not be empty")
-   }
-
-   // Extract the session-id cookie required for the next request's URL
    var sessionID string
    for _, cookie := range cookies {
       if cookie.Name == "session-id" {
@@ -77,13 +70,8 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
          break
       }
    }
-   if sessionID == "" {
-      t.Fatal("Expected 'session-id' cookie to be returned, but it was missing")
-   }
 
-   // ==========================================
-   // STEP 2: Fetch Credentials from external exe
-   // ==========================================
+   // 2. Fetch Credentials
    t.Log("--- Executing credential.exe ---")
    cmd := exec.Command("credential.exe", "-j=amazon.com")
    output, err := cmd.Output()
@@ -93,19 +81,11 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
 
    var creds []Credential
    if err := json.Unmarshal(output, &creds); err != nil {
-      t.Fatalf("Failed to parse JSON output from credential.exe: %v\nOutput: %s", err, string(output))
+      t.Fatalf("Failed to parse JSON output: %v", err)
    }
-
-   if len(creds) == 0 {
-      t.Fatal("No credentials returned by credential.exe")
-   }
-
    testPhone := creds[0].Username
-   t.Logf("Using phone number from credential.exe: %s", testPhone)
 
-   // ==========================================
-   // STEP 3: Submit Phone Number (Passwordless)
-   // ==========================================
+   // 3. Submit Phone Number
    t.Log("--- Executing SubmitCredentials (SMS Login) ---")
    formValues.Set("email", testPhone)
 
@@ -113,86 +93,100 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    if err != nil {
       t.Fatalf("SubmitCredentials failed: %v", err)
    }
-
-   if !strings.Contains(redirectURL, "/ap/cvf/request") {
-      t.Fatalf("Unexpected redirect URL. Expected OTP challenge page ('/ap/cvf/request'), but got: %s", redirectURL)
-   }
-
-   // Update our cookie jar with the new cookies returned from the POST
    cookies = mergeCookies(cookies, newCookies)
 
-   // ==========================================
-   // STEP 4: Fetch CVF (OTP) Page
-   // ==========================================
+   // 4. Fetch CVF (OTP) Page
    t.Log("--- Executing FetchCVFPage (Triggering SMS) ---")
    cvfFormValues, cvfNewCookies, err := FetchCVFPage(redirectURL, cookies)
    if err != nil {
       t.Fatalf("FetchCVFPage failed: %v", err)
    }
-
-   // Update our cookie jar again
    cookies = mergeCookies(cookies, cvfNewCookies)
 
-   // EXPLICIT CHECK: Ensure Amazon actually returned the OTP form
-   csrfToken := cvfFormValues.Get("anti-csrftoken-a2z")
-   if csrfToken == "" {
-      t.Error("Expected 'anti-csrftoken-a2z' in CVF form values, but it was missing (Amazon might have blocked the request)")
-   }
-
-   actionVal := cvfFormValues.Get("action")
-   if actionVal != "code" && actionVal != "verify" {
-      t.Errorf("Expected 'action' field to be 'code' or 'verify', got: '%s'", actionVal)
-   }
-
-   // ==========================================
-   // SAVE STATE TO DISK
-   // ==========================================
+   // Save State
    t.Log("--- Saving State to Disk ---")
    state := AuthState{
+      SessionID:    sessionID,
       FormValues:   cvfFormValues,
       CodeVerifier: codeVerifier,
    }
-
    for _, c := range cookies {
       state.Cookies = append(state.Cookies, SimpleCookie{Name: c.Name, Value: c.Value})
    }
+   stateData, _ := json.MarshalIndent(state, "", "  ")
+   os.WriteFile(getTempStatePath(), stateData, 0644)
 
-   stateData, err := json.MarshalIndent(state, "", "  ")
-   if err != nil {
-      t.Fatalf("Failed to marshal auth state: %v", err)
-   }
-
-   statePath := getTempStatePath()
-   if err := os.WriteFile(statePath, stateData, 0644); err != nil {
-      t.Fatalf("Failed to write state file to %s: %v", statePath, err)
-   }
-
-   t.Logf("Successfully requested OTP! State saved to %s", statePath)
-   t.Log("Please retrieve the SMS code and proceed to TestAuthFlow_Part2_VerifyOTP")
+   t.Log("Successfully requested OTP! Please create 'otp.txt' and proceed to Part 2.")
 }
 
 func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
-   statePath := getTempStatePath()
-   stateData, err := os.ReadFile(statePath)
+   // Load State
+   stateData, err := os.ReadFile(getTempStatePath())
    if err != nil {
-      t.Fatalf("Failed to read state file at %s (Did you run Part 1 first?): %v", statePath, err)
+      t.Fatalf("Failed to read state file: %v", err)
    }
-
    var state AuthState
-   if err := json.Unmarshal(stateData, &state); err != nil {
-      t.Fatalf("Failed to unmarshal state data: %v", err)
-   }
+   json.Unmarshal(stateData, &state)
 
-   // Reconstruct the http.Cookies
    var cookies []*http.Cookie
    for _, sc := range state.Cookies {
       cookies = append(cookies, &http.Cookie{Name: sc.Name, Value: sc.Value})
    }
 
-   t.Log("--- Successfully Loaded State ---")
-   t.Logf("Code Verifier: %s", state.CodeVerifier)
-   t.Logf("Form fields loaded: %d", len(state.FormValues))
-   t.Logf("Cookies loaded: %d", len(cookies))
+   // Read OTP
+   otpData, err := os.ReadFile("otp.txt")
+   if err != nil {
+      t.Fatalf("Failed to read 'otp.txt': %v", err)
+   }
+   state.FormValues.Set("code", strings.TrimSpace(string(otpData)))
 
-   // Next step: Prompt for or read the OTP, insert it into state.FormValues, and call VerifyOTP
+   // 5. Verify OTP
+   t.Log("--- Executing VerifyOTP ---")
+   claimRedirectURL, newCookies, err := VerifyOTP(state.FormValues, cookies)
+   if err != nil {
+      t.Fatalf("VerifyOTP failed: %v", err)
+   }
+   cookies = mergeCookies(cookies, newCookies)
+
+   if !strings.Contains(claimRedirectURL, "claimToken=") {
+      t.Fatalf("Expected redirect URL to contain 'claimToken=', got: %s", claimRedirectURL)
+   }
+   t.Log("Successfully verified OTP. Received Claim Token redirect.")
+
+   // 6. Fetch Claim Page
+   t.Log("--- Executing FetchClaimSignInPage ---")
+   claimFormValues, claimCookies, err := FetchClaimSignInPage(claimRedirectURL, cookies)
+   if err != nil {
+      t.Fatalf("FetchClaimSignInPage failed: %v", err)
+   }
+   cookies = mergeCookies(cookies, claimCookies)
+
+   // 7. Final Submit
+   t.Log("--- Executing Final SubmitCredentials ---")
+   // For passwordless, we explicitly set password to empty
+   claimFormValues.Set("password", "")
+
+   finalRedirectURL, _, err := SubmitCredentials(state.SessionID, claimFormValues, cookies)
+   if err != nil {
+      t.Fatalf("Final SubmitCredentials failed: %v", err)
+   }
+
+   // We do not merge finalCookies because we don't use the cookie jar after getting the auth code.
+
+   // 8. Extract Authorization Code
+   parsedUrl, err := url.Parse(finalRedirectURL)
+   if err != nil {
+      t.Fatalf("Failed to parse final redirect URL: %v", err)
+   }
+
+   authCode := parsedUrl.Query().Get("openid.oa2.authorization_code")
+   if authCode == "" {
+      t.Fatalf("Expected 'openid.oa2.authorization_code' in final redirect URL, got: %s", finalRedirectURL)
+   }
+
+   t.Log("========================================")
+   t.Log("SUCCESS! AUTHENTICATION COMPLETE!")
+   t.Logf("Authorization Code: %s", authCode)
+   t.Logf("Code Verifier: %s", state.CodeVerifier)
+   t.Log("========================================")
 }

@@ -1,0 +1,75 @@
+package amazon
+
+import (
+   "fmt"
+   "io"
+   "net/http"
+   "net/url"
+   "regexp"
+)
+
+// FetchClaimSignInPage fetches the URL returned after OTP verification (which contains the claimToken).
+// It scrapes the form fields required for the final authentication POST.
+func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (url.Values, []*http.Cookie, error) {
+   req, err := http.NewRequest(http.MethodGet, claimUrl, nil)
+   if err != nil {
+      return nil, nil, err
+   }
+
+   req.Header.Set("upgrade-insecure-requests", "1")
+   req.Header.Set("user-agent", "Mozilla/5.0 (Linux; Android 11; sdk_gphone_x86_64 Build/RSR1.240422.006; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.106 Mobile Safari/537.36")
+   req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+   req.Header.Set("x-requested-with", "com.amazon.avod.thirdpartyclient")
+
+   for _, cookie := range cookies {
+      req.AddCookie(cookie)
+   }
+
+   client := &http.Client{}
+   resp, err := client.Do(req)
+   if err != nil {
+      return nil, nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, nil, fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
+   }
+
+   bodyBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, nil, err
+   }
+   html := string(bodyBytes)
+
+   // Isolate the main sign-in form
+   formRegex := regexp.MustCompile(`(?s)<form[^>]*name="signIn"[^>]*method="post"[^>]*action="[^"]*signin[^"]*"[^>]*>(.*?)</form>`)
+   formMatch := formRegex.FindStringSubmatch(html)
+   if len(formMatch) < 2 {
+      return nil, nil, fmt.Errorf("signIn form not found in the HTML response")
+   }
+   formHtml := formMatch[1]
+
+   // Extract all inputs within that form
+   inputRegex := regexp.MustCompile(`(?i)<input[^>]+>`)
+   nameRegex := regexp.MustCompile(`(?i)name=['"]([^'"]+)['"]`)
+   valueRegex := regexp.MustCompile(`(?i)value=['"]([^'"]*)['"]`)
+
+   formValues := url.Values{}
+   inputs := inputRegex.FindAllString(formHtml, -1)
+
+   for _, inputStr := range inputs {
+      nameMatch := nameRegex.FindStringSubmatch(inputStr)
+      if len(nameMatch) >= 2 {
+         name := nameMatch[1]
+         value := ""
+         valueMatch := valueRegex.FindStringSubmatch(inputStr)
+         if len(valueMatch) >= 2 {
+            value = valueMatch[1]
+         }
+         formValues.Set(name, value)
+      }
+   }
+
+   return formValues, resp.Cookies(), nil
+}
