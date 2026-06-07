@@ -153,27 +153,13 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    }
    t.Log("Successfully verified OTP. Received Claim Token redirect.")
 
-   // 6. Fetch Claim Page
+   // 6. Fetch Claim Page & Extract Authorization Code
    t.Log("--- Executing FetchClaimSignInPage ---")
-   claimFormValues, claimCookies, err := FetchClaimSignInPage(claimRedirectURL, cookies)
+   finalRedirectURL, _, err := FetchClaimSignInPage(claimRedirectURL, cookies)
    if err != nil {
       t.Fatalf("FetchClaimSignInPage failed: %v", err)
    }
-   cookies = mergeCookies(cookies, claimCookies)
 
-   // 7. Final Submit
-   t.Log("--- Executing Final SubmitCredentials ---")
-   // For passwordless, we explicitly set password to empty
-   claimFormValues.Set("password", "")
-
-   finalRedirectURL, _, err := SubmitCredentials(state.SessionID, claimFormValues, cookies)
-   if err != nil {
-      t.Fatalf("Final SubmitCredentials failed: %v", err)
-   }
-
-   // We do not merge finalCookies because we don't use the cookie jar after getting the auth code.
-
-   // 8. Extract Authorization Code
    parsedUrl, err := url.Parse(finalRedirectURL)
    if err != nil {
       t.Fatalf("Failed to parse final redirect URL: %v", err)

@@ -1,19 +1,18 @@
 package amazon
 
 import (
+   "errors"
    "fmt"
    "io"
    "net/http"
-   "net/url"
-   "regexp"
 )
 
 // FetchClaimSignInPage fetches the URL returned after OTP verification (which contains the claimToken).
-// It scrapes the form fields required for the final authentication POST.
-func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (url.Values, []*http.Cookie, error) {
+// It prevents redirects and captures the Location header containing the authorization_code.
+func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (string, []*http.Cookie, error) {
    req, err := http.NewRequest(http.MethodGet, claimUrl, nil)
    if err != nil {
-      return nil, nil, err
+      return "", nil, err
    }
 
    req.Header.Set("upgrade-insecure-requests", "1")
@@ -25,51 +24,30 @@ func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (url.Values, 
       req.AddCookie(cookie)
    }
 
-   client := &http.Client{}
+   // Create a custom client that stops at the first redirect to capture the Location header
+   client := &http.Client{
+      CheckRedirect: func(req *http.Request, via []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
+   }
+
    resp, err := client.Do(req)
    if err != nil {
-      return nil, nil, err
+      return "", nil, err
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
-      return nil, nil, fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
+   // Drain the body so the connection can be reused
+   _, _ = io.Copy(io.Discard, resp.Body)
+
+   if resp.StatusCode != http.StatusFound {
+      return "", nil, fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)
    }
 
-   bodyBytes, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, nil, err
-   }
-   html := string(bodyBytes)
-
-   // Isolate the main sign-in form
-   formRegex := regexp.MustCompile(`(?s)<form[^>]*name="signIn"[^>]*method="post"[^>]*action="[^"]*signin[^"]*"[^>]*>(.*?)</form>`)
-   formMatch := formRegex.FindStringSubmatch(html)
-   if len(formMatch) < 2 {
-      return nil, nil, fmt.Errorf("signIn form not found in the HTML response")
-   }
-   formHtml := formMatch[1]
-
-   // Extract all inputs within that form
-   inputRegex := regexp.MustCompile(`(?i)<input[^>]+>`)
-   nameRegex := regexp.MustCompile(`(?i)name=['"]([^'"]+)['"]`)
-   valueRegex := regexp.MustCompile(`(?i)value=['"]([^'"]*)['"]`)
-
-   formValues := url.Values{}
-   inputs := inputRegex.FindAllString(formHtml, -1)
-
-   for _, inputStr := range inputs {
-      nameMatch := nameRegex.FindStringSubmatch(inputStr)
-      if len(nameMatch) >= 2 {
-         name := nameMatch[1]
-         value := ""
-         valueMatch := valueRegex.FindStringSubmatch(inputStr)
-         if len(valueMatch) >= 2 {
-            value = valueMatch[1]
-         }
-         formValues.Set(name, value)
-      }
+   location := resp.Header.Get("Location")
+   if location == "" {
+      return "", nil, errors.New("location header not found in the 302 response")
    }
 
-   return formValues, resp.Cookies(), nil
+   return location, resp.Cookies(), nil
 }
