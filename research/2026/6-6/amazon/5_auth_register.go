@@ -15,13 +15,17 @@ type RegisterResponse struct {
                AccessToken  string `json:"access_token"`
                RefreshToken string `json:"refresh_token"`
             } `json:"bearer"`
+            MacDms struct {
+               DevicePrivateKey string `json:"device_private_key"`
+            } `json:"mac_dms"`
          } `json:"tokens"`
+         AdpToken string `json:"adp_token"`
       } `json:"success"`
    } `json:"response"`
 }
 
-// RegisterDevice exchanges the authorization_code and code_verifier for API access tokens.
-func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string, error) {
+// RegisterDevice exchanges the authorization_code and code_verifier for API access tokens and the ADP private key.
+func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string, string, string, error) {
    url := "https://api.amazon.com/auth/register"
 
    payload := map[string]interface{}{
@@ -43,7 +47,7 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
          "os_version":       "11",
          "software_version": "130050002",
       },
-      "requested_token_type": []string{"bearer"},
+      "requested_token_type": []string{"bearer", "mac_dms"},
       "device_metadata": map[string]string{
          "device_os_family": "android",
          "device_type":      "A1MPSLFC7L5AFK",
@@ -58,7 +62,7 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
    body, _ := json.Marshal(payload)
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
    if err != nil {
-      return "", "", err
+      return "", "", "", "", err
    }
 
    req.Header.Set("Content-Type", "application/json")
@@ -67,25 +71,29 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", "", err
+      return "", "", "", "", err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      buf := new(bytes.Buffer)
+      buf.ReadFrom(resp.Body)
+      return "", "", "", "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, buf.String())
    }
 
    var regResp RegisterResponse
    if err := json.NewDecoder(resp.Body).Decode(&regResp); err != nil {
-      return "", "", err
+      return "", "", "", "", err
    }
 
    accessToken := regResp.Response.Success.Tokens.Bearer.AccessToken
    refreshToken := regResp.Response.Success.Tokens.Bearer.RefreshToken
+   privateKey := regResp.Response.Success.Tokens.MacDms.DevicePrivateKey
+   adpToken := regResp.Response.Success.AdpToken
 
-   if accessToken == "" || refreshToken == "" {
-      return "", "", fmt.Errorf("received 200 OK, but access_token or refresh_token was empty")
+   if accessToken == "" || refreshToken == "" || privateKey == "" || adpToken == "" {
+      return "", "", "", "", fmt.Errorf("received 200 OK, but one or more required tokens were empty")
    }
 
-   return accessToken, refreshToken, nil
+   return accessToken, refreshToken, privateKey, adpToken, nil
 }

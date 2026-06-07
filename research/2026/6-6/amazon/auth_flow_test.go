@@ -32,8 +32,10 @@ type AuthState struct {
 }
 
 type SavedTokens struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
+   AccessToken      string `json:"access_token"`
+   RefreshToken     string `json:"refresh_token"`
+   DevicePrivateKey string `json:"device_private_key"`
+   AdpToken         string `json:"adp_token"`
 }
 
 func mergeCookies(existing []*http.Cookie, newCookies []*http.Cookie) []*http.Cookie {
@@ -169,7 +171,7 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    }
 
    t.Log("--- Executing RegisterDevice ---")
-   accessToken, refreshToken, err := RegisterDevice(authCode, state.CodeVerifier, deviceID)
+   accessToken, refreshToken, privateKey, adpToken, err := RegisterDevice(authCode, state.CodeVerifier, deviceID)
    if err != nil {
       t.Fatalf("RegisterDevice failed: %v", err)
    }
@@ -179,8 +181,10 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    }
 
    tokens := SavedTokens{
-      AccessToken:  accessToken,
-      RefreshToken: refreshToken,
+      AccessToken:      accessToken,
+      RefreshToken:     refreshToken,
+      DevicePrivateKey: privateKey,
+      AdpToken:         adpToken,
    }
    tokenData, _ := json.MarshalIndent(tokens, "", "  ")
    tokenPath := getTempTokensPath()
@@ -191,7 +195,7 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
 
    t.Log("========================================")
    t.Log("SUCCESS! WEB AUTHENTICATION COMPLETE!")
-   t.Logf("Saved access and refresh tokens to %s", tokenPath)
+   t.Logf("Saved auth data to %s", tokenPath)
    t.Log("You can now run the playback flow tests.")
    t.Log("========================================")
 }

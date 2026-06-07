@@ -4,7 +4,6 @@ import (
    "encoding/json"
    "os"
    "path/filepath"
-   "strings"
    "testing"
 )
 
@@ -15,7 +14,7 @@ func getStoredTokensPath() string {
 func TestPlaybackFlow(t *testing.T) {
    deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
 
-   // 1. Load the tokens saved from the auth flow
+   // 1. Load the MAP tokens saved from the auth flow
    tokenData, err := os.ReadFile(getStoredTokensPath())
    if err != nil {
       t.Fatalf("Failed to read tokens from disk. Have you successfully run TestAuthFlow_Part2_VerifyOTP? Error: %v", err)
@@ -26,29 +25,25 @@ func TestPlaybackFlow(t *testing.T) {
       t.Fatalf("Failed to unmarshal tokens: %v", err)
    }
 
-   if tokens.AccessToken == "" {
-      t.Fatal("Access token on disk is empty")
+   if tokens.AdpToken == "" || tokens.DevicePrivateKey == "" {
+      t.Fatal("Missing ADP Token or Private Key on disk. You must re-run TestAuthFlow_Part2_VerifyOTP.")
    }
 
-   t.Log("Successfully loaded access token from disk")
+   t.Log("Successfully loaded MAP tokens and RSA key from disk")
 
-   // 2. Get Profile ID
-   t.Log("--- Executing GetPrimeVideoProfileId ---")
-   profileID, err := GetPrimeVideoProfileId(tokens.AccessToken, deviceID)
+   // 2. Exchange MAP tokens for ATV (Video) tokens via ADP signature
+   t.Log("--- Executing GetVideoDeviceToken ---")
+   atvAccessToken, atvRefreshToken, err := GetVideoDeviceToken(deviceID, tokens.AdpToken, tokens.DevicePrivateKey)
    if err != nil {
-      t.Fatalf("GetPrimeVideoProfileId failed: %v", err)
+      t.Fatalf("GetVideoDeviceToken failed: %v", err)
    }
-
-   // Sanity Check the Profile ID
-   if profileID == "" {
-      t.Fatal("GetPrimeVideoProfileId returned an empty profile ID")
-   }
-   if !strings.HasPrefix(profileID, "amzn1.actor.person") {
-      t.Fatalf("Expected profile ID to start with 'amzn1.actor.person', but got: %s", profileID)
+   if atvAccessToken == "" || atvRefreshToken == "" {
+      t.Fatal("GetVideoDeviceToken returned empty tokens")
    }
 
    t.Log("========================================")
-   t.Log("SUCCESS! PROFILE FETCH COMPLETE!")
-   t.Logf("Profile ID: %s", profileID)
+   t.Log("SUCCESS! VIDEO DEVICE TOKEN FETCH COMPLETE!")
+   t.Logf("ATV Access Token: %s... (length: %d)", atvAccessToken[:15], len(atvAccessToken))
+   t.Logf("ATV Refresh Token: %s... (length: %d)", atvRefreshToken[:15], len(atvRefreshToken))
    t.Log("========================================")
 }
