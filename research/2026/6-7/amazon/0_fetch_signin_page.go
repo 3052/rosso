@@ -10,7 +10,7 @@ import (
 
 const AuthDeviceType = "A1MPSLFC7L5AFK"
 
-func FetchSignInPage(client *http.Client, deviceID string) (url.Values, string, string, error) {
+func FetchSignInPage(client *http.Client, deviceID, frcCookie string) (url.Values, string, string, error) {
    codeVerifier, codeChallenge, err := GeneratePKCE()
    if err != nil {
       return nil, "", "", err
@@ -21,10 +21,15 @@ func FetchSignInPage(client *http.Client, deviceID string) (url.Values, string, 
       return nil, "", "", err
    }
 
+   // Inject the map-md and static frc cookies into the jar
    amazonURL, _ := url.Parse("https://www.amazon.com")
-   client.Jar.SetCookies(amazonURL, []*http.Cookie{
+   cookiesToSet := []*http.Cookie{
       {Name: "map-md", Value: mapMDCookie, Domain: ".amazon.com", Path: "/"},
-   })
+   }
+   if frcCookie != "" {
+      cookiesToSet = append(cookiesToSet, &http.Cookie{Name: "frc", Value: frcCookie, Domain: ".amazon.com", Path: "/"})
+   }
+   client.Jar.SetCookies(amazonURL, cookiesToSet)
 
    reqURL, err := url.Parse("https://www.amazon.com/ap/signin")
    if err != nil {

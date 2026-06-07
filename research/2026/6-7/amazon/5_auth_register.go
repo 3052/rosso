@@ -4,6 +4,7 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
+   "io"
    "net/http"
 )
 
@@ -17,8 +18,8 @@ type RegisterResponse struct {
             } `json:"bearer"`
             MacDms struct {
                DevicePrivateKey string `json:"device_private_key"`
+               AdpToken         string `json:"adp_token"`
             } `json:"mac_dms"`
-            AdpToken string `json:"adp_token"`
          } `json:"tokens"`
       } `json:"success"`
    } `json:"response"`
@@ -75,24 +76,38 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
    }
    defer resp.Body.Close()
 
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return "", "", "", "", fmt.Errorf("failed to read response body: %v", err)
+   }
+
    if resp.StatusCode != http.StatusOK {
-      buf := new(bytes.Buffer)
-      buf.ReadFrom(resp.Body)
-      return "", "", "", "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, buf.String())
+      return "", "", "", "", fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(respBody))
    }
 
    var regResp RegisterResponse
-   if err := json.NewDecoder(resp.Body).Decode(&regResp); err != nil {
-      return "", "", "", "", err
+   if err := json.Unmarshal(respBody, &regResp); err != nil {
+      return "", "", "", "", fmt.Errorf("failed to parse JSON response: %v\nBody: %s", err, string(respBody))
    }
 
    accessToken := regResp.Response.Success.Tokens.Bearer.AccessToken
-   refreshToken := regResp.Response.Success.Tokens.Bearer.RefreshToken
-   privateKey := regResp.Response.Success.Tokens.MacDms.DevicePrivateKey
-   adpToken := regResp.Response.Success.Tokens.AdpToken
+   if accessToken == "" {
+      return "", "", "", "", fmt.Errorf("access_token is empty in the response.\nRaw Body: %s", string(respBody))
+   }
 
-   if accessToken == "" || refreshToken == "" || privateKey == "" || adpToken == "" {
-      return "", "", "", "", fmt.Errorf("received 200 OK, but one or more required tokens were empty")
+   refreshToken := regResp.Response.Success.Tokens.Bearer.RefreshToken
+   if refreshToken == "" {
+      return "", "", "", "", fmt.Errorf("refresh_token is empty in the response.\nRaw Body: %s", string(respBody))
+   }
+
+   privateKey := regResp.Response.Success.Tokens.MacDms.DevicePrivateKey
+   if privateKey == "" {
+      return "", "", "", "", fmt.Errorf("device_private_key (mac_dms) is empty in the response.\nRaw Body: %s", string(respBody))
+   }
+
+   adpToken := regResp.Response.Success.Tokens.MacDms.AdpToken
+   if adpToken == "" {
+      return "", "", "", "", fmt.Errorf("adp_token is empty in the response.\nRaw Body: %s", string(respBody))
    }
 
    return accessToken, refreshToken, privateKey, adpToken, nil

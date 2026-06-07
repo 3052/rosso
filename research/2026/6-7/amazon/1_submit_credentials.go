@@ -6,9 +6,11 @@ import (
    "io"
    "net/http"
    "net/url"
+   "os"
    "strings"
 )
 
+// SubmitCredentials posts the sign-in form with the user's credentials.
 func SubmitCredentials(client *http.Client, sessionId string, formValues url.Values, referer string) (string, error) {
    postUrl := fmt.Sprintf("https://www.amazon.com/ap/signin/%s", sessionId)
 
@@ -29,13 +31,27 @@ func SubmitCredentials(client *http.Client, sessionId string, formValues url.Val
    req.Header.Set("Sec-Fetch-Dest", "document")
    req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 
+   // Set client to stop at redirect so we can capture the Location
+   client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+      return http.ErrUseLastResponse
+   }
+
    resp, err := client.Do(req)
    if err != nil {
       return "", err
    }
    defer resp.Body.Close()
 
-   _, _ = io.Copy(io.Discard, resp.Body)
+   bodyBytes, _ := io.ReadAll(resp.Body)
+   html := string(bodyBytes)
+
+   if resp.StatusCode == http.StatusOK {
+      os.WriteFile("captcha_debug.html", bodyBytes, 0644)
+      if strings.Contains(html, "cvf-aamation-challenge-form") || strings.Contains(html, "Authentication required") {
+         return "", fmt.Errorf("CAPTCHA_REQUIRED")
+      }
+      return "", fmt.Errorf("expected 302 redirect, got 200 OK. Debug HTML saved to captcha_debug.html")
+   }
 
    if resp.StatusCode != http.StatusFound {
       return "", fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)

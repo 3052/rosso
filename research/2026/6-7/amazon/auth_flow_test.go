@@ -1,6 +1,7 @@
 package amazon
 
 import (
+   "crypto/tls"
    "encoding/json"
    "net/http"
    "net/http/cookiejar"
@@ -21,8 +22,10 @@ type Credential struct {
 }
 
 type SimpleCookie struct {
-   Name  string `json:"name"`
-   Value string `json:"value"`
+   Name   string `json:"name"`
+   Value  string `json:"value"`
+   Domain string `json:"domain"`
+   Path   string `json:"path"`
 }
 
 type AuthState struct {
@@ -48,19 +51,40 @@ func getTempTokensPath() string {
    return filepath.Join(os.TempDir(), "amazon_tokens.json")
 }
 
-func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
-   deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
-
-   jar, _ := cookiejar.New(nil)
-   client := &http.Client{
-      Jar: jar,
+// createNonBotClient creates an HTTP client that forces HTTP/1.1 to bypass AWS WAF HTTP/2 Fingerprinting
+func createNonBotClient(jar *cookiejar.Jar) *http.Client {
+   transport := &http.Transport{
+      ForceAttemptHTTP2: false,
+      TLSNextProto:      make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+      Proxy:             http.ProxyFromEnvironment,
+   }
+   return &http.Client{
+      Transport: transport,
+      Jar:       jar,
       CheckRedirect: func(req *http.Request, via []*http.Request) error {
          return http.ErrUseLastResponse
       },
    }
+}
+
+func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
+   deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
+
+   jar, _ := cookiejar.New(nil)
+   client := createNonBotClient(jar)
+
+   // Read static FRC cookie from local file
+   frcData, err := os.ReadFile("frc.txt")
+   var frcCookie string
+   if err == nil {
+      frcCookie = strings.TrimSpace(string(frcData))
+      t.Log("Loaded FRC cookie from frc.txt")
+   } else {
+      t.Fatalf("frc.txt not found. Please create it and paste a valid frc cookie.")
+   }
 
    t.Log("--- Executing FetchSignInPage ---")
-   formValues, codeVerifier, signInUrlStr, err := FetchSignInPage(client, deviceID)
+   formValues, codeVerifier, signInUrlStr, err := FetchSignInPage(client, deviceID, frcCookie)
    if err != nil {
       t.Fatalf("FetchSignInPage failed: %v", err)
    }
@@ -86,26 +110,28 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
       t.Fatalf("Failed to parse JSON output: %v", err)
    }
    testPhone := creds[0].Username
-   testPassword := creds[0].Password
 
-   t.Log("--- Executing SubmitCredentials ---")
+   t.Log("--- Executing SubmitCredentials (SMS Login) ---")
    formValues.Set("email", testPhone)
-   formValues.Set("password", testPassword)
+   formValues.Set("password", "") // Explicitly blank for passwordless SMS login
 
    redirectURL, err := SubmitCredentials(client, sessionID, formValues, signInUrlStr)
    if err != nil {
+      if err.Error() == "CAPTCHA_REQUIRED" {
+         t.Fatalf("AMAZON CAPTCHA DETECTED! Saved to captcha_debug.html.")
+      }
       t.Fatalf("SubmitCredentials failed: %v", err)
    }
 
    if !strings.Contains(redirectURL, "/ap/cvf/request") {
-      t.Fatalf("Expected redirect to OTP challenge (/ap/cvf/request), but got: %s. (Did Amazon accept the login without 2FA?)", redirectURL)
+      t.Fatalf("Expected redirect to OTP challenge (/ap/cvf/request), but got: %s.", redirectURL)
    }
 
    t.Log("--- Executing FetchCVFPage (Triggering SMS) ---")
    cvfFormValues, err := FetchCVFPage(client, redirectURL, signInUrlStr)
    if err != nil {
       if err.Error() == "CAPTCHA_REQUIRED" {
-         t.Fatalf("AMAZON CAPTCHA DETECTED! The WAF blocked the request despite clean browser headers.")
+         t.Fatalf("AMAZON CAPTCHA DETECTED during CVF fetch! The WAF blocked the request.")
       }
       t.Fatalf("FetchCVFPage failed: %v", err)
    }
@@ -119,7 +145,12 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    }
 
    for _, c := range client.Jar.Cookies(amazonURL) {
-      state.Cookies = append(state.Cookies, SimpleCookie{Name: c.Name, Value: c.Value})
+      state.Cookies = append(state.Cookies, SimpleCookie{
+         Name:   c.Name,
+         Value:  c.Value,
+         Domain: c.Domain,
+         Path:   c.Path,
+      })
    }
 
    stateData, _ := json.MarshalIndent(state, "", "  ")
@@ -142,16 +173,24 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    amazonURL, _ := url.Parse("https://www.amazon.com")
    var httpCookies []*http.Cookie
    for _, sc := range state.Cookies {
-      httpCookies = append(httpCookies, &http.Cookie{Name: sc.Name, Value: sc.Value})
+      domain := sc.Domain
+      if domain == "" {
+         domain = ".amazon.com"
+      }
+      path := sc.Path
+      if path == "" {
+         path = "/"
+      }
+      httpCookies = append(httpCookies, &http.Cookie{
+         Name:   sc.Name,
+         Value:  sc.Value,
+         Domain: domain,
+         Path:   path,
+      })
    }
    jar.SetCookies(amazonURL, httpCookies)
 
-   client := &http.Client{
-      Jar: jar,
-      CheckRedirect: func(req *http.Request, via []*http.Request) error {
-         return http.ErrUseLastResponse
-      },
-   }
+   client := createNonBotClient(jar)
 
    otpData, err := os.ReadFile("otp.txt")
    if err != nil {
