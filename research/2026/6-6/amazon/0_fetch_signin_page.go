@@ -8,27 +8,27 @@ import (
    "regexp"
 )
 
-// AuthDeviceType is the constant Amazon identifier for this Android app during authentication
 const AuthDeviceType = "A1MPSLFC7L5AFK"
 
-// FetchSignInPage requests the main sign-in page dynamically using PKCE and Device ID.
-// deviceID should be a 32-character hex string.
-// It parses the HTML to extract all the hidden input fields required for the initial authentication POST request.
-// It returns the form values, response cookies, and the codeVerifier generated for this session.
-func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error) {
+func FetchSignInPage(client *http.Client, deviceID string) (url.Values, string, string, error) {
    codeVerifier, codeChallenge, err := GeneratePKCE()
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
 
    mapMDCookie, err := GenerateMapMD()
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
+
+   amazonURL, _ := url.Parse("https://www.amazon.com")
+   client.Jar.SetCookies(amazonURL, []*http.Cookie{
+      {Name: "map-md", Value: mapMDCookie, Domain: ".amazon.com", Path: "/"},
+   })
 
    reqURL, err := url.Parse("https://www.amazon.com/ap/signin")
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
 
    clientID := GenerateClientID(deviceID, AuthDeviceType)
@@ -55,10 +55,11 @@ func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error
    q.Set("openid.ns", "http://specs.openid.net/auth/2.0")
 
    reqURL.RawQuery = q.Encode()
+   signInUrlStr := reqURL.String()
 
-   req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, signInUrlStr, nil)
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
 
    req.Header.Set("upgrade-insecure-requests", "1")
@@ -71,36 +72,29 @@ func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error
    req.Header.Set("sec-fetch-dest", "document")
    req.Header.Set("accept-language", "en-US,en;q=0.9")
 
-   // The frc cookie is omitted to test if it's strictly required
-   cookieStr := fmt.Sprintf("map-md=%s; sid=", mapMDCookie)
-   req.Header.Set("cookie", cookieStr)
-
-   client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return nil, nil, "", fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
+      return nil, "", "", fmt.Errorf("expected 200 OK, got status code: %d", resp.StatusCode)
    }
 
    bodyBytes, err := io.ReadAll(resp.Body)
    if err != nil {
-      return nil, nil, "", err
+      return nil, "", "", err
    }
    html := string(bodyBytes)
 
-   // Isolate the main sign-in form
    formRegex := regexp.MustCompile(`(?s)<form[^>]*name="signIn"[^>]*method="post"[^>]*action="[^"]*signin[^"]*"[^>]*>(.*?)</form>`)
    formMatch := formRegex.FindStringSubmatch(html)
    if len(formMatch) < 2 {
-      return nil, nil, "", fmt.Errorf("signIn form not found in the HTML response")
+      return nil, "", "", fmt.Errorf("signIn form not found in the HTML response")
    }
    formHtml := formMatch[1]
 
-   // Extract all inputs within that form
    inputRegex := regexp.MustCompile(`(?i)<input[^>]+>`)
    nameRegex := regexp.MustCompile(`(?i)name=['"]([^'"]+)['"]`)
    valueRegex := regexp.MustCompile(`(?i)value=['"]([^'"]*)['"]`)
@@ -121,14 +115,9 @@ func FetchSignInPage(deviceID string) (url.Values, []*http.Cookie, string, error
       }
    }
 
-   // Verify that the critical hidden tokens were successfully extracted.
-   // If they are missing, Amazon may have rejected the request (e.g. CAPTCHA) due to the missing 'frc' cookie.
    if formValues.Get("anti-csrftoken-a2z") == "" {
-      return nil, nil, "", fmt.Errorf("missing 'anti-csrftoken-a2z' in form: request may have been blocked or altered due to missing 'frc' cookie")
-   }
-   if formValues.Get("appActionToken") == "" {
-      return nil, nil, "", fmt.Errorf("missing 'appActionToken' in form: request may have been blocked or altered due to missing 'frc' cookie")
+      return nil, "", "", fmt.Errorf("missing 'anti-csrftoken-a2z' in form")
    }
 
-   return formValues, resp.Cookies(), codeVerifier, nil
+   return formValues, codeVerifier, signInUrlStr, nil
 }

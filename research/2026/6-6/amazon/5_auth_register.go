@@ -18,8 +18,8 @@ type RegisterResponse struct {
             MacDms struct {
                DevicePrivateKey string `json:"device_private_key"`
             } `json:"mac_dms"`
+            AdpToken string `json:"adp_token"`
          } `json:"tokens"`
-         AdpToken string `json:"adp_token"`
       } `json:"success"`
    } `json:"response"`
 }
@@ -60,7 +60,7 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
    }
 
    body, _ := json.Marshal(payload)
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
    if err != nil {
       return "", "", "", "", err
    }
@@ -89,7 +89,7 @@ func RegisterDevice(authCode, codeVerifier, deviceSerial string) (string, string
    accessToken := regResp.Response.Success.Tokens.Bearer.AccessToken
    refreshToken := regResp.Response.Success.Tokens.Bearer.RefreshToken
    privateKey := regResp.Response.Success.Tokens.MacDms.DevicePrivateKey
-   adpToken := regResp.Response.Success.AdpToken
+   adpToken := regResp.Response.Success.Tokens.AdpToken
 
    if accessToken == "" || refreshToken == "" || privateKey == "" || adpToken == "" {
       return "", "", "", "", fmt.Errorf("received 200 OK, but one or more required tokens were empty")

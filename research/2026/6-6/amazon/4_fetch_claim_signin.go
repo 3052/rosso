@@ -7,12 +7,10 @@ import (
    "net/http"
 )
 
-// FetchClaimSignInPage fetches the URL returned after OTP verification (which contains the claimToken).
-// It prevents redirects and captures the Location header containing the authorization_code.
-func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (string, []*http.Cookie, error) {
+func FetchClaimSignInPage(client *http.Client, claimUrl string) (string, error) {
    req, err := http.NewRequest(http.MethodGet, claimUrl, nil)
    if err != nil {
-      return "", nil, err
+      return "", err
    }
 
    req.Header.Set("upgrade-insecure-requests", "1")
@@ -20,34 +18,22 @@ func FetchClaimSignInPage(claimUrl string, cookies []*http.Cookie) (string, []*h
    req.Header.Set("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
    req.Header.Set("x-requested-with", "com.amazon.avod.thirdpartyclient")
 
-   for _, cookie := range cookies {
-      req.AddCookie(cookie)
-   }
-
-   // Create a custom client that stops at the first redirect to capture the Location header
-   client := &http.Client{
-      CheckRedirect: func(req *http.Request, via []*http.Request) error {
-         return http.ErrUseLastResponse
-      },
-   }
-
    resp, err := client.Do(req)
    if err != nil {
-      return "", nil, err
+      return "", err
    }
    defer resp.Body.Close()
 
-   // Drain the body so the connection can be reused
    _, _ = io.Copy(io.Discard, resp.Body)
 
    if resp.StatusCode != http.StatusFound {
-      return "", nil, fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)
+      return "", fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)
    }
 
    location := resp.Header.Get("Location")
    if location == "" {
-      return "", nil, errors.New("location header not found in the 302 response")
+      return "", errors.New("location header not found in the 302 response")
    }
 
-   return location, resp.Cookies(), nil
+   return location, nil
 }

@@ -3,6 +3,7 @@ package amazon
 import (
    "encoding/json"
    "net/http"
+   "net/http/cookiejar"
    "net/url"
    "os"
    "os/exec"
@@ -29,6 +30,7 @@ type AuthState struct {
    Cookies      []SimpleCookie `json:"cookies"`
    FormValues   url.Values     `json:"form_values"`
    CodeVerifier string         `json:"code_verifier"`
+   CVFReferer   string         `json:"cvf_referer"`
 }
 
 type SavedTokens struct {
@@ -36,21 +38,6 @@ type SavedTokens struct {
    RefreshToken     string `json:"refresh_token"`
    DevicePrivateKey string `json:"device_private_key"`
    AdpToken         string `json:"adp_token"`
-}
-
-func mergeCookies(existing []*http.Cookie, newCookies []*http.Cookie) []*http.Cookie {
-   cookieMap := make(map[string]*http.Cookie)
-   for _, c := range existing {
-      cookieMap[c.Name] = c
-   }
-   for _, c := range newCookies {
-      cookieMap[c.Name] = c
-   }
-   var merged []*http.Cookie
-   for _, c := range cookieMap {
-      merged = append(merged, c)
-   }
-   return merged
 }
 
 func getTempStatePath() string {
@@ -64,14 +51,23 @@ func getTempTokensPath() string {
 func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
    deviceID := "ad5e1b330b2d4e5eac8a31dd694bed17"
 
+   jar, _ := cookiejar.New(nil)
+   client := &http.Client{
+      Jar: jar,
+      CheckRedirect: func(req *http.Request, via []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
+   }
+
    t.Log("--- Executing FetchSignInPage ---")
-   formValues, cookies, codeVerifier, err := FetchSignInPage(deviceID)
+   formValues, codeVerifier, signInUrlStr, err := FetchSignInPage(client, deviceID)
    if err != nil {
       t.Fatalf("FetchSignInPage failed: %v", err)
    }
 
+   amazonURL, _ := url.Parse("https://www.amazon.com")
    var sessionID string
-   for _, cookie := range cookies {
+   for _, cookie := range client.Jar.Cookies(amazonURL) {
       if cookie.Name == "session-id" {
          sessionID = cookie.Value
          break
@@ -90,36 +86,46 @@ func TestAuthFlow_Part1_RequestOTP(t *testing.T) {
       t.Fatalf("Failed to parse JSON output: %v", err)
    }
    testPhone := creds[0].Username
+   testPassword := creds[0].Password
 
-   t.Log("--- Executing SubmitCredentials (SMS Login) ---")
+   t.Log("--- Executing SubmitCredentials ---")
    formValues.Set("email", testPhone)
+   formValues.Set("password", testPassword)
 
-   redirectURL, newCookies, err := SubmitCredentials(sessionID, formValues, cookies)
+   redirectURL, err := SubmitCredentials(client, sessionID, formValues, signInUrlStr)
    if err != nil {
       t.Fatalf("SubmitCredentials failed: %v", err)
    }
-   cookies = mergeCookies(cookies, newCookies)
+
+   if !strings.Contains(redirectURL, "/ap/cvf/request") {
+      t.Fatalf("Expected redirect to OTP challenge (/ap/cvf/request), but got: %s. (Did Amazon accept the login without 2FA?)", redirectURL)
+   }
 
    t.Log("--- Executing FetchCVFPage (Triggering SMS) ---")
-   cvfFormValues, cvfNewCookies, err := FetchCVFPage(redirectURL, cookies)
+   cvfFormValues, err := FetchCVFPage(client, redirectURL, signInUrlStr)
    if err != nil {
+      if err.Error() == "CAPTCHA_REQUIRED" {
+         t.Fatalf("AMAZON CAPTCHA DETECTED! The WAF blocked the request despite clean browser headers.")
+      }
       t.Fatalf("FetchCVFPage failed: %v", err)
    }
-   cookies = mergeCookies(cookies, cvfNewCookies)
 
    t.Log("--- Saving State to Disk ---")
    state := AuthState{
       SessionID:    sessionID,
       FormValues:   cvfFormValues,
       CodeVerifier: codeVerifier,
+      CVFReferer:   redirectURL,
    }
-   for _, c := range cookies {
+
+   for _, c := range client.Jar.Cookies(amazonURL) {
       state.Cookies = append(state.Cookies, SimpleCookie{Name: c.Name, Value: c.Value})
    }
+
    stateData, _ := json.MarshalIndent(state, "", "  ")
    os.WriteFile(getTempStatePath(), stateData, 0644)
 
-   t.Log("Successfully requested OTP! Please create 'otp.txt' and proceed to Part 2.")
+   t.Log("Successfully requested OTP! Please create 'otp.txt' with your 6-digit code and proceed to Part 2.")
 }
 
 func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
@@ -132,9 +138,19 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    var state AuthState
    json.Unmarshal(stateData, &state)
 
-   var cookies []*http.Cookie
+   jar, _ := cookiejar.New(nil)
+   amazonURL, _ := url.Parse("https://www.amazon.com")
+   var httpCookies []*http.Cookie
    for _, sc := range state.Cookies {
-      cookies = append(cookies, &http.Cookie{Name: sc.Name, Value: sc.Value})
+      httpCookies = append(httpCookies, &http.Cookie{Name: sc.Name, Value: sc.Value})
+   }
+   jar.SetCookies(amazonURL, httpCookies)
+
+   client := &http.Client{
+      Jar: jar,
+      CheckRedirect: func(req *http.Request, via []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
    }
 
    otpData, err := os.ReadFile("otp.txt")
@@ -144,18 +160,17 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    state.FormValues.Set("code", strings.TrimSpace(string(otpData)))
 
    t.Log("--- Executing VerifyOTP ---")
-   claimRedirectURL, newCookies, err := VerifyOTP(state.FormValues, cookies)
+   claimRedirectURL, err := VerifyOTP(client, state.FormValues)
    if err != nil {
       t.Fatalf("VerifyOTP failed: %v", err)
    }
-   cookies = mergeCookies(cookies, newCookies)
 
    if !strings.Contains(claimRedirectURL, "claimToken=") {
       t.Fatalf("Expected redirect URL to contain 'claimToken=', got: %s", claimRedirectURL)
    }
 
    t.Log("--- Executing FetchClaimSignInPage ---")
-   finalRedirectURL, _, err := FetchClaimSignInPage(claimRedirectURL, cookies)
+   finalRedirectURL, err := FetchClaimSignInPage(client, claimRedirectURL)
    if err != nil {
       t.Fatalf("FetchClaimSignInPage failed: %v", err)
    }
@@ -174,10 +189,6 @@ func TestAuthFlow_Part2_VerifyOTP(t *testing.T) {
    accessToken, refreshToken, privateKey, adpToken, err := RegisterDevice(authCode, state.CodeVerifier, deviceID)
    if err != nil {
       t.Fatalf("RegisterDevice failed: %v", err)
-   }
-
-   if accessToken == "" || refreshToken == "" {
-      t.Fatal("RegisterDevice returned empty tokens")
    }
 
    tokens := SavedTokens{

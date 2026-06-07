@@ -9,14 +9,12 @@ import (
    "strings"
 )
 
-// VerifyOTP submits the OTP verification form.
-// It returns the redirect URL (to be used in GetAuthorizationCode) and updated cookies.
-func VerifyOTP(formValues url.Values, cookies []*http.Cookie) (string, []*http.Cookie, error) {
+func VerifyOTP(client *http.Client, formValues url.Values) (string, error) {
    verifyUrl := "https://www.amazon.com/ap/cvf/verify"
 
    req, err := http.NewRequest("POST", verifyUrl, strings.NewReader(formValues.Encode()))
    if err != nil {
-      return "", nil, err
+      return "", err
    }
 
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -25,34 +23,22 @@ func VerifyOTP(formValues url.Values, cookies []*http.Cookie) (string, []*http.C
    req.Header.Set("X-Requested-With", "com.amazon.avod.thirdpartyclient")
    req.Header.Set("Origin", "https://www.amazon.com")
 
-   for _, cookie := range cookies {
-      req.AddCookie(cookie)
-   }
-
-   // Create a custom client that stops at the first redirect to capture the Location header
-   client := &http.Client{
-      CheckRedirect: func(req *http.Request, via []*http.Request) error {
-         return http.ErrUseLastResponse
-      },
-   }
-
    resp, err := client.Do(req)
    if err != nil {
-      return "", nil, err
+      return "", err
    }
    defer resp.Body.Close()
 
-   // Drain the body so the connection can be reused
    _, _ = io.Copy(io.Discard, resp.Body)
 
    if resp.StatusCode != http.StatusFound {
-      return "", nil, fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)
+      return "", fmt.Errorf("expected 302 redirect, got status code: %d", resp.StatusCode)
    }
 
    location := resp.Header.Get("Location")
    if location == "" {
-      return "", nil, errors.New("location header not found in the 302 response")
+      return "", errors.New("location header not found in the 302 response")
    }
 
-   return location, resp.Cookies(), nil
+   return location, nil
 }
