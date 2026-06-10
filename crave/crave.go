@@ -16,6 +16,115 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "stream.video.9c9media.com",
+      Path: fmt.Sprintf(
+         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
+         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
+      ),
+   }
+   values := url.Values{}
+   values.Set("filter", "ff") // 2160p HEVC
+   values.Set("format", "mpd")
+   values.Set("hd", "true")  // 1080p H.264
+   values.Set("mcv", "true") // H.264 + HEVC
+   values.Set("uhd", "true") // 2160p HEVC
+   endpoint.RawQuery = values.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + token.AccessToken,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Message  string // 2026-05-01
+      Playback string `json:"playback"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return url.Parse(result.Playback)
+}
+
+// SL2000 max 2160p
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "license.9c9media.com",
+      Path:   "/playready",
+   }
+
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId": activePlayback.ContentId,
+         // lower-case 'p' as per their API
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func PerformLogin(username string, password string) (*AccountToken, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "account.bellmedia.ca",
+      Path:   "/api/login/v2.1",
+   }
+
+   headers := map[string]string{
+      // crave-web:default
+      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
+      "content-type":  "application/x-www-form-urlencoded",
+   }
+
+   values := url.Values{}
+   values.Set("grant_type", "password")
+   values.Set("password", password)
+   values.Set("username", username)
+
+   body := []byte(values.Encode())
+
+   resp, err := maya.Post(endpoint, headers, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   account := &AccountToken{}
+   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
+      return nil, err
+   }
+
+   return account, nil
+}
+
 func (*AccountToken) CachePath() string {
    return "rosso/crave/AccountToken"
 }
@@ -25,6 +134,24 @@ type AccountToken struct {
    RefreshToken string `json:"refresh_token"`
    AccountId    string `json:"account_id"`
    Jti          string `json:"jti"`
+}
+
+type ContentPackage struct {
+   DurationInSeconds int    `json:"durationInSeconds"`
+   Id                int    `json:"id"`
+   IsDescribedVideo  bool   `json:"isDescribedVideo"`
+   Language          string `json:"language"`
+}
+
+type Experience struct {
+   Id          string `json:"id"`
+   Sku         string `json:"sku"`
+   BrandId     string `json:"brandId"`
+   DisplayName string `json:"displayName"`
+}
+
+type FirstContent struct {
+   Id int `json:"id,string"`
 }
 
 func GetMedia(showId int) (*Media, error) {
@@ -321,133 +448,4 @@ func (s *Subscription) String() string {
    data.WriteString("\nexpiration date: ")
    data.WriteString(s.ExpirationDate)
    return data.String()
-}
-
-///
-
-func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "stream.video.9c9media.com",
-      Path: fmt.Sprintf(
-         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
-         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
-      ),
-   }
-   values := url.Values{}
-   values.Set("filter", "ff") // 2160p HEVC
-   values.Set("format", "mpd")
-   values.Set("hd", "true")  // 1080p H.264
-   values.Set("mcv", "true") // H.264 + HEVC
-   values.Set("uhd", "true") // 2160p HEVC
-   endpoint.RawQuery = values.Encode()
-
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Message  string // 2026-05-01
-      Playback string `json:"playback"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return url.Parse(result.Playback)
-}
-
-// SL2000 max 2160p
-func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "license.9c9media.com",
-      Path:   "/playready",
-   }
-
-   bodyMap := map[string]interface{}{
-      "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]interface{}{
-         "contentId": activePlayback.ContentId,
-         // lower-case 'p' as per their API
-         "contentpackageId": activePlayback.ContentPackage.Id,
-         "destinationId":    activePlayback.DestinationId,
-         "jwt":              token.AccessToken,
-         "platformId":       48,
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
-func PerformLogin(username string, password string) (*AccountToken, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.1",
-   }
-
-   headers := map[string]string{
-      // crave-web:default
-      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
-      "content-type":  "application/x-www-form-urlencoded",
-   }
-
-   values := url.Values{}
-   values.Set("grant_type", "password")
-   values.Set("password", password)
-   values.Set("username", username)
-
-   body := []byte(values.Encode())
-
-   resp, err := maya.Post(endpoint, headers, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   account := &AccountToken{}
-   if err := json.NewDecoder(resp.Body).Decode(account); err != nil {
-      return nil, err
-   }
-
-   return account, nil
-}
-
-type ContentPackage struct {
-   DurationInSeconds int    `json:"durationInSeconds"`
-   Id                int    `json:"id"`
-   IsDescribedVideo  bool   `json:"isDescribedVideo"`
-   Language          string `json:"language"`
-}
-
-type Experience struct {
-   Id          string `json:"id"`
-   Sku         string `json:"sku"`
-   BrandId     string `json:"brandId"`
-   DisplayName string `json:"displayName"`
-}
-
-type FirstContent struct {
-   Id int `json:"id,string"`
 }
