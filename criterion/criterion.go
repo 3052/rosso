@@ -9,29 +9,6 @@ import (
    "net/url"
 )
 
-func (*File) CachePath() string {
-   return "rosso/criterion/File"
-}
-
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href *Url // MPD
-      }
-   } `json:"_links"`
-   Method string
-}
-
-func (*Token) CachePath() string {
-   return "rosso/criterion/Token"
-}
-
-type Token struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-}
-
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
 func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
@@ -112,6 +89,20 @@ func FetchFiles(accessToken string, files *url.URL) ([]File, error) {
    return result, nil
 }
 
+func (*File) CachePath() string {
+   return "rosso/criterion/File"
+}
+
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href *Url // MPD
+      }
+   } `json:"_links"`
+   Method string
+}
+
 func FetchToken(username, password string) (*Token, error) {
    body := url.Values{
       "client_id":  {client_id},
@@ -160,6 +151,15 @@ func (t *Token) Refresh() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(t)
+}
+
+func (*Token) CachePath() string {
+   return "rosso/criterion/Token"
+}
+
+type Token struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
 }
 
 type Url struct {

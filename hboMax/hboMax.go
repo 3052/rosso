@@ -16,9 +16,89 @@ func (*Cookie) CachePath() string {
    return "rosso/hboMax/Cookie"
 }
 
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+}
+
+func StRequest() (*Cookie, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "default.prd.api.hbomax.com",
+         Path:     "/token",
+         RawQuery: "realm=bolt",
+      },
+      map[string]string{
+         "x-device-info":  device_info,
+         "x-disco-client": disco_client,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   for _, each := range resp.Cookies() {
+      if each.Name == "st" {
+         return &Cookie{Name: each.Name, Value: each.Value}, nil
+      }
+   }
+   return nil, errors.New("named cookie not present")
+}
+
 type Cookie struct {
    Name  string
    Value string
+}
+
+func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("pf[show.id]", showId)
+   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
+   parsedUrl := &url.URL{
+      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
+}
+
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Errors []struct { // 2026-05-27
+         Detail string // 2026-05-27
+      }
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, errors.New(result.Errors[0].Detail)
+   }
+   return result.Included, nil
+}
+
+func (*Login) CachePath() string {
+   return "rosso/hboMax/Login"
+}
+
+type Login struct {
+   Token string
 }
 
 func (*Playback) CachePath() string {
@@ -45,13 +125,7 @@ type Playback struct {
    }
 }
 
-func (*Login) CachePath() string {
-   return "rosso/hboMax/Login"
-}
-
-type Login struct {
-   Token string
-}
+///
 
 func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
@@ -417,75 +491,3 @@ func MovieRequest(token, movieId string) ([]*Entity, error) {
 }
 
 const Markets = "amer apac emea latam"
-
-func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("pf[show.id]", showId)
-   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
-   parsedUrl := &url.URL{
-      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      endpoint, map[string]string{"authorization": "Bearer " + token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors []struct { // 2026-05-27
-         Detail string // 2026-05-27
-      }
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Detail)
-   }
-   return result.Included, nil
-}
-
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
-}
-
-func StRequest() (*Cookie, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   for _, each := range resp.Cookies() {
-      if each.Name == "st" {
-         return &Cookie{Name: each.Name, Value: each.Value}, nil
-      }
-   }
-   return nil, errors.New("named cookie not present")
-}

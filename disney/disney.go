@@ -11,16 +11,6 @@ import (
    "strings"
 )
 
-func (*Token) CachePath() string {
-   return "rosso/disney/Token"
-}
-
-type Token struct {
-   AccessTokenType string
-   AccessToken     string
-   RefreshToken    string
-}
-
 // ZGlzbmV5JmJyb3dzZXImMS4wLjA
 // disney&browser&1.0.0
 const client_api_key = "ZGlzbmV5JmJyb3dzZXImMS4wLjA.Cu56AgSfBTDag5NiRA81oLHkDZfu5L3CKadnefEAY84"
@@ -180,6 +170,16 @@ type Season struct {
          InternalTitle string
       }
    }
+}
+
+func (*Token) CachePath() string {
+   return "rosso/disney/Token"
+}
+
+type Token struct {
+   AccessTokenType string
+   AccessToken     string
+   RefreshToken    string
 }
 
 func (t *Token) String() string {

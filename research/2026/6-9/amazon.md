@@ -7,18 +7,7 @@
 adb install-multiple (Get-ChildItem *.apk)
 ~~~
 
-old:
-
-~~~
-adb push C:/Users/Steven/.mitmproxy/mitmproxy-ca-cert.pem /data/local/tmp/cacerts/c8750f0d.0
-adb shell su -c 'cp /data/local/tmp/cacerts/* /system/etc/security/cacerts'
-adb shell mkdir -p /data/local/tmp/cacerts
-adb shell cp /system/etc/security/cacerts/* /data/local/tmp/cacerts
-adb shell su -c 'mount -t tmpfs tmpfs /system/etc/security/cacerts'
-adb shell su -c 'chcon u:object_r:system_file:s0 /system/etc/security/cacerts/*'
-~~~
-
-new:
+then:
 
 ~~~
 adb push C:/Users/Steven/.mitmproxy/mitmproxy-ca-cert.pem /data/local/tmp/c8750f0d.0
