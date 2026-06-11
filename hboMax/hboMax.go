@@ -12,6 +12,13 @@ import (
    "strings"
 )
 
+const (
+   disco_client = "!:!:beam:!"
+   device_info  = "!/!(!/!;!/!;!/!)"
+)
+
+const Markets = "amer apac emea latam"
+
 func (*Cookie) CachePath() string {
    return "rosso/hboMax/Cookie"
 }
@@ -48,6 +55,47 @@ func StRequest() (*Cookie, error) {
 type Cookie struct {
    Name  string
    Value string
+}
+
+// String implements the fmt.Stringer interface to provide a clean visual
+// output for the Entity
+func (e *Entity) String() string {
+   data := &strings.Builder{}
+   if e.Attributes.MaterialType == "EPISODE" {
+      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
+   }
+   if e.Attributes.ShowType != "" {
+      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
+   } else if e.Attributes.VideoType != "" {
+      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
+   }
+   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
+   if e.Type == "video" {
+      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
+   } else {
+      fmt.Fprintf(data, "ID: %s\n", e.Id)
+   }
+   return strings.TrimSpace(data.String())
+}
+
+func SearchRequest(token, query string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("contentFilter[query]", query)
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/search/result",
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
+}
+
+func MovieRequest(token, movieId string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("page[items.size]", "1")
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/movie/" + movieId,
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
 }
 
 func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
@@ -103,6 +151,14 @@ type Login struct {
 
 func (*Playback) CachePath() string {
    return "rosso/hboMax/Playback"
+}
+
+func PlayReadyRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "playready")
+}
+
+func WidevineRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "widevine")
 }
 
 type Playback struct {
@@ -433,61 +489,3 @@ func (u *Url) UnmarshalText(text []byte) error {
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
-
-///
-
-const (
-   disco_client = "!:!:beam:!"
-   device_info  = "!/!(!/!;!/!;!/!)"
-)
-
-// String implements the fmt.Stringer interface to provide a clean visual
-// output for the Entity
-func (e *Entity) String() string {
-   data := &strings.Builder{}
-   if e.Attributes.MaterialType == "EPISODE" {
-      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
-   }
-   if e.Attributes.ShowType != "" {
-      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
-   } else if e.Attributes.VideoType != "" {
-      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
-   }
-   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
-   if e.Type == "video" {
-      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
-   } else {
-      fmt.Fprintf(data, "ID: %s\n", e.Id)
-   }
-   return strings.TrimSpace(data.String())
-}
-
-func PlayReadyRequest(token, editId string) (*Playback, error) {
-   return playback_request(token, editId, "playready")
-}
-
-func WidevineRequest(token, editId string) (*Playback, error) {
-   return playback_request(token, editId, "widevine")
-}
-
-func SearchRequest(token, query string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func MovieRequest(token, movieId string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("page[items.size]", "1")
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/movie/" + movieId,
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-const Markets = "amer apac emea latam"

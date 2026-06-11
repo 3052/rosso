@@ -9,14 +9,9 @@ import (
    "path"
 )
 
-func (*Playlist) CachePath() string {
-   return "rosso/hulu/Playlist"
-}
-
-type Playlist struct {
-   DashPrServer *Url `json:"dash_pr_server"`
-   StreamUrl    *Url `json:"stream_url"` // MPD
-   WvServer     *Url `json:"wv_server"`
+type DeepLink struct {
+   EabId   string `json:"eab_id"`
+   Message string
 }
 
 func (*Device) CachePath() string {
@@ -27,6 +22,51 @@ type Device struct {
    DeviceToken string `json:"device_token"`
    Message     string // 2026-05-02
    UserToken   string `json:"user_token"`
+}
+
+func (*Playlist) CachePath() string {
+   return "rosso/hulu/Playlist"
+}
+
+type Playlist struct {
+   DashPrServer *Url `json:"dash_pr_server"`
+   StreamUrl    *Url `json:"stream_url"` // MPD
+   WvServer     *Url `json:"wv_server"`
+}
+
+func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.WvServer.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&p.DashPrServer.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(body, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return body, nil
 }
 
 type Url struct {
@@ -41,10 +81,7 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-type DeepLink struct {
-   EabId   string `json:"eab_id"`
-   Message string
-}
+///
 
 func (d *Device) DeepLink(id string) (*DeepLink, error) {
    resp, err := maya.Get(
@@ -340,39 +377,4 @@ var deejay = []struct {
       device_id:   109,
       key_version: 1,
    },
-}
-
-func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.WvServer.Url,
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&p.DashPrServer.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      var result struct {
-         Message string
-      }
-      err = json.Unmarshal(body, &result)
-      if err != nil {
-         return nil, err
-      }
-      return nil, errors.New(result.Message)
-   }
-   return body, nil
 }
