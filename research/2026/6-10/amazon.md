@@ -82,10 +82,10 @@ frida -U `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
--f com.amazon.amazonvideo.livingroom
+com.amazon.amazonvideo.livingroom
 ~~~
 
-Failed to spawn: unable to find a front-door activity
+Failed to attach: target terminated with signal 31
 
 ## test 5
 
@@ -99,7 +99,7 @@ frida -U `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
-com.amazon.amazonvideo.livingroom
+-f com.amazon.amazonvideo.livingroom
 ~~~
 
-Failed to attach: target terminated with signal 31
+Failed to spawn: unable to find a front-door activity
