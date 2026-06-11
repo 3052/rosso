@@ -1,16 +1,13 @@
 # amazon
 
-## test 1
-
-with no proxy everything is fine
-
-## test 2
+- https://apkmirror.com/apk/amazon-mobile-llc/prime-video-android-tv-android-tv
+- https://play.google.com/store/apps/details?id=com.amazon.amazonvideo.livingroom
 
 ~~~
-adb shell monkey -p com.topjohnwu.magisk -c android.intent.category.LAUNCHER 1
+adb install-multiple (Get-ChildItem *.apk)
 ~~~
 
-do you want to proceed and reboot? OK
+then:
 
 ~~~
 adb push C:/Users/Steven/.mitmproxy/mitmproxy-ca-cert.pem /data/local/tmp/c8750f0d.0
@@ -31,17 +28,7 @@ adb reboot
 adb shell su -c 'ls /apex/com.android.conscrypt/cacerts | grep c8750f0d'
 ~~~
 
-set proxy, start app
-
-Error code: 0.60
-
-## test 3
-
-start app, set proxy
-
-error code: 9345
-
-## test 4
+then:
 
 ~~~
 pip install frida-tools
@@ -72,34 +59,37 @@ update `config.js`:
 1. `CERT_PEM` from `C:\Users\Steven\.mitmproxy\mitmproxy-ca-cert.pem`
 2. `PROXY_PORT` to `8080`
 
+## spawn
+
 ~~~
 frida -U `
--l ./android/android-certificate-unpinning-fallback.js `
--l ./android/android-certificate-unpinning.js `
--l ./android/android-disable-root-detection.js `
--l ./android/android-proxy-override.js `
--l ./android/android-system-certificate-injection.js `
+-l config.js `
+-l android/android-certificate-unpinning.js `
+-f com.amazon.amazonvideo.livingroom
+
+frida -U `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
+-l ./android/android-proxy-override.js `
+-l ./android/android-system-certificate-injection.js `
+-l ./android/android-certificate-unpinning.js `
+-l ./android/android-certificate-unpinning-fallback.js `
+-l ./android/android-disable-root-detection.js `
 -f com.amazon.amazonvideo.livingroom
 ~~~
 
-Failed to spawn: unable to find a front-door activity
-
-## test 5
+## attach
 
 ~~~
 frida -U `
--l ./android/android-certificate-unpinning-fallback.js `
--l ./android/android-certificate-unpinning.js `
--l ./android/android-disable-root-detection.js `
--l ./android/android-proxy-override.js `
--l ./android/android-system-certificate-injection.js `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
+-l ./android/android-proxy-override.js `
+-l ./android/android-system-certificate-injection.js `
+-l ./android/android-certificate-unpinning.js `
+-l ./android/android-certificate-unpinning-fallback.js `
+-l ./android/android-disable-root-detection.js `
 com.amazon.amazonvideo.livingroom
 ~~~
-
-Failed to attach: target terminated with signal 31
