@@ -82,12 +82,22 @@ frida -U `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
-com.amazon.amazonvideo.livingroom
+-f com.amazon.amazonvideo.livingroom
 ~~~
 
-Failed to attach: target terminated with signal 31
+Failed to spawn: unable to find a front-door activity
 
 ## test 5
+
+~~~
+> python run_frida.py
+[*] Combining scripts...
+[*] Spawning com.amazon.amazonvideo.livingroom via com.amazon.ignition.IgnitionActivity...
+[*] Attaching to PID 3219...
+[-] An unexpected error occurred: target terminated with signal 31
+~~~
+
+## test 6
 
 ~~~
 frida -U `
@@ -99,7 +109,55 @@ frida -U `
 -l ./config.js `
 -l ./native-connect-hook.js `
 -l ./native-tls-hook.js `
--f com.amazon.amazonvideo.livingroom
+com.amazon.amazonvideo.livingroom
 ~~~
 
-Failed to spawn: unable to find a front-door activity
+Failed to attach: target terminated with signal 31
+
+- https://github.com/frida/frida-core/issues/1240
+- https://github.com/httptoolkit/frida-interception-and-unpinning/issues/206
+
+## test 7
+
+~~~
+frida -U com.amazon.amazonvideo.livingroom
+~~~
+
+Failed to attach: target terminated with signal 31
+
+## test 8
+
+armeabi-v7a
+
+~~~
+> frida-ps -U -a
+ PID  Name               Identifier
+----  -----------------  -----------------------------
+1940  Google Play Store  com.android.vending
+2831  Magisk             com.topjohnwu.magisk
+3761  Peacock TV         com.peacocktv.peacockandroid
+2174  YouTube            com.google.android.youtube.tv
+
+> frida -U 3761
+Failed to attach: target terminated with signal 31
+~~~
+
+## test 9
+
+noarch
+
+~~~
+frida -U kr.co.captv.pooq.tv
+~~~
+
+Failed to attach: target terminated with signal 31
+
+## test 10
+
+Android 9
+
+~~~
+frida -U kr.co.captv.pooq.tv
+~~~
+
+pass
