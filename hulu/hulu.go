@@ -80,6 +80,77 @@ type DeepLink struct {
    Message string
 }
 
+type Details struct {
+   VodItems struct {
+      Focus struct {
+         Entity struct {
+            Bundle struct {
+               EabId string `json:"eab_id"`
+            }
+         }
+      }
+   } `json:"vod_items"`
+}
+
+func (d *Device) DeepLink(id string) (*DeepLink, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "discover.hulu.com",
+         Path:   "/content/v5/deeplink/playback",
+         RawQuery: url.Values{
+            "id":        {id},
+            "namespace": {"entity"},
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + d.UserToken},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result DeepLink
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.EabId == "" {
+      return nil, errors.New("content is not playable: missing eab_id in response")
+   }
+   return &result, nil
+}
+
+// returns user_token only
+func (d *Device) TokenRefresh() error {
+   body := url.Values{
+      "action":       {"token_refresh"},
+      "device_token": {d.DeviceToken},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.hulu.com",
+         Path:   "/v1/device/device_token/authenticate",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   var result Device
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return err
+   }
+   if result.Message != "" {
+      return errors.New(result.Message)
+   }
+   return nil
+}
+
 func (d *Device) GetDetails(movie string) (*Details, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -304,77 +375,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-func (d *Device) DeepLink(id string) (*DeepLink, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "discover.hulu.com",
-         Path:   "/content/v5/deeplink/playback",
-         RawQuery: url.Values{
-            "id":        {id},
-            "namespace": {"entity"},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + d.UserToken},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result DeepLink
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.EabId == "" {
-      return nil, errors.New("content is not playable: missing eab_id in response")
-   }
-   return &result, nil
-}
-
-// returns user_token only
-func (d *Device) TokenRefresh() error {
-   body := url.Values{
-      "action":       {"token_refresh"},
-      "device_token": {d.DeviceToken},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.hulu.com",
-         Path:   "/v1/device/device_token/authenticate",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result Device
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   if result.Message != "" {
-      return errors.New(result.Message)
-   }
-   return nil
-}
-
-type Details struct {
-   VodItems struct {
-      Focus struct {
-         Entity struct {
-            Bundle struct {
-               EabId string `json:"eab_id"`
-            }
-         }
-      }
-   } `json:"vod_items"`
 }
