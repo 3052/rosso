@@ -16,9 +16,38 @@ or stop/clear:
 adb shell pm clear com.amazon.amazonvideo.livingroom
 ~~~
 
-you also must use `x86_64` otherwise you get this with Frida?
+create Pixel 5, Android 11 device. install system certificate
 
-Failed to attach: target terminated with signal 31
+~~~
+pip install frida-tools
+~~~
+
+https://github.com/frida/frida/releases
+
+~~~
+frida-server-17.3.2-android-x86.xz 
+~~~
+
+install app, then push server:
+
+~~~
+$frida = 'frida-server-17.12.0-android-x86'
+adb root
+adb push $frida /data/app/frida-server
+adb shell chmod +x /data/app/frida-server
+adb shell /data/app/frida-server
+~~~
+
+https://github.com/httptoolkit/frida-interception-and-unpinning
+
+update `config.js`:
+
+1. `CERT_PEM` from `C:\Users\Steven\.mitmproxy\mitmproxy-ca-cert.pem`
+2. `PROXY_PORT` to `8080`
+
+~~~
+python run_frida.py
+~~~
 
 1. https://github.com/httptoolkit/frida-interception-and-unpinning/issues/206
 2. https://issuetracker.google.com/issues/331256113
