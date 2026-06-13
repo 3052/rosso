@@ -46,7 +46,16 @@ update `config.js`:
 2. `PROXY_PORT` to `8080`
 
 ~~~
-python run_frida.py
+adb shell am start -n com.amazon.amazonvideo.livingroom/com.amazon.ignition.IgnitionActivity
+frida -U -n com.amazon.amazonvideo.livingroom `
+-l config.js `
+-l native-connect-hook.js `
+-l native-tls-hook.js `
+-l android/android-proxy-override.js `
+-l android/android-system-certificate-injection.js `
+-l android/android-certificate-unpinning.js `
+-l android/android-certificate-unpinning-fallback.js `
+-l android/android-disable-root-detection.js
 ~~~
 
 1. https://github.com/httptoolkit/frida-interception-and-unpinning/issues/207
