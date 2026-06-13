@@ -12,14 +12,57 @@ import (
    "strings"
 )
 
+//go:embed ProgrammePage.gql
+var programme_page string
+
+func ParseLegacyId(urlData string) string {
+   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
+   base := path.Base(urlData)
+   // 2. Split the string by the character 'a'
+   parts := strings.Split(base, "a")
+   // 3. Join them back together with '/'
+   return strings.Join(parts, "/")
+}
+
+func graphql_compact(data string) string {
+   return strings.Join(strings.Fields(data), " ")
+}
+
 func (*MediaFile) CachePath() string {
    return "rosso/itv/MediaFile"
+}
+
+func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
+   resp, err := maya.Post(&m.KeyServiceUrl.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
 }
 
 type MediaFile struct {
    Href          *Url // MPD
    KeyServiceUrl *Url // DRM
    Resolution    string
+}
+
+type Playlist struct {
+   Error    string
+   Playlist struct {
+      Video struct {
+         MediaFiles []MediaFile
+      }
+   }
+}
+
+func (p *Playlist) Get1080() (*MediaFile, error) {
+   for _, file := range p.Playlist.Video.MediaFiles {
+      if file.Resolution == "1080" {
+         return &file, nil
+      }
+   }
+   return nil, errors.New("1080p media file not found")
 }
 
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
@@ -81,36 +124,6 @@ func fetchPlaylist(address, drmSystem, maxSupported string) (*Playlist, error) {
    return &result, nil
 }
 
-//go:embed ProgrammePage.gql
-var programme_page string
-
-func ParseLegacyId(urlData string) string {
-   // 1. Get the last part of the URL (e.g., "10a5356a0001B")
-   base := path.Base(urlData)
-   // 2. Split the string by the character 'a'
-   parts := strings.Split(base, "a")
-   // 3. Join them back together with '/'
-   return strings.Join(parts, "/")
-}
-
-type Playlist struct {
-   Error    string
-   Playlist struct {
-      Video struct {
-         MediaFiles []MediaFile
-      }
-   }
-}
-
-func (p *Playlist) Get1080() (*MediaFile, error) {
-   for _, file := range p.Playlist.Video.MediaFiles {
-      if file.Resolution == "1080" {
-         return &file, nil
-      }
-   }
-   return nil, errors.New("1080p media file not found")
-}
-
 type Title struct {
    LatestAvailableVersion struct {
       PlaylistUrl string
@@ -120,27 +133,6 @@ type Title struct {
    }
    EpisodeNumber int
    Title         string
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&m.KeyServiceUrl.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
 }
 
 func (t *Title) String() string {
@@ -154,10 +146,6 @@ func (t *Title) String() string {
    }
    fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
    return data.String()
-}
-
-func graphql_compact(data string) string {
-   return strings.Join(strings.Fields(data), " ")
 }
 
 func FetchTitles(legacyId string) ([]Title, error) {
@@ -194,4 +182,16 @@ func FetchTitles(legacyId string) ([]Title, error) {
       return nil, err
    }
    return result.Data.Titles, nil
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }

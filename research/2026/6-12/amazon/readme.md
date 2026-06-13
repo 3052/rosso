@@ -49,7 +49,7 @@ update `config.js`:
 python run_frida.py
 ~~~
 
-1. https://github.com/httptoolkit/frida-interception-and-unpinning/issues/206
+1. https://github.com/httptoolkit/frida-interception-and-unpinning/issues/207
 2. https://issuetracker.google.com/issues/331256113
 3. https://issuetracker.google.com/issues/522344738
 4. https://github.com/frida/frida-core/issues/1240

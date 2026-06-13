@@ -11,6 +11,59 @@ import (
    "strings"
 )
 
+func (*Login) CachePath() string {
+   return "rosso/kanopy/Login"
+}
+
+type PlayResponse struct {
+   Captions  []Caption
+   Manifests []Manifest
+   PlayId    string
+}
+
+func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
+   body, err := json.Marshal(PlayRequest{
+      DomainId: membershipData.DomainId,
+      UserId:   loginData.UserId,
+      VideoId:  videoData.VideoId,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.kanopy.com",
+         Path:   "/kapi/plays",
+      },
+      map[string]string{
+         "authorization": "Bearer " + loginData.Jwt,
+         "content-type":  "application/json",
+         "x-version":     "web/undefined/undefined/undefined",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var play PlayResponse
+   if err := json.NewDecoder(resp.Body).Decode(&play); err != nil {
+      return nil, err
+   }
+
+   return &play, nil
+}
+
+type Video struct {
+   VideoId         int    `json:"videoId"`
+   Title           string `json:"title"`
+   DescriptionHtml string `json:"descriptionHtml"`
+   DurationSeconds int    `json:"durationSeconds"`
+   Alias           string `json:"alias"`
+}
+
 // https://kanopy.com/product/6440418
 // https://kanopy.com/en/product/6440418
 // https://kanopy.com/video/6440418
@@ -48,9 +101,7 @@ func ParseVideo(rawUrl string) (*Video, error) {
    return video, nil
 }
 
-func (*Login) CachePath() string {
-   return "rosso/kanopy/Login"
-}
+///
 
 func (*Manifest) CachePath() string {
    return "rosso/kanopy/Manifest"
@@ -232,53 +283,4 @@ type Caption struct {
    Language string `json:"language"`
    Files    []File `json:"files"`
    Label    string `json:"label"`
-}
-
-type PlayResponse struct {
-   Captions  []Caption
-   Manifests []Manifest
-   PlayId    string
-}
-
-func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
-   body, err := json.Marshal(PlayRequest{
-      DomainId: membershipData.DomainId,
-      UserId:   loginData.UserId,
-      VideoId:  videoData.VideoId,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/plays",
-      },
-      map[string]string{
-         "authorization": "Bearer " + loginData.Jwt,
-         "content-type":  "application/json",
-         "x-version":     "web/undefined/undefined/undefined",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var play PlayResponse
-   if err := json.NewDecoder(resp.Body).Decode(&play); err != nil {
-      return nil, err
-   }
-
-   return &play, nil
-}
-
-type Video struct {
-   VideoId         int    `json:"videoId"`
-   Title           string `json:"title"`
-   DescriptionHtml string `json:"descriptionHtml"`
-   DurationSeconds int    `json:"durationSeconds"`
-   Alias           string `json:"alias"`
 }
