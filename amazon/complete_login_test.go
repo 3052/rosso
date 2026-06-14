@@ -18,16 +18,18 @@ func TestCompleteLogin(t *testing.T) {
       t.Fatalf("Failed to unmarshal auth state: %v", err)
    }
 
-   accessToken, refreshToken, err := PollRegister(state.PublicCode, state.PrivateCode)
+   // Call the updated function which now returns a *TokenPair
+   tokenPair, err := PollRegister(state.PublicCode, state.PrivateCode)
    if err != nil {
       t.Fatalf("Login incomplete or failed: %v", err)
    }
 
    t.Log("Login successful!")
 
+   // Map the properties of the returned struct into your local test struct
    tokens := tokenState{
-      AccessToken:  accessToken,
-      RefreshToken: refreshToken,
+      AccessToken:  tokenPair.AccessToken,
+      RefreshToken: tokenPair.RefreshToken,
    }
 
    tokenData, err := json.Marshal(tokens)

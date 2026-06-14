@@ -7,8 +7,18 @@ import (
    "net/http"
 )
 
+func (*CodePair) CachePath() string {
+   return "rosso/amazon/CodePair"
+}
+
+// CodePair represents the public and private codes used for device linking.
+type CodePair struct {
+   PublicCode  string `json:"public_code"`
+   PrivateCode string `json:"private_code"`
+}
+
 // CreateCodePair requests a public and private code pair for device linking.
-func CreateCodePair() (string, string, error) {
+func CreateCodePair() (*CodePair, error) {
    url := "https://api.amazon.com/auth/create/codepair"
 
    payload := map[string]interface{}{
@@ -27,12 +37,12 @@ func CreateCodePair() (string, string, error) {
 
    body, err := json.Marshal(payload)
    if err != nil {
-      return "", "", err
+      return nil, err
    }
 
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
    if err != nil {
-      return "", "", err
+      return nil, err
    }
 
    req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
@@ -42,22 +52,19 @@ func CreateCodePair() (string, string, error) {
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
-   var result struct {
-      PublicCode  string `json:"public_code"`
-      PrivateCode string `json:"private_code"`
-   }
-
+   // Decode directly into our new struct type
+   var result CodePair
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", "", err
+      return nil, err
    }
 
-   return result.PublicCode, result.PrivateCode, nil
+   return &result, nil
 }

@@ -18,21 +18,24 @@ func TestGetActorToken(t *testing.T) {
       t.Fatalf("Failed to unmarshal tokens: %v", err)
    }
 
-   actorId, err := GetPrimaryProfile(tokens.AccessToken)
+   // Updated to receive a *Profile
+   profile, err := GetPrimaryProfile(tokens.AccessToken)
    if err != nil {
       t.Fatalf("Failed to get primary profile: %v", err)
    }
 
-   actorAccessToken, err := GetActorToken(tokens.RefreshToken, actorId)
+   // Pass the extracted string to GetActorToken and receive an *ActorToken
+   actorToken, err := GetActorToken(tokens.RefreshToken, profile.ProfileID)
    if err != nil {
       t.Fatalf("Failed to get actor token: %v", err)
    }
 
    t.Log("Successfully retrieved actor token!")
 
+   // Map the properties of the returned structs into your local test struct
    actorState := actorTokenState{
-      ActorId:     actorId,
-      AccessToken: actorAccessToken,
+      ActorId:     profile.ProfileID,
+      AccessToken: actorToken.Token,
    }
 
    actorData, err := json.Marshal(actorState)

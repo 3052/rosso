@@ -7,9 +7,19 @@ import (
    "net/http"
 )
 
+func (*TokenPair) CachePath() string {
+   return "rosso/amazon/TokenPair"
+}
+
+// TokenPair represents the access and refresh tokens returned upon successful registration.
+type TokenPair struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
 // PollRegister attempts to register the device. This should typically be called in a loop
 // until it returns success (after the user links the device on the web).
-func PollRegister(publicCode, privateCode string) (string, string, error) {
+func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
    url := "https://api.amazon.com/auth/register"
 
    payload := map[string]interface{}{
@@ -35,12 +45,12 @@ func PollRegister(publicCode, privateCode string) (string, string, error) {
 
    body, err := json.Marshal(payload)
    if err != nil {
-      return "", "", err
+      return nil, err
    }
 
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
    if err != nil {
-      return "", "", err
+      return nil, err
    }
 
    req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
@@ -50,32 +60,31 @@ func PollRegister(publicCode, privateCode string) (string, string, error) {
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode == http.StatusUnauthorized {
-      return "", "", fmt.Errorf("authorization pending/unauthorized")
+      return nil, fmt.Errorf("authorization pending/unauthorized")
    } else if resp.StatusCode != http.StatusOK {
-      return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
+   // We can embed the new TokenPair struct directly into our anonymous decoder struct
    var result struct {
       Response struct {
          Success struct {
             Tokens struct {
-               Bearer struct {
-                  AccessToken  string `json:"access_token"`
-                  RefreshToken string `json:"refresh_token"`
-               } `json:"bearer"`
+               Bearer TokenPair `json:"bearer"`
             } `json:"tokens"`
          } `json:"success"`
       } `json:"response"`
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", "", err
+      return nil, err
    }
 
-   return result.Response.Success.Tokens.Bearer.AccessToken, result.Response.Success.Tokens.Bearer.RefreshToken, nil
+   bearer := result.Response.Success.Tokens.Bearer
+   return &bearer, nil
 }

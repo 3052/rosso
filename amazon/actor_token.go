@@ -7,8 +7,13 @@ import (
    "net/http"
 )
 
+// ActorToken represents an actor-specific access token.
+type ActorToken struct {
+   Token string `json:"token"`
+}
+
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
-func GetActorToken(refreshToken, actorId string) (string, error) {
+func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
    url := "https://api.amazon.com/auth/token"
 
    payload := map[string]interface{}{
@@ -36,12 +41,12 @@ func GetActorToken(refreshToken, actorId string) (string, error) {
 
    body, err := json.Marshal(payload)
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
@@ -51,29 +56,29 @@ func GetActorToken(refreshToken, actorId string) (string, error) {
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
+   // Embed our new ActorToken struct into the anonymous decoder struct
    var result struct {
       DeviceTokens []struct {
-         ActorAccessToken struct {
-            Token string `json:"token"`
-         } `json:"actor_access_token"`
+         ActorAccessToken ActorToken `json:"actor_access_token"`
       } `json:"device_tokens"`
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
+      return nil, err
    }
 
    if len(result.DeviceTokens) == 0 {
-      return "", fmt.Errorf("no device tokens returned")
+      return nil, fmt.Errorf("no device tokens returned")
    }
 
-   return result.DeviceTokens[0].ActorAccessToken.Token, nil
+   token := result.DeviceTokens[0].ActorAccessToken
+   return &token, nil
 }

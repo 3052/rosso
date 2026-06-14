@@ -7,21 +7,23 @@ import (
 )
 
 func TestInitiateLogin(t *testing.T) {
-   publicCode, privateCode, err := CreateCodePair()
+   // Call the updated function which now returns a *CodePair
+   codes, err := CreateCodePair()
    if err != nil {
       t.Fatalf("Failed to create code pair: %v", err)
    }
 
-   err = InitiateMDSO(publicCode)
+   // Access the properties using dot notation
+   err = InitiateMDSO(codes.PublicCode)
    if err != nil {
       t.Fatalf("Failed to initiate MDSO: %v", err)
    }
 
-   t.Logf("\n=== AMAZON LOGIN ===\nPlease navigate to https://www.amazon.com/us/code\nEnter the following code: %s\n====================\n", publicCode)
+   t.Logf("\n=== AMAZON LOGIN ===\nPlease navigate to https://www.amazon.com/us/code\nEnter the following code: %s\n====================\n", codes.PublicCode)
 
    state := authState{
-      PublicCode:  publicCode,
-      PrivateCode: privateCode,
+      PublicCode:  codes.PublicCode,
+      PrivateCode: codes.PrivateCode,
    }
 
    data, err := json.Marshal(state)
