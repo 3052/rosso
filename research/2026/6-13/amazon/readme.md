@@ -1,5 +1,7 @@
 # amazon
 
+https://wikipedia.org/wiki/Shuhari
+
 https://apkmirror.com/apk/amazon-mobile-llc/prime-video-android-tv-android-tv
 
 even though its a TV app - you can use it with a phone device - just install as

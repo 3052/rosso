@@ -20,6 +20,10 @@ type actorTokenState struct {
    AccessToken string `json:"access_token"`
 }
 
+type envelopeState struct {
+   PlaybackEnvelope string `json:"playback_envelope"`
+}
+
 func getStateFilePath() string {
    return filepath.Join(os.TempDir(), "amazon_auth_state.json")
 }
@@ -30,4 +34,8 @@ func getTokensFilePath() string {
 
 func getActorTokensFilePath() string {
    return filepath.Join(os.TempDir(), "amazon_actor_tokens.json")
+}
+
+func getEnvelopeFilePath() string {
+   return filepath.Join(os.TempDir(), "amazon_envelope.json")
 }
