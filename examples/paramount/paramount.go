@@ -7,10 +7,6 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/paramount/client"
-}
-
 type client struct {
    App       maya.FlagString
    ContentId maya.FlagString
@@ -137,4 +133,8 @@ func (c *client) do_username_password() error {
       return err
    }
    return c.cache.Encode(cbs_com)
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/paramount/client"
 }
