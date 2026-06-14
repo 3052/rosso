@@ -6,14 +6,23 @@ import (
    "net/http"
 )
 
+func (*ItemDetails) CachePath() string {
+   return "rosso/amazon/ItemDetails"
+}
+
+// ItemDetails contains metadata for a specific title, including the playback envelope.
+type ItemDetails struct {
+   PlaybackEnvelope string `json:"playbackEnvelope"`
+}
+
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
-func GetItemDetails(actorAccessToken, titleId string) (string, error) {
+func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
    url := "https://s0s7.api.amazonvideo.com/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
 
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    q := req.URL.Query()
@@ -54,22 +63,21 @@ func GetItemDetails(actorAccessToken, titleId string) (string, error) {
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
+   // Embed our new ItemDetails struct into the anonymous decoder struct
    var result struct {
       Resource struct {
          PrimaryActions []struct {
             NavigationAction struct {
                PlaybackMetadata struct {
-                  PlaybackExperienceMetadata struct {
-                     PlaybackEnvelope string `json:"playbackEnvelope"`
-                  } `json:"playbackExperienceMetadata"`
+                  PlaybackExperienceMetadata ItemDetails `json:"playbackExperienceMetadata"`
                } `json:"playbackMetadata"`
             } `json:"navigationAction"`
          } `json:"primaryActions"`
@@ -77,15 +85,15 @@ func GetItemDetails(actorAccessToken, titleId string) (string, error) {
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
+      return nil, err
    }
 
    for _, action := range result.Resource.PrimaryActions {
-      envelope := action.NavigationAction.PlaybackMetadata.PlaybackExperienceMetadata.PlaybackEnvelope
-      if envelope != "" {
-         return envelope, nil
+      details := action.NavigationAction.PlaybackMetadata.PlaybackExperienceMetadata
+      if details.PlaybackEnvelope != "" {
+         return &details, nil
       }
    }
 
-   return "", fmt.Errorf("playbackEnvelope not found in primaryActions for titleId: %s", titleId)
+   return nil, fmt.Errorf("playbackEnvelope not found in primaryActions for titleId: %s", titleId)
 }

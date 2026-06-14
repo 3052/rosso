@@ -6,6 +6,10 @@ import (
    "net/http"
 )
 
+func (*Profile) CachePath() string {
+   return "rosso/amazon/Profile"
+}
+
 // Profile represents an Amazon actor profile.
 type Profile struct {
    ProfileID        string `json:"profileId"`

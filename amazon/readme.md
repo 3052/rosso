@@ -1,6 +1,9 @@
 # amazon
 
-https://wikipedia.org/wiki/Shuhari
+> Everything you talk about, cut that<br>
+> That door you trying to open, you could shut that
+>
+> [Logic (2017)](//youtube.com/watch?v=wH4kzAb4l0E)
 
 https://apkmirror.com/apk/amazon-mobile-llc/prime-video-android-tv-android-tv
 

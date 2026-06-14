@@ -7,6 +7,10 @@ import (
    "net/http"
 )
 
+func (*ActorToken) CachePath() string {
+   return "rosso/amazon/ActorToken"
+}
+
 // ActorToken represents an actor-specific access token.
 type ActorToken struct {
    Token string `json:"token"`

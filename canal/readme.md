@@ -1,5 +1,7 @@
 # canal
 
+https://wikipedia.org/wiki/Shuhari
+
 1. canalplus.cz/en
 2. subscribe now
 3. czech republic VPN

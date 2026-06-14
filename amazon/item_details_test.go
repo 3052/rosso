@@ -21,15 +21,17 @@ func TestGetItemDetails(t *testing.T) {
    // Using the title ID from the provided dump
    titleId := "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624"
 
-   playbackEnvelope, err := GetItemDetails(actorState.AccessToken, titleId)
+   // Calling the updated function which returns an *ItemDetails
+   itemDetails, err := GetItemDetails(actorState.AccessToken, titleId)
    if err != nil {
       t.Fatalf("Failed to get item details (playback envelope): %v", err)
    }
 
    t.Log("Successfully retrieved playback envelope!")
 
+   // Map the properties of the returned struct into your local test struct
    envState := envelopeState{
-      PlaybackEnvelope: playbackEnvelope,
+      PlaybackEnvelope: itemDetails.PlaybackEnvelope,
    }
 
    envData, err := json.Marshal(envState)
