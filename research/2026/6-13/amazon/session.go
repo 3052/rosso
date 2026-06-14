@@ -2,11 +2,23 @@ package amazon
 
 import (
    "bytes"
+   "crypto/rand"
    "encoding/json"
    "fmt"
    "io"
    "net/http"
+   "time"
 )
+
+// generateUUID creates a pseudo-random UUID for the session.
+func generateUUID() string {
+   b := make([]byte, 16)
+   _, _ = rand.Read(b)
+   // Set version (4) and variant (RFC4122)
+   b[6] = (b[6] & 0x0f) | 0x40
+   b[8] = (b[8] & 0x3f) | 0x80
+   return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
 
 // StartSession initiates the playback session using the actor access token and playback envelope.
 func StartSession(actorAccessToken, playbackEnvelope string) error {
@@ -27,13 +39,15 @@ func StartSession(actorAccessToken, playbackEnvelope string) error {
    payload := map[string]interface{}{
       "playbackEnvelope": playbackEnvelope,
       "streamInfo": map[string]interface{}{
-         "eventType":    "START",
-         "streamIntent": "AUTOPLAY",
+         "eventType":        "START",
+         "streamIntent":     "AUTOPLAY",
+         "streamUpdateTime": time.Now().UTC().Format("2006-01-02T15:04:05.000Z"),
          "vodProgressInfo": map[string]string{
             "currentProgressTime": "PT0S",
             "timeFormat":          "ISO8601DURATION",
          },
       },
+      "userWatchSessionId": generateUUID(),
    }
 
    body, err := json.Marshal(payload)
