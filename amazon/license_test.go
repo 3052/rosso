@@ -36,8 +36,8 @@ func TestGetWidevineLicense(t *testing.T) {
    titleId := "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624"
 
    // Load CDM files
-   clientIdPath := `C:\Users\Steven\AppData\Local\L3\client_id.bin`
-   privateKeyPath := `C:\Users\Steven\AppData\Local\L3\private_key.pem`
+   clientIdPath := `C:\Users\Steven\AppData\Local\L3\device_client_id_blob`
+   privateKeyPath := `C:\Users\Steven\AppData\Local\L3\device_private_key`
 
    clientId, err := os.ReadFile(clientIdPath)
    if err != nil {
