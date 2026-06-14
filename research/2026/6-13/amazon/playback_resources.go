@@ -124,6 +124,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
    }
 
    var result struct {
+      GlobalError struct {
+         Code    string `json:"code"`
+         Message string `json:"message"`
+      } `json:"globalError"`
       VodPlaylistedPlaybackUrls struct {
          Result struct {
             PlaybackUrls struct {
@@ -143,6 +147,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return "", err
+   }
+
+   if result.GlobalError.Code != "" {
+      return "", fmt.Errorf("global API error: [%s] %s", result.GlobalError.Code, result.GlobalError.Message)
    }
 
    if result.VodPlaylistedPlaybackUrls.Error.Message != "" {
