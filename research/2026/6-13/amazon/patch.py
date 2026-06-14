@@ -1,6 +1,5 @@
 import zipfile
 import subprocess
-import sys
 import os
 
 PACKAGE_NAME = "com.amazon.amazonvideo.livingroom"

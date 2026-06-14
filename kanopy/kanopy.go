@@ -11,8 +11,92 @@ import (
    "strings"
 )
 
+type Caption struct {
+   Language string `json:"language"`
+   Files    []File `json:"files"`
+   Label    string `json:"label"`
+}
+
+type File struct {
+   Type string `json:"type"`
+   Url  string
+}
+
+func LoginUser(email string, password string) (*Login, error) {
+   body, err := json.Marshal(map[string]any{
+      "credentialType": "email",
+      "emailUser": map[string]string{
+         "email":    email,
+         "password": password,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.kanopy.com",
+         Path:   "/kapi/login",
+      },
+      map[string]string{"content-type": "application/json"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var loginData Login
+   if err := json.NewDecoder(resp.Body).Decode(&loginData); err != nil {
+      return nil, err
+   }
+
+   return &loginData, nil
+}
+
 func (*Login) CachePath() string {
    return "rosso/kanopy/Login"
+}
+
+func (*Manifest) CachePath() string {
+   return "rosso/kanopy/Manifest"
+}
+
+type Manifest struct {
+   Url            *Url
+   ManifestType   string `json:"manifestType"`
+   DrmType        string `json:"drmType"`
+   StorageService string `json:"storageService"`
+   Cdn            string `json:"cdn"`
+   DrmLicenseId   string `json:"drmLicenseID"`
+}
+
+type Membership struct {
+   IdentityId         int    `json:"identityId"`
+   DomainId           int    `json:"domainId"`
+   UserId             int    `json:"userId"`
+   Status             string `json:"status"`
+   IsDefault          bool   `json:"isDefault"`
+   Sitename           string `json:"sitename"`
+   Subdomain          string `json:"subdomain"`
+   TicketsAvailable   int    `json:"ticketsAvailable"`
+   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
+}
+
+type PlayRequest struct {
+   DomainId int `json:"domainId"`
+   UserId   int `json:"userId"`
+   VideoId  int `json:"videoId"`
+}
+
+func (p *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
 }
 
 type PlayResponse struct {
@@ -54,6 +138,18 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
    }
 
    return &play, nil
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
 type Video struct {
@@ -102,19 +198,6 @@ func ParseVideo(rawUrl string) (*Video, error) {
 }
 
 ///
-
-func (*Manifest) CachePath() string {
-   return "rosso/kanopy/Manifest"
-}
-
-type Manifest struct {
-   Url            *Url
-   ManifestType   string `json:"manifestType"`
-   DrmType        string `json:"drmType"`
-   StorageService string `json:"storageService"`
-   Cdn            string `json:"cdn"`
-   DrmLicenseId   string `json:"drmLicenseID"`
-}
 
 type Login struct {
    Jwt               string `json:"jwt"`
@@ -200,87 +283,4 @@ func GetVideo(loginData *Login, alias string) (*Video, error) {
       return nil, err
    }
    return &result.Video, nil
-}
-
-func LoginUser(email string, password string) (*Login, error) {
-   body, err := json.Marshal(map[string]any{
-      "credentialType": "email",
-      "emailUser": map[string]string{
-         "email":    email,
-         "password": password,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/login",
-      },
-      map[string]string{"content-type": "application/json"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var loginData Login
-   if err := json.NewDecoder(resp.Body).Decode(&loginData); err != nil {
-      return nil, err
-   }
-
-   return &loginData, nil
-}
-
-func (p *PlayResponse) GetDash() (*Manifest, error) {
-   for _, manifest_data := range p.Manifests {
-      if manifest_data.ManifestType == "dash" {
-         return &manifest_data, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-type Membership struct {
-   IdentityId         int    `json:"identityId"`
-   DomainId           int    `json:"domainId"`
-   UserId             int    `json:"userId"`
-   Status             string `json:"status"`
-   IsDefault          bool   `json:"isDefault"`
-   Sitename           string `json:"sitename"`
-   Subdomain          string `json:"subdomain"`
-   TicketsAvailable   int    `json:"ticketsAvailable"`
-   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
-}
-
-type PlayRequest struct {
-   DomainId int `json:"domainId"`
-   UserId   int `json:"userId"`
-   VideoId  int `json:"videoId"`
-}
-
-type File struct {
-   Type string `json:"type"`
-   Url  string
-}
-
-type Caption struct {
-   Language string `json:"language"`
-   Files    []File `json:"files"`
-   Label    string `json:"label"`
 }
