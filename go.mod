@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	41.neocities.org/diana v1.9.7
-	41.neocities.org/maya v1.41.1
+	41.neocities.org/maya v1.41.2
 )
 
 require (
