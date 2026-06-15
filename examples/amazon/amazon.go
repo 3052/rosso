@@ -8,6 +8,71 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup(); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "initiate-login", Value: &c.initiate_login},
+      {Name: "complete-login", Value: &c.complete_login},
+      {
+         Name:  "title-id",
+         Value: &c.TitleId,
+         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
+      },
+      {Name: "dash-id", Value: &c.dash_id},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.Widevine):
+      return c.cache.Encode(c)
+   case bool(c.initiate_login):
+      return c.do_initiate_login()
+   case bool(c.complete_login):
+      return c.do_complete_login()
+   case flags.IsSet(&c.TitleId):
+      return c.do_title_id()
+   case c.dash_id != "":
+      return c.do_dash_id()
+   }
+   return flags.Usage(os.Stderr, "amazon")
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/amazon/client"
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_complete_login() error {
+   var code_pair amazon.CodePair
+   err := c.cache.Decode(&code_pair)
+   if err != nil {
+      return err
+   }
+   // Call the updated function which now returns a *TokenPair
+   tokenPair, err := amazon.PollRegister(
+      code_pair.PublicCode, code_pair.PrivateCode,
+   )
+   if err != nil {
+      return fmt.Errorf("Login incomplete or failed: %v", err)
+   }
+   // Map the properties of the returned struct into your local test struct
+   return c.cache.Encode(tokenPair)
+}
+
 func (c *client) do_initiate_login() error {
    codes, err := amazon.CreateCodePair()
    if err != nil {
@@ -96,69 +161,4 @@ type client struct {
    dash_id        maya.FlagString
 
    cache maya.Cache
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup(); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
-   }
-   flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "initiate-login", Value: &c.initiate_login},
-      {Name: "complete-login", Value: &c.complete_login},
-      {
-         Name:  "title-id",
-         Value: &c.TitleId,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-      },
-      {Name: "dash-id", Value: &c.dash_id},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.Widevine):
-      return c.cache.Encode(c)
-   case bool(c.initiate_login):
-      return c.do_initiate_login()
-   case bool(c.complete_login):
-      return c.do_complete_login()
-   case c.TitleId != "":
-      return c.do_title_id()
-   case c.dash_id != "":
-      return c.do_dash_id()
-   }
-   return flags.Usage(os.Stderr, "amazon")
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/amazon/client"
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_complete_login() error {
-   var code_pair amazon.CodePair
-   err := c.cache.Decode(&code_pair)
-   if err != nil {
-      return err
-   }
-   // Call the updated function which now returns a *TokenPair
-   tokenPair, err := amazon.PollRegister(
-      code_pair.PublicCode, code_pair.PrivateCode,
-   )
-   if err != nil {
-      return fmt.Errorf("Login incomplete or failed: %v", err)
-   }
-   // Map the properties of the returned struct into your local test struct
-   return c.cache.Encode(tokenPair)
 }
