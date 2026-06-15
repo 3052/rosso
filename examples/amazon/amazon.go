@@ -8,6 +8,20 @@ import (
    "os"
 )
 
+func (c *client) do_initiate_login() error {
+   codes, err := amazon.CreateCodePair()
+   if err != nil {
+      return fmt.Errorf("Failed to create code pair: %v", err)
+   }
+   // Access the properties using dot notation
+   err = amazon.InitiateMDSO(codes.PublicCode)
+   if err != nil {
+      return fmt.Errorf("Failed to initiate MDSO: %v", err)
+   }
+   log.Print(codes)
+   return c.cache.Encode(codes)
+}
+
 func (c *client) do_title_id() error {
    var token_pair amazon.TokenPair
    err := c.cache.Decode(&token_pair)
@@ -147,18 +161,4 @@ func (c *client) do_complete_login() error {
    }
    // Map the properties of the returned struct into your local test struct
    return c.cache.Encode(tokenPair)
-}
-
-func (c *client) do_initiate_login() error {
-   // Call the updated function which now returns a *CodePair
-   codes, err := amazon.CreateCodePair()
-   if err != nil {
-      return fmt.Errorf("Failed to create code pair: %v", err)
-   }
-   // Access the properties using dot notation
-   err = amazon.InitiateMDSO(codes.PublicCode)
-   if err != nil {
-      return fmt.Errorf("Failed to initiate MDSO: %v", err)
-   }
-   return c.cache.Encode(codes)
 }

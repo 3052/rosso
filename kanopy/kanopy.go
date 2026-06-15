@@ -11,6 +11,27 @@ import (
    "strings"
 )
 
+func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.kanopy.com",
+         Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
+      },
+      map[string]string{
+         "authorization": "Bearer " + loginData.Jwt,
+         "x-version":     "web/undefined/undefined/undefined",
+      },
+      challenge,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   return io.ReadAll(resp.Body)
+}
+
 type Caption struct {
    Language string `json:"language"`
    Files    []File `json:"files"`
@@ -20,6 +41,16 @@ type Caption struct {
 type File struct {
    Type string `json:"type"`
    Url  string
+}
+
+type Login struct {
+   Jwt               string `json:"jwt"`
+   VisitorId         string `json:"visitorId"`
+   UserId            int    `json:"userId"`
+   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
+   WebshopId         int    `json:"webshopId"`
+   WebshopCode       string `json:"webshopCode"`
+   UserRole          string `json:"userRole"`
 }
 
 func LoginUser(email string, password string) (*Login, error) {
@@ -70,6 +101,36 @@ type Manifest struct {
    StorageService string `json:"storageService"`
    Cdn            string `json:"cdn"`
    DrmLicenseId   string `json:"drmLicenseID"`
+}
+
+func GetMemberships(loginData *Login) ([]Membership, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/memberships",
+   }
+
+   query := url.Values{}
+   query.Set("userId", strconv.Itoa(loginData.UserId))
+   endpoint.RawQuery = query.Encode()
+
+   headers := map[string]string{
+      "authorization": "Bearer " + loginData.Jwt,
+      "x-version":     "web/undefined/undefined/undefined",
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      List []Membership `json:"list"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return result.List, nil
 }
 
 type Membership struct {
@@ -220,67 +281,4 @@ func ParseVideo(rawUrl string) (*Video, error) {
       video.Alias = slug
    }
    return video, nil
-}
-
-///
-
-type Login struct {
-   Jwt               string `json:"jwt"`
-   VisitorId         string `json:"visitorId"`
-   UserId            int    `json:"userId"`
-   KanopyKidsEnabled bool   `json:"kanopyKidsEnabled"`
-   WebshopId         int    `json:"webshopId"`
-   WebshopCode       string `json:"webshopCode"`
-   UserRole          string `json:"userRole"`
-}
-
-func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
-      },
-      map[string]string{
-         "authorization": "Bearer " + loginData.Jwt,
-         "x-version":     "web/undefined/undefined/undefined",
-      },
-      challenge,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-func GetMemberships(loginData *Login) ([]Membership, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/memberships",
-   }
-
-   query := url.Values{}
-   query.Set("userId", strconv.Itoa(loginData.UserId))
-   endpoint.RawQuery = query.Encode()
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-      "x-version":     "web/undefined/undefined/undefined",
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      List []Membership `json:"list"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return result.List, nil
 }

@@ -10,6 +10,33 @@ import (
    "strings"
 )
 
+func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "lic.drmtoday.com",
+         Path:   "/license-proxy-widevine/cenc/",
+      },
+      map[string]string{"x-dt-auth-token": a.Drm.Token},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   var result struct {
+      License []byte
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.License, nil
+}
+
 func (*Asset) CachePath() string {
    return "rosso/molotov/Asset"
 }
@@ -96,32 +123,7 @@ func FetchAuth(email, password string) (*Auth, error) {
    return &result.Auth, nil
 }
 
-func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "lic.drmtoday.com",
-         Path:   "/license-proxy-widevine/cenc/",
-      },
-      map[string]string{"x-dt-auth-token": a.Drm.Token},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   var result struct {
-      License []byte
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.License, nil
-}
+///
 
 const (
    browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`

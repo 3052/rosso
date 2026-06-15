@@ -5,16 +5,25 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "strings"
 )
 
-func (*CodePair) CachePath() string {
-   return "rosso/amazon/CodePair"
+func (c *CodePair) String() string {
+   var data strings.Builder
+   data.WriteString("Please navigate to https://www.amazon.com/us/code\n")
+   data.WriteString("Enter the following code: ")
+   data.WriteString(c.PublicCode)
+   return data.String()
 }
 
 // CodePair represents the public and private codes used for device linking.
 type CodePair struct {
    PublicCode  string `json:"public_code"`
    PrivateCode string `json:"private_code"`
+}
+
+func (*CodePair) CachePath() string {
+   return "rosso/amazon/CodePair"
 }
 
 // CreateCodePair requests a public and private code pair for device linking.
