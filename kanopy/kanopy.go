@@ -152,6 +152,31 @@ func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
+func GetVideo(loginData *Login, alias string) (*Video, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/videos/alias/" + alias,
+   }
+
+   headers := map[string]string{
+      "authorization": "Bearer " + loginData.Jwt,
+   }
+
+   resp, err := maya.Get(endpoint, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Video Video `json:"video"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Video, nil
+}
+
 type Video struct {
    VideoId         int    `json:"videoId"`
    Title           string `json:"title"`
@@ -258,29 +283,4 @@ func GetMemberships(loginData *Login) ([]Membership, error) {
       return nil, err
    }
    return result.List, nil
-}
-
-func GetVideo(loginData *Login, alias string) (*Video, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "www.kanopy.com",
-      Path:   "/kapi/videos/alias/" + alias,
-   }
-
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-   }
-
-   resp, err := maya.Get(endpoint, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Video Video `json:"video"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result.Video, nil
 }
