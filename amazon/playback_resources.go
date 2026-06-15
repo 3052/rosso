@@ -6,15 +6,25 @@ import (
    "fmt"
    "io"
    "net/http"
+   "net/url"
 )
 
+func (p *PlaybackResource) GetUrl() (*url.URL, error) {
+   return url.Parse(p.URL)
+}
+
+// PlaybackResource represents the final playback URL metadata.
+type PlaybackResource struct {
+   URL string `json:"url"`
+}
+
 // GetVodPlaybackResources fetches the final MPD URL for playback.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string) (string, error) {
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string) (*PlaybackResource, error) {
    url := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
 
    req, err := http.NewRequest("POST", url, nil)
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    q := req.URL.Query()
@@ -101,7 +111,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
 
    body, err := json.Marshal(payload)
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    req.Body = io.NopCloser(bytes.NewBuffer(body))
@@ -115,12 +125,12 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
    var result struct {
@@ -132,10 +142,8 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
          Result struct {
             PlaybackUrls struct {
                IntraTitlePlaylist []struct {
-                  Type string `json:"type"`
-                  Urls []struct {
-                     Url string `json:"url"`
-                  } `json:"urls"`
+                  Type string             `json:"type"`
+                  Urls []PlaybackResource `json:"urls"` // Embedded our new struct here
                } `json:"intraTitlePlaylist"`
             } `json:"playbackUrls"`
          } `json:"result"`
@@ -146,22 +154,23 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", err
+      return nil, err
    }
 
    if result.GlobalError.Code != "" {
-      return "", fmt.Errorf("global API error: [%s] %s", result.GlobalError.Code, result.GlobalError.Message)
+      return nil, fmt.Errorf("global API error: [%s] %s", result.GlobalError.Code, result.GlobalError.Message)
    }
 
    if result.VodPlaylistedPlaybackUrls.Error.Message != "" {
-      return "", fmt.Errorf("API error: %s", result.VodPlaylistedPlaybackUrls.Error.Message)
+      return nil, fmt.Errorf("API error: %s", result.VodPlaylistedPlaybackUrls.Error.Message)
    }
 
    for _, playlist := range result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
       if playlist.Type == "Main" && len(playlist.Urls) > 0 {
-         return playlist.Urls[0].Url, nil
+         // Return a pointer to the matched PlaybackResource struct
+         return &playlist.Urls[0], nil
       }
    }
 
-   return "", fmt.Errorf("mpd url not found in response")
+   return nil, fmt.Errorf("mpd url not found in response")
 }

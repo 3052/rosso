@@ -6,13 +6,14 @@ import (
    "net/http"
 )
 
-func (*ItemDetails) CachePath() string {
-   return "rosso/amazon/ItemDetails"
-}
-
-// ItemDetails contains metadata for a specific title, including the playback envelope.
+// ItemDetails contains metadata for a specific title, including the playback
+// envelope
 type ItemDetails struct {
    PlaybackEnvelope string `json:"playbackEnvelope"`
+}
+
+func (*ItemDetails) CachePath() string {
+   return "rosso/amazon/ItemDetails"
 }
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.

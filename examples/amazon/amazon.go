@@ -8,7 +8,31 @@ import (
    "os"
 )
 
-// 6 license_test.go
+func (c *client) do_dash_id() error {
+   var (
+      actor_token  amazon.ActorToken
+      item_details amazon.ItemDetails
+      manifest     maya.Manifest
+   )
+   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   if err != nil {
+      return err
+   }
+   // Fetch the license from Amazon
+   license := func(signedRequest []byte) ([]byte, error) {
+      return amazon.GetWidevineLicense(
+         actor_token.Token,
+         string(c.TitleId),
+         item_details.PlaybackEnvelope,
+         signedRequest,
+      )
+   }
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
 
 func (c *client) do_title_id() error {
    var actor_token amazon.ActorToken
@@ -18,66 +42,26 @@ func (c *client) do_title_id() error {
    }
    // Calling the updated function which returns an *ItemDetails
    itemDetails, err := amazon.GetItemDetails(
-      actor_token.Token, string(c.title_id),
+      actor_token.Token, string(c.TitleId),
    )
    if err != nil {
       return fmt.Errorf("Failed to get item details (playback envelope): %v", err)
    }
-   mpdUrl, err := amazon.GetVodPlaybackResources(
-      actor_token.Token, string(c.title_id), itemDetails.PlaybackEnvelope,
+   playback, err := amazon.GetVodPlaybackResources(
+      actor_token.Token, string(c.TitleId), itemDetails.PlaybackEnvelope,
    )
    if err != nil {
       return fmt.Errorf("Failed to get VOD playback resources: %v", err)
    }
-   log.Println("mpdUrl", mpdUrl)
-   // Map the properties of the returned struct into your local test struct
-   return c.cache.Encode(itemDetails)
-}
-
-type client struct {
-   Widevine       maya.FlagString
-   actor_token    maya.FlagBool
-   complete_login maya.FlagBool
-   initiate_login maya.FlagBool
-   title_id       maya.FlagString
-
-   cache maya.Cache
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup(); err != nil {
+   url, err := playback.GetUrl()
+   if err != nil {
       return err
    }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
-   }
-   flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "initiate-login", Value: &c.initiate_login},
-      {Name: "complete-login", Value: &c.complete_login},
-      {Name: "actor-token", Value: &c.actor_token},
-      {
-         Name:  "title-id",
-         Value: &c.title_id,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-      },
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
+   manifest, err := maya.ListDash(url)
+   if err != nil {
       return err
    }
-   switch {
-   case flags.IsSet(&c.Widevine):
-      return c.cache.Encode(c)
-   case bool(c.initiate_login):
-      return c.do_initiate_login()
-   case bool(c.complete_login):
-      return c.do_complete_login()
-   case bool(c.actor_token):
-      return c.do_actor_token()
-   case c.title_id != "":
-      return c.do_title_id()
-   }
-   return flags.Usage(os.Stderr, "amazon")
+   return c.cache.Encode(c, itemDetails, manifest)
 }
 
 func (c *client) do_complete_login() error {
@@ -143,4 +127,54 @@ func main() {
    if err != nil {
       log.Fatal(err)
    }
+}
+
+type client struct {
+   Widevine       maya.FlagString
+   actor_token    maya.FlagBool
+   complete_login maya.FlagBool
+   initiate_login maya.FlagBool
+   TitleId        maya.FlagString
+   dash_id        maya.FlagString
+
+   cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup(); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "initiate-login", Value: &c.initiate_login},
+      {Name: "complete-login", Value: &c.complete_login},
+      {Name: "actor-token", Value: &c.actor_token},
+      {
+         Name:  "title-id",
+         Value: &c.TitleId,
+         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
+      },
+      {Name: "dash-id", Value: &c.dash_id},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.Widevine):
+      return c.cache.Encode(c)
+   case bool(c.initiate_login):
+      return c.do_initiate_login()
+   case bool(c.complete_login):
+      return c.do_complete_login()
+   case bool(c.actor_token):
+      return c.do_actor_token()
+   case c.TitleId != "":
+      return c.do_title_id()
+   case c.dash_id != "":
+      return c.do_dash_id()
+   }
+   return flags.Usage(os.Stderr, "amazon")
 }

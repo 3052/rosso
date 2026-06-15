@@ -7,26 +7,6 @@ import (
    "os"
 )
 
-func (c *client) do_address() error {
-   name, err := nbc.GetName(string(c.address))
-   if err != nil {
-      return err
-   }
-   metadata, err := nbc.FetchMetadata(name)
-   if err != nil {
-      return err
-   }
-   stream, err := metadata.FetchStream()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(stream.GetManifest())
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
-}
-
 func (c *client) do_dash() error {
    var manifest maya.Manifest
    err := c.cache.Decode(&manifest)
@@ -84,4 +64,24 @@ func (c *client) do() error {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "nbc")
+}
+
+func (c *client) do_address() error {
+   name, err := nbc.GetName(string(c.address))
+   if err != nil {
+      return err
+   }
+   metadata, err := nbc.FetchMetadata(name)
+   if err != nil {
+      return err
+   }
+   stream, err := metadata.FetchStream()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(stream.GetManifest())
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
 }

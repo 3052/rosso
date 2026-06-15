@@ -31,10 +31,12 @@ func TestGetVodPlaybackResources(t *testing.T) {
 
    titleId := "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624"
 
-   mpdUrl, err := GetVodPlaybackResources(actorState.AccessToken, titleId, envState.PlaybackEnvelope)
+   // Calling the updated function which returns a *PlaybackResource
+   resource, err := GetVodPlaybackResources(actorState.AccessToken, titleId, envState.PlaybackEnvelope)
    if err != nil {
       t.Fatalf("Failed to get VOD playback resources: %v", err)
    }
 
-   t.Logf("Successfully retrieved MPD URL:\n%s", mpdUrl)
+   // Accessing the URL property from our struct via dot notation
+   t.Logf("Successfully retrieved MPD URL:\n%s", resource.URL)
 }
