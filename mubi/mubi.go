@@ -10,6 +10,28 @@ import (
    "strings"
 )
 
+func FetchFilm(slug string) (*Film, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https", Host: "api.mubi.com", Path: "/v3/films/" + slug,
+      },
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Film{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 func (*LinkCode) CachePath() string {
    return "rosso/mubi/LinkCode"
 }
@@ -21,6 +43,35 @@ type LinkCode struct {
 
 func (*Session) CachePath() string {
    return "rosso/mubi/Session"
+}
+
+func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
+      },
+      map[string]string{
+         "authorization":  "Bearer " + s.Token,
+         "client":         client,
+         "client-country": ClientCountry,
+         "user-agent":     "Firefox",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result SecureUrl
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.UserMessage != "" {
+      return nil, errors.New(result.UserMessage)
+   }
+   return &result, nil
 }
 
 type Session struct {
@@ -100,27 +151,7 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    return result.License, nil
 }
 
-func FetchFilm(slug string) (*Film, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https", Host: "api.mubi.com", Path: "/v3/films/" + slug,
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Film{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
+///
 
 func (l *LinkCode) FetchSession() (*Session, error) {
    body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
@@ -258,33 +289,4 @@ func (l *LinkCode) String() string {
    data.WriteString("and enter the code below\n")
    data.WriteString(l.LinkCode)
    return data.String()
-}
-
-func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
-      },
-      map[string]string{
-         "authorization":  "Bearer " + s.Token,
-         "client":         client,
-         "client-country": ClientCountry,
-         "user-agent":     "Firefox",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result SecureUrl
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.UserMessage != "" {
-      return nil, errors.New(result.UserMessage)
-   }
-   return &result, nil
 }

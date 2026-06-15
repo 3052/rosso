@@ -10,6 +10,17 @@ import (
    "strings"
 )
 
+const (
+   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
+   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
+)
+
+func (a *Asset) GetManifest() *url.URL {
+   manifest := a.Stream.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
+   return &manifest
+}
+
 func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -48,6 +59,46 @@ type Asset struct {
    Stream struct {
       Url *Url // MPD
    }
+}
+
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() error {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+   )
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   return json.NewDecoder(resp.Body).Decode(a)
+}
+
+func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
+   target := playData.Url.Url
+   query := target.Query() // keep existing query string
+   query.Set("access_token", a.AccessToken)
+   target.RawQuery = query.Encode()
+   resp, err := maya.Get(&target, map[string]string{
+      "x-forwarded-for": "138.199.15.158",
+      "x-molotov-agent": browser_app,
+   })
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Asset
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
 }
 
 func (*Auth) CachePath() string {
@@ -123,12 +174,9 @@ func FetchAuth(email, password string) (*Auth, error) {
    return &result.Auth, nil
 }
 
-///
-
-const (
-   browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
-   customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
-)
+type Play struct {
+   Url *Url // fapi.molotov.tv/v2/me/assets
+}
 
 // https://molotov.tv/fr_fr/p/15301-2328
 // https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
@@ -161,10 +209,6 @@ type Program struct {
    ChannelId int
 }
 
-type Play struct {
-   Url *Url // fapi.molotov.tv/v2/me/assets
-}
-
 type Url struct {
    Url url.URL
 }
@@ -175,50 +219,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-func (a *Asset) GetManifest() *url.URL {
-   manifest := a.Stream.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
-   return &manifest
-}
-
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() error {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
-      },
-      map[string]string{"x-molotov-agent": customer_area},
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(a)
-}
-
-func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
-   target := playData.Url.Url
-   query := target.Query() // keep existing query string
-   query.Set("access_token", a.AccessToken)
-   target.RawQuery = query.Encode()
-   resp, err := maya.Get(&target, map[string]string{
-      "x-forwarded-for": "138.199.15.158",
-      "x-molotov-agent": browser_app,
-   })
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Asset
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
 }
