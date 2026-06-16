@@ -8,40 +8,30 @@ import (
    "os"
 )
 
-func (c *client) do() error {
-   if err := c.cache.Setup(); err != nil {
+func (c *client) do_dash_id() error {
+   var (
+      actor_token  amazon.ActorToken
+      item_details amazon.ItemDetails
+      manifest     maya.Manifest
+   )
+   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   if err != nil {
       return err
    }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
+   // Fetch the license from Amazon
+   license := func(signedRequest []byte) ([]byte, error) {
+      return amazon.GetPlayReadyLicense(
+         actor_token.Token,
+         string(c.TitleId),
+         item_details.PlaybackEnvelope,
+         signedRequest,
+      )
    }
-   flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "initiate-login", Value: &c.initiate_login},
-      {Name: "complete-login", Value: &c.complete_login},
-      {
-         Name:  "title-id",
-         Value: &c.TitleId,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-      },
-      {Name: "dash-id", Value: &c.dash_id},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.Widevine):
-      return c.cache.Encode(c)
-   case bool(c.initiate_login):
-      return c.do_initiate_login()
-   case bool(c.complete_login):
-      return c.do_complete_login()
-   case flags.IsSet(&c.TitleId):
-      return c.do_title_id()
-   case c.dash_id != "":
-      return c.do_dash_id()
-   }
-   return flags.Usage(os.Stderr, "amazon")
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+   })
 }
 
 func (*client) CachePath() string {
@@ -127,38 +117,48 @@ func (c *client) do_title_id() error {
    return c.cache.Encode(actor_token, c, item_details, manifest)
 }
 
-func (c *client) do_dash_id() error {
-   var (
-      actor_token  amazon.ActorToken
-      item_details amazon.ItemDetails
-      manifest     maya.Manifest
-   )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
-   if err != nil {
-      return err
-   }
-   // Fetch the license from Amazon
-   license := func(signedRequest []byte) ([]byte, error) {
-      return amazon.GetWidevineLicense(
-         actor_token.Token,
-         string(c.TitleId),
-         item_details.PlaybackEnvelope,
-         signedRequest,
-      )
-   }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
 type client struct {
-   Widevine       maya.FlagString
-   complete_login maya.FlagBool
-   initiate_login maya.FlagBool
    TitleId        maya.FlagString
+   PlayReady      maya.FlagString
+   complete_login maya.FlagBool
    dash_id        maya.FlagString
+   initiate_login maya.FlagBool
 
    cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup(); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "initiate-login", Value: &c.initiate_login},
+      {Name: "complete-login", Value: &c.complete_login},
+      {
+         Name:  "title-id",
+         Value: &c.TitleId,
+         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
+      },
+      {Name: "dash-id", Value: &c.dash_id},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.PlayReady):
+      return c.cache.Encode(c)
+   case bool(c.initiate_login):
+      return c.do_initiate_login()
+   case bool(c.complete_login):
+      return c.do_complete_login()
+   case flags.IsSet(&c.TitleId):
+      return c.do_title_id()
+   case c.dash_id != "":
+      return c.do_dash_id()
+   }
+   return flags.Usage(os.Stderr, "amazon")
 }

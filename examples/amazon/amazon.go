@@ -8,6 +8,82 @@ import (
    "os"
 )
 
+func (c *client) do_title_id() error {
+   var token_pair amazon.TokenPair
+   err := c.cache.Decode(&token_pair)
+   if err != nil {
+      return err
+   }
+   // Updated to receive a *Profile
+   profile, err := amazon.GetPrimaryProfile(token_pair.AccessToken)
+   if err != nil {
+      return fmt.Errorf("Failed to get primary profile: %v", err)
+   }
+   actor_token, err := amazon.GetActorToken(
+      token_pair.RefreshToken, profile.ProfileID,
+   )
+   if err != nil {
+      return fmt.Errorf("Failed to get actor token: %v", err)
+   }
+   item_details, err := amazon.GetItemDetails(
+      actor_token.Token, string(c.TitleId),
+   )
+   if err != nil {
+      return fmt.Errorf("Failed to get item details (playback envelope): %v", err)
+   }
+   playback, err := amazon.GetVodPlaybackResources(
+      actor_token.Token, string(c.TitleId), item_details.PlaybackEnvelope,
+   )
+   if err != nil {
+      return fmt.Errorf("Failed to get VOD playback resources: %v", err)
+   }
+   url, err := playback.GetUrl()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(actor_token, c, item_details, manifest)
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      actor_token  amazon.ActorToken
+      item_details amazon.ItemDetails
+      manifest     maya.Manifest
+   )
+   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   if err != nil {
+      return err
+   }
+   // Fetch the license from Amazon
+   license := func(signedRequest []byte) ([]byte, error) {
+      return amazon.GetWidevineLicense(
+         actor_token.Token,
+         string(c.TitleId),
+         item_details.PlaybackEnvelope,
+         signedRequest,
+      )
+   }
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+   })
+}
+
+type client struct {
+   Widevine       maya.FlagString
+   complete_login maya.FlagBool
+   initiate_login maya.FlagBool
+   TitleId        maya.FlagString
+   dash_id        maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -85,80 +161,4 @@ func (c *client) do_initiate_login() error {
    }
    log.Print(codes)
    return c.cache.Encode(codes)
-}
-
-func (c *client) do_title_id() error {
-   var token_pair amazon.TokenPair
-   err := c.cache.Decode(&token_pair)
-   if err != nil {
-      return err
-   }
-   // Updated to receive a *Profile
-   profile, err := amazon.GetPrimaryProfile(token_pair.AccessToken)
-   if err != nil {
-      return fmt.Errorf("Failed to get primary profile: %v", err)
-   }
-   actor_token, err := amazon.GetActorToken(
-      token_pair.RefreshToken, profile.ProfileID,
-   )
-   if err != nil {
-      return fmt.Errorf("Failed to get actor token: %v", err)
-   }
-   item_details, err := amazon.GetItemDetails(
-      actor_token.Token, string(c.TitleId),
-   )
-   if err != nil {
-      return fmt.Errorf("Failed to get item details (playback envelope): %v", err)
-   }
-   playback, err := amazon.GetVodPlaybackResources(
-      actor_token.Token, string(c.TitleId), item_details.PlaybackEnvelope,
-   )
-   if err != nil {
-      return fmt.Errorf("Failed to get VOD playback resources: %v", err)
-   }
-   url, err := playback.GetUrl()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(actor_token, c, item_details, manifest)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      actor_token  amazon.ActorToken
-      item_details amazon.ItemDetails
-      manifest     maya.Manifest
-   )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
-   if err != nil {
-      return err
-   }
-   // Fetch the license from Amazon
-   license := func(signedRequest []byte) ([]byte, error) {
-      return amazon.GetWidevineLicense(
-         actor_token.Token,
-         string(c.TitleId),
-         item_details.PlaybackEnvelope,
-         signedRequest,
-      )
-   }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-   })
-}
-
-type client struct {
-   Widevine       maya.FlagString
-   complete_login maya.FlagBool
-   initiate_login maya.FlagBool
-   TitleId        maya.FlagString
-   dash_id        maya.FlagString
-
-   cache maya.Cache
 }
