@@ -16,6 +16,52 @@ import (
    "time"
 )
 
+const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
+
+//go:embed page.gql
+var query_page string
+
+func build_query(drmType string) string {
+   timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+   mac := hmac.New(sha256.New, []byte(drmProxySecret))
+   // Use io.WriteString to write string data directly to the Writer
+   io.WriteString(mac, timestamp)
+   io.WriteString(mac, drmType)
+   hash := hex.EncodeToString(mac.Sum(nil))
+   return url.Values{
+      "device": {"web"},
+      "hash":   {hash},
+      "time":   {timestamp},
+   }.Encode()
+}
+
+func playReady() *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
+      Path:     "/drm-proxy/license/playready",
+      RawQuery: build_query("playready"),
+   }
+}
+
+func FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
+         Path:     "/drm-proxy/license/widevine",
+         RawQuery: build_query("widevine"),
+      },
+      map[string]string{"content-type": "application/octet-stream"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
 // https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
 func GetName(urlData string) (string, error) {
    parse, err := url.Parse(urlData)
@@ -25,26 +71,10 @@ func GetName(urlData string) (string, error) {
    return strings.TrimPrefix(parse.Path, "/"), nil
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-type Stream struct {
-   PlaybackUrl *Url // MPD
-}
-
-func (s Stream) GetManifest() *url.URL {
-   manifest := s.PlaybackUrl.Url
-   manifest.Path = strings.Replace(manifest.Path, "_2sec", "", 1)
-   return &manifest
+type Metadata struct {
+   MpxAccountId    int `json:",string"`
+   MpxGuid         int `json:",string"`
+   ProgrammingType string
 }
 
 func (m *Metadata) FetchStream() (*Stream, error) {
@@ -125,54 +155,24 @@ func FetchMetadata(name string) (*Metadata, error) {
    return &result.Data.Page.Metadata, nil
 }
 
-func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-         Path:     "/drm-proxy/license/widevine",
-         RawQuery: build_query("widevine"),
-      },
-      map[string]string{"content-type": "application/octet-stream"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
+type Stream struct {
+   PlaybackUrl *Url // MPD
 }
 
-type Metadata struct {
-   MpxAccountId    int `json:",string"`
-   MpxGuid         int `json:",string"`
-   ProgrammingType string
+func (s Stream) GetManifest() *url.URL {
+   manifest := s.PlaybackUrl.Url
+   manifest.Path = strings.Replace(manifest.Path, "_2sec", "", 1)
+   return &manifest
 }
 
-func build_query(drmType string) string {
-   timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
-   mac := hmac.New(sha256.New, []byte(drmProxySecret))
-   // Use io.WriteString to write string data directly to the Writer
-   io.WriteString(mac, timestamp)
-   io.WriteString(mac, drmType)
-   hash := hex.EncodeToString(mac.Sum(nil))
-   return url.Values{
-      "device": {"web"},
-      "hash":   {hash},
-      "time":   {timestamp},
-   }.Encode()
+type Url struct {
+   Url url.URL
 }
 
-//go:embed page.gql
-var query_page string
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
 
-const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
-
-func playReady() *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-      Path:     "/drm-proxy/license/playready",
-      RawQuery: build_query("playready"),
-   }
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }

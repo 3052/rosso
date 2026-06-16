@@ -48,7 +48,7 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(actor_token, c, item_details, manifest, token_pair)
+   return c.cache.Encode(actor_token, c, item_details, manifest)
 }
 
 func (c *client) do_dash_id() error {
