@@ -54,29 +54,31 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
       "transitionTimecodesRequest": map[string]interface{}{},
       "vodPlaylistedPlaybackUrlsRequest": map[string]interface{}{
          "device": map[string]interface{}{
-            "hdcpLevel":                      "1.4",
-            "maxVideoResolution":             "576p",
+            "hdcpLevel":          "1.4",
+            "maxVideoResolution": "576p", // OLD
+            // this on its own is fine
+            //"maxVideoResolution": "2160p", // NEW
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
                   "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  "codecs":                           []string{"H264"},
+                  "codecs":                           []string{"H265"}, // 960 × 540
                   "drmKeyScheme":                     "DualKey",
                   "drmType":                          "Widevine",
                   "dynamicRangeFormats":              []string{"None"},
                   "edgeDeliveryAuthorizationSchemes": []string{"PVExchangeV1", "Transparent"},
                   "fragmentRepresentations":          []string{"ByteOffsetRange", "SeparateFile"},
                   "frameRates":                       []string{"Standard"},
-                  "stitchType":                       "MultiPeriod",
                   "segmentInfoType":                  "Base",
+                  "stitchType":                       "MultiPeriod",
                   "timedTextRepresentations":         []string{"NotInManifestNorStream", "SeparateStreamInManifest"},
                   "trickplayRepresentations":         []string{"NotInManifestNorStream"},
                   "variableAspectRatio":              "supported",
                },
             },
+            "acceptedCreativeApis": []int{1006, 1008},
             "displayWidth":         1080,
             "displayHeight":        1080,
-            "acceptedCreativeApis": []int{1006, 1008},
          },
          "ads": map[string]interface{}{
             "advertisingId":      "aff7331b-3bdf-476f-ae78-386b5d55e0e5",
@@ -92,7 +94,9 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
          },
          "playbackCustomizations": map[string]interface{}{
             "capVideoDefinition": "SD",
-         },
+         }, // OLD
+         // this on its own is fine
+         //"playbackCustomizations": map[string]interface{}{}, // NEW
          "playbackSettingsRequest": map[string]interface{}{
             "deviceModel":           "sdk_gphone_x86",
             "firmware":              "google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys",

@@ -32,6 +32,46 @@ func FetchFilm(slug string) (*Film, error) {
    return result, nil
 }
 
+func (l *LinkCode) FetchSession() (*Session, error) {
+   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   "/v3/authenticate",
+      },
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+         "content-type":   "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Session{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func (l *LinkCode) String() string {
+   var data strings.Builder
+   data.WriteString("TO LOG IN AND START WATCHING\n")
+   data.WriteString("Go to\n")
+   data.WriteString("mubi.com/en/android\n")
+   data.WriteString("and enter the code below\n")
+   data.WriteString(l.LinkCode)
+   return data.String()
+}
+
 func (*LinkCode) CachePath() string {
    return "rosso/mubi/LinkCode"
 }
@@ -151,37 +191,19 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    return result.License, nil
 }
 
-///
-
-func (l *LinkCode) FetchSession() (*Session, error) {
-   body, err := json.Marshal(map[string]string{"auth_token": l.AuthToken})
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   "/v3/authenticate",
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-         "content-type":   "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Session{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
+type Url struct {
+   Url url.URL
 }
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+///
 
 // "android" requires headers:
 // client-device-identifier
@@ -266,27 +288,5 @@ func (f *Film) String() string {
    data.WriteString(f.Title)
    data.WriteString("\nid: ")
    fmt.Fprint(data, f.Id)
-   return data.String()
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (l *LinkCode) String() string {
-   var data strings.Builder
-   data.WriteString("TO LOG IN AND START WATCHING\n")
-   data.WriteString("Go to\n")
-   data.WriteString("mubi.com/en/android\n")
-   data.WriteString("and enter the code below\n")
-   data.WriteString(l.LinkCode)
    return data.String()
 }
