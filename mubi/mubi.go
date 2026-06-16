@@ -10,6 +10,53 @@ import (
    "strings"
 )
 
+// "android" requires headers:
+// client-device-identifier
+// client-version
+const client = "web"
+
+var ClientCountry = "US"
+
+type Film struct {
+   Title string
+   Id    int
+}
+
+func FetchEpisodes(slug string, season int) ([]*Film, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "api.mubi.com",
+         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
+      },
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Episodes []*Film
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Episodes, nil
+}
+
+func (f *Film) String() string {
+   data := &strings.Builder{}
+   data.WriteString("title: ")
+   data.WriteString(f.Title)
+   data.WriteString("\nid: ")
+   fmt.Fprint(data, f.Id)
+   return data.String()
+}
+
 func FetchFilm(slug string) (*Film, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -25,6 +72,26 @@ func FetchFilm(slug string) (*Film, error) {
    }
    defer resp.Body.Close()
    result := &Film{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+func FetchLinkCode() (*LinkCode, error) {
+   resp, err := maya.Get(
+      &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
+      map[string]string{
+         "client":         client,
+         "client-country": ClientCountry,
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &LinkCode{}
    err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
@@ -79,6 +146,25 @@ func (*LinkCode) CachePath() string {
 type LinkCode struct {
    AuthToken string `json:"auth_token"`
    LinkCode  string `json:"link_code"`
+}
+
+type SecureUrl struct {
+   TextTrackUrls []struct {
+      Id  string
+      Url string
+   } `json:"text_track_urls"`
+   Url         *Url   // MPD
+   UserMessage string `json:"user_message"`
+}
+
+func (s *SecureUrl) GetManifest() *url.URL {
+   manifest := s.Url.Url
+   manifest.Path = strings.NewReplacer(
+      ".AVC1", "",
+      ".ex-eac3", "",
+      ".ex-vtt", "",
+   ).Replace(manifest.Path)
+   return &manifest
 }
 
 func (*Session) CachePath() string {
@@ -201,92 +287,4 @@ func (u *Url) UnmarshalText(text []byte) error {
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
-}
-
-///
-
-// "android" requires headers:
-// client-device-identifier
-// client-version
-const client = "web"
-
-var ClientCountry = "US"
-
-type Film struct {
-   Title string
-   Id    int
-}
-
-type SecureUrl struct {
-   TextTrackUrls []struct {
-      Id  string
-      Url string
-   } `json:"text_track_urls"`
-   Url         *Url   // MPD
-   UserMessage string `json:"user_message"`
-}
-
-func (s *SecureUrl) GetManifest() *url.URL {
-   manifest := s.Url.Url
-   manifest.Path = strings.NewReplacer(
-      ".AVC1", "",
-      ".ex-eac3", "",
-      ".ex-vtt", "",
-   ).Replace(manifest.Path)
-   return &manifest
-}
-
-func FetchLinkCode() (*LinkCode, error) {
-   resp, err := maya.Get(
-      &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &LinkCode{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
-}
-
-func FetchEpisodes(slug string, season int) ([]*Film, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Episodes []*Film
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Episodes, nil
-}
-
-func (f *Film) String() string {
-   data := &strings.Builder{}
-   data.WriteString("title: ")
-   data.WriteString(f.Title)
-   data.WriteString("\nid: ")
-   fmt.Fprint(data, f.Id)
-   return data.String()
 }

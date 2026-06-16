@@ -9,12 +9,15 @@ import (
 )
 
 func (c *client) do_title_id() error {
-   var token_pair amazon.TokenPair
-   err := c.cache.Decode(&token_pair)
+   token_pair := &amazon.TokenPair{}
+   err := c.cache.Decode(token_pair)
    if err != nil {
       return err
    }
-   // Updated to receive a *Profile
+   token_pair, err = amazon.RefreshToken(token_pair.RefreshToken)
+   if err != nil {
+      return err
+   }
    profile, err := amazon.GetPrimaryProfile(token_pair.AccessToken)
    if err != nil {
       return fmt.Errorf("Failed to get primary profile: %v", err)
@@ -45,7 +48,7 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(actor_token, c, item_details, manifest)
+   return c.cache.Encode(actor_token, c, item_details, manifest, token_pair)
 }
 
 func (c *client) do_dash_id() error {
