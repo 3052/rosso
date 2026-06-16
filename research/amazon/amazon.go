@@ -8,78 +8,13 @@ import (
    "os"
 )
 
-func (c *client) do_dash_id() error {
-   var (
-      actor_token  amazon.ActorToken
-      item_details amazon.ItemDetails
-      manifest     maya.Manifest
-   )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
-   if err != nil {
-      return err
-   }
-   // Fetch the license from Amazon
-   license := func(signedRequest []byte) ([]byte, error) {
-      return amazon.GetPlayReadyLicense(
-         actor_token.Token,
-         string(c.TitleId),
-         item_details.PlaybackEnvelope,
-         signedRequest,
-      )
-   }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.PlayReady),
-      Drm:     maya.DrmPlayReady,
-      License: license,
-   })
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/amazon/client"
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_complete_login() error {
-   var code_pair amazon.CodePair
-   err := c.cache.Decode(&code_pair)
-   if err != nil {
-      return err
-   }
-   // Call the updated function which now returns a *TokenPair
-   tokenPair, err := amazon.PollRegister(
-      code_pair.PublicCode, code_pair.PrivateCode,
-   )
-   if err != nil {
-      return fmt.Errorf("Login incomplete or failed: %v", err)
-   }
-   // Map the properties of the returned struct into your local test struct
-   return c.cache.Encode(tokenPair)
-}
-
-func (c *client) do_initiate_login() error {
-   codes, err := amazon.CreateCodePair()
-   if err != nil {
-      return fmt.Errorf("Failed to create code pair: %v", err)
-   }
-   // Access the properties using dot notation
-   err = amazon.InitiateMDSO(codes.PublicCode)
-   if err != nil {
-      return fmt.Errorf("Failed to initiate MDSO: %v", err)
-   }
-   log.Print(codes)
-   return c.cache.Encode(codes)
-}
-
 func (c *client) do_title_id() error {
-   var token_pair amazon.TokenPair
-   err := c.cache.Decode(&token_pair)
+   token_pair := &amazon.TokenPair{}
+   err := c.cache.Decode(token_pair)
+   if err != nil {
+      return err
+   }
+   token_pair, err = amazon.RefreshToken(token_pair.RefreshToken)
    if err != nil {
       return err
    }
@@ -161,4 +96,73 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "amazon")
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      actor_token  amazon.ActorToken
+      item_details amazon.ItemDetails
+      manifest     maya.Manifest
+   )
+   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   if err != nil {
+      return err
+   }
+   // Fetch the license from Amazon
+   license := func(signedRequest []byte) ([]byte, error) {
+      return amazon.GetPlayReadyLicense(
+         actor_token.Token,
+         string(c.TitleId),
+         item_details.PlaybackEnvelope,
+         signedRequest,
+      )
+   }
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+   })
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/amazon/client"
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+func (c *client) do_complete_login() error {
+   var code_pair amazon.CodePair
+   err := c.cache.Decode(&code_pair)
+   if err != nil {
+      return err
+   }
+   // Call the updated function which now returns a *TokenPair
+   tokenPair, err := amazon.PollRegister(
+      code_pair.PublicCode, code_pair.PrivateCode,
+   )
+   if err != nil {
+      return fmt.Errorf("Login incomplete or failed: %v", err)
+   }
+   // Map the properties of the returned struct into your local test struct
+   return c.cache.Encode(tokenPair)
+}
+
+func (c *client) do_initiate_login() error {
+   codes, err := amazon.CreateCodePair()
+   if err != nil {
+      return fmt.Errorf("Failed to create code pair: %v", err)
+   }
+   // Access the properties using dot notation
+   err = amazon.InitiateMDSO(codes.PublicCode)
+   if err != nil {
+      return fmt.Errorf("Failed to initiate MDSO: %v", err)
+   }
+   log.Print(codes)
+   return c.cache.Encode(codes)
 }
