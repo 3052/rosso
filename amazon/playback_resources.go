@@ -13,9 +13,10 @@ func (p *PlaybackResource) GetUrl() (*url.URL, error) {
    return url.Parse(p.URL)
 }
 
-// PlaybackResource represents the final playback URL metadata.
+// Add SessionHandoffToken to the struct so we can access it
 type PlaybackResource struct {
-   URL string `json:"url"`
+   URL                 string `json:"url"`
+   SessionHandoffToken string `json:"-"`
 }
 
 // GetVodPlaybackResources fetches the final MPD URL for playback.
@@ -142,12 +143,15 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
          Code    string `json:"code"`
          Message string `json:"message"`
       } `json:"globalError"`
+      Sessionization struct { // <-- ADDED THIS BLOCK
+         SessionHandoffToken string `json:"sessionHandoffToken"`
+      } `json:"sessionization"`
       VodPlaylistedPlaybackUrls struct {
          Result struct {
             PlaybackUrls struct {
                IntraTitlePlaylist []struct {
                   Type string             `json:"type"`
-                  Urls []PlaybackResource `json:"urls"` // Embedded our new struct here
+                  Urls []PlaybackResource `json:"urls"`
                } `json:"intraTitlePlaylist"`
             } `json:"playbackUrls"`
          } `json:"result"`
@@ -171,8 +175,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
 
    for _, playlist := range result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
       if playlist.Type == "Main" && len(playlist.Urls) > 0 {
-         // Return a pointer to the matched PlaybackResource struct
-         return &playlist.Urls[0], nil
+         // Extract URL struct and inject the SessionHandoffToken
+         res := playlist.Urls[0]
+         res.SessionHandoffToken = result.Sessionization.SessionHandoffToken
+         return &res, nil
       }
    }
 
