@@ -53,8 +53,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
                   "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  //"codecs":                           []string{"H265"}, // 960 × 540
-                  "codecs":                           []string{"H264"},
+                  "codecs":                           []string{"H265"}, // 960 × 540
                   "drmKeyScheme":                     "DualKey",
                   "drmType":                          "Widevine",
                   "dynamicRangeFormats":              []string{"None"},
