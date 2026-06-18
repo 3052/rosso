@@ -49,53 +49,7 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(actor_token, c, item_details, manifest)
-}
-
-type client struct {
-   TitleId        maya.FlagString
-   PlayReady      maya.FlagString
-   complete_login maya.FlagBool
-   dash_id        maya.FlagString
-   initiate_login maya.FlagBool
-
-   cache maya.Cache
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup(); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
-   }
-   flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "initiate-login", Value: &c.initiate_login},
-      {Name: "complete-login", Value: &c.complete_login},
-      {
-         Name:  "title-id",
-         Value: &c.TitleId,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-      },
-      {Name: "dash-id", Value: &c.dash_id},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.PlayReady):
-      return c.cache.Encode(c)
-   case bool(c.initiate_login):
-      return c.do_initiate_login()
-   case bool(c.complete_login):
-      return c.do_complete_login()
-   case flags.IsSet(&c.TitleId):
-      return c.do_title_id()
-   case c.dash_id != "":
-      return c.do_dash_id()
-   }
-   return flags.Usage(os.Stderr, "amazon")
+   return c.cache.Encode(actor_token, c, item_details, manifest, playback)
 }
 
 func (c *client) do_dash_id() error {
@@ -103,8 +57,9 @@ func (c *client) do_dash_id() error {
       actor_token  amazon.ActorToken
       item_details amazon.ItemDetails
       manifest     maya.Manifest
+      playback amazon.PlaybackResource
    )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   err := c.cache.Decode(&actor_token, &item_details, &manifest, &playback)
    if err != nil {
       return err
    }
@@ -114,6 +69,7 @@ func (c *client) do_dash_id() error {
          actor_token.Token,
          string(c.TitleId),
          item_details.PlaybackEnvelope,
+         playback.SessionHandoffToken,
          signedRequest,
       )
    }
@@ -165,4 +121,49 @@ func (c *client) do_initiate_login() error {
    }
    log.Print(codes)
    return c.cache.Encode(codes)
+}
+type client struct {
+   TitleId        maya.FlagString
+   PlayReady      maya.FlagString
+   complete_login maya.FlagBool
+   dash_id        maya.FlagString
+   initiate_login maya.FlagBool
+
+   cache maya.Cache
+}
+
+func (c *client) do() error {
+   if err := c.cache.Setup(); err != nil {
+      return err
+   }
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "initiate-login", Value: &c.initiate_login},
+      {Name: "complete-login", Value: &c.complete_login},
+      {
+         Name:  "title-id",
+         Value: &c.TitleId,
+         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
+      },
+      {Name: "dash-id", Value: &c.dash_id},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.PlayReady):
+      return c.cache.Encode(c)
+   case bool(c.initiate_login):
+      return c.do_initiate_login()
+   case bool(c.complete_login):
+      return c.do_complete_login()
+   case flags.IsSet(&c.TitleId):
+      return c.do_title_id()
+   case c.dash_id != "":
+      return c.do_dash_id()
+   }
+   return flags.Usage(os.Stderr, "amazon")
 }

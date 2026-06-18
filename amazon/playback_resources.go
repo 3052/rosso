@@ -9,16 +9,6 @@ import (
    "net/url"
 )
 
-func (p *PlaybackResource) GetUrl() (*url.URL, error) {
-   return url.Parse(p.URL)
-}
-
-// Add SessionHandoffToken to the struct so we can access it
-type PlaybackResource struct {
-   URL                 string `json:"url"`
-   SessionHandoffToken string `json:"-"`
-}
-
 // GetVodPlaybackResources fetches the final MPD URL for playback.
 func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string) (*PlaybackResource, error) {
    url := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
@@ -63,7 +53,8 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
                   "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  "codecs":                           []string{"H265"}, // 960 × 540
+                  //"codecs":                           []string{"H265"}, // 960 × 540
+                  "codecs":                           []string{"H264"},
                   "drmKeyScheme":                     "DualKey",
                   "drmType":                          "Widevine",
                   "dynamicRangeFormats":              []string{"None"},
@@ -183,4 +174,17 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
    }
 
    return nil, fmt.Errorf("mpd url not found in response")
+}
+func (*PlaybackResource) CachePath() string {
+   return "rosso/amazon/PlaybackResource"
+}
+
+// Add SessionHandoffToken to the struct so we can access it
+type PlaybackResource struct {
+   URL                 string `json:"url"`
+   SessionHandoffToken string `json:"-"`
+}
+
+func (p *PlaybackResource) GetUrl() (*url.URL, error) {
+   return url.Parse(p.URL)
 }
