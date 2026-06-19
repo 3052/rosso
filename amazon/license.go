@@ -11,7 +11,7 @@ import (
 
 // GetPlayReadyLicense fetches the PlayReady DRM license for the given title,
 // unwraps the JSON response, decodes the base64, and returns the raw XML.
-func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope, sessionHandoffToken string, licenseChallenge []byte) ([]byte, error) {
+func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
    url := "https://atv-ps.primevideo.com/playback/drm-vod/GetPlayReadyLicense"
 
    req, err := http.NewRequest("POST", url, nil)
@@ -30,10 +30,9 @@ func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope, sessionHan
    req.URL.RawQuery = q.Encode()
 
    payload := map[string]interface{}{
-      "packagingFormat":     "MPEG_DASH",
-      "playbackEnvelope":    playbackEnvelope,
-      "sessionHandoffToken": sessionHandoffToken,
-      "licenseChallenge":    licenseChallenge,
+      "packagingFormat":  "MPEG_DASH",
+      "playbackEnvelope": playbackEnvelope,
+      "licenseChallenge": licenseChallenge,
    }
 
    body, err := json.Marshal(payload)
@@ -82,6 +81,7 @@ func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope, sessionHan
 
    return xmlBytes, nil
 }
+
 // GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
 func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
    url := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/drm-vod/GetWidevineLicense"

@@ -10,10 +10,11 @@ import (
 )
 
 // GetVodPlaybackResources fetches the final MPD URL for playback.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string) (*PlaybackResource, error) {
-   url := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
+// Pass "H264" or "H265" as the videoCodec.
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec string) (*PlaybackResource, error) {
+   urlStr := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
 
-   req, err := http.NewRequest("POST", url, nil)
+   req, err := http.NewRequest("POST", urlStr, nil)
    if err != nil {
       return nil, err
    }
@@ -45,15 +46,13 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
       "transitionTimecodesRequest": map[string]interface{}{},
       "vodPlaylistedPlaybackUrlsRequest": map[string]interface{}{
          "device": map[string]interface{}{
-            "hdcpLevel":          "1.4",
-            "maxVideoResolution": "576p", // OLD
-            // this on its own is fine
-            //"maxVideoResolution": "2160p", // NEW
+            "hdcpLevel":                      "1.4",
+            "maxVideoResolution":             "2160p", // NEW
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
+                  "codecs":                           []string{videoCodec}, // <-- Set dynamically here (e.g. "H264" or "H265")
                   "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  "codecs":                           []string{"H265"}, // 960 × 540
                   "drmKeyScheme":                     "DualKey",
                   "drmType":                          "Widevine",
                   "dynamicRangeFormats":              []string{"None"},
@@ -83,11 +82,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
             "mainContentResumeOffsetHintMillis": 0,
             "playerContractVersion":             1,
          },
-         "playbackCustomizations": map[string]interface{}{
-            "capVideoDefinition": "SD",
-         }, // OLD
-         // this on its own is fine
-         //"playbackCustomizations": map[string]interface{}{}, // NEW
+         "playbackCustomizations": map[string]interface{}{}, // NEW
          "playbackSettingsRequest": map[string]interface{}{
             "deviceModel":           "sdk_gphone_x86",
             "firmware":              "google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys",
@@ -133,7 +128,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
          Code    string `json:"code"`
          Message string `json:"message"`
       } `json:"globalError"`
-      Sessionization struct { // <-- ADDED THIS BLOCK
+      Sessionization struct {
          SessionHandoffToken string `json:"sessionHandoffToken"`
       } `json:"sessionization"`
       VodPlaylistedPlaybackUrls struct {
@@ -165,7 +160,6 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
 
    for _, playlist := range result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
       if playlist.Type == "Main" && len(playlist.Urls) > 0 {
-         // Extract URL struct and inject the SessionHandoffToken
          res := playlist.Urls[0]
          res.SessionHandoffToken = result.Sessionization.SessionHandoffToken
          return &res, nil
@@ -174,11 +168,11 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope string)
 
    return nil, fmt.Errorf("mpd url not found in response")
 }
+
 func (*PlaybackResource) CachePath() string {
    return "rosso/amazon/PlaybackResource"
 }
 
-// Add SessionHandoffToken to the struct so we can access it
 type PlaybackResource struct {
    URL                 string `json:"url"`
    SessionHandoffToken string `json:"-"`
