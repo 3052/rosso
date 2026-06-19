@@ -82,7 +82,7 @@ type client struct {
    complete_login maya.FlagBool
    dash_id        maya.FlagString
    initiate_login maya.FlagBool
-   h265           maya.FlagBool
+   h264           maya.FlagBool
    PlayReady      maya.FlagString
 
    cache maya.Cache
@@ -104,7 +104,7 @@ func (c *client) do() error {
          Value: &c.TitleId,
          Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
       },
-      {Name: "h265", Value: &c.h265, Needs: "title-id"},
+      {Name: "h264", Value: &c.h264, Needs: "title-id"},
       {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -151,9 +151,9 @@ func (c *client) do_title_id() error {
    if err != nil {
       return fmt.Errorf("failed to get item details (playback envelope): %v", err)
    }
-   video_codec := "H264"
-   if c.h265 {
-      video_codec = "H265"
+   video_codec := "H265"
+   if c.h264 {
+      video_codec = "H264"
    }
    playback, err := amazon.GetVodPlaybackResources(
       actor_token.Token,
