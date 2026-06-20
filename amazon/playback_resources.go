@@ -10,25 +10,6 @@ import (
    "strings"
 )
 
-func (p *PlaybackResource) Clean() (*url.URL, error) {
-   parsedUrl, err := url.Parse(p.Url)
-   if err != nil {
-      return nil, err
-   }
-   parts := strings.Split(parsedUrl.Path, "/")
-   // parts[0] is "" (leading slash)
-   // parts[1] is "dm"
-   // parts[2] is "3$..."
-   // parts[3] is "iad_2"
-   // parts[4:] is the raw 4K path
-   parsedUrl.Path = "/" + strings.Join(parts[4:], "/")
-   return parsedUrl, nil
-}
-
-type PlaybackResource struct {
-   Url string
-}
-
 // GetVodPlaybackResources fetches the final MPD URL for playback.
 // Pass "H264" or "H265" as the videoCodec.
 func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec string) (*PlaybackResource, error) {
@@ -127,10 +108,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    req.Body = io.NopCloser(bytes.NewBuffer(body))
    req.ContentLength = int64(len(body))
 
-   req.Header.Set("User-Agent", UserAgent)
-   req.Header.Set("Content-Type", "text/plain")
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
+   req.Header.Set("Content-Type", "text/plain")
+   req.Header.Set("User-Agent", UserAgent)
 
    client := &http.Client{}
    resp, err := client.Do(req)
@@ -187,4 +168,23 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
 
 func (*PlaybackResource) CachePath() string {
    return "rosso/amazon/PlaybackResource"
+}
+
+func (p *PlaybackResource) Clean() (*url.URL, error) {
+   parsedUrl, err := url.Parse(p.Url)
+   if err != nil {
+      return nil, err
+   }
+   parts := strings.Split(parsedUrl.Path, "/")
+   // parts[0] is "" (leading slash)
+   // parts[1] is "dm"
+   // parts[2] is "3$..."
+   // parts[3] is "iad_2"
+   // parts[4:] is the raw 4K path
+   parsedUrl.Path = "/" + strings.Join(parts[4:], "/")
+   return parsedUrl, nil
+}
+
+type PlaybackResource struct {
+   Url string
 }

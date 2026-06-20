@@ -37,7 +37,7 @@ func RefreshToken(refreshToken string) (*TokenPair, error) {
    }
 
    // Keeping headers consistent with your Go codebase
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Accept", "application/json")
 

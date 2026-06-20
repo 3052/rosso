@@ -24,7 +24,7 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
       "source_token_type": "refresh_token",
       "source_device_tokens": []map[string]interface{}{
          {
-            "device_type": "A2SNKIF736WF4T",
+            "device_type": DeviceTypeID,
             "account_refresh_token": map[string]string{
                "token": refreshToken,
             },
@@ -33,13 +33,13 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
       "requested_token_type": "actor_access_token",
       "actor_id":             actorId,
       "domain":               "Device",
-      "device_name":          "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+      "device_name":          "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% " + DeviceModel,
       "app_name":             "AIV",
       "app_version":          "3.12.0",
-      "device_model":         "sdk_gphone_x86",
-      "os_version":           "Android",
-      "device_type":          "A2SNKIF736WF4T",
-      "device_serial":        "uuidcbb2f9705f13437e9e515622dce02106",
+      "device_model":         DeviceModel,
+      "os_version":           DeviceOS,
+      "device_type":          DeviceTypeID,
+      "device_serial":        DeviceID,
       "software_version":     "999",
    }
 
@@ -53,7 +53,7 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
       return nil, err
    }
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Accept", "application/json")
 
