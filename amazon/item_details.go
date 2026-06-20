@@ -45,17 +45,17 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
    q.Add("clientId", "pv-lrc-rust")
 
    // Device parameters
-   q.Add("deviceTypeID", "A2SNKIF736WF4T")
-   q.Add("deviceID", "uuidcbb2f9705f13437e9e515622dce02106")
-   q.Add("firmware", "google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys")
-   q.Add("manufacturer", "Google")
-   q.Add("chipset", "goldfish_x86")
-   q.Add("model", "sdk_gphone_x86")
-   q.Add("operatingSystem", "Android")
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("deviceID", DeviceID)
+   q.Add("firmware", DeviceFirmware)
+   q.Add("manufacturer", DeviceManufacturer)
+   q.Add("chipset", DeviceChipset)
+   q.Add("model", DeviceModel)
+   q.Add("operatingSystem", DeviceOS)
 
    req.URL.RawQuery = q.Encode()
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
    req.Header.Set("Accept", "application/json")
    req.Header.Set("x-client-app", "avlrc")

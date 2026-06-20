@@ -20,8 +20,8 @@ func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope string, lic
    }
 
    q := req.URL.Query()
-   q.Add("deviceTypeID", "A2SNKIF736WF4T")
-   q.Add("deviceID", "uuidcbb2f9705f13437e9e515622dce02106")
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("deviceID", DeviceID)
    q.Add("gascEnabled", "false")
    q.Add("marketplaceID", "ATVPDKIKX0DER")
    q.Add("uxLocale", "en_US")
@@ -43,7 +43,7 @@ func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope string, lic
    req.Body = io.NopCloser(bytes.NewBuffer(body))
    req.ContentLength = int64(len(body))
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "text/plain") // Required as text/plain for the DRM endpoint
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
@@ -92,8 +92,8 @@ func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, lice
    }
 
    q := req.URL.Query()
-   q.Add("deviceID", "uuidcbb2f9705f13437e9e515622dce02106")
-   q.Add("deviceTypeID", "A2SNKIF736WF4T")
+   q.Add("deviceID", DeviceID)
+   q.Add("deviceTypeID", DeviceTypeID)
    q.Add("gascEnabled", "false")
    q.Add("marketplaceID", "ATVPDKIKX0DER")
    q.Add("uxLocale", "en-US")
@@ -115,7 +115,7 @@ func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, lice
    req.Body = io.NopCloser(bytes.NewBuffer(body))
    req.ContentLength = int64(len(body))
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "text/plain")
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)

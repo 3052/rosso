@@ -40,8 +40,8 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    }
 
    q := req.URL.Query()
-   q.Add("deviceTypeID", "A2SNKIF736WF4T")
-   q.Add("deviceID", "uuidcbb2f9705f13437e9e515622dce02106")
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("deviceID", DeviceID)
    q.Add("firmware", "1")
    q.Add("titleId", titleId)
    req.URL.RawQuery = q.Encode()
@@ -51,8 +51,8 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
          "deviceCapabilityFamily": "LivingRoomPlayer",
          "playbackEnvelope":       playbackEnvelope,
          "capabilityDiscriminators": map[string]interface{}{
-            "operatingSystem": map[string]string{"name": "Android", "version": "11"},
-            "deviceModel":     map[string]string{"name": "sdk_gphone_x86", "version": "UNKNOWN"},
+            "operatingSystem": map[string]string{"name": DeviceOS, "version": "11"},
+            "deviceModel":     map[string]string{"name": DeviceModel, "version": "UNKNOWN"},
             "middleware":      map[string]string{"name": "Ignite", "version": "15.5.2026042820-android"},
          },
       },
@@ -104,8 +104,8 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
          },
          "playbackCustomizations": map[string]interface{}{}, // NEW
          "playbackSettingsRequest": map[string]interface{}{
-            "deviceModel":           "sdk_gphone_x86",
-            "firmware":              "google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys",
+            "deviceModel":           DeviceModel,
+            "firmware":              DeviceFirmware,
             "heuristicProfile":      "{\"Quality\":\"High\",\"Buffering_Risk\":\"Low\",\"Startup_Time\":\"Priority\"}",
             "playerType":            "xp",
             "responseFormatVersion": "1.0.0",
@@ -127,7 +127,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    req.Body = io.NopCloser(bytes.NewBuffer(body))
    req.ContentLength = int64(len(body))
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "text/plain")
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)

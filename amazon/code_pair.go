@@ -19,13 +19,13 @@ func InitiateMDSO(publicCode string) error {
    }
 
    q := req.URL.Query()
-   q.Add("deviceTypeID", "A2SNKIF736WF4T")
-   q.Add("deviceID", "uuidcbb2f9705f13437e9e515622dce02106")
-   q.Add("firmware", "google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys")
-   q.Add("manufacturer", "Google")
-   q.Add("chipset", "goldfish_x86")
-   q.Add("model", "sdk_gphone_x86")
-   q.Add("operatingSystem", "Android")
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("deviceID", DeviceID)
+   q.Add("firmware", DeviceFirmware)
+   q.Add("manufacturer", DeviceManufacturer)
+   q.Add("chipset", DeviceChipset)
+   q.Add("model", DeviceModel)
+   q.Add("operatingSystem", DeviceOS)
    q.Add("uxLocale", "en_US")
    req.URL.RawQuery = q.Encode()
 
@@ -42,7 +42,7 @@ func InitiateMDSO(publicCode string) error {
    req.Body = io.NopCloser(bytes.NewBuffer(body))
    req.ContentLength = int64(len(body))
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Accept", "application/json")
 
@@ -85,13 +85,13 @@ func CreateCodePair() (*CodePair, error) {
    payload := map[string]interface{}{
       "code_data": map[string]string{
          "domain":           "Device",
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% " + DeviceModel,
          "app_name":         "AIV",
          "app_version":      "3.12.0",
-         "device_model":     "sdk_gphone_x86",
-         "os_version":       "Android",
-         "device_type":      "A2SNKIF736WF4T",
-         "device_serial":    "uuidcbb2f9705f13437e9e515622dce02106",
+         "device_model":     DeviceModel,
+         "os_version":       DeviceOS,
+         "device_type":      DeviceTypeID,
+         "device_serial":    DeviceID,
          "software_version": "999",
       },
    }
@@ -106,7 +106,7 @@ func CreateCodePair() (*CodePair, error) {
       return nil, err
    }
 
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
    req.Header.Set("Accept", "application/json")
 
