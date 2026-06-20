@@ -19,15 +19,15 @@ func GetPlayReadyLicense(actorAccessToken, titleId, playbackEnvelope string, lic
       return nil, err
    }
 
-   query := req.URL.Query()
-   query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("deviceID", DeviceID)
-   query.Add("gascEnabled", "false")
-   query.Add("marketplaceID", "ATVPDKIKX0DER")
-   query.Add("uxLocale", "en_US")
-   query.Add("firmware", "1")
-   query.Add("titleId", titleId)
-   req.URL.RawQuery = query.Encode()
+   q := req.URL.Query()
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("deviceID", DeviceID)
+   q.Add("gascEnabled", "false")
+   q.Add("marketplaceID", "ATVPDKIKX0DER")
+   q.Add("uxLocale", "en_US")
+   q.Add("firmware", "1")
+   q.Add("titleId", titleId)
+   req.URL.RawQuery = q.Encode()
 
    payload := map[string]interface{}{
       "packagingFormat":  "MPEG_DASH",
@@ -91,15 +91,15 @@ func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, lice
       return nil, err
    }
 
-   query := req.URL.Query()
-   query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("gascEnabled", "false")
-   query.Add("marketplaceID", "ATVPDKIKX0DER")
-   query.Add("uxLocale", "en-US")
-   query.Add("firmware", "1")
-   query.Add("titleId", titleId)
-   req.URL.RawQuery = query.Encode()
+   q := req.URL.Query()
+   q.Add("deviceID", DeviceID)
+   q.Add("deviceTypeID", DeviceTypeID)
+   q.Add("gascEnabled", "false")
+   q.Add("marketplaceID", "ATVPDKIKX0DER")
+   q.Add("uxLocale", "en-US")
+   q.Add("firmware", "1")
+   q.Add("titleId", titleId)
+   req.URL.RawQuery = q.Encode()
 
    payload := map[string]interface{}{
       "includeHdcpTestKey": true,
