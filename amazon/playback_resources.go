@@ -4,7 +4,6 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strings"
@@ -12,28 +11,26 @@ import (
 
 // GetVodPlaybackResources fetches the final MPD URL for playback.
 // Pass "H264" or "H265" as the videoCodec.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec string) (*PlaybackResource, error) {
-   urlStr := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
-   req, err := http.NewRequest("POST", urlStr, nil)
-   if err != nil {
-      return nil, err
-   }
-
-   q := req.URL.Query()
-   q.Add("deviceTypeID", DeviceTypeID)
-   q.Add("deviceID", DeviceID)
-   q.Add("firmware", "1")
-   q.Add("titleId", titleId)
-   req.URL.RawQuery = q.Encode()
-
+// Pass "Widevine" or "PlayReady" as the drmType.
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType string) (*PlaybackResource, error) {
    payload := map[string]interface{}{
       "globalParameters": map[string]interface{}{
-         "deviceCapabilityFamily": "LivingRoomPlayer",
          "playbackEnvelope":       playbackEnvelope,
+         "deviceCapabilityFamily": "LivingRoomPlayer",
          "capabilityDiscriminators": map[string]interface{}{
-            "operatingSystem": map[string]string{"name": DeviceOS, "version": "11"},
-            "deviceModel":     map[string]string{"name": DeviceModel, "version": "UNKNOWN"},
-            "middleware":      map[string]string{"name": "Ignite", "version": "15.5.2026042820-android"},
+            /////////////////////////////////////////////////////////////////////////////////
+            "operatingSystem": map[string]string{
+               "name":    DeviceOS,
+               "version": "11",
+            },
+            "deviceModel": map[string]string{
+               "name":    DeviceModel,
+               "version": "UNKNOWN",
+            },
+            "middleware": map[string]string{
+               "name":    "Ignite",
+               "version": "15.5.2026042820-android",
+            },
          },
       },
       "auditPingsRequest":                 map[string]interface{}{},
@@ -49,11 +46,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
-                  "codecs":             []string{videoCodec}, // <-- Set dynamically here (e.g. "H264" or "H265")
-                  "bitrateAdaptations": []string{"CBR", "CVBR"},
-                  "drmKeyScheme":       "DualKey",
-                  //"drmType":                          "Widevine",
-                  "drmType":                          "PLAYREADY",
+                  "codecs":                           []string{videoCodec}, // dynamically set (e.g. "H264" or "H265")
+                  "bitrateAdaptations":               []string{"CBR", "CVBR"},
+                  "drmKeyScheme":                     "DualKey",
+                  "drmType":                          drmType, // dynamically set ("Widevine" or "PlayReady")
                   "edgeDeliveryAuthorizationSchemes": []string{"PVExchangeV1", "Transparent"},
                   "fragmentRepresentations":          []string{"ByteOffsetRange", "SeparateFile"},
                   "frameRates":                       []string{"Standard"},
@@ -99,20 +95,26 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
          "xrayToken":        "XRAY_REIGN_3PLR_2025_V1",
       },
    }
-
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
-
-   req.Body = io.NopCloser(bytes.NewBuffer(body))
-   req.ContentLength = int64(len(body))
-
+   urlStr := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
+   req, err := http.NewRequest("POST", urlStr, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   query := url.Values{}
+   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("deviceID", DeviceID)
+   query.Add("firmware", "1")
+   query.Add("titleId", titleId)
+   req.URL.RawQuery = query.Encode()
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
    req.Header.Set("Content-Type", "text/plain")
    req.Header.Set("User-Agent", UserAgent)
-
+   /////////////////////////////////////////////////////////////////////////////////
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
