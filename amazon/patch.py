@@ -69,11 +69,5 @@ def main():
     shell(f"am force-stop {PACKAGE_NAME}")
     shell(f"rm -rf /data/data/{PACKAGE_NAME}/code_cache")
     
-    print("[*] Starting app...")
-    shell(f"am start -n {PACKAGE_NAME}/com.amazon.ignition.IgnitionActivity")
-    
-    print("[+] Done! Check mitmproxy for traffic.")
-    print(f"[*] To restore: adb shell cp {apk_device_path}.bak {apk_device_path}")
-
 if __name__ == "__main__":
     main()

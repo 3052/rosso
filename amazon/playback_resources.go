@@ -7,7 +7,27 @@ import (
    "io"
    "net/http"
    "net/url"
+   "strings"
 )
+
+func (p *PlaybackResource) Clean() (*url.URL, error) {
+   parsedUrl, err := url.Parse(p.Url)
+   if err != nil {
+      return nil, err
+   }
+   parts := strings.Split(parsedUrl.Path, "/")
+   // parts[0] is "" (leading slash)
+   // parts[1] is "dm"
+   // parts[2] is "3$..."
+   // parts[3] is "iad_2"
+   // parts[4:] is the raw 4K path
+   parsedUrl.Path = "/" + strings.Join(parts[4:], "/")
+   return parsedUrl, nil
+}
+
+type PlaybackResource struct {
+   Url string
+}
 
 // GetVodPlaybackResources fetches the final MPD URL for playback.
 // Pass "H264" or "H265" as the videoCodec.
@@ -128,9 +148,6 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
          Code    string `json:"code"`
          Message string `json:"message"`
       } `json:"globalError"`
-      Sessionization struct {
-         SessionHandoffToken string `json:"sessionHandoffToken"`
-      } `json:"sessionization"`
       VodPlaylistedPlaybackUrls struct {
          Result struct {
             PlaybackUrls struct {
@@ -161,7 +178,6 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    for _, playlist := range result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
       if playlist.Type == "Main" && len(playlist.Urls) > 0 {
          res := playlist.Urls[0]
-         res.SessionHandoffToken = result.Sessionization.SessionHandoffToken
          return &res, nil
       }
    }
@@ -171,13 +187,4 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
 
 func (*PlaybackResource) CachePath() string {
    return "rosso/amazon/PlaybackResource"
-}
-
-type PlaybackResource struct {
-   URL                 string `json:"url"`
-   SessionHandoffToken string `json:"-"`
-}
-
-func (p *PlaybackResource) GetUrl() (*url.URL, error) {
-   return url.Parse(p.URL)
 }
