@@ -12,87 +12,37 @@ import (
 // GetVodPlaybackResources fetches the final MPD URL for playback.
 // Pass "H264" or "H265" as the videoCodec.
 // Pass "Widevine" or "PlayReady" as the drmType.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType string) (*PlaybackResource, error) {
-   payload := map[string]interface{}{
-      "globalParameters": map[string]interface{}{
+// Pass "CBR" or "CVBR" as the bitrateAdaptation.
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation string) (*PlaybackResource, error) {
+   payload := map[string]any{
+      "globalParameters": map[string]any{
          "playbackEnvelope":       playbackEnvelope,
          "deviceCapabilityFamily": "LivingRoomPlayer",
-         "capabilityDiscriminators": map[string]interface{}{
-            /////////////////////////////////////////////////////////////////////////////////
-            "operatingSystem": map[string]string{
-               "name":    DeviceOS,
-               "version": "11",
-            },
-            "deviceModel": map[string]string{
-               "name":    DeviceModel,
-               "version": "UNKNOWN",
-            },
-            "middleware": map[string]string{
-               "name":    "Ignite",
-               "version": "15.5.2026042820-android",
-            },
-         },
       },
-      "auditPingsRequest":                 map[string]interface{}{},
-      "widevineServiceCertificateRequest": map[string]interface{}{},
-      "playbackDataRequest":               map[string]interface{}{},
-      "timedTextUrlsRequest": map[string]interface{}{
-         "supportedTimedTextFormats": []string{"TTMLv2", "DFXP"},
-      },
-      "trickplayUrlsRequest":       map[string]interface{}{},
-      "transitionTimecodesRequest": map[string]interface{}{},
-      "vodPlaylistedPlaybackUrlsRequest": map[string]interface{}{
-         "device": map[string]interface{}{
+      "vodPlaylistedPlaybackUrlsRequest": map[string]any{
+         "device": map[string]any{
             "supportedStreamingTechnologies": []string{"DASH"},
-            "streamingTechnologies": map[string]interface{}{
-               "DASH": map[string]interface{}{
-                  "codecs":                           []string{videoCodec}, // dynamically set (e.g. "H264" or "H265")
-                  "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  "drmKeyScheme":                     "DualKey",
-                  "drmType":                          drmType, // dynamically set ("Widevine" or "PlayReady")
-                  "edgeDeliveryAuthorizationSchemes": []string{"PVExchangeV1", "Transparent"},
-                  "fragmentRepresentations":          []string{"ByteOffsetRange", "SeparateFile"},
-                  "frameRates":                       []string{"Standard"},
-                  "segmentInfoType":                  "Base",
-                  "stitchType":                       "MultiPeriod",
-                  "timedTextRepresentations":         []string{"NotInManifestNorStream", "SeparateStreamInManifest"},
-                  "trickplayRepresentations":         []string{"NotInManifestNorStream"},
-                  "variableAspectRatio":              "supported",
-                  "dynamicRangeFormats":              []string{"HDR10", "None"},
+            "streamingTechnologies": map[string]any{
+               "DASH": map[string]any{
+                  "bitrateAdaptations": []string{
+                     bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
+                  },
+                  "codecs": []string{
+                     videoCodec, // dynamically set (e.g. "H264" or "H265")
+                  },
+                  "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
+                  "dynamicRangeFormats": []string{
+                     "HDR10", // UHD
+                  },
                },
             },
-            "acceptedCreativeApis": []int{1006, 1008},
-            "displayWidth":         3840,
-            "displayHeight":        2160,
-            "hdcpLevel":            "2.3",
-            "maxVideoResolution":   "2160p", // NEW
+            "hdcpLevel":          "2.3", // UHD
+            "maxVideoResolution": "2160p",
          },
-         "ads": map[string]interface{}{
-            "advertisingId":      "aff7331b-3bdf-476f-ae78-386b5d55e0e5",
-            "appBundle":          "com.primevideo.Google",
-            "appStoreUrl":        nil,
-            "optOutOfAdTracking": false,
-            "gdpr": map[string]interface{}{
-               "enabled":    false,
-               "consentMap": map[string]interface{}{},
-            },
-            "mainContentResumeOffsetHintMillis": 0,
-            "playerContractVersion":             1,
+         "playbackSettingsRequest": map[string]any{
+            "firmware": DeviceFirmware,
+            "titleId":  titleId,
          },
-         "playbackCustomizations": map[string]interface{}{}, // NEW
-         "playbackSettingsRequest": map[string]interface{}{
-            "deviceModel":           DeviceModel,
-            "firmware":              DeviceFirmware,
-            "heuristicProfile":      "{\"Quality\":\"High\",\"Buffering_Risk\":\"Low\",\"Startup_Time\":\"Priority\"}",
-            "playerType":            "xp",
-            "responseFormatVersion": "1.0.0",
-            "titleId":               titleId,
-         },
-      },
-      "vodXrayMetadataRequest": map[string]interface{}{
-         "xrayDeviceClass":  "television",
-         "xrayPlaybackMode": "playback",
-         "xrayToken":        "XRAY_REIGN_3PLR_2025_V1",
       },
    }
    body, err := json.Marshal(payload)
@@ -105,16 +55,10 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
       return nil, err
    }
    query := url.Values{}
-   query.Add("deviceTypeID", DeviceTypeID)
    query.Add("deviceID", DeviceID)
-   query.Add("firmware", "1")
-   query.Add("titleId", titleId)
+   query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
-   req.Header.Set("Accept", "*/*")
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
-   req.Header.Set("Content-Type", "text/plain")
-   req.Header.Set("User-Agent", UserAgent)
-   /////////////////////////////////////////////////////////////////////////////////
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -172,21 +116,31 @@ func (*PlaybackResource) CachePath() string {
    return "rosso/amazon/PlaybackResource"
 }
 
+type PlaybackResource struct {
+   Url string
+}
+
 func (p *PlaybackResource) Clean() (*url.URL, error) {
-   parsedUrl, err := url.Parse(p.Url)
+   parsedURL, err := url.Parse(p.Url)
    if err != nil {
       return nil, err
    }
-   parts := strings.Split(parsedUrl.Path, "/")
-   // parts[0] is "" (leading slash)
-   // parts[1] is "dm"
-   // parts[2] is "3$..."
-   // parts[3] is "iad_2"
-   // parts[4:] is the raw 4K path
-   parsedUrl.Path = "/" + strings.Join(parts[4:], "/")
-   return parsedUrl, nil
-}
-
-type PlaybackResource struct {
-   Url string
+   parts := strings.Split(parsedURL.Path, "/")
+   // Handle "/dm/3$..." structure
+   if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
+      // parts[0] = ""
+      // parts[1] = "dm"
+      // parts[2] = "3$..."
+      // parts[3] = "iad_2"
+      // parts[4:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[4:], "/")
+      // Handle "/3$..." structure
+   } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
+      // parts[0] = ""
+      // parts[1] = "3$..."
+      // parts[2] = "iad_2"
+      // parts[3:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[3:], "/")
+   }
+   return parsedURL, nil
 }

@@ -44,6 +44,7 @@ func (c *client) do_title_id() error {
       item_details.PlaybackEnvelope,
       video_codec,
       "PlayReady",
+      "CVBR",
    )
    if err != nil {
       return fmt.Errorf("failed to get VOD playback resources: %v", err)
