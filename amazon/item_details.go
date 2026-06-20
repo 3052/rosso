@@ -14,36 +14,16 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
    if err != nil {
       return nil, err
    }
-   q := req.URL.Query()
-   q.Add("itemId", titleId)
+   query := req.URL.Query()
+   query.Add("itemId", titleId)
    // Critical UI and Feature flags to force the V2/V3 BuyBox response with PlaybackEnvelope
-   q.Add("widgetScheme", "lrc-detail-v3")
-   q.Add("isReactionEnabledInDP", "true")
-   q.Add("newMaturityRatings", "true")
-   q.Add("dynamicBadgingEnabled", "true")
-   q.Add("isMapsV2DatumEnabled", "true")
-   q.Add("roles", "live-supported,startover-supported,linear-supported,prime-offer-supported,multipart-notification-supported,tvod-supported,svod-supported,supports-dai-timeshifting,supports-rapid-recap,playback-envelope-supported,linear-playback-envelope-supported,prime-benefit-activation-supported,supports-stream-selector-modal,av-liveliness-with-unavailable-message-supported,new-title-badge-supported,coming-soon-title-badge-supported,supports-consent-redirection,supports-trailer")
-   q.Add("presentationScheme", "android-tv-react")
-   q.Add("dynamicFeatures", "CLIENT_DECORATION_ENABLE_DAAPI,DetailsAtf,RecordingCardSupported")
-   q.Add("clientFeatures", "ShowPSEWarning,EnableBuyBoxV2,EnableRecordingExperience,EnableBuyBoxActionsV2")
-   q.Add("transformStore", "local")
-   q.Add("transformStage", "prod")
-   q.Add("uxLocale", "en_US")
-   q.Add("clientId", "pv-lrc-rust")
+   query.Add("roles", "playback-envelope-supported")
+   query.Add("presentationScheme", "android-tv-react")
    // Device parameters
-   q.Add("deviceTypeID", DeviceTypeID)
-   q.Add("deviceID", DeviceID)
-   q.Add("firmware", DeviceFirmware)
-   q.Add("manufacturer", DeviceManufacturer)
-   q.Add("chipset", DeviceChipset)
-   q.Add("model", DeviceModel)
-   q.Add("operatingSystem", DeviceOS)
-   req.URL.RawQuery = q.Encode()
-   req.Header.Set("User-Agent", UserAgent)
+   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("deviceID", DeviceID)
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
-   req.Header.Set("Accept", "application/json")
-   req.Header.Set("x-client-app", "avlrc")
-   req.Header.Set("x-atv-page-type", "ATVDetail")
+   req.URL.RawQuery = query.Encode()
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -58,27 +38,23 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
    // Embed our new ItemDetails struct into the anonymous decoder struct
    var result struct {
       Resource struct {
-         PrimaryActions []struct {
-            NavigationAction struct {
-               PlaybackMetadata struct {
-                  PlaybackExperienceMetadata ItemDetails `json:"playbackExperienceMetadata"`
-               } `json:"playbackMetadata"`
-            } `json:"navigationAction"`
-         } `json:"primaryActions"`
-      } `json:"resource"`
+         Actions []struct {
+            Metadata struct {
+               PlaybackExperienceMetadata ItemDetails
+            }
+         }
+      }
    }
-
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
 
-   for _, action := range result.Resource.PrimaryActions {
-      details := action.NavigationAction.PlaybackMetadata.PlaybackExperienceMetadata
+   for _, action := range result.Resource.Actions {
+      details := action.Metadata.PlaybackExperienceMetadata
       if details.PlaybackEnvelope != "" {
          return &details, nil
       }
    }
-
    return nil, fmt.Errorf("playbackEnvelope not found in primaryActions for titleId: %s", titleId)
 }
 

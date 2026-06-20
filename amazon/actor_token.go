@@ -7,21 +7,13 @@ import (
    "net/http"
 )
 
-func (*ActorToken) CachePath() string {
-   return "rosso/amazon/ActorToken"
-}
-
-// ActorToken represents an actor-specific access token.
-type ActorToken struct {
-   Token string `json:"token"`
-}
-
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
 func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
-   url := "https://api.amazon.com/auth/token"
-
    payload := map[string]interface{}{
-      "source_token_type": "refresh_token",
+      "actor_id":             actorId,
+      "app_name":             "AIV",
+      "requested_token_type": "actor_access_token",
+      "source_token_type":    "refresh_token",
       "source_device_tokens": []map[string]interface{}{
          {
             "device_type": DeviceTypeID,
@@ -30,33 +22,18 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
             },
          },
       },
-      "requested_token_type": "actor_access_token",
-      "actor_id":             actorId,
-      "domain":               "Device",
-      "device_name":          "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% " + DeviceModel,
-      "app_name":             "AIV",
-      "app_version":          "3.12.0",
-      "device_model":         DeviceModel,
-      "os_version":           DeviceOS,
-      "device_type":          DeviceTypeID,
-      "device_serial":        DeviceID,
-      "software_version":     "999",
    }
-
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
-
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   req, err := http.NewRequest(
+      "POST", "https://api.amazon.com/auth/token", bytes.NewBuffer(body),
+   )
    if err != nil {
       return nil, err
    }
-
-   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept", "application/json")
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -85,4 +62,13 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
 
    token := result.DeviceTokens[0].ActorAccessToken
    return &token, nil
+}
+
+func (*ActorToken) CachePath() string {
+   return "rosso/amazon/ActorToken"
+}
+
+// ActorToken represents an actor-specific access token.
+type ActorToken struct {
+   Token string `json:"token"`
 }
