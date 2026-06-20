@@ -14,7 +14,6 @@ import (
 // Pass "H264" or "H265" as the videoCodec.
 func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec string) (*PlaybackResource, error) {
    urlStr := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
-
    req, err := http.NewRequest("POST", urlStr, nil)
    if err != nil {
       return nil, err
@@ -47,16 +46,14 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
       "transitionTimecodesRequest": map[string]interface{}{},
       "vodPlaylistedPlaybackUrlsRequest": map[string]interface{}{
          "device": map[string]interface{}{
-            "hdcpLevel":                      "1.4",
-            "maxVideoResolution":             "2160p", // NEW
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]interface{}{
                "DASH": map[string]interface{}{
-                  "codecs":                           []string{videoCodec}, // <-- Set dynamically here (e.g. "H264" or "H265")
-                  "bitrateAdaptations":               []string{"CBR", "CVBR"},
-                  "drmKeyScheme":                     "DualKey",
-                  "drmType":                          "Widevine",
-                  "dynamicRangeFormats":              []string{"None"},
+                  "codecs":             []string{videoCodec}, // <-- Set dynamically here (e.g. "H264" or "H265")
+                  "bitrateAdaptations": []string{"CBR", "CVBR"},
+                  "drmKeyScheme":       "DualKey",
+                  //"drmType":                          "Widevine",
+                  "drmType":                          "PLAYREADY",
                   "edgeDeliveryAuthorizationSchemes": []string{"PVExchangeV1", "Transparent"},
                   "fragmentRepresentations":          []string{"ByteOffsetRange", "SeparateFile"},
                   "frameRates":                       []string{"Standard"},
@@ -65,11 +62,14 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
                   "timedTextRepresentations":         []string{"NotInManifestNorStream", "SeparateStreamInManifest"},
                   "trickplayRepresentations":         []string{"NotInManifestNorStream"},
                   "variableAspectRatio":              "supported",
+                  "dynamicRangeFormats":              []string{"HDR10", "None"},
                },
             },
             "acceptedCreativeApis": []int{1006, 1008},
-            "displayWidth":         1080,
-            "displayHeight":        1080,
+            "displayWidth":         3840,
+            "displayHeight":        2160,
+            "hdcpLevel":            "2.3",
+            "maxVideoResolution":   "2160p", // NEW
          },
          "ads": map[string]interface{}{
             "advertisingId":      "aff7331b-3bdf-476f-ae78-386b5d55e0e5",

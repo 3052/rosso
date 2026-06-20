@@ -106,6 +106,7 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
 
    return nil, fmt.Errorf("playbackEnvelope not found in primaryActions for titleId: %s", titleId)
 }
+
 // ItemDetails contains metadata for a specific title, including the playback
 // envelope
 type ItemDetails struct {
