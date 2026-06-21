@@ -13,7 +13,8 @@ import (
 // Pass "H264" or "H265" as the videoCodec.
 // Pass "Widevine" or "PlayReady" as the drmType.
 // Pass "CBR" or "CVBR" as the bitrateAdaptation.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation string) (*PlaybackResource, error) {
+// Pass "None", "DolbyVision", or "HDR10" as the dynamicRangeFormat.
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation, dynamicRangeFormat string) (*PlaybackResource, error) {
    payload := map[string]any{
       "globalParameters": map[string]any{
          "playbackEnvelope":       playbackEnvelope,
@@ -32,11 +33,11 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
                   },
                   "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
                   "dynamicRangeFormats": []string{
-                     "HDR10", // UHD
+                     dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
                   },
                },
             },
-            "hdcpLevel":          "2.3", // UHD
+            "hdcpLevel":          "2.3",
             "maxVideoResolution": "2160p",
          },
          "playbackSettingsRequest": map[string]any{
