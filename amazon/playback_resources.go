@@ -28,17 +28,18 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
                   "bitrateAdaptations": []string{
                      bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
                   },
-                  "codecs": []string{
-                     videoCodec, // dynamically set (e.g. "H264" or "H265")
-                  },
                   "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
                   "dynamicRangeFormats": []string{
                      dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
                   },
+                  "codecs": []string{
+                     videoCodec, // dynamically set (e.g. "H264" or "H265")
+                  },
                },
             },
-            "hdcpLevel":          "2.3",
-            "maxVideoResolution": "2160p",
+            "hdcpLevel": "2.3", // at least 2.2 is needed for UHD with hev1
+            //"maxVideoResolution": "480p", // L3
+            "maxVideoResolution": "2160p", // SL3000
          },
          "playbackSettingsRequest": map[string]any{
             "firmware": DeviceFirmware,

@@ -71,3 +71,13 @@ The ARM code runs on an **x86 emulator via `libndk_translation.so`** (Google's A
 ### The fix
 
 Patching 3 bytes in the APK — changing `MOVS R2, #1` to `MOVS R2, #0` at each `curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1)` call site — disables SSL peer verification entirely. The patch is done in-place on the APK file to preserve zip offsets and alignment, since Android loads `.so` files directly from the APK via memory mapping.
+
+## z2u
+
+68:
+
+https://z2u.com/amazon-prime-video/accounts-5-11070
+
+2:
+
+https://z2u.com/amazon-prime-video/subscriptions-12-11070

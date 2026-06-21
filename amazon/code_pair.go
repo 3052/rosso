@@ -11,7 +11,7 @@ import (
 
 func (c *CodePair) String() string {
    var data strings.Builder
-   data.WriteString("Please navigate to https://primevideo.com/ontv\n")
+   data.WriteString("Please navigate to https://amazon.com/code\n")
    data.WriteString("Enter the following code: ")
    data.WriteString(c.PublicCode)
    return data.String()
