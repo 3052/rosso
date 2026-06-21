@@ -167,7 +167,7 @@ func (c *client) do_initiate_login() error {
 }
 
 type client struct {
-   title_id        maya.FlagString
+   title_id       maya.FlagString
    complete_login maya.FlagBool
    dash_id        maya.FlagString
    initiate_login maya.FlagBool

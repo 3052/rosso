@@ -16,20 +16,22 @@ func TestGetManifestAndLicense(t *testing.T) {
    marketplaceID := "" // e.g. "ATVPDKIKX0DER"
    playbackEnv := ""   // e.g. "MDJ8Cm0KBHBlbnYSJGI1YWQ0MjdhLTIyY2MtN..."
 
-   if authBearer == "" || titleID == "" {
-      t.Skip("Skipping live Amazon API test: missing credentials or title info")
-   }
-
    // 1. Initialize the client
    client := NewClient(&http.Client{})
 
-   // 2. Select the desired profile
-   profile := WidevineL3Profile
-   profile.DeviceID = deviceID
-   profile.AuthBearer = authBearer
+   // 2. Tweak these values to test what the server accepts
+   profile := DeviceProfile{
+      DeviceID:      deviceID,
+      AuthBearer:    authBearer,
+      DRMType:       "Widevine",       // Test "Widevine" or "PlayReady"
+      DRMKeyScheme:  "",               // Test "SingleKey", "DualKey", or ""
+      HDCPLevel:     "1.4",            // Test "1.4", "2.2", "2.3"
+      MaxResolution: "1080p",          // Test "480p", "720p", "1080p", "1440p", "2160p"
+      HDRFormats:    []string{"None"}, // Test "None", "HDR10", "DolbyVision"
+   }
 
    // 3. Request the Manifest
-   mpdURL, handoffToken, err := client.GetManifest(profile, titleID, marketplaceID, playbackEnv)
+   mpdURL, err := client.GetManifest(profile, titleID, marketplaceID, playbackEnv)
    if err != nil {
       t.Fatalf("Failed to get manifest: %v", err)
    }
@@ -37,12 +39,8 @@ func TestGetManifestAndLicense(t *testing.T) {
    if mpdURL == "" {
       t.Fatal("Received empty MPD URL")
    }
-   if handoffToken == "" {
-      t.Fatal("Received empty Handoff Token")
-   }
 
    fmt.Printf("MPD URL: %s\n", mpdURL)
-   fmt.Printf("Handoff Token: %s\n", handoffToken)
 
    // 4. In a real scenario, you would download the MPD, parse it, find the lowest
    // quality representation, and extract its PSSH. Your CDM would then generate
@@ -52,16 +50,16 @@ func TestGetManifestAndLicense(t *testing.T) {
    // For PlayReady: challengeBytes is the UTF-8 encoded XML SOAP envelope string cast to []byte.
 
    /* Uncomment to test actual license retrieval once PSSH is parsed:
-   var mockChallenge []byte = []byte("mock_challenge_from_cdm")
-   licenseB64, err := client.GetLicense(profile, titleID, marketplaceID, playbackEnv, handoffToken, mockChallenge)
-   if err != nil {
-      t.Fatalf("Failed to get license: %v", err)
-   }
+      var mockChallenge []byte = []byte("mock_challenge_from_cdm")
+      licenseB64, err := client.GetLicense(profile, titleID, marketplaceID, playbackEnv, mockChallenge)
+      if err != nil {
+         t.Fatalf("Failed to get license: %v", err)
+      }
 
-   if licenseB64 == "" {
-      t.Fatal("Received empty license base64 string")
-   }
+      if licenseB64 == "" {
+         t.Fatal("Received empty license base64 string")
+      }
 
-   fmt.Printf("License successfully retrieved! Base64 Length: %d\n", len(licenseB64))
+      fmt.Printf("License successfully retrieved! Base64 Length: %d\n", len(licenseB64))
    */
 }

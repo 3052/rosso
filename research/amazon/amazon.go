@@ -10,59 +10,21 @@ import (
    "net/url"
 )
 
-// DeviceProfile holds the specific capabilities and identities for a target device.
+const defaultAPIHost = "atv-ps.primevideo.com"
+
+// DeviceProfile holds the specific capabilities and identities to test against the API.
 type DeviceProfile struct {
    DeviceID      string
    DRMType       string   // "Widevine" or "PlayReady"
-   DRMKeyScheme  string   // "DualKey" or "SingleKey"
-   HDCPLevel     string   // "1.4", "2.2", "2.3"
-   MaxResolution string   // "480p", "1080p", "2160p"
-   Codecs        []string // "H264", "H265"
-   HDRFormats    []string // "None", "HDR10", "DolbyVision"
-   APIHost       string   // e.g., "atv-ps.primevideo.com" (regional)
+   DRMKeyScheme  string   // Optional: "DualKey", "SingleKey", or leave empty to omit
+   HDCPLevel     string   // e.g. "1.4", "2.2", "2.3"
+   MaxResolution string   // e.g. "480p", "720p", "1080p", "1440p", "2160p"
+   HDRFormats    []string // e.g. "None", "HDR10", "DolbyVision"
    AuthBearer    string   // Required for authorization
 }
 
-var (
-   // WidevineL3Profile requests standard 1080p H264 content.
-   WidevineL3Profile = DeviceProfile{
-      DRMType:       "Widevine",
-      DRMKeyScheme:  "DualKey",
-      HDCPLevel:     "1.4",
-      MaxResolution: "1080p",
-      Codecs:        []string{"H264"},
-      HDRFormats:    []string{"None"},
-      APIHost:       "atv-ps.primevideo.com",
-   }
-
-   // PlayReadySL2000Profile requests standard 1080p H264 content via PlayReady.
-   PlayReadySL2000Profile = DeviceProfile{
-      DRMType:       "PlayReady",
-      DRMKeyScheme:  "SingleKey",
-      HDCPLevel:     "1.4",
-      MaxResolution: "1080p",
-      Codecs:        []string{"H264"},
-      HDRFormats:    []string{"None"},
-      APIHost:       "atv-ps.primevideo.com",
-   }
-
-   // PlayReadySL3000Profile requests 4K HDR/DV H265 content via PlayReady.
-   PlayReadySL3000Profile = DeviceProfile{
-      DRMType:       "PlayReady",
-      DRMKeyScheme:  "SingleKey",
-      HDCPLevel:     "2.3",
-      MaxResolution: "2160p",
-      Codecs:        []string{"H265"},
-      HDRFormats:    []string{"HDR10", "DolbyVision"},
-      APIHost:       "atv-ps.primevideo.com",
-   }
-)
-
-// ManifestResponse defines the structure to extract the MPD URL and handoff token.
+// ManifestResponse defines the structure to extract the MPD URL.
 type ManifestResponse struct {
-   Sessionization struct {
-      SessionHandoffToken string `json:"sessionHandoffToken"`
-   } `json:"sessionization"`
    VodPlaylistedPlaybackUrls struct {
       Result struct {
          PlaybackUrls struct {
@@ -101,11 +63,11 @@ func NewClient(httpClient *http.Client) *Client {
 
 // GetManifest requests the Playback Resources.
 // It forces a SegmentBase MPD (~5MB instead of ~30MB) by manipulating the payload.
-// Returns the MPD URL, Session Handoff Token, and any error encountered.
-func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope string) (string, string, error) {
+// Returns the MPD URL and any error encountered.
+func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope string) (string, error) {
    u := url.URL{
       Scheme: "https",
-      Host:   p.APIHost,
+      Host:   defaultAPIHost,
       Path:   "/playback/prs/GetVodPlaybackResources",
    }
    q := u.Query()
@@ -116,6 +78,38 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    q.Set("uxLocale", "en_US")
    q.Set("firmware", "1")
    u.RawQuery = q.Encode()
+
+   dashSettings := map[string]any{
+      "bitrateAdaptations":  []string{"CBR", "CVBR"},
+      "codecs":              []string{"H265"}, // Hardcoded per requirements
+      "drmType":             p.DRMType,
+      "dynamicRangeFormats": p.HDRFormats,
+      // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange
+      "fragmentRepresentations": []string{"ByteOffsetRange"},
+      "segmentInfoType":         "Base",
+      "stitchType":              "MultiPeriod",
+   }
+
+   // Only append drmKeyScheme if it is explicitly provided
+   if p.DRMKeyScheme != "" {
+      dashSettings["drmKeyScheme"] = p.DRMKeyScheme
+   }
+
+   var width, height int
+   switch p.MaxResolution {
+   case "2160p":
+      width, height = 3840, 2160
+   case "1440p":
+      width, height = 2560, 1440
+   case "1080p":
+      width, height = 1920, 1080
+   case "720p":
+      width, height = 1280, 720
+   case "480p":
+      width, height = 854, 480
+   default:
+      width, height = 1920, 1080
+   }
 
    // Build the payload optimizing for SegmentBase
    payload := map[string]any{
@@ -129,32 +123,22 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
             "maxVideoResolution":             p.MaxResolution,
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]any{
-               "DASH": map[string]any{
-                  "bitrateAdaptations":  []string{"CBR", "CVBR"},
-                  "codecs":              p.Codecs,
-                  "drmKeyScheme":        p.DRMKeyScheme,
-                  "drmType":             p.DRMType,
-                  "dynamicRangeFormats": p.HDRFormats,
-                  // IMPORTANT: Forces the smaller SegmentBase MPD format
-                  "fragmentRepresentations": []string{"ByteOffsetRange", "SeparateFile"},
-                  "segmentInfoType":         "Base",
-                  "stitchType":              "MultiPeriod",
-               },
+               "DASH": dashSettings,
             },
-            "displayWidth":  3840,
-            "displayHeight": 2160,
+            "displayWidth":  width,
+            "displayHeight": height,
          },
       },
    }
 
    bodyBytes, err := json.Marshal(payload)
    if err != nil {
-      return "", "", err
+      return "", err
    }
 
    req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(bodyBytes))
    if err != nil {
-      return "", "", err
+      return "", err
    }
 
    req.Header.Set("Content-Type", "application/json")
@@ -164,21 +148,20 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
 
    resp, err := c.HTTPClient.Do(req)
    if err != nil {
-      return "", "", err
+      return "", err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
       body, _ := io.ReadAll(resp.Body)
-      return "", "", fmt.Errorf("bad status %d: %s", resp.StatusCode, string(body))
+      return "", fmt.Errorf("bad status %d: %s", resp.StatusCode, string(body))
    }
 
    var result ManifestResponse
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return "", "", err
+      return "", err
    }
 
-   handoffToken := result.Sessionization.SessionHandoffToken
    var mpdURL string
 
    playlists := result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist
@@ -186,16 +169,16 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
       mpdURL = playlists[0].Urls[0].URL
    }
 
-   if mpdURL == "" || handoffToken == "" {
-      return "", "", fmt.Errorf("failed to extract MPD or Handoff Token from response")
+   if mpdURL == "" {
+      return "", fmt.Errorf("failed to extract MPD from response")
    }
 
-   return mpdURL, handoffToken, nil
+   return mpdURL, nil
 }
 
 // GetLicense submits the CDM challenge and retrieves the base64 encoded license.
 // `challenge` expects raw bytes for Widevine or raw XML/SOAP bytes for PlayReady.
-func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, handoffToken string, challenge []byte) (string, error) {
+func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope string, challenge []byte) (string, error) {
    endpoint := "/playback/drm-vod/GetWidevineLicense"
    if p.DRMType == "PlayReady" {
       endpoint = "/playback/drm-vod/GetPlayReadyLicense"
@@ -203,7 +186,7 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
 
    u := url.URL{
       Scheme: "https",
-      Host:   p.APIHost,
+      Host:   defaultAPIHost,
       Path:   endpoint,
    }
    q := u.Query()
@@ -214,9 +197,8 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
    u.RawQuery = q.Encode()
 
    payload := map[string]any{
-      "playbackEnvelope":    envelope,
-      "sessionHandoffToken": handoffToken,
-      "licenseChallenge":    base64.StdEncoding.EncodeToString(challenge),
+      "playbackEnvelope": envelope,
+      "licenseChallenge": base64.StdEncoding.EncodeToString(challenge),
    }
 
    if p.DRMType == "Widevine" {
