@@ -8,6 +8,7 @@ import (
    "net/http"
    "os"
    "path/filepath"
+   "strings"
    "testing"
 
    "41.neocities.org/diana/playReady"
@@ -46,174 +47,197 @@ func TestAmazonFlow(t *testing.T) {
    // -------------------------------------------------------------------------
    // Setup: Provide actual extracted values to run the live tests
    // -------------------------------------------------------------------------
-   deviceID := ""      // e.g. "uuidb43bee409bd448cfb5ba3337bd241645"
-   authBearer := ""    // e.g. "Atna|EwMDICIPxLGAmnVlZgnFhnKMSRVvjHua..."
-   titleID := ""       // e.g. "amzn1.dv.gti.af991753-e4cf-4d28-880d-dfca3d1e8d24"
-   marketplaceID := "" // e.g. "ATVPDKIKX0DER"
-   playbackEnv := ""   // e.g. "MDJ8Cm0KBHBlbnYSJGI1YWQ0MjdhLTIyY2MtN..."
+   deviceID := "uuidcbb2f9705f13437e9e515622dce02106"
+   titleID := "amzn1.dv.gti.930793f1-4a5c-4998-b335-7150770e5fe0"
+   marketplaceID := "ATVPDKIKX0DER"
+   playbackEnvBytes, err := os.ReadFile("playback_env.txt")
+   if err != nil {
+      t.Fatalf("Failed to read playback_env.txt: %v", err)
+   }
+   playbackEnv := strings.TrimSpace(string(playbackEnvBytes))
 
-   if authBearer == "" || titleID == "" {
+   authBearerBytes, err := os.ReadFile("auth_bearer.txt")
+   if err != nil {
+      t.Fatalf("Failed to read auth_bearer.txt: %v", err)
+   }
+   authBearer := strings.TrimSpace(string(authBearerBytes))
+
+   if authBearer == "" || titleID == "" || playbackEnv == "" {
       t.Fatal("Missing credentials or title info")
    }
 
    client := NewClient(&http.Client{})
 
-   // Define the 3 devices you want to test
-   tests := []struct {
+   // Base devices we are testing
+   devices := []struct {
       Name    string
       KeyDir  string
-      Profile DeviceProfile
+      DRMType string
    }{
       {
-         Name:   "Widevine L3",
-         KeyDir: `C:\Users\Steven\AppData\Local\L3`,
-         Profile: DeviceProfile{
-            DeviceID:      deviceID,
-            AuthBearer:    authBearer,
-            DRMType:       "Widevine",
-            HDCPLevel:     "1.4",
-            MaxResolution: "1080p",
-            HDRFormats:    []string{"None"},
-         },
+         Name:    "Widevine L3",
+         KeyDir:  `C:\Users\Steven\AppData\Local\L3`,
+         DRMType: "Widevine",
       },
       {
-         Name:   "PlayReady SL2000",
-         KeyDir: `C:\Users\Steven\AppData\Local\SL2000`,
-         Profile: DeviceProfile{
-            DeviceID:      deviceID,
-            AuthBearer:    authBearer,
-            DRMType:       "PlayReady",
-            HDCPLevel:     "1.4",
-            MaxResolution: "1080p",
-            HDRFormats:    []string{"None"},
-         },
+         Name:    "PlayReady SL2000",
+         KeyDir:  `C:\Users\Steven\AppData\Local\SL2000`,
+         DRMType: "PlayReady",
       },
       {
-         Name:   "PlayReady SL3000",
-         KeyDir: `C:\Users\Steven\AppData\Local\SL3000`,
-         Profile: DeviceProfile{
-            DeviceID:      deviceID,
-            AuthBearer:    authBearer,
-            DRMType:       "PlayReady",
-            HDCPLevel:     "2.3",
-            MaxResolution: "2160p",
-            HDRFormats:    []string{"HDR10", "DolbyVision"},
-         },
+         Name:    "PlayReady SL3000",
+         KeyDir:  `C:\Users\Steven\AppData\Local\SL3000`,
+         DRMType: "PlayReady",
       },
    }
 
-   for _, tc := range tests {
-      t.Run(tc.Name, func(t *testing.T) {
-         fmt.Printf("\n--- Testing %s ---\n", tc.Name)
+   // Combinations to iterate over to discover what the server actually accepts
+   keySchemes := []string{"", "SingleKey", "DualKey"}
+   hdcpLevels := []string{"1.4", "2.2", "2.3"}
+   resolutions := []string{"480p", "720p", "1080p", "1440p", "2160p"}
+   hdrFormats := [][]string{
+      {"None"},
+      {"HDR10"},
+      {"DolbyVision"},
+      {"HDR10", "DolbyVision"},
+   }
 
-         // 1. Get the MPD (Optimized for best quality available per profile)
-         mpdURL, err := client.GetManifest(tc.Profile, titleID, marketplaceID, playbackEnv)
-         if err != nil {
-            t.Fatalf("Failed to get manifest: %v", err)
-         }
-         fmt.Printf("MPD URL: %s\n", mpdURL)
+   for _, dev := range devices {
+      fmt.Printf("\n=======================================================\n")
+      fmt.Printf("Testing Device: %s\n", dev.Name)
+      fmt.Printf("=======================================================\n")
 
-         // 2. Download the MPD
-         resp, err := http.Get(mpdURL)
-         if err != nil {
-            t.Fatalf("Failed to download MPD: %v", err)
-         }
-         defer resp.Body.Close()
+      for _, scheme := range keySchemes {
+         for _, hdcp := range hdcpLevels {
+            for _, res := range resolutions {
+               for _, hdr := range hdrFormats {
 
-         mpdData, err := io.ReadAll(resp.Body)
-         if err != nil {
-            t.Fatalf("Failed to read MPD: %v", err)
-         }
+                  comboName := fmt.Errorf("Scheme:%s HDCP:%s Res:%s HDR:%v", scheme, hdcp, res, hdr)
 
-         // 3. Parse the MPD to find the lowest quality video representation
-         var manifest mpdXML
-         if err := xml.Unmarshal(mpdData, &manifest); err != nil {
-            t.Fatalf("Failed to parse MPD XML: %v", err)
-         }
+                  profile := DeviceProfile{
+                     DeviceID:      deviceID,
+                     AuthBearer:    authBearer,
+                     DRMType:       dev.DRMType,
+                     DRMKeyScheme:  scheme,
+                     HDCPLevel:     hdcp,
+                     MaxResolution: res,
+                     HDRFormats:    hdr,
+                  }
 
-         var lowestRep *representationXML
-         var activeAdp *adaptationSetXML
+                  // 1. Get Manifest
+                  mpdURL, err := client.GetManifest(profile, titleID, marketplaceID, playbackEnv)
+                  if err != nil {
+                     fmt.Printf("[FAIL Manifest] %s -> %v\n", comboName, err)
+                     continue
+                  }
 
-         for _, period := range manifest.Periods {
-            for _, adp := range period.AdaptationSets {
-               if adp.ContentType == "video" || adp.MimeType == "video/mp4" {
-                  for _, rep := range adp.Representations {
-                     repCopy := rep // Capture loop variable
-                     if lowestRep == nil || repCopy.Bandwidth < lowestRep.Bandwidth {
-                        lowestRep = &repCopy
-                        activeAdp = &adp // Keep track of parent in case DRM is at AdaptationSet level
+                  // 2. Download MPD
+                  resp, err := http.Get(mpdURL)
+                  if err != nil {
+                     fmt.Printf("[FAIL Download] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  mpdData, err := io.ReadAll(resp.Body)
+                  resp.Body.Close()
+                  if err != nil {
+                     fmt.Printf("[FAIL Read MPD] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  // 3. Parse MPD
+                  var manifest mpdXML
+                  if err := xml.Unmarshal(mpdData, &manifest); err != nil {
+                     fmt.Printf("[FAIL Parse MPD] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  var lowestRep *representationXML
+                  var activeAdp *adaptationSetXML
+
+                  for _, period := range manifest.Periods {
+                     for _, adp := range period.AdaptationSets {
+                        if adp.ContentType == "video" || adp.MimeType == "video/mp4" {
+                           for _, rep := range adp.Representations {
+                              repCopy := rep
+                              if lowestRep == nil || repCopy.Bandwidth < lowestRep.Bandwidth {
+                                 lowestRep = &repCopy
+                                 activeAdp = &adp
+                              }
+                           }
+                        }
                      }
                   }
+
+                  if lowestRep == nil {
+                     fmt.Printf("[FAIL No Video] %s -> No video representations found\n", comboName)
+                     continue
+                  }
+
+                  // 4. Extract PSSH / Init Data
+                  var initDataB64 string
+                  prots := lowestRep.ContentProtections
+                  if len(prots) == 0 && activeAdp != nil {
+                     prots = activeAdp.ContentProtections
+                  }
+
+                  for _, cp := range prots {
+                     if dev.DRMType == "Widevine" && cp.SchemeIdUri == "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed" {
+                        initDataB64 = cp.Pssh
+                        break
+                     }
+                     if dev.DRMType == "PlayReady" && cp.SchemeIdUri == "urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95" {
+                        if cp.Pro != "" {
+                           initDataB64 = cp.Pro
+                        } else {
+                           initDataB64 = cp.Pssh
+                        }
+                        break
+                     }
+                  }
+
+                  if initDataB64 == "" {
+                     fmt.Printf("[FAIL No InitData] %s -> Could not find %s init data\n", comboName, dev.DRMType)
+                     continue
+                  }
+
+                  initDataBytes, err := base64.StdEncoding.DecodeString(initDataB64)
+                  if err != nil {
+                     fmt.Printf("[FAIL Decode InitData] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  // 5. Generate CDM Challenge
+                  challengeBytes, err := generateCDMChallenge(dev.DRMType, dev.KeyDir, initDataBytes)
+                  if err != nil {
+                     fmt.Printf("[FAIL Challenge] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  // 6. Make License Request
+                  licenseB64, err := client.GetLicense(profile, playbackEnv, challengeBytes)
+                  if err != nil {
+                     fmt.Printf("[FAIL License] %s -> %v\n", comboName, err)
+                     continue
+                  }
+
+                  // If we get here, it worked!
+                  fmt.Printf("[SUCCESS] %s -> License length: %d\n", comboName, len(licenseB64))
                }
             }
          }
-
-         if lowestRep == nil {
-            t.Fatalf("No video representations found in MPD")
-         }
-         fmt.Printf("Selected lowest quality video: ID=%s, Bandwidth=%d\n", lowestRep.ID, lowestRep.Bandwidth)
-
-         // 4. Extract PSSH / Init Data
-         var initDataB64 string
-
-         // Check Representation level first, fallback to AdaptationSet level
-         prots := lowestRep.ContentProtections
-         if len(prots) == 0 && activeAdp != nil {
-            prots = activeAdp.ContentProtections
-         }
-
-         for _, cp := range prots {
-            if tc.Profile.DRMType == "Widevine" && cp.SchemeIdUri == "urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed" {
-               initDataB64 = cp.Pssh
-               break
-            }
-            if tc.Profile.DRMType == "PlayReady" && cp.SchemeIdUri == "urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95" {
-               // Amazon PlayReady MPDs usually carry the <mspr:pro> tag
-               if cp.Pro != "" {
-                  initDataB64 = cp.Pro
-               } else {
-                  initDataB64 = cp.Pssh
-               }
-               break
-            }
-         }
-
-         if initDataB64 == "" {
-            t.Fatalf("Could not find %s init data in the MPD", tc.Profile.DRMType)
-         }
-
-         initDataBytes, err := base64.StdEncoding.DecodeString(initDataB64)
-         if err != nil {
-            t.Fatalf("Failed to decode init data: %v", err)
-         }
-
-         // 5. Pass init data to local CDM to generate challenge
-         challengeBytes, err := generateCDMChallenge(tc.Profile.DRMType, tc.KeyDir, initDataBytes)
-         if err != nil {
-            t.Fatalf("Failed to generate CDM challenge: %v", err)
-         }
-
-         // 6. Make License Request
-         licenseB64, err := client.GetLicense(tc.Profile, playbackEnv, challengeBytes)
-         if err != nil {
-            t.Fatalf("Failed to get license: %v", err)
-         }
-
-         fmt.Printf("Successfully got %s license! Length: %d\n", tc.Profile.DRMType, len(licenseB64))
-      })
+      }
    }
 }
 
 // generateCDMChallenge generates the license challenge using the local diana DRM packages.
 func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byte, error) {
    if drmType == "Widevine" {
-      // 1. Decode PSSH
       pssh, err := widevine.DecodePsshData(initData)
       if err != nil {
          return nil, fmt.Errorf("failed to decode widevine pssh: %w", err)
       }
 
-      // 2. Load device credentials
       clientIDPath := filepath.Join(keyDir, "device_client_id_blob")
       clientID, err := os.ReadFile(clientIDPath)
       if err != nil {
@@ -231,13 +255,11 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
          return nil, fmt.Errorf("failed to decode private key: %w", err)
       }
 
-      // 3. Generate License Request
       reqData, err := pssh.EncodeLicenseRequest(clientID)
       if err != nil {
          return nil, fmt.Errorf("failed to encode license request: %w", err)
       }
 
-      // 4. Sign Request
       challenge, err := widevine.EncodeSignedMessage(reqData, privKey)
       if err != nil {
          return nil, fmt.Errorf("failed to sign message: %w", err)
@@ -246,14 +268,11 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
       return challenge, nil
 
    } else if drmType == "PlayReady" {
-      // 1. Parse PRO
-      // Assuming ParsePro takes the base64-decoded WRMHeader/PRO data
       wrm, err := playReady.ParsePro(initData)
       if err != nil {
          return nil, fmt.Errorf("failed to parse playready PRO: %w", err)
       }
 
-      // 2. Load device chain (bcert)
       bcertPath := filepath.Join(keyDir, "bdevcert.dat")
       chainBytes, err := os.ReadFile(bcertPath)
       if err != nil {
@@ -265,7 +284,6 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
          return nil, fmt.Errorf("failed to parse chain: %w", err)
       }
 
-      // 3. Load device signing key
       privKeyPath := filepath.Join(keyDir, "zprivsig.dat")
       privKeyBytes, err := os.ReadFile(privKeyPath)
       if err != nil {
@@ -277,20 +295,13 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
          return nil, fmt.Errorf("failed to parse private key: %w", err)
       }
 
-      // 4. Extract KID/ContentID from WRM Header
-      // NOTE: Depending on your specific xml.WrmHeader struct implementation,
-      // you might need to adjust the exact fields here to get the KID bytes.
-      // As a fallback to compile, we initialize an empty byte slice and string.
-      var kid []byte
+      kid := []byte(wrm.Data.Kid)
+
       var contentID string
+      if wrm.Data.CustomAttributes != nil {
+         contentID = wrm.Data.CustomAttributes.ContentId
+      }
 
-      // If wrm exposes KID (uncomment/adjust based on your package):
-      // kid = wrm.KID
-      // contentID = string(kid)
-
-      _ = wrm // To avoid unused variable error if fields are commented out
-
-      // 5. Generate License Request Bytes (SOAP XML)
       challenge, err := chain.LicenseRequestBytes(signingKey, kid, contentID)
       if err != nil {
          return nil, fmt.Errorf("failed to generate PR license request: %w", err)
