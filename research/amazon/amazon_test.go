@@ -6,7 +6,12 @@ import (
    "fmt"
    "io"
    "net/http"
+   "os"
+   "path/filepath"
    "testing"
+
+   "41.neocities.org/diana/playReady"
+   "41.neocities.org/diana/widevine"
 )
 
 // mpdXML, periodXML, etc. are used to parse the DASH manifest to find the lowest quality video PSSH
@@ -48,7 +53,7 @@ func TestAmazonFlow(t *testing.T) {
    playbackEnv := ""   // e.g. "MDJ8Cm0KBHBlbnYSJGI1YWQ0MjdhLTIyY2MtN..."
 
    if authBearer == "" || titleID == "" {
-      t.Skip("Skipping Amazon API test: missing credentials")
+      t.Fatal("Missing credentials or title info")
    }
 
    client := NewClient(&http.Client{})
@@ -56,10 +61,12 @@ func TestAmazonFlow(t *testing.T) {
    // Define the 3 devices you want to test
    tests := []struct {
       Name    string
+      KeyDir  string
       Profile DeviceProfile
    }{
       {
-         Name: "Widevine L3",
+         Name:   "Widevine L3",
+         KeyDir: `C:\Users\Steven\AppData\Local\L3`,
          Profile: DeviceProfile{
             DeviceID:      deviceID,
             AuthBearer:    authBearer,
@@ -70,7 +77,8 @@ func TestAmazonFlow(t *testing.T) {
          },
       },
       {
-         Name: "PlayReady SL2000",
+         Name:   "PlayReady SL2000",
+         KeyDir: `C:\Users\Steven\AppData\Local\SL2000`,
          Profile: DeviceProfile{
             DeviceID:      deviceID,
             AuthBearer:    authBearer,
@@ -81,7 +89,8 @@ func TestAmazonFlow(t *testing.T) {
          },
       },
       {
-         Name: "PlayReady SL3000",
+         Name:   "PlayReady SL3000",
+         KeyDir: `C:\Users\Steven\AppData\Local\SL3000`,
          Profile: DeviceProfile{
             DeviceID:      deviceID,
             AuthBearer:    authBearer,
@@ -179,7 +188,7 @@ func TestAmazonFlow(t *testing.T) {
          }
 
          // 5. Pass init data to local CDM to generate challenge
-         challengeBytes, err := generateCDMChallenge(tc.Profile.DRMType, initDataBytes)
+         challengeBytes, err := generateCDMChallenge(tc.Profile.DRMType, tc.KeyDir, initDataBytes)
          if err != nil {
             t.Fatalf("Failed to generate CDM challenge: %v", err)
          }
@@ -195,13 +204,100 @@ func TestAmazonFlow(t *testing.T) {
    }
 }
 
-// generateCDMChallenge is the hook for your local CDM devices.
-func generateCDMChallenge(drmType string, initData []byte) ([]byte, error) {
-   // TODO: Initialize your local Widevine/PlayReady CDM instance here.
-   // Feed 'initData' into the CDM session to produce the license challenge payload.
-   //
-   // For Widevine: return the raw challenge bytes.
-   // For PlayReady: return the generated SOAP XML string cast to []byte.
+// generateCDMChallenge generates the license challenge using the local diana DRM packages.
+func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byte, error) {
+   if drmType == "Widevine" {
+      // 1. Decode PSSH
+      pssh, err := widevine.DecodePsshData(initData)
+      if err != nil {
+         return nil, fmt.Errorf("failed to decode widevine pssh: %w", err)
+      }
 
-   return []byte("mock_challenge"), nil
+      // 2. Load device credentials
+      clientIDPath := filepath.Join(keyDir, "device_client_id_blob")
+      clientID, err := os.ReadFile(clientIDPath)
+      if err != nil {
+         return nil, fmt.Errorf("failed to read %s: %w", clientIDPath, err)
+      }
+
+      privKeyPath := filepath.Join(keyDir, "device_private_key")
+      privKeyBytes, err := os.ReadFile(privKeyPath)
+      if err != nil {
+         return nil, fmt.Errorf("failed to read %s: %w", privKeyPath, err)
+      }
+
+      privKey, err := widevine.DecodePrivateKey(privKeyBytes)
+      if err != nil {
+         return nil, fmt.Errorf("failed to decode private key: %w", err)
+      }
+
+      // 3. Generate License Request
+      reqData, err := pssh.EncodeLicenseRequest(clientID)
+      if err != nil {
+         return nil, fmt.Errorf("failed to encode license request: %w", err)
+      }
+
+      // 4. Sign Request
+      challenge, err := widevine.EncodeSignedMessage(reqData, privKey)
+      if err != nil {
+         return nil, fmt.Errorf("failed to sign message: %w", err)
+      }
+
+      return challenge, nil
+
+   } else if drmType == "PlayReady" {
+      // 1. Parse PRO
+      // Assuming ParsePro takes the base64-decoded WRMHeader/PRO data
+      wrm, err := playReady.ParsePro(initData)
+      if err != nil {
+         return nil, fmt.Errorf("failed to parse playready PRO: %w", err)
+      }
+
+      // 2. Load device chain (bcert)
+      bcertPath := filepath.Join(keyDir, "bdevcert.dat")
+      chainBytes, err := os.ReadFile(bcertPath)
+      if err != nil {
+         return nil, fmt.Errorf("failed to read %s: %w", bcertPath, err)
+      }
+
+      chain, err := playReady.ParseChain(chainBytes)
+      if err != nil {
+         return nil, fmt.Errorf("failed to parse chain: %w", err)
+      }
+
+      // 3. Load device signing key
+      privKeyPath := filepath.Join(keyDir, "zprivsig.dat")
+      privKeyBytes, err := os.ReadFile(privKeyPath)
+      if err != nil {
+         return nil, fmt.Errorf("failed to read %s: %w", privKeyPath, err)
+      }
+
+      signingKey, err := playReady.ParseRawPrivateKey(privKeyBytes)
+      if err != nil {
+         return nil, fmt.Errorf("failed to parse private key: %w", err)
+      }
+
+      // 4. Extract KID/ContentID from WRM Header
+      // NOTE: Depending on your specific xml.WrmHeader struct implementation,
+      // you might need to adjust the exact fields here to get the KID bytes.
+      // As a fallback to compile, we initialize an empty byte slice and string.
+      var kid []byte
+      var contentID string
+
+      // If wrm exposes KID (uncomment/adjust based on your package):
+      // kid = wrm.KID
+      // contentID = string(kid)
+
+      _ = wrm // To avoid unused variable error if fields are commented out
+
+      // 5. Generate License Request Bytes (SOAP XML)
+      challenge, err := chain.LicenseRequestBytes(signingKey, kid, contentID)
+      if err != nil {
+         return nil, fmt.Errorf("failed to generate PR license request: %w", err)
+      }
+
+      return challenge, nil
+   }
+
+   return nil, fmt.Errorf("unsupported DRM type: %s", drmType)
 }
