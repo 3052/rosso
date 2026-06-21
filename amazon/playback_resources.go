@@ -37,7 +37,13 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
                   },
                },
             },
+            
+            //FHD
+            //"hdcpLevel": "2.1", //IIA
+            
+            //UHD
             "hdcpLevel": "2.3", // at least 2.2 is needed for UHD with hev1
+            
             //"maxVideoResolution": "480p", // L3
             "maxVideoResolution": "2160p", // SL3000
          },

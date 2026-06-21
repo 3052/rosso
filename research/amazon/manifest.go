@@ -49,17 +49,13 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    dashSettings := map[string]any{
       "bitrateAdaptations":  []string{"CBR", "CVBR"},
       "codecs":              []string{"H265"}, // Hardcoded per requirements
+      "drmKeyScheme":        p.DRMKeyScheme,   // Always included as requested
       "drmType":             p.DRMType,
       "dynamicRangeFormats": p.HDRFormats,
       // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange
       "fragmentRepresentations": []string{"ByteOffsetRange"},
       "segmentInfoType":         "Base",
       "stitchType":              "MultiPeriod",
-   }
-
-   // Only append drmKeyScheme if it is explicitly provided
-   if p.DRMKeyScheme != "" {
-      dashSettings["drmKeyScheme"] = p.DRMKeyScheme
    }
 
    var width, height int
