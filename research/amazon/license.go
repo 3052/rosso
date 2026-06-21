@@ -22,7 +22,11 @@ type LicenseResponse struct {
 
 // GetLicense submits the CDM challenge and retrieves the base64 encoded license.
 // `challenge` expects raw bytes for Widevine or raw XML/SOAP bytes for PlayReady.
-func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope string, challenge []byte) (string, error) {
+func (c *Client) GetLicense(p DeviceProfile, envelope string, challenge []byte) (string, error) {
+   if p.AuthBearer == "" {
+      return "", fmt.Errorf("AuthBearer is required")
+   }
+
    endpoint := "/playback/drm-vod/GetWidevineLicense"
    if p.DRMType == "PlayReady" {
       endpoint = "/playback/drm-vod/GetPlayReadyLicense"
@@ -36,8 +40,6 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope st
    q := u.Query()
    q.Set("deviceID", p.DeviceID)
    q.Set("deviceTypeID", "A3NM0WFSU3DLT5") // Hardcoded per requirements
-   q.Set("marketplaceID", marketplaceID)
-   q.Set("titleId", titleID)
    u.RawQuery = q.Encode()
 
    payload := map[string]any{
@@ -56,9 +58,7 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope st
    }
 
    req.Header.Set("Content-Type", "application/json")
-   if p.AuthBearer != "" {
-      req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
-   }
+   req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
 
    resp, err := c.HTTPClient.Do(req)
    if err != nil {

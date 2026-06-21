@@ -28,6 +28,10 @@ type ManifestResponse struct {
 // It forces a SegmentBase MPD (~5MB instead of ~30MB) by manipulating the payload.
 // Returns the MPD URL and any error encountered.
 func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope string) (string, error) {
+   if p.AuthBearer == "" {
+      return "", fmt.Errorf("AuthBearer is required")
+   }
+
    u := url.URL{
       Scheme: "https",
       Host:   defaultAPIHost,
@@ -105,9 +109,7 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    }
 
    req.Header.Set("Content-Type", "application/json")
-   if p.AuthBearer != "" {
-      req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
-   }
+   req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
 
    resp, err := c.HTTPClient.Do(req)
    if err != nil {
