@@ -29,7 +29,7 @@ func (c *client) do_title_id() error {
       return fmt.Errorf("failed to get actor token: %v", err)
    }
    item_details, err := amazon.GetItemDetails(
-      actor_token.Token, string(c.TitleId),
+      actor_token.Token, string(c.title_id),
    )
    if err != nil {
       return fmt.Errorf("failed to get item details (playback envelope): %v", err)
@@ -40,7 +40,7 @@ func (c *client) do_title_id() error {
    }
    playback, err := amazon.GetVodPlaybackResources(
       actor_token.Token,
-      string(c.TitleId),
+      string(c.title_id),
       item_details.PlaybackEnvelope,
       video_codec,
       "PlayReady",
@@ -58,7 +58,7 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(actor_token, c, item_details, manifest)
+   return c.cache.Encode(actor_token, item_details, manifest)
 }
 
 func (c *client) do() error {
@@ -74,7 +74,7 @@ func (c *client) do() error {
       {Name: "complete-login", Value: &c.complete_login},
       {
          Name:  "title-id",
-         Value: &c.TitleId,
+         Value: &c.title_id,
          Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
       },
       {Name: "h265", Value: &c.h265, Needs: "title-id"},
@@ -90,7 +90,7 @@ func (c *client) do() error {
       return c.do_initiate_login()
    case bool(c.complete_login):
       return c.do_complete_login()
-   case flags.IsSet(&c.TitleId):
+   case c.title_id != "":
       return c.do_title_id()
    case c.dash_id != "":
       return c.do_dash_id()
@@ -112,7 +112,6 @@ func (c *client) do_dash_id() error {
    license := func(signedRequest []byte) ([]byte, error) {
       return amazon.GetPlayReadyLicense(
          actor_token.Token,
-         string(c.TitleId),
          item_details.PlaybackEnvelope,
          signedRequest,
       )
@@ -168,7 +167,7 @@ func (c *client) do_initiate_login() error {
 }
 
 type client struct {
-   TitleId        maya.FlagString
+   title_id        maya.FlagString
    complete_login maya.FlagBool
    dash_id        maya.FlagString
    initiate_login maya.FlagBool
