@@ -13,37 +13,30 @@ import (
 // DeviceProfile holds the specific capabilities and identities for a target device.
 type DeviceProfile struct {
    DeviceID      string
-   DeviceTypeID  string
-   Family        string   // "LivingRoomPlayer", "WebPlayer", or "AndroidPlayer"
    DRMType       string   // "Widevine" or "PlayReady"
    DRMKeyScheme  string   // "DualKey" or "SingleKey"
    HDCPLevel     string   // "1.4", "2.2", "2.3"
-   MaxResolution string   // "1080p", "2160p"
+   MaxResolution string   // "480p", "1080p", "2160p"
    Codecs        []string // "H264", "H265"
-   HDRFormats    []string // "None", "HDR10", "HDR10Plus", "DolbyVision"
-   APIHost       string   // e.g., "ab8mt4dd97et.na.api.amazonvideo.com" or "atv-ps.primevideo.com"
-   AuthBearer    string   // Required if using APIHost (LivingRoom/Android)
-   Cookies       string   // Required if using Web APIHost (WebPlayer)
+   HDRFormats    []string // "None", "HDR10", "DolbyVision"
+   APIHost       string   // e.g., "atv-ps.primevideo.com" (regional)
+   AuthBearer    string   // Required for authorization
 }
 
 var (
    // WidevineL3Profile requests standard 1080p H264 content.
    WidevineL3Profile = DeviceProfile{
-      DeviceTypeID:  "A2SNKIF736WF4T", // AndroidTV / LivingRoom
-      Family:        "LivingRoomPlayer",
       DRMType:       "Widevine",
       DRMKeyScheme:  "DualKey",
       HDCPLevel:     "1.4",
       MaxResolution: "1080p",
       Codecs:        []string{"H264"},
       HDRFormats:    []string{"None"},
-      APIHost:       "ab8mt4dd97et.na.api.amazonvideo.com",
+      APIHost:       "atv-ps.primevideo.com",
    }
 
    // PlayReadySL2000Profile requests standard 1080p H264 content via PlayReady.
    PlayReadySL2000Profile = DeviceProfile{
-      DeviceTypeID:  "AOAGZA014O5RE", // Edge / Web
-      Family:        "WebPlayer",
       DRMType:       "PlayReady",
       DRMKeyScheme:  "SingleKey",
       HDCPLevel:     "1.4",
@@ -55,17 +48,43 @@ var (
 
    // PlayReadySL3000Profile requests 4K HDR/DV H265 content via PlayReady.
    PlayReadySL3000Profile = DeviceProfile{
-      DeviceTypeID:  "A2SNKIF736WF4T", // AndroidTV / LivingRoom
-      Family:        "LivingRoomPlayer",
       DRMType:       "PlayReady",
       DRMKeyScheme:  "SingleKey",
       HDCPLevel:     "2.3",
       MaxResolution: "2160p",
       Codecs:        []string{"H265"},
-      HDRFormats:    []string{"HDR10", "HDR10Plus", "DolbyVision"},
-      APIHost:       "ab8mt4dd97et.na.api.amazonvideo.com",
+      HDRFormats:    []string{"HDR10", "DolbyVision"},
+      APIHost:       "atv-ps.primevideo.com",
    }
 )
+
+// ManifestResponse defines the structure to extract the MPD URL and handoff token.
+type ManifestResponse struct {
+   Sessionization struct {
+      SessionHandoffToken string `json:"sessionHandoffToken"`
+   } `json:"sessionization"`
+   VodPlaylistedPlaybackUrls struct {
+      Result struct {
+         PlaybackUrls struct {
+            IntraTitlePlaylist []struct {
+               Urls []struct {
+                  URL string `json:"url"`
+               } `json:"urls"`
+            } `json:"intraTitlePlaylist"`
+         } `json:"playbackUrls"`
+      } `json:"result"`
+   } `json:"vodPlaylistedPlaybackUrls"`
+}
+
+// LicenseResponse defines the structure to extract the base64 license.
+type LicenseResponse struct {
+   WidevineLicense struct {
+      License string `json:"license"`
+   } `json:"widevineLicense"`
+   PlayReadyLicense struct {
+      License string `json:"license"`
+   } `json:"playReadyLicense"`
+}
 
 // Client handles the communication with Amazon APIs.
 type Client struct {
@@ -83,7 +102,7 @@ func NewClient(httpClient *http.Client) *Client {
 // GetManifest requests the Playback Resources.
 // It forces a SegmentBase MPD (~5MB instead of ~30MB) by manipulating the payload.
 // Returns the MPD URL, Session Handoff Token, and any error encountered.
-func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope string) (mpdURL string, handoffToken string, err error) {
+func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope string) (string, string, error) {
    u := url.URL{
       Scheme: "https",
       Host:   p.APIHost,
@@ -91,7 +110,7 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    }
    q := u.Query()
    q.Set("deviceID", p.DeviceID)
-   q.Set("deviceTypeID", p.DeviceTypeID)
+   q.Set("deviceTypeID", "A3NM0WFSU3DLT5") // Hardcoded per requirements
    q.Set("marketplaceID", marketplaceID)
    q.Set("titleId", titleID)
    q.Set("uxLocale", "en_US")
@@ -101,7 +120,7 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    // Build the payload optimizing for SegmentBase
    payload := map[string]any{
       "globalParameters": map[string]any{
-         "deviceCapabilityFamily": p.Family,
+         "deviceCapabilityFamily": "LivingRoomPlayer", // Hardcoded per requirements
          "playbackEnvelope":       envelope,
       },
       "vodPlaylistedPlaybackUrlsRequest": map[string]any{
@@ -128,7 +147,11 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
       },
    }
 
-   bodyBytes, _ := json.Marshal(payload)
+   bodyBytes, err := json.Marshal(payload)
+   if err != nil {
+      return "", "", err
+   }
+
    req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(bodyBytes))
    if err != nil {
       return "", "", err
@@ -137,9 +160,6 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    req.Header.Set("Content-Type", "application/json")
    if p.AuthBearer != "" {
       req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
-   }
-   if p.Cookies != "" {
-      req.Header.Set("Cookie", p.Cookies)
    }
 
    resp, err := c.HTTPClient.Do(req)
@@ -153,30 +173,17 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
       return "", "", fmt.Errorf("bad status %d: %s", resp.StatusCode, string(body))
    }
 
-   var result map[string]any
+   var result ManifestResponse
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return "", "", err
    }
 
-   if sess, ok := result["sessionization"].(map[string]any); ok {
-      handoffToken, _ = sess["sessionHandoffToken"].(string)
-   }
+   handoffToken := result.Sessionization.SessionHandoffToken
+   var mpdURL string
 
-   // Deep navigate to find MPD URL
-   if vppu, ok := result["vodPlaylistedPlaybackUrls"].(map[string]any); ok {
-      if res, ok := vppu["result"].(map[string]any); ok {
-         if pu, ok := res["playbackUrls"].(map[string]any); ok {
-            if itp, ok := pu["intraTitlePlaylist"].([]any); ok && len(itp) > 0 {
-               if firstPlaylist, ok := itp[0].(map[string]any); ok {
-                  if urls, ok := firstPlaylist["urls"].([]any); ok && len(urls) > 0 {
-                     if firstURL, ok := urls[0].(map[string]any); ok {
-                        mpdURL, _ = firstURL["url"].(string)
-                     }
-                  }
-               }
-            }
-         }
-      }
+   playlists := result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist
+   if len(playlists) > 0 && len(playlists[0].Urls) > 0 {
+      mpdURL = playlists[0].Urls[0].URL
    }
 
    if mpdURL == "" || handoffToken == "" {
@@ -201,7 +208,7 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
    }
    q := u.Query()
    q.Set("deviceID", p.DeviceID)
-   q.Set("deviceTypeID", p.DeviceTypeID)
+   q.Set("deviceTypeID", "A3NM0WFSU3DLT5") // Hardcoded per requirements
    q.Set("marketplaceID", marketplaceID)
    q.Set("titleId", titleID)
    u.RawQuery = q.Encode()
@@ -218,7 +225,11 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
       payload["packagingFormat"] = "MPEG_DASH"
    }
 
-   bodyBytes, _ := json.Marshal(payload)
+   bodyBytes, err := json.Marshal(payload)
+   if err != nil {
+      return "", err
+   }
+
    req, err := http.NewRequest("POST", u.String(), bytes.NewBuffer(bodyBytes))
    if err != nil {
       return "", err
@@ -227,9 +238,6 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
    req.Header.Set("Content-Type", "application/json")
    if p.AuthBearer != "" {
       req.Header.Set("Authorization", "Bearer "+p.AuthBearer)
-   }
-   if p.Cookies != "" {
-      req.Header.Set("Cookie", p.Cookies)
    }
 
    resp, err := c.HTTPClient.Do(req)
@@ -243,20 +251,14 @@ func (c *Client) GetLicense(p DeviceProfile, titleID, marketplaceID, envelope, h
       return "", fmt.Errorf("bad status %d: %s", resp.StatusCode, string(body))
    }
 
-   var result map[string]any
+   var result LicenseResponse
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return "", err
    }
 
-   var license string
-   if p.DRMType == "Widevine" {
-      if wl, ok := result["widevineLicense"].(map[string]any); ok {
-         license, _ = wl["license"].(string)
-      }
-   } else {
-      if pl, ok := result["playReadyLicense"].(map[string]any); ok {
-         license, _ = pl["license"].(string)
-      }
+   license := result.WidevineLicense.License
+   if p.DRMType == "PlayReady" {
+      license = result.PlayReadyLicense.License
    }
 
    if license == "" {
