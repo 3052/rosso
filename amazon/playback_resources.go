@@ -9,12 +9,23 @@ import (
    "strings"
 )
 
-// GetVodPlaybackResources fetches the final MPD URL for playback.
+// PlaybackUrls is the parent holding the intra-title playlists.
+type PlaybackUrls struct {
+   IntraTitlePlaylist []struct {
+      Type string `json:"type"`
+      Urls []struct {
+         Url string `json:"url"`
+         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
+      } `json:"urls"`
+   } `json:"intraTitlePlaylist"`
+}
+
+// GetVodPlaybackResources fetches the final MPD resources for playback.
 // Pass "H264" or "H265" as the videoCodec.
 // Pass "Widevine" or "PlayReady" as the drmType.
 // Pass "CBR" or "CVBR" as the bitrateAdaptation.
 // Pass "None", "DolbyVision", or "HDR10" as the dynamicRangeFormat.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation, dynamicRangeFormat string) (*PlaybackResource, error) {
+func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation, dynamicRangeFormat string) (*PlaybackUrls, error) {
    payload := map[string]any{
       "globalParameters": map[string]any{
          "playbackEnvelope":       playbackEnvelope,
@@ -29,23 +40,16 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
                      bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
                   },
                   "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
-                  "dynamicRangeFormats": []string{
-                     dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
-                  },
                   "codecs": []string{
                      videoCodec, // dynamically set (e.g. "H264" or "H265")
                   },
+                  "dynamicRangeFormats": []string{
+                     dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
+                  },
                },
             },
-            
-            //FHD
-            //"hdcpLevel": "2.1", //IIA
-            
-            //UHD
-            "hdcpLevel": "2.3", // at least 2.2 is needed for UHD with hev1
-            
-            //"maxVideoResolution": "480p", // L3
-            "maxVideoResolution": "2160p", // SL3000
+            "hdcpLevel":          "2.3", // at least 2.2 is needed for UHD with hev1
+            "maxVideoResolution": "2160p",
          },
          "playbackSettingsRequest": map[string]any{
             "firmware": DeviceFirmware,
@@ -67,6 +71,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
+
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -85,12 +90,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
       } `json:"globalError"`
       VodPlaylistedPlaybackUrls struct {
          Result struct {
-            PlaybackUrls struct {
-               IntraTitlePlaylist []struct {
-                  Type string             `json:"type"`
-                  Urls []PlaybackResource `json:"urls"`
-               } `json:"intraTitlePlaylist"`
-            } `json:"playbackUrls"`
+            PlaybackUrls PlaybackUrls `json:"playbackUrls"`
          } `json:"result"`
          Error struct {
             Message string `json:"message"`
@@ -110,30 +110,41 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
       return nil, fmt.Errorf("API error: %s", result.VodPlaylistedPlaybackUrls.Error.Message)
    }
 
-   for _, playlist := range result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist {
-      if playlist.Type == "Main" && len(playlist.Urls) > 0 {
-         res := playlist.Urls[0]
-         return &res, nil
+   // Return the parent struct holding the playlists
+   return &result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls, nil
+}
+
+// Clean extracts the Akamai MPD URL from the main playlist and sanitizes its path.
+// Returns an error if the Main playlist or Akamai CDN is not found.
+func (p *PlaybackUrls) Clean() (*url.URL, error) {
+   for _, playlist := range p.IntraTitlePlaylist {
+      if playlist.Type == "Main" {
+         if len(playlist.Urls) == 0 {
+            return nil, fmt.Errorf("no urls found in main playlist")
+         }
+
+         // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
+         for _, u := range playlist.Urls {
+            if u.Cdn == "akamai" {
+               return trimURLPath(u.Url)
+            }
+         }
+
+         return nil, fmt.Errorf("akamai cdn not found in main playlist")
       }
    }
 
-   return nil, fmt.Errorf("mpd url not found in response")
+   return nil, fmt.Errorf("main playlist not found in response")
 }
 
-func (*PlaybackResource) CachePath() string {
-   return "rosso/amazon/PlaybackResource"
-}
-
-type PlaybackResource struct {
-   Url string
-}
-
-func (p *PlaybackResource) Clean() (*url.URL, error) {
-   parsedURL, err := url.Parse(p.Url)
+func trimURLPath(rawUrl string) (*url.URL, error) {
+   parsedURL, err := url.Parse(rawUrl)
    if err != nil {
       return nil, err
    }
+
    parts := strings.Split(parsedURL.Path, "/")
+
    // Handle "/dm/3$..." structure
    if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
       // parts[0] = ""
@@ -150,5 +161,6 @@ func (p *PlaybackResource) Clean() (*url.URL, error) {
       // parts[3:] = raw path
       parsedURL.Path = "/" + strings.Join(parts[3:], "/")
    }
+
    return parsedURL, nil
 }

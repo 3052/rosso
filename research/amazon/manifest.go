@@ -17,6 +17,7 @@ type ManifestResponse struct {
             IntraTitlePlaylist []struct {
                Urls []struct {
                   URL string `json:"url"`
+                  CDN string `json:"cdn"` // Used to explicitly require Akamai
                } `json:"urls"`
             } `json:"intraTitlePlaylist"`
          } `json:"playbackUrls"`
@@ -47,31 +48,15 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    u.RawQuery = q.Encode()
 
    dashSettings := map[string]any{
-      "bitrateAdaptations":  []string{"CBR", "CVBR"},
+      "bitrateAdaptations":  []string{"CVBR"}, // Changed to CVBR only
       "codecs":              []string{"H265"}, // Hardcoded per requirements
       "drmKeyScheme":        p.DRMKeyScheme,   // Always included as requested
       "drmType":             p.DRMType,
-      "dynamicRangeFormats": p.HDRFormats,
+      "dynamicRangeFormats": []string{p.HDRFormats}, // Wrap the single string into a slice
       // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange
       "fragmentRepresentations": []string{"ByteOffsetRange"},
       "segmentInfoType":         "Base",
       "stitchType":              "MultiPeriod",
-   }
-
-   var width, height int
-   switch p.MaxResolution {
-   case "2160p":
-      width, height = 3840, 2160
-   case "1440p":
-      width, height = 2560, 1440
-   case "1080p":
-      width, height = 1920, 1080
-   case "720p":
-      width, height = 1280, 720
-   case "480p":
-      width, height = 854, 480
-   default:
-      width, height = 1920, 1080
    }
 
    // Build the payload optimizing for SegmentBase
@@ -88,8 +73,8 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
             "streamingTechnologies": map[string]any{
                "DASH": dashSettings,
             },
-            "displayWidth":  width,
-            "displayHeight": height,
+            "displayWidth":  3840,
+            "displayHeight": 2160,
          },
       },
    }
@@ -126,12 +111,18 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    var mpdURL string
 
    playlists := result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls.IntraTitlePlaylist
-   if len(playlists) > 0 && len(playlists[0].Urls) > 0 {
-      mpdURL = playlists[0].Urls[0].URL
+   if len(playlists) > 0 {
+      // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
+      for _, u := range playlists[0].Urls {
+         if u.CDN == "akamai" {
+            mpdURL = u.URL
+            break
+         }
+      }
    }
 
    if mpdURL == "" {
-      return "", fmt.Errorf("failed to extract MPD from response")
+      return "", fmt.Errorf("failed to extract Akamai MPD from response (it may be missing or Cloudfront only)")
    }
 
    return mpdURL, nil

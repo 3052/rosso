@@ -10,32 +10,13 @@ import (
    "41.neocities.org/diana/widevine"
 )
 
-// mpdXML, periodXML, etc. are used to parse the DASH manifest to find the lowest quality video PSSH
-type mpdXML struct {
-   Periods []periodXML `xml:"Period"`
-}
-
-type periodXML struct {
-   AdaptationSets []adaptationSetXML `xml:"AdaptationSet"`
-}
-
-type adaptationSetXML struct {
-   ContentType        string              `xml:"contentType,attr"`
-   MimeType           string              `xml:"mimeType,attr"`
-   ContentProtections []contentProtXML    `xml:"ContentProtection"`
-   Representations    []representationXML `xml:"Representation"`
-}
-
-type representationXML struct {
-   ID                 string           `xml:"id,attr"`
-   Bandwidth          int              `xml:"bandwidth,attr"`
-   ContentProtections []contentProtXML `xml:"ContentProtection"`
-}
-
-type contentProtXML struct {
-   SchemeIdUri string `xml:"schemeIdUri,attr"`
-   Pssh        string `xml:"pssh"` // Widevine urn:mpeg:cenc:2013
-   Pro         string `xml:"pro"`  // PlayReady urn:microsoft:playready
+func TestPlayReadySL3000(t *testing.T) {
+   runDeviceCombinations(
+      t,
+      "PlayReady SL3000",
+      `C:\Users\Steven\AppData\Local\SL3000`,
+      "PlayReady",
+   )
 }
 
 func TestWidevineL3(t *testing.T) {
@@ -52,15 +33,6 @@ func TestPlayReadySL2000(t *testing.T) {
       t,
       "PlayReady SL2000",
       `C:\Users\Steven\AppData\Local\SL2000`,
-      "PlayReady",
-   )
-}
-
-func TestPlayReadySL3000(t *testing.T) {
-   runDeviceCombinations(
-      t,
-      "PlayReady SL3000",
-      `C:\Users\Steven\AppData\Local\SL3000`,
       "PlayReady",
    )
 }
@@ -146,4 +118,32 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
    }
 
    return nil, fmt.Errorf("unsupported DRM type: %s", drmType)
+}
+
+// mpdXML, periodXML, etc. are used to parse the DASH manifest to find the lowest quality video PSSH
+type mpdXML struct {
+   Periods []periodXML `xml:"Period"`
+}
+
+type periodXML struct {
+   AdaptationSets []adaptationSetXML `xml:"AdaptationSet"`
+}
+
+type adaptationSetXML struct {
+   ContentType        string              `xml:"contentType,attr"`
+   MimeType           string              `xml:"mimeType,attr"`
+   ContentProtections []contentProtXML    `xml:"ContentProtection"`
+   Representations    []representationXML `xml:"Representation"`
+}
+
+type representationXML struct {
+   ID                 string           `xml:"id,attr"`
+   Bandwidth          int              `xml:"bandwidth,attr"`
+   ContentProtections []contentProtXML `xml:"ContentProtection"`
+}
+
+type contentProtXML struct {
+   SchemeIdUri string `xml:"schemeIdUri,attr"`
+   Pssh        string `xml:"pssh"` // Widevine urn:mpeg:cenc:2013
+   Pro         string `xml:"pro"`  // PlayReady urn:microsoft:playready
 }

@@ -38,13 +38,8 @@ func runDeviceCombinations(t *testing.T, devName string, keyDir string, drmType 
 
    keySchemes := []string{"SingleKey", "DualKey"}
    hdcpLevels := []string{"2.1", "2.3"}
-   resolutions := []string{"480p", "720p", "1080p", "1440p", "2160p"}
-   hdrFormats := [][]string{
-      {"None"},
-      {"HDR10"},
-      {"DolbyVision"},
-      {"HDR10", "DolbyVision"},
-   }
+   resolutions := []string{"576p", "2160p"}
+   hdrFormats := []string{"None", "HDR10", "DolbyVision"}
 
    fmt.Printf("\n=======================================================\n")
    fmt.Printf("Testing Device: %s\n", devName)
@@ -55,7 +50,7 @@ func runDeviceCombinations(t *testing.T, devName string, keyDir string, drmType 
          for _, res := range resolutions {
             for _, hdr := range hdrFormats {
 
-               comboName := fmt.Sprintf("Scheme:%s HDCP:%s Res:%s HDR:%v", scheme, hdcp, res, hdr)
+               comboName := fmt.Sprintf("Scheme:%s HDCP:%s Res:%s HDR:%s", scheme, hdcp, res, hdr)
 
                // Add a 1 second delay before each combination
                time.Sleep(1 * time.Second)
