@@ -7,6 +7,7 @@ import (
    "io"
    "net/http"
    "net/url"
+   "strings"
 )
 
 // ManifestResponse defines the structure to extract the MPD URL.
@@ -40,7 +41,7 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    }
    q := u.Query()
    q.Set("deviceID", p.DeviceID)
-   q.Set("deviceTypeID", "A3NM0WFSU3DLT5") // Hardcoded per requirements
+   q.Set("deviceTypeID", defaultDeviceTypeID) // Centralized
    q.Set("marketplaceID", marketplaceID)
    q.Set("titleId", titleID)
    q.Set("uxLocale", "en_US")
@@ -113,7 +114,7 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    if len(playlists) > 0 {
       // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
       for _, u := range playlists[0].Urls {
-         if u.CDN == "akamai" {
+         if strings.ToLower(u.CDN) == "akamai" {
             mpdURL = u.URL
             break
          }
@@ -124,5 +125,39 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
       return "", fmt.Errorf("failed to extract Akamai MPD from response (it may be missing or Cloudfront only)")
    }
 
-   return mpdURL, nil
+   cleanedURL, err := trimURLPath(mpdURL)
+   if err != nil {
+      return "", fmt.Errorf("failed to trim MPD URL path: %w", err)
+   }
+
+   return cleanedURL.String(), nil
+}
+
+// trimURLPath removes Amazon's restrictive path segments from the MPD URL.
+func trimURLPath(rawUrl string) (*url.URL, error) {
+   parsedURL, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+
+   parts := strings.Split(parsedURL.Path, "/")
+
+   // Handle "/dm/3$..." structure
+   if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
+      // parts[0] = ""
+      // parts[1] = "dm"
+      // parts[2] = "3$..."
+      // parts[3] = "iad_2"
+      // parts[4:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[4:], "/")
+      // Handle "/3$..." structure
+   } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
+      // parts[0] = ""
+      // parts[1] = "3$..."
+      // parts[2] = "iad_2"
+      // parts[3:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[3:], "/")
+   }
+
+   return parsedURL, nil
 }

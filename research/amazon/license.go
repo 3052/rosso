@@ -39,7 +39,7 @@ func (c *Client) GetLicense(p DeviceProfile, envelope string, challenge []byte) 
    }
    q := u.Query()
    q.Set("deviceID", p.DeviceID)
-   q.Set("deviceTypeID", "A3NM0WFSU3DLT5") // Hardcoded per requirements
+   q.Set("deviceTypeID", defaultDeviceTypeID) // Centralized
    u.RawQuery = q.Encode()
 
    payload := map[string]any{

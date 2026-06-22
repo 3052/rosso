@@ -5,6 +5,7 @@ import (
 )
 
 const defaultAPIHost = "atv-ps.primevideo.com"
+const defaultDeviceTypeID = "A3NM0WFSU3DLT5"
 
 // DeviceProfile holds the specific capabilities and identities to test against the API.
 type DeviceProfile struct {
