@@ -50,7 +50,6 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    dashSettings := map[string]any{
       "bitrateAdaptations":  []string{"CVBR"}, // Changed to CVBR only
       "codecs":              []string{"H265"}, // Hardcoded per requirements
-      "drmKeyScheme":        p.DRMKeyScheme,   // Always included as requested
       "drmType":             p.DRMType,
       "dynamicRangeFormats": []string{p.HDRFormats}, // Wrap the single string into a slice
       // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange

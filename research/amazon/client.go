@@ -10,7 +10,6 @@ const defaultAPIHost = "atv-ps.primevideo.com"
 type DeviceProfile struct {
    DeviceID      string
    DRMType       string // "Widevine" or "PlayReady"
-   DRMKeyScheme  string // "DualKey" or "SingleKey"
    HDCPLevel     string // e.g. "2.1", "2.3"
    MaxResolution string // e.g. "480p", "720p", "1080p", "1440p", "2160p"
    HDRFormats    string // e.g. "None", "HDR10", "DolbyVision"

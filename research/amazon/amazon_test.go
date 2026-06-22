@@ -10,11 +10,11 @@ import (
    "41.neocities.org/diana/widevine"
 )
 
-func TestPlayReadySL3000(t *testing.T) {
+func TestPlayReadySL2000(t *testing.T) {
    runDeviceCombinations(
       t,
-      "PlayReady SL3000",
-      `C:\Users\Steven\AppData\Local\SL3000`,
+      "PlayReady SL2000",
+      `C:\Users\Steven\AppData\Local\SL2000`,
       "PlayReady",
    )
 }
@@ -28,11 +28,11 @@ func TestWidevineL3(t *testing.T) {
    )
 }
 
-func TestPlayReadySL2000(t *testing.T) {
+func TestPlayReadySL3000(t *testing.T) {
    runDeviceCombinations(
       t,
-      "PlayReady SL2000",
-      `C:\Users\Steven\AppData\Local\SL2000`,
+      "PlayReady SL3000",
+      `C:\Users\Steven\AppData\Local\SL3000`,
       "PlayReady",
    )
 }
