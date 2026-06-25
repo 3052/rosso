@@ -9,17 +9,6 @@ import (
    "strings"
 )
 
-// PlaybackUrls is the parent holding the intra-title playlists.
-type PlaybackUrls struct {
-   IntraTitlePlaylist []struct {
-      Type string `json:"type"`
-      Urls []struct {
-         Url string `json:"url"`
-         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
-      } `json:"urls"`
-   } `json:"intraTitlePlaylist"`
-}
-
 // GetVodPlaybackResources fetches the final MPD resources for playback.
 // Pass "H264" or "H265" as the videoCodec.
 // Pass "Widevine" or "PlayReady" as the drmType.
@@ -36,15 +25,15 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]any{
                "DASH": map[string]any{
-                  "bitrateAdaptations": []string{
-                     bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
-                  },
                   "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
                   "codecs": []string{
                      videoCodec, // dynamically set (e.g. "H264" or "H265")
                   },
                   "dynamicRangeFormats": []string{
                      dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
+                  },
+                  "bitrateAdaptations": []string{
+                     bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
                   },
                },
             },
@@ -163,4 +152,14 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
    }
 
    return parsedURL, nil
+}
+// PlaybackUrls is the parent holding the intra-title playlists.
+type PlaybackUrls struct {
+   IntraTitlePlaylist []struct {
+      Type string `json:"type"`
+      Urls []struct {
+         Url string `json:"url"`
+         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
+      } `json:"urls"`
+   } `json:"intraTitlePlaylist"`
 }

@@ -120,7 +120,7 @@ func generateCDMChallenge(drmType string, keyDir string, initData []byte) ([]byt
    return nil, fmt.Errorf("unsupported DRM type: %s", drmType)
 }
 
-// mpdXML, periodXML, etc. are used to parse the DASH manifest to find the lowest quality video PSSH
+// mpdXML, periodXML, etc. are used to parse the DASH manifest
 type mpdXML struct {
    Periods []periodXML `xml:"Period"`
 }
@@ -139,6 +139,9 @@ type adaptationSetXML struct {
 type representationXML struct {
    ID                 string           `xml:"id,attr"`
    Bandwidth          int              `xml:"bandwidth,attr"`
+   Width              int              `xml:"width,attr"`  // Added
+   Height             int              `xml:"height,attr"` // Added
+   Codecs             string           `xml:"codecs,attr"` // Added
    ContentProtections []contentProtXML `xml:"ContentProtection"`
 }
 

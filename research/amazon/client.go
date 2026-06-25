@@ -14,6 +14,7 @@ type DeviceProfile struct {
    HDCPLevel     string // e.g. "2.1", "2.3"
    MaxResolution string // e.g. "480p", "720p", "1080p", "1440p", "2160p"
    HDRFormats    string // e.g. "None", "HDR10", "DolbyVision"
+   VideoCodec    string // e.g. "H264", "H265"
    AuthBearer    string // Required for authorization
 }
 

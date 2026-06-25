@@ -49,8 +49,8 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    u.RawQuery = q.Encode()
 
    dashSettings := map[string]any{
-      "bitrateAdaptations":  []string{"CVBR"}, // Changed to CVBR only
-      "codecs":              []string{"H265"}, // Hardcoded per requirements
+      "bitrateAdaptations":  []string{"CVBR"},       // Changed to CVBR only
+      "codecs":              []string{p.VideoCodec}, // Dynamic based on profile loop
       "drmType":             p.DRMType,
       "dynamicRangeFormats": []string{p.HDRFormats}, // Wrap the single string into a slice
       // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange
@@ -144,18 +144,9 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
 
    // Handle "/dm/3$..." structure
    if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
-      // parts[0] = ""
-      // parts[1] = "dm"
-      // parts[2] = "3$..."
-      // parts[3] = "iad_2"
-      // parts[4:] = raw path
       parsedURL.Path = "/" + strings.Join(parts[4:], "/")
       // Handle "/3$..." structure
    } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
-      // parts[0] = ""
-      // parts[1] = "3$..."
-      // parts[2] = "iad_2"
-      // parts[3:] = raw path
       parsedURL.Path = "/" + strings.Join(parts[3:], "/")
    }
 
