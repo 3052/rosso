@@ -9,15 +9,27 @@ import (
    "strings"
 )
 
-// GetVodPlaybackResources fetches the final MPD resources for playback.
-// Pass "H264" or "H265" as the videoCodec.
-// Pass "Widevine" or "PlayReady" as the drmType.
-// Pass "CBR" or "CVBR" as the bitrateAdaptation.
-// Pass "None", "DolbyVision", or "HDR10" as the dynamicRangeFormat.
-func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoCodec, drmType, bitrateAdaptation, dynamicRangeFormat string) (*PlaybackUrls, error) {
+// VodPlaybackParams holds the configuration for fetching playback resources.
+type VodPlaybackParams struct {
+   ActorAccessToken   string
+   TitleId            string
+   PlaybackEnvelope   string
+   VideoCodec         string // e.g., "H264" or "H265"
+   DRMType            string // e.g., "Widevine" or "PlayReady"
+   BitrateAdaptation  string // e.g., "CBR" or "CVBR"
+   DynamicRangeFormat string // e.g., "None", "DolbyVision", or "HDR10"
+   MaxVideoResolution string // e.g., "576p" or "2160p"
+}
+
+// Fetch requests the final MPD resources for playback from Amazon's API.
+func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
+   if p == nil {
+      return nil, fmt.Errorf("VodPlaybackParams cannot be nil")
+   }
+
    payload := map[string]any{
       "globalParameters": map[string]any{
-         "playbackEnvelope":       playbackEnvelope,
+         "playbackEnvelope":       p.PlaybackEnvelope,
          "deviceCapabilityFamily": "LivingRoomPlayer",
       },
       "vodPlaylistedPlaybackUrlsRequest": map[string]any{
@@ -25,24 +37,24 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
             "supportedStreamingTechnologies": []string{"DASH"},
             "streamingTechnologies": map[string]any{
                "DASH": map[string]any{
-                  "drmType": drmType, // dynamically set ("Widevine" or "PlayReady")
+                  "drmType": p.DRMType,
                   "codecs": []string{
-                     videoCodec, // dynamically set (e.g. "H264" or "H265")
+                     p.VideoCodec,
                   },
                   "dynamicRangeFormats": []string{
-                     dynamicRangeFormat, // dynamically set ("None", "DolbyVision", or "HDR10")
+                     p.DynamicRangeFormat,
                   },
                   "bitrateAdaptations": []string{
-                     bitrateAdaptation, // dynamically set ("CBR" or "CVBR")
+                     p.BitrateAdaptation,
                   },
                },
             },
             "hdcpLevel":          "2.3", // at least 2.2 is needed for UHD with hev1
-            "maxVideoResolution": "2160p",
+            "maxVideoResolution": p.MaxVideoResolution,
          },
          "playbackSettingsRequest": map[string]any{
             "firmware": DeviceFirmware,
-            "titleId":  titleId,
+            "titleId":  p.TitleId,
          },
       },
    }
@@ -59,7 +71,7 @@ func GetVodPlaybackResources(actorAccessToken, titleId, playbackEnvelope, videoC
    query.Add("deviceID", DeviceID)
    query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
-   req.Header.Set("Authorization", "Bearer "+actorAccessToken)
+   req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)
 
    client := &http.Client{}
    resp, err := client.Do(req)
@@ -153,6 +165,7 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
 
    return parsedURL, nil
 }
+
 // PlaybackUrls is the parent holding the intra-title playlists.
 type PlaybackUrls struct {
    IntraTitlePlaylist []struct {
