@@ -7,7 +7,7 @@ require 41.neocities.org/maya v1.41.4
 require (
 	41.neocities.org/diana v1.9.9 // indirect
 	41.neocities.org/luna v1.34.6 // indirect
-	41.neocities.org/protobuf v1.6.8 // indirect
+	41.neocities.org/protobuf v1.6.9 // indirect
 	41.neocities.org/sofia v1.13.9 // indirect
 	filippo.io/nistec v0.0.4 // indirect
 	github.com/emmansun/gmsm v0.43.0 // indirect

@@ -27,6 +27,10 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, fmt.Errorf("VodPlaybackParams cannot be nil")
    }
 
+   if p.VideoCodec == "" {
+      return nil, fmt.Errorf("VideoCodec cannot be empty")
+   }
+
    payload := map[string]any{
       "globalParameters": map[string]any{
          "playbackEnvelope":       p.PlaybackEnvelope,
