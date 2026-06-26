@@ -14,7 +14,7 @@ streaming API authentication, metadata, and DRM playback
 |---|---|---|
 | 6483 | US | [Kanopy] |
 | 5262 | UK | [Rakuten TV] |
-| 4447 | US | [The Roku Channel] |
+| 4446 | US | [The Roku Channel] |
 | 1967 | CA | [Crave] |
 | 1818 | US | [Pluto TV] |
 | 1323 | FR | [Molotov TV] |
@@ -33,7 +33,6 @@ streaming API authentication, metadata, and DRM playback
 | 332 | US | [MUBI] |
 | 284 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
-| 0 | US | [Plex Player] |
 
 [Kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=50
 [Rakuten TV]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=50
@@ -56,7 +55,6 @@ streaming API authentication, metadata, and DRM playback
 [MUBI]:https://justwatch.com/us/provider/mubi?tomatoMeter=50
 [RTBF Auvio]:https://justwatch.com/be/plateforme/rtbf-auvio?tomatoMeter=50
 [NBC]:https://justwatch.com/us/provider/nbc?tomatoMeter=50
-[Plex Player]:https://justwatch.com/us/provider/plex-player?tomatoMeter=50
 
 ## contact
 

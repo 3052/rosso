@@ -24,23 +24,21 @@
 
 1. us | mubi
    - February 20
-2. us | plex
-   - April 6
-3. us | pluto-tv
+2. us | pluto-tv
    - April 20
-4. ca | ctv
+3. ca | ctv
    - April 29
-5. nl | cinemember
+4. nl | cinemember
    - May 12
-6. us | criterion-channel
+5. us | criterion-channel
    - May 19
-7. uk | rakuten-tv
+6. uk | rakuten-tv
    - May 23
-8. be | rtbf-auvio
+7. be | rtbf-auvio
     - June 7
-9. us | hbo-max
+8. us | hbo-max
     - June 16
-10. uk | itvx
+9. uk | itvx
     - October 24
 
 ## 2023
