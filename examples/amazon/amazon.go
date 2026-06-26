@@ -8,6 +8,31 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   title_id           maya.FlagString
+   complete_login     maya.FlagBool
+   dash_id            maya.FlagString
+   initiate_login     maya.FlagBool
+   PlayReady          maya.FlagString
+   video_codec        maya.FlagString
+   bitrate_adaptation maya.FlagString
+   dynamic_range      maya.FlagString
+
+   cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/amazon/client"
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -20,7 +45,7 @@ func (c *client) do() error {
    if err := c.cache.Decode(c); err != nil {
       return c.cache.Encode(c)
    }
-   
+
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
       {Name: "initiate-login", Value: &c.initiate_login},
@@ -66,6 +91,57 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "amazon")
+}
+
+func (c *client) do_complete_login() error {
+   var code_pair amazon.CodePair
+   err := c.cache.Decode(&code_pair)
+   if err != nil {
+      return err
+   }
+   // Call the updated function which now returns a *TokenPair
+   tokenPair, err := amazon.PollRegister(
+      code_pair.PublicCode, code_pair.PrivateCode,
+   )
+   if err != nil {
+      return fmt.Errorf("login incomplete or failed: %v", err)
+   }
+   // Map the properties of the returned struct into your local test struct
+   return c.cache.Encode(tokenPair)
+}
+
+func (c *client) do_dash_id() error {
+   var (
+      actor_token  amazon.ActorToken
+      item_details amazon.ItemDetails
+      manifest     maya.Manifest
+   )
+   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   if err != nil {
+      return err
+   }
+   // Fetch the license from Amazon
+   license := func(signedRequest []byte) ([]byte, error) {
+      return amazon.GetPlayReadyLicense(
+         actor_token.Token,
+         item_details.PlaybackEnvelope,
+         signedRequest,
+      )
+   }
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+   })
+}
+
+func (c *client) do_initiate_login() error {
+   codes, err := amazon.CreateCodePair()
+   if err != nil {
+      return fmt.Errorf("failed to create code pair: %v", err)
+   }
+   log.Print(codes)
+   return c.cache.Encode(codes)
 }
 func (c *client) do_title_id() error {
    token_pair := &amazon.TokenPair{}
@@ -116,85 +192,4 @@ func (c *client) do_title_id() error {
       return err
    }
    return c.cache.Encode(actor_token, item_details, manifest)
-}
-
-func (c *client) do_dash_id() error {
-   var (
-      actor_token  amazon.ActorToken
-      item_details amazon.ItemDetails
-      manifest     maya.Manifest
-   )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
-   if err != nil {
-      return err
-   }
-   // Fetch the license from Amazon
-   license := func(signedRequest []byte) ([]byte, error) {
-      return amazon.GetPlayReadyLicense(
-         actor_token.Token,
-         item_details.PlaybackEnvelope,
-         signedRequest,
-      )
-   }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.PlayReady),
-      Drm:     maya.DrmPlayReady,
-      License: license,
-   })
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/amazon/client"
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_complete_login() error {
-   var code_pair amazon.CodePair
-   err := c.cache.Decode(&code_pair)
-   if err != nil {
-      return err
-   }
-   // Call the updated function which now returns a *TokenPair
-   tokenPair, err := amazon.PollRegister(
-      code_pair.PublicCode, code_pair.PrivateCode,
-   )
-   if err != nil {
-      return fmt.Errorf("login incomplete or failed: %v", err)
-   }
-   // Map the properties of the returned struct into your local test struct
-   return c.cache.Encode(tokenPair)
-}
-
-func (c *client) do_initiate_login() error {
-   codes, err := amazon.CreateCodePair()
-   if err != nil {
-      return fmt.Errorf("failed to create code pair: %v", err)
-   }
-   // Access the properties using dot notation
-   err = amazon.InitiateMDSO(codes.PublicCode)
-   if err != nil {
-      return fmt.Errorf("failed to initiate MDSO: %v", err)
-   }
-   log.Print(codes)
-   return c.cache.Encode(codes)
-}
-
-type client struct {
-   title_id           maya.FlagString
-   complete_login     maya.FlagBool
-   dash_id            maya.FlagString
-   initiate_login     maya.FlagBool
-   PlayReady          maya.FlagString
-   video_codec        maya.FlagString
-   bitrate_adaptation maya.FlagString
-   dynamic_range      maya.FlagString
-
-   cache maya.Cache
 }

@@ -10,37 +10,23 @@ import (
 // RefreshToken exchanges an existing refresh token for a new access token
 // using the /auth/token endpoint.
 func RefreshToken(refreshToken string) (*TokenPair, error) {
-   url := "https://api.amazon.com/auth/token"
-
-   // Mimicking the Python payload structure:
-   // "app_name": device["app_name"],
-   // "app_version": device["app_version"],
-   // "source_token_type": "refresh_token",
-   // "source_token": refresh_token,
-   // "requested_token_type": "access_token"
    payload := map[string]interface{}{
-      "app_name":             "AIV",    // Kept consistent with your other Go files
-      "app_version":          "3.12.0", // Kept consistent with your other Go files
+      "app_name":             "AIV",
       "source_token_type":    "refresh_token",
       "source_token":         refreshToken,
       "requested_token_type": "access_token",
    }
-
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
-
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   req, err := http.NewRequest(
+      "POST", "https://api.amazon.com/auth/token", bytes.NewBuffer(body),
+   )
    if err != nil {
       return nil, err
    }
-
-   // Keeping headers consistent with your Go codebase
-   req.Header.Set("User-Agent", UserAgent)
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept", "application/json")
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
