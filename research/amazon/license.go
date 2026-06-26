@@ -10,16 +10,6 @@ import (
    "net/url"
 )
 
-// LicenseResponse defines the structure to extract the base64 license.
-type LicenseResponse struct {
-   WidevineLicense struct {
-      License string `json:"license"`
-   } `json:"widevineLicense"`
-   PlayReadyLicense struct {
-      License string `json:"license"`
-   } `json:"playReadyLicense"`
-}
-
 // GetLicense submits the CDM challenge and retrieves the base64 encoded license.
 // `challenge` expects raw bytes for Widevine or raw XML/SOAP bytes for PlayReady.
 func (c *Client) GetLicense(p DeviceProfile, envelope string, challenge []byte) (string, error) {
@@ -86,4 +76,14 @@ func (c *Client) GetLicense(p DeviceProfile, envelope string, challenge []byte) 
    }
 
    return license, nil
+}
+
+// LicenseResponse defines the structure to extract the base64 license.
+type LicenseResponse struct {
+   WidevineLicense struct {
+      License string `json:"license"`
+   } `json:"widevineLicense"`
+   PlayReadyLicense struct {
+      License string `json:"license"`
+   } `json:"playReadyLicense"`
 }

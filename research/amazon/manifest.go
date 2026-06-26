@@ -10,22 +10,6 @@ import (
    "strings"
 )
 
-// ManifestResponse defines the structure to extract the MPD URL.
-type ManifestResponse struct {
-   VodPlaylistedPlaybackUrls struct {
-      Result struct {
-         PlaybackUrls struct {
-            IntraTitlePlaylist []struct {
-               Urls []struct {
-                  URL string `json:"url"`
-                  CDN string `json:"cdn"` // Used to explicitly require Akamai
-               } `json:"urls"`
-            } `json:"intraTitlePlaylist"`
-         } `json:"playbackUrls"`
-      } `json:"result"`
-   } `json:"vodPlaylistedPlaybackUrls"`
-}
-
 // GetManifest requests the Playback Resources.
 // It forces a SegmentBase MPD (~5MB instead of ~30MB) by manipulating the payload.
 // Returns the MPD URL and any error encountered.
@@ -49,8 +33,8 @@ func (c *Client) GetManifest(p DeviceProfile, titleID, marketplaceID, envelope s
    u.RawQuery = q.Encode()
 
    dashSettings := map[string]any{
-      "bitrateAdaptations":  []string{"CVBR"},       // Changed to CVBR only
-      "codecs":              []string{p.VideoCodec}, // Dynamic based on profile loop
+      "bitrateAdaptations":  []string{p.BitrateAdaptation}, // Dynamic based on profile loop
+      "codecs":              []string{p.VideoCodec},        // Dynamic based on profile loop
       "drmType":             p.DRMType,
       "dynamicRangeFormats": []string{p.HDRFormats}, // Wrap the single string into a slice
       // IMPORTANT: Forces the smaller SegmentBase MPD format by only allowing ByteOffsetRange
@@ -151,4 +135,20 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
    }
 
    return parsedURL, nil
+}
+
+// ManifestResponse defines the structure to extract the MPD URL.
+type ManifestResponse struct {
+   VodPlaylistedPlaybackUrls struct {
+      Result struct {
+         PlaybackUrls struct {
+            IntraTitlePlaylist []struct {
+               Urls []struct {
+                  URL string `json:"url"`
+                  CDN string `json:"cdn"` // Used to explicitly require Akamai
+               } `json:"urls"`
+            } `json:"intraTitlePlaylist"`
+         } `json:"playbackUrls"`
+      } `json:"result"`
+   } `json:"vodPlaylistedPlaybackUrls"`
 }
