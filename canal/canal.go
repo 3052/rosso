@@ -15,15 +15,15 @@ import (
    "time"
 )
 
-const user_agent = "Mozilla/5.0 Windows"
-
-const device_serial = "!!!!"
-
 // Global variables for authentication
 const (
    client_key = "web.NhFyz4KsZ54"
    secret_key = "OXh0-pIwu3gEXz1UiJtqLPscZQot3a0q"
 )
+
+const device_serial = "!!!!"
+
+const user_agent = "Mozilla/5.0 Windows"
 
 func get_client(url_data *url.URL, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
@@ -55,6 +55,16 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    return data.String(), nil
 }
 
+type Asset struct {
+   Title  string
+   Images []struct {
+      Size string
+      Type string
+      Url  string
+   }
+   Id string
+}
+
 func (a *Asset) String() string {
    var data strings.Builder
    data.WriteString("title: ")
@@ -72,14 +82,13 @@ func (a *Asset) String() string {
    return data.String()
 }
 
-type Asset struct {
-   Title  string
-   Images []struct {
-      Size string
-      Type string
-      Url  string
+type Episode struct {
+   Desc   string
+   Id     string
+   Params struct {
+      SeriesEpisode int
    }
-   Id string
+   Title string
 }
 
 func (e *Episode) String() string {
@@ -89,15 +98,6 @@ func (e *Episode) String() string {
    fmt.Fprintln(data, "desc:", e.Desc)
    fmt.Fprint(data, "tracking: ", e.Id)
    return data.String()
-}
-
-type Episode struct {
-   Desc   string
-   Id     string
-   Params struct {
-      SeriesEpisode int
-   }
-   Title string
 }
 
 type Login struct {
@@ -114,6 +114,10 @@ type Player struct {
    Url *Url // MPD
 }
 
+func (*Player) CachePath() string {
+   return "rosso/canal/Player"
+}
+
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
    if err != nil {
@@ -123,8 +127,68 @@ func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-func (*Player) CachePath() string {
-   return "rosso/canal/Player"
+type Session struct {
+   SsoToken string
+   Token    string // this last one hour
+}
+
+func FetchSession(ssoToken string) (*Session, error) {
+   body, err := json.Marshal(map[string]string{
+      "brand":        "m7cp",
+      "deviceSerial": device_serial,
+      "deviceType":   "PC",
+      "ssoToken":     ssoToken,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Session
+   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+func (*Session) CachePath() string {
+   return "rosso/canal/Session"
+}
+
+func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "tvapi-hlm2.solocoo.tv",
+         Path:   "/v1/assets",
+         RawQuery: url.Values{
+            "limit": {"99"},
+            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
+         }.Encode(),
+      },
+      map[string]string{"authorization": "Bearer " + s.Token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Assets []Episode
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return result.Assets, nil
 }
 
 func (s *Session) Player(tracking string) (*Player, error) {
@@ -158,70 +222,6 @@ func (s *Session) Player(tracking string) (*Player, error) {
    var result Player
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   "/v1/assets",
-         RawQuery: url.Values{
-            "limit": {"99"},
-            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Assets []Episode
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Assets, nil
-}
-
-func (*Session) CachePath() string {
-   return "rosso/canal/Session"
-}
-
-type Session struct {
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
    return &result, nil
@@ -354,10 +354,10 @@ type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
