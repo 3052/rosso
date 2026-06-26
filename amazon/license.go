@@ -9,37 +9,28 @@ import (
 )
 
 // GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
-func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
+func GetWidevineLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
    reqURL := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/drm-vod/GetWidevineLicense"
-
-   query := url.Values{}
-   query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("gascEnabled", "false")
-   query.Add("marketplaceID", "ATVPDKIKX0DER")
-   query.Add("uxLocale", "en-US")
-   query.Add("firmware", "1")
-   query.Add("titleId", titleId)
-
    payload := map[string]interface{}{
-      "includeHdcpTestKey": true,
       "playbackEnvelope":   playbackEnvelope,
       "licenseChallenge":   licenseChallenge,
    }
-
+   query := url.Values{}
+   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("deviceID", DeviceID)
    return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
 }
 
 // GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
 func GetPlayReadyLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
    reqURL := "https://atv-ps.primevideo.com/playback/drm-vod/GetPlayReadyLicense"
-   query := url.Values{}
-   query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("deviceID", DeviceID)
    payload := map[string]interface{}{
       "playbackEnvelope": playbackEnvelope,
       "licenseChallenge": licenseChallenge,
    }
+   query := url.Values{}
+   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("deviceID", DeviceID)
    return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
 }
 
