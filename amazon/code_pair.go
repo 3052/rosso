@@ -16,36 +16,24 @@ type CodePair struct {
 
 // CreateCodePair requests a public and private code pair for device linking.
 func CreateCodePair() (*CodePair, error) {
-   url := "https://api.amazon.com/auth/create/codepair"
-
    payload := map[string]interface{}{
       "code_data": map[string]string{
-         "domain":           "Device",
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% " + DeviceModel,
-         "app_name":         "AIV",
-         "app_version":      "3.12.0",
-         "device_model":     DeviceModel,
-         "os_version":       DeviceOS,
-         "device_type":      DeviceTypeID,
-         "device_serial":    DeviceID,
-         "software_version": "999",
+         "domain":        "Device",
+         "device_type":   DeviceTypeID,
+         "device_serial": DeviceID,
       },
    }
-
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
-
-   req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+   req, err := http.NewRequest(
+      "POST", "https://api.amazon.com/auth/create/codepair",
+      bytes.NewBuffer(body),
+   )
    if err != nil {
       return nil, err
    }
-
-   req.Header.Set("User-Agent", UserAgent)
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept", "application/json")
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {

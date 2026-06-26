@@ -9,6 +9,9 @@ import (
    "net/url"
 )
 
+//go:embed playback.json
+var playback_json []byte
+
 func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    target, err := url.Parse(licenseUrl)
    if err != nil {
@@ -27,36 +30,12 @@ func License(licenseUrl, bcovAuth string, challenge []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-//go:embed playback.json
-var playback_json []byte
-
-func (a *AuthData) Refresh() error {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "gw.cds.amcn.com",
-         Path:   "/auth-orchestration-id/api/v1/refresh",
-      },
-      map[string]string{"authorization": "Bearer " + a.RefreshToken},
-      nil,
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
-   }
-   var result struct {
-      Success bool     `json:"success"`
-      Status  int      `json:"status"`
-      Data    AuthData `json:"data"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return err
-   }
-   *a = result.Data
-   return nil
+// AuthData represents the inner payload of authentication responses.
+type AuthData struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
 }
 
 // Login authenticates the user. It requires the guest token (access_token)
@@ -149,56 +128,33 @@ func (*AuthData) CachePath() string {
    return "rosso/amc/AuthData"
 }
 
-// AuthData represents the inner payload of authentication responses.
-type AuthData struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
-}
-
-// EpisodesMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for playable episodes.
-func (c *ContentNode) EpisodesMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "card" && p.ContentType == "episode" {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
+func (a *AuthData) Refresh() error {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "gw.cds.amcn.com",
+         Path:   "/auth-orchestration-id/api/v1/refresh",
+      },
+      map[string]string{"authorization": "Bearer " + a.RefreshToken},
+      nil,
+   )
+   if err != nil {
+      return err
    }
-
-   walk(*c)
-   return metadata
-}
-
-// SeasonsMetadata recursively traverses the Server-Driven UI tree
-// and extracts only the Metadata for seasons.
-func (c *ContentNode) SeasonsMetadata() []*Metadata {
-   var metadata []*Metadata
-
-   var walk func(node ContentNode)
-   walk = func(node ContentNode) {
-      p := node.Properties
-      if p != nil && p.Metadata != nil {
-         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
-            metadata = append(metadata, p.Metadata)
-         }
-      }
-      for _, child := range node.Children {
-         walk(child)
-      }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return fmt.Errorf("refresh failed with status: %d", resp.StatusCode)
    }
-
-   walk(*c)
-   return metadata
+   var result struct {
+      Success bool     `json:"success"`
+      Status  int      `json:"status"`
+      Data    AuthData `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return err
+   }
+   *a = result.Data
+   return nil
 }
 
 // ContentNode represents the recursive Server-Driven UI tree used by AMC
@@ -275,6 +231,50 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
+func (c *ContentNode) EpisodesMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "card" && p.ContentType == "episode" {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
+func (c *ContentNode) SeasonsMetadata() []*Metadata {
+   var metadata []*Metadata
+
+   var walk func(node ContentNode)
+   walk = func(node ContentNode) {
+      p := node.Properties
+      if p != nil && p.Metadata != nil {
+         if node.Type == "tab_bar_item" && p.Metadata.SeasonNumber > 0 {
+            metadata = append(metadata, p.Metadata)
+         }
+      }
+      for _, child := range node.Children {
+         walk(child)
+      }
+   }
+
+   walk(*c)
+   return metadata
+}
+
 type Images struct {
    Default string `json:"default,omitempty"`
    Mobile  string `json:"mobile,omitempty"`
@@ -288,6 +288,33 @@ type KeySystems struct {
    ComMicrosoftPlayready struct {
       LicenseURL string `json:"license_url"`
    } `json:"com.microsoft.playready"`
+}
+
+type Metadata struct {
+   AmcnID                   string `json:"amcnId,omitempty"`
+   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
+   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
+   SeasonNumber             int    `json:"seasonNumber,omitempty"`
+   ShowName                 string `json:"showName,omitempty"`
+   Title                    string `json:"title,omitempty"`
+   Nid                      int    `json:"nid,omitempty"`
+   PageType                 string `json:"pageType,omitempty"`
+   URL                      string `json:"url,omitempty"`
+   Action                   string `json:"action,omitempty"`
+   ElementType              string `json:"elementType,omitempty"`
+   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
+   ElementName              string `json:"elementName,omitempty"`
+   ItemText                 string `json:"itemText,omitempty"`
+   Label                    string `json:"label,omitempty"`
+   NavComponentName         string `json:"navComponentName,omitempty"`
+   NavigationTitle          string `json:"navigationTitle,omitempty"`
+   IsNavigation             bool   `json:"isNavigation,omitempty"`
+   ListTitle                string `json:"listTitle,omitempty"`
+   IsPlayback               bool   `json:"isPlayback,omitempty"`
+   ListMode                 string `json:"listMode,omitempty"`
+   SearchValue              string `json:"searchValue,omitempty"`
+   ListPosition             int    `json:"listPosition,omitempty"`
+   ComponentName            string `json:"componentName,omitempty"`
 }
 
 // String implements the fmt.Stringer interface for easy printing.
@@ -322,33 +349,6 @@ func (m *Metadata) String() string {
    return fmt.Sprintf("NID: %d", m.Nid)
 }
 
-type Metadata struct {
-   AmcnID                   string `json:"amcnId,omitempty"`
-   EpisodeNumber            int    `json:"episodeNumber,omitempty"`
-   ContentNetworkOfRecordID int    `json:"contentNetworkOfRecordId,omitempty"`
-   SeasonNumber             int    `json:"seasonNumber,omitempty"`
-   ShowName                 string `json:"showName,omitempty"`
-   Title                    string `json:"title,omitempty"`
-   Nid                      int    `json:"nid,omitempty"`
-   PageType                 string `json:"pageType,omitempty"`
-   URL                      string `json:"url,omitempty"`
-   Action                   string `json:"action,omitempty"`
-   ElementType              string `json:"elementType,omitempty"`
-   ClickthroughURL          string `json:"clickthroughUrl,omitempty"`
-   ElementName              string `json:"elementName,omitempty"`
-   ItemText                 string `json:"itemText,omitempty"`
-   Label                    string `json:"label,omitempty"`
-   NavComponentName         string `json:"navComponentName,omitempty"`
-   NavigationTitle          string `json:"navigationTitle,omitempty"`
-   IsNavigation             bool   `json:"isNavigation,omitempty"`
-   ListTitle                string `json:"listTitle,omitempty"`
-   IsPlayback               bool   `json:"isPlayback,omitempty"`
-   ListMode                 string `json:"listMode,omitempty"`
-   SearchValue              string `json:"searchValue,omitempty"`
-   ListPosition             int    `json:"listPosition,omitempty"`
-   ComponentName            string `json:"componentName,omitempty"`
-}
-
 type Navigation struct {
    ClientRequest struct {
       Endpoint string `json:"endpoint,omitempty"`
@@ -362,10 +362,6 @@ type Navigation struct {
       VideoTitle string `json:"videoTitle,omitempty"`
    } `json:"properties,omitempty"`
    ScreenDesignType string `json:"screenDesignType,omitempty"`
-}
-
-func (*Playback) CachePath() string {
-   return "rosso/amc/Playback"
 }
 
 type Playback struct {
@@ -416,6 +412,10 @@ func GetPlayback(authToken string, videoId int) (*Playback, error) {
    }, nil
 }
 
+func (*Playback) CachePath() string {
+   return "rosso/amc/Playback"
+}
+
 func (p *Playback) GetDash() (*Source, error) {
    for _, source_data := range p.Sources {
       if source_data.Type == "application/dash+xml" {
@@ -441,10 +441,6 @@ type Properties struct {
    Metadata     *Metadata `json:"metadata,omitempty"`
 }
 
-func (*Source) CachePath() string {
-   return "rosso/amc/Source"
-}
-
 type Source struct {
    Codecs     string
    KeySystems KeySystems `json:"key_systems"`
@@ -452,14 +448,18 @@ type Source struct {
    Type       string
 }
 
+func (*Source) CachePath() string {
+   return "rosso/amc/Source"
+}
+
 type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
