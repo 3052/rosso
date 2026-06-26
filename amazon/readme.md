@@ -87,41 +87,51 @@ The ARM code runs on an **x86 emulator via `libndk_translation.so`** (Google's A
 
 ### PlayReady SL3000 (Full Support)
 
-| Resolution | HDR | Codec | Result | Details |
-|------------|-----|-------|--------|---------|
-| 576p | None | H265 | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
-| 576p | HDR10 | H265 | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
-| 576p | DolbyVision | H265 | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
-| 2160p | None | H265 | ✅ SUCCESS | 1920x1080, hev1.1.6.L120.90 |
-| 2160p | HDR10 | H265 | ✅ SUCCESS | 3840x2160, hev1.2.4.L150.90 |
-| 2160p | DolbyVision | H265 | ✅ SUCCESS | 3840x2160, dvhe.05.06 |
+| Resolution | HDR | Bitrate | Result | Details |
+|------------|-----|---------|--------|---------|
+| 576p | None | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | HDR10 | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | HDR10 | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | DolbyVision | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | DolbyVision | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | None | CVBR | ✅ SUCCESS | 1920x1080, hev1.1.6.L120.90 |
+| 2160p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | HDR10 | CVBR | ✅ SUCCESS | 3840x2160, hev1.2.4.L150.90 |
+| 2160p | HDR10 | CBR | ✅ SUCCESS | 3840x1600, hev1.2.4.L150.90 |
+| 2160p | DolbyVision | CVBR | ✅ SUCCESS | 3840x2160, dvhe.05.06 |
+| 2160p | DolbyVision | CBR | ✅ SUCCESS | 3840x2160, dvhe.05.06 |
 
 ### PlayReady SL2000 (Partial Support)
 
-| Resolution | HDR | Codec | Result | Details |
-|------------|-----|-------|--------|---------|
-| 576p | None | H265 | ✅ SUCCESS | 960x540 |
-| 576p | HDR10 | H265 | ✅ SUCCESS | 960x540 |
-| 576p | DolbyVision | H265 | ✅ SUCCESS | 960x540 |
-| 2160p | None | H265 | ✅ SUCCESS | 1920x1080 |
-| 2160p | HDR10 | H265 | ❌ DENIED | 403 - License Denied |
-| 2160p | DolbyVision | H265 | ❌ DENIED | 403 - License Denied |
+| Resolution | HDR | Bitrate | Result | Details |
+|------------|-----|---------|--------|---------|
+| 576p | None | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | HDR10 | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | HDR10 | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | DolbyVision | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | DolbyVision | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | None | CVBR | ✅ SUCCESS | 1920x1080, hev1.1.6.L120.90 |
+| 2160p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | HDR10 | CVBR | ❌ DENIED | License - 403 Denied |
+| 2160p | HDR10 | CBR | ❌ DENIED | License - 403 Denied |
+| 2160p | DolbyVision | CVBR | ❌ DENIED | License - 403 Denied |
+| 2160p | DolbyVision | CBR | ❌ DENIED | License - 403 Denied |
 
 ### Widevine L3 (SD Only)
 
-| Resolution | HDR | Codec | Result | Details |
-|------------|-----|-------|--------|---------|
-| 576p | None | H265 | ✅ SUCCESS | 960x540 |
-| 576p | HDR10 | H265 | ✅ SUCCESS | 960x540 |
-| 576p | DolbyVision | H265 | ✅ SUCCESS | 960x540 |
-| 2160p | None | H265 | ❌ FAULT | 500 - Server Error |
-| 2160p | HDR10 | H265 | ❌ FAULT | 500 - Server Error |
-| 2160p | DolbyVision | H265 | ❌ FAULT | 500 - Server Error |
-
-## Summary
-
-| DRM Device | Max Resolution | 4K HDR10 | 4K Dolby Vision |
-|------------|----------------|----------|-----------------|
-| PlayReady SL3000 | 4K | ✅ | ✅ |
-| PlayReady SL2000 | 1080p | ❌ | ❌ |
-| Widevine L3 | 576p | ❌ | ❌ |
+| Resolution | HDR | Bitrate | Result | Details |
+|------------|-----|---------|--------|---------|
+| 576p | None | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | HDR10 | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | HDR10 | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 576p | DolbyVision | CVBR | ✅ SUCCESS | 960x540, hev1.1.6.L90.90 |
+| 576p | DolbyVision | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | None | CVBR | ❌ FAULT | License - 500 Fault |
+| 2160p | None | CBR | ❌ FAIL | Manifest - Failed to extract Akamai MPD |
+| 2160p | HDR10 | CVBR | ❌ FAULT | License - 500 Fault |
+| 2160p | HDR10 | CBR | ❌ FAULT | License - 500 Fault |
+| 2160p | DolbyVision | CVBR | ❌ FAULT | License - 500 Fault |
+| 2160p | DolbyVision | CBR | ❌ FAULT | License - 500 Fault |
