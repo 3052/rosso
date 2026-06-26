@@ -7,10 +7,6 @@ import (
    "net/http"
 )
 
-func (*TokenPair) CachePath() string {
-   return "rosso/amazon/TokenPair"
-}
-
 // TokenPair represents the access and refresh tokens returned upon successful registration.
 type TokenPair struct {
    AccessToken  string `json:"access_token"`
@@ -87,4 +83,8 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
 
    bearer := result.Response.Success.Tokens.Bearer
    return &bearer, nil
+}
+
+func (*TokenPair) CachePath() string {
+   return "rosso/amazon/TokenPair"
 }

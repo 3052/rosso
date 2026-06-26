@@ -7,6 +7,11 @@ import (
    "net/http"
 )
 
+// ActorToken represents an actor-specific access token.
+type ActorToken struct {
+   Token string `json:"token"`
+}
+
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
 func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
    payload := map[string]interface{}{
@@ -66,9 +71,4 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
 
 func (*ActorToken) CachePath() string {
    return "rosso/amazon/ActorToken"
-}
-
-// ActorToken represents an actor-specific access token.
-type ActorToken struct {
-   Token string `json:"token"`
 }

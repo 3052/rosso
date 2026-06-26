@@ -1,11 +1,9 @@
-41.neocities.org/diana v1.9.9 h1:LN6xVtJqwgu6M3JgxBS5EL9fZMYfI6SYwTOu4aje2OI=
-41.neocities.org/diana v1.9.9/go.mod h1:AA1GVqefr8KiRVujQrQWG5bfMkr8jm8MU2iRo6toLtM=
+41.neocities.org/diana v1.10.0 h1:mvC2mqX9huDK07yKJtQVd1avRo5nqh0fYHZ+c2M1lmQ=
+41.neocities.org/diana v1.10.0/go.mod h1:w7x9ASr0BOcKnWY3MperzuLxaqN0/9/6YzzH/BB9gcE=
 41.neocities.org/luna v1.34.6 h1:f0mCrPjc9uDytgU75npnze+3nl7qmJ3sKBBIFlB/a6s=
 41.neocities.org/luna v1.34.6/go.mod h1:AjU5D4+fxCgyL1sYkmvwadeegk1ZmqJwcy96Kt5b4pU=
-41.neocities.org/maya v1.41.4 h1:7p6dO15rYLPdvap8ADMnJt0zmwgYnhCmSZp/GfjqQBQ=
-41.neocities.org/maya v1.41.4/go.mod h1:HUKPqkKUIpNUuvHdhE88lu46dZ8ev+6SuaHVfSqqLf4=
-41.neocities.org/protobuf v1.6.8 h1:5QYUzNNSgzVwdqa9V7Rq6Q+szK+wVG6DbKx/gNWASB8=
-41.neocities.org/protobuf v1.6.8/go.mod h1:rodstWMPJn6uy7G5afSR2GCz4v4Q8rBbiFn9hOd/k5o=
+41.neocities.org/maya v1.41.5 h1:v2cH0RediaRNSjBNOthsRHdF3VSo50O36U2YmmiAnn8=
+41.neocities.org/maya v1.41.5/go.mod h1:Hc/mQBq89Wepy6RWFdGq6xCv+DGvI4Bb7fWw/dUn5fo=
 41.neocities.org/protobuf v1.6.9 h1:67AA6Q9Ug7p6+XWkwJFZc3Q96HF6tC+q31Rek1eiSUc=
 41.neocities.org/protobuf v1.6.9/go.mod h1:rodstWMPJn6uy7G5afSR2GCz4v4Q8rBbiFn9hOd/k5o=
 41.neocities.org/sofia v1.13.9 h1:uKhEv1Zkw4SDWLjb2tg8J9J/0odDhz9SYCYmDPuAL58=

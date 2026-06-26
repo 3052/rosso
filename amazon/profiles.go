@@ -6,6 +6,12 @@ import (
    "net/http"
 )
 
+// Profile represents an Amazon actor profile.
+type Profile struct {
+   ProfileID        string `json:"profileId"`
+   IsDefaultProfile bool   `json:"isDefaultProfile"`
+}
+
 // GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
 func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
    url := "https://ab8mt4dd97et.na.api.amazonvideo.com/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
@@ -55,10 +61,4 @@ func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
 
 func (*Profile) CachePath() string {
    return "rosso/amazon/Profile"
-}
-
-// Profile represents an Amazon actor profile.
-type Profile struct {
-   ProfileID        string `json:"profileId"`
-   IsDefaultProfile bool   `json:"isDefaultProfile"`
 }

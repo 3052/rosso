@@ -6,6 +6,12 @@ import (
    "net/http"
 )
 
+// ItemDetails contains metadata for a specific title, including the playback
+// envelope
+type ItemDetails struct {
+   PlaybackEnvelope string `json:"playbackEnvelope"`
+}
+
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
 func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
@@ -56,12 +62,6 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
       }
    }
    return nil, fmt.Errorf("playbackEnvelope not found in primaryActions for titleId: %s", titleId)
-}
-
-// ItemDetails contains metadata for a specific title, including the playback
-// envelope
-type ItemDetails struct {
-   PlaybackEnvelope string `json:"playbackEnvelope"`
 }
 
 func (*ItemDetails) CachePath() string {

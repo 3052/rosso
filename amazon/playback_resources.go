@@ -9,6 +9,68 @@ import (
    "strings"
 )
 
+func trimURLPath(rawUrl string) (*url.URL, error) {
+   parsedURL, err := url.Parse(rawUrl)
+   if err != nil {
+      return nil, err
+   }
+
+   parts := strings.Split(parsedURL.Path, "/")
+
+   // Handle "/dm/3$..." structure
+   if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
+      // parts[0] = ""
+      // parts[1] = "dm"
+      // parts[2] = "3$..."
+      // parts[3] = "iad_2"
+      // parts[4:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[4:], "/")
+      // Handle "/3$..." structure
+   } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
+      // parts[0] = ""
+      // parts[1] = "3$..."
+      // parts[2] = "iad_2"
+      // parts[3:] = raw path
+      parsedURL.Path = "/" + strings.Join(parts[3:], "/")
+   }
+
+   return parsedURL, nil
+}
+
+// PlaybackUrls is the parent holding the intra-title playlists.
+type PlaybackUrls struct {
+   IntraTitlePlaylist []struct {
+      Type string `json:"type"`
+      Urls []struct {
+         Url string `json:"url"`
+         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
+      } `json:"urls"`
+   } `json:"intraTitlePlaylist"`
+}
+
+// Clean extracts the Akamai MPD URL from the main playlist and sanitizes its path.
+// Returns an error if the Main playlist or Akamai CDN is not found.
+func (p *PlaybackUrls) Clean() (*url.URL, error) {
+   for _, playlist := range p.IntraTitlePlaylist {
+      if playlist.Type == "Main" {
+         if len(playlist.Urls) == 0 {
+            return nil, fmt.Errorf("no urls found in main playlist")
+         }
+
+         // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
+         for _, u := range playlist.Urls {
+            if u.Cdn == "akamai" {
+               return trimURLPath(u.Url)
+            }
+         }
+
+         return nil, fmt.Errorf("akamai cdn not found in main playlist")
+      }
+   }
+
+   return nil, fmt.Errorf("main playlist not found in response")
+}
+
 // VodPlaybackParams holds the configuration for fetching playback resources.
 type VodPlaybackParams struct {
    ActorAccessToken   string
@@ -117,66 +179,4 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
 
    // Return the parent struct holding the playlists
    return &result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls, nil
-}
-
-// Clean extracts the Akamai MPD URL from the main playlist and sanitizes its path.
-// Returns an error if the Main playlist or Akamai CDN is not found.
-func (p *PlaybackUrls) Clean() (*url.URL, error) {
-   for _, playlist := range p.IntraTitlePlaylist {
-      if playlist.Type == "Main" {
-         if len(playlist.Urls) == 0 {
-            return nil, fmt.Errorf("no urls found in main playlist")
-         }
-
-         // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
-         for _, u := range playlist.Urls {
-            if u.Cdn == "akamai" {
-               return trimURLPath(u.Url)
-            }
-         }
-
-         return nil, fmt.Errorf("akamai cdn not found in main playlist")
-      }
-   }
-
-   return nil, fmt.Errorf("main playlist not found in response")
-}
-
-func trimURLPath(rawUrl string) (*url.URL, error) {
-   parsedURL, err := url.Parse(rawUrl)
-   if err != nil {
-      return nil, err
-   }
-
-   parts := strings.Split(parsedURL.Path, "/")
-
-   // Handle "/dm/3$..." structure
-   if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
-      // parts[0] = ""
-      // parts[1] = "dm"
-      // parts[2] = "3$..."
-      // parts[3] = "iad_2"
-      // parts[4:] = raw path
-      parsedURL.Path = "/" + strings.Join(parts[4:], "/")
-      // Handle "/3$..." structure
-   } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
-      // parts[0] = ""
-      // parts[1] = "3$..."
-      // parts[2] = "iad_2"
-      // parts[3:] = raw path
-      parsedURL.Path = "/" + strings.Join(parts[3:], "/")
-   }
-
-   return parsedURL, nil
-}
-
-// PlaybackUrls is the parent holding the intra-title playlists.
-type PlaybackUrls struct {
-   IntraTitlePlaylist []struct {
-      Type string `json:"type"`
-      Urls []struct {
-         Url string `json:"url"`
-         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
-      } `json:"urls"`
-   } `json:"intraTitlePlaylist"`
 }

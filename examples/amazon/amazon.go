@@ -8,6 +8,65 @@ import (
    "os"
 )
 
+func (c *client) do() error {
+   if err := c.cache.Setup(); err != nil {
+      return err
+   }
+
+   c.video_codec = "H265"
+   c.bitrate_adaptation = "CVBR"
+   c.dynamic_range = "None"
+
+   if err := c.cache.Decode(c); err != nil {
+      return c.cache.Encode(c)
+   }
+   
+   flags := maya.FlagSet{
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "initiate-login", Value: &c.initiate_login},
+      {Name: "complete-login", Value: &c.complete_login},
+      {
+         Name:  "title-id",
+         Value: &c.title_id,
+         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
+      },
+      {
+         Name:  "video-codec",
+         Value: &c.video_codec,
+         Usage: "H264 H265",
+         Needs: "title-id",
+      },
+      {
+         Name:  "bitrate-adaptation",
+         Value: &c.bitrate_adaptation,
+         Usage: "CVBR CBR",
+         Needs: "title-id",
+      },
+      {
+         Name:  "dynamic-range",
+         Value: &c.dynamic_range,
+         Usage: "None HDR10 DolbyVision",
+         Needs: "title-id",
+      },
+      {Name: "dash-id", Value: &c.dash_id},
+   }
+   if err := flags.Parse(os.Args[1:]); err != nil {
+      return err
+   }
+   switch {
+   case flags.IsSet(&c.PlayReady):
+      return c.cache.Encode(c)
+   case bool(c.initiate_login):
+      return c.do_initiate_login()
+   case bool(c.complete_login):
+      return c.do_complete_login()
+   case c.title_id != "":
+      return c.do_title_id()
+   case c.dash_id != "":
+      return c.do_dash_id()
+   }
+   return flags.Usage(os.Stderr, "amazon")
+}
 func (c *client) do_title_id() error {
    token_pair := &amazon.TokenPair{}
    err := c.cache.Decode(token_pair)
@@ -35,11 +94,11 @@ func (c *client) do_title_id() error {
       return fmt.Errorf("failed to get item details (playback envelope): %v", err)
    }
    playback := amazon.VodPlaybackParams{
-      BitrateAdaptation:  "CVBR",
+      BitrateAdaptation:  string(c.bitrate_adaptation),
       ActorAccessToken:   actor_token.Token,
       PlaybackEnvelope:   item_details.PlaybackEnvelope,
       DRMType:            "PlayReady",
-      DynamicRangeFormat: "HDR10",
+      DynamicRangeFormat: string(c.dynamic_range),
       MaxVideoResolution: "2160p",
       TitleId:            string(c.title_id),
       VideoCodec:         string(c.video_codec),
@@ -128,55 +187,14 @@ func (c *client) do_initiate_login() error {
 }
 
 type client struct {
-   title_id       maya.FlagString
-   complete_login maya.FlagBool
-   dash_id        maya.FlagString
-   initiate_login maya.FlagBool
-   PlayReady      maya.FlagString
-   video_codec    maya.FlagString
+   title_id           maya.FlagString
+   complete_login     maya.FlagBool
+   dash_id            maya.FlagString
+   initiate_login     maya.FlagBool
+   PlayReady          maya.FlagString
+   video_codec        maya.FlagString
+   bitrate_adaptation maya.FlagString
+   dynamic_range      maya.FlagString
 
    cache maya.Cache
-}
-
-func (c *client) do() error {
-   if err := c.cache.Setup(); err != nil {
-      return err
-   }
-   if err := c.cache.Decode(c); err != nil {
-      return c.cache.Encode(c)
-   }
-   flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "initiate-login", Value: &c.initiate_login},
-      {Name: "complete-login", Value: &c.complete_login},
-      {
-         Name:  "title-id",
-         Value: &c.title_id,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-         Needs: "video-codec",
-      },
-      {
-         Name:  "video-codec",
-         Value: &c.video_codec,
-         Usage: "H264 H265",
-         Needs: "title-id",
-      },
-      {Name: "dash-id", Value: &c.dash_id},
-   }
-   if err := flags.Parse(os.Args[1:]); err != nil {
-      return err
-   }
-   switch {
-   case flags.IsSet(&c.PlayReady):
-      return c.cache.Encode(c)
-   case bool(c.initiate_login):
-      return c.do_initiate_login()
-   case bool(c.complete_login):
-      return c.do_complete_login()
-   case c.title_id != "":
-      return c.do_title_id()
-   case c.dash_id != "":
-      return c.do_dash_id()
-   }
-   return flags.Usage(os.Stderr, "amazon")
 }

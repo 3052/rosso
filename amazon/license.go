@@ -21,6 +21,28 @@ func GetPlayReadyLicense(actorAccessToken, playbackEnvelope string, licenseChall
    return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
 }
 
+// GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
+func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
+   reqURL := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/drm-vod/GetWidevineLicense"
+
+   query := url.Values{}
+   query.Add("deviceID", DeviceID)
+   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("gascEnabled", "false")
+   query.Add("marketplaceID", "ATVPDKIKX0DER")
+   query.Add("uxLocale", "en-US")
+   query.Add("firmware", "1")
+   query.Add("titleId", titleId)
+
+   payload := map[string]interface{}{
+      "includeHdcpTestKey": true,
+      "playbackEnvelope":   playbackEnvelope,
+      "licenseChallenge":   licenseChallenge,
+   }
+
+   return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
+}
+
 // fetchDRMLicense is the shared base function for making DRM requests
 func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload map[string]interface{}) ([]byte, error) {
    body, err := json.Marshal(payload)
@@ -61,26 +83,4 @@ func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload 
       return pr.License, nil
    }
    return nil, fmt.Errorf("license not found in response")
-}
-
-// GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
-func GetWidevineLicense(actorAccessToken, titleId, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
-   reqURL := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/drm-vod/GetWidevineLicense"
-
-   query := url.Values{}
-   query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("gascEnabled", "false")
-   query.Add("marketplaceID", "ATVPDKIKX0DER")
-   query.Add("uxLocale", "en-US")
-   query.Add("firmware", "1")
-   query.Add("titleId", titleId)
-
-   payload := map[string]interface{}{
-      "includeHdcpTestKey": true,
-      "playbackEnvelope":   playbackEnvelope,
-      "licenseChallenge":   licenseChallenge,
-   }
-
-   return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
 }
