@@ -25,16 +25,12 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
       },
       "registration_data": map[string]string{
          "app_name":      "AIV",
-         "app_version":   "3.12.0",
-         "device_model":  "sdk_gphone_x86",
+         "app_version":   "9",
+         "device_model":  "device_model",
+         "device_name":   "device_name",
          "device_serial": DeviceID,
          "device_type":   DeviceTypeID,
          "os_version":    "Android",
-         /////////////////////////////////////////////////////////////////////////////////
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
-         "domain":           "Device",
-         "software_version": "999",
-         /////////////////////////////////////////////////////////////////////////////////
       },
       "requested_token_type": []string{"bearer"},
    }

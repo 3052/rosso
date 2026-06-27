@@ -18,15 +18,9 @@ type CodePair struct {
 func CreateCodePair() (*CodePair, error) {
    payload := map[string]any{
       "code_data": map[string]string{
-         "domain":           "Device",
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
-         "app_name":         "AIV",
-         "app_version":      "3.12.0",
-         "device_model":     "sdk_gphone_x86",
-         "os_version":       "Android",
-         "device_type":      DeviceTypeID,
-         "device_serial":    DeviceID,
-         "software_version": "999",
+         "domain":        "Device",
+         "device_type":   DeviceTypeID,
+         "device_serial": DeviceID,
       },
    }
    body, err := json.Marshal(payload)
@@ -40,9 +34,6 @@ func CreateCodePair() (*CodePair, error) {
    if err != nil {
       return nil, err
    }
-   req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Accept", "application/json")
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
