@@ -13,7 +13,7 @@ type Profile struct {
 }
 
 // GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
-func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
+func GetPrimaryProfile(accountAccessToken string, deviceID DeviceID) (*Profile, error) {
    url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
@@ -21,7 +21,7 @@ func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
    }
    query := req.URL.Query()
    query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("deviceID", DeviceID)
+   query.Add("deviceID", string(deviceID))
    req.Header.Set("Authorization", "Bearer "+accountAccessToken)
    req.URL.RawQuery = query.Encode()
    client := &http.Client{}

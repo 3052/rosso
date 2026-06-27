@@ -7,30 +7,34 @@ import (
    "net/http"
 )
 
-// RefreshToken exchanges an existing refresh token for a new access token
-// using the /auth/token endpoint.
-func RefreshToken(refreshToken string) (*TokenPair, error) {
+// Refresh exchanges the existing refresh token for a new access token
+// using the /auth/token endpoint, mutating the TokenPair in-place.
+func (t *TokenPair) Refresh() error {
+   if t == nil || t.RefreshToken == "" {
+      return fmt.Errorf("invalid token pair or missing refresh token")
+   }
+
    payload := map[string]string{
       "app_name":             "AIV",
       "requested_token_type": "access_token",
-      "source_token":         refreshToken,
+      "source_token":         t.RefreshToken,
       "source_token_type":    "refresh_token",
    }
    body, err := json.Marshal(payload)
    if err != nil {
-      return nil, err
+      return err
    }
    req, err := http.NewRequest(
       "POST", HostAmazonAPI+"/auth/token", bytes.NewBuffer(body),
    )
    if err != nil {
-      return nil, err
+      return err
    }
    req.Header.Set("content-type", "application/json")
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return nil, err
+      return err
    }
    defer resp.Body.Close()
 
@@ -43,23 +47,20 @@ func RefreshToken(refreshToken string) (*TokenPair, error) {
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
+      return err
    }
 
    // Handle API errors as seen in the Python code
    if result.Error != "" {
-      return nil, fmt.Errorf("failed to refresh device token: %s [%s]", result.ErrorDesc, result.Error)
+      return fmt.Errorf("failed to refresh device token: %s [%s]", result.ErrorDesc, result.Error)
    }
 
    if result.TokenType != "bearer" {
-      return nil, fmt.Errorf("unexpected returned refreshed token type: %s", result.TokenType)
+      return fmt.Errorf("unexpected returned refreshed token type: %s", result.TokenType)
    }
 
-   // The refresh endpoint typically only returns a new access_token.
-   // We return your TokenPair carrying forward the original refresh_token
-   // (just like the Python script does with: refreshed_tokens["refresh_token"] = cache["refresh_token"])
-   return &TokenPair{
-      AccessToken:  result.AccessToken,
-      RefreshToken: refreshToken,
-   }, nil
+   // Mutate the struct in-place with the new access token
+   t.AccessToken = result.AccessToken
+
+   return nil
 }

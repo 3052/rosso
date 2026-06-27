@@ -81,6 +81,7 @@ type VodPlaybackParams struct {
    BitrateAdaptation  string // e.g., "CBR" or "CVBR"
    DynamicRangeFormat string // e.g., "None", "DolbyVision", or "HDR10"
    MaxVideoResolution string // e.g., "576p" or "2160p"
+   DeviceID           DeviceID
 }
 
 // Fetch requests the final MPD resources for playback from Amazon's API.
@@ -89,11 +90,11 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, fmt.Errorf("VodPlaybackParams cannot be nil")
    }
    payload := map[string]any{
-      "globalParameters": map[string]any{
-         "playbackEnvelope":       p.PlaybackEnvelope,
-         "deviceCapabilityFamily": "LivingRoomPlayer",
-      },
       "vodPlaylistedPlaybackUrlsRequest": map[string]any{
+         "playbackSettingsRequest": map[string]any{
+            "firmware": "", // required but can be empty
+            "titleId":  p.TitleId,
+         },
          "device": map[string]any{
             "hdcpLevel":          "2.3", // at least 2.2 is needed for UHD with hev1
             "maxVideoResolution": p.MaxVideoResolution,
@@ -107,10 +108,10 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
             },
             "supportedStreamingTechnologies": []string{"DASH"},
          },
-         "playbackSettingsRequest": map[string]any{
-            "titleId":  p.TitleId,
-            "firmware": DeviceFirmware,
-         },
+      },
+      "globalParameters": map[string]any{
+         "playbackEnvelope":       p.PlaybackEnvelope,
+         "deviceCapabilityFamily": "LivingRoomPlayer",
       },
    }
    body, err := json.Marshal(payload)
@@ -124,7 +125,7 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, err
    }
    query := url.Values{}
-   query.Add("deviceID", DeviceID)
+   query.Add("deviceID", string(p.DeviceID))
    query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)

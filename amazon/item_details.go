@@ -14,7 +14,7 @@ type ItemDetails struct {
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
-func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
+func GetItemDetails(actorAccessToken, titleId string, deviceID DeviceID) (*ItemDetails, error) {
    url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
@@ -28,7 +28,7 @@ func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
    query.Add("presentationScheme", "android-tv-react")
    // Device parameters
    query.Add("deviceTypeID", DeviceTypeID)
-   query.Add("deviceID", DeviceID)
+   query.Add("deviceID", string(deviceID))
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
    req.URL.RawQuery = query.Encode()
    client := &http.Client{}

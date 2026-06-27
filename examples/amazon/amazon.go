@@ -8,56 +8,6 @@ import (
    "os"
 )
 
-func (c *client) do_title_id() error {
-   token_pair := &amazon.TokenPair{}
-   err := c.cache.Decode(token_pair)
-   if err != nil {
-      return err
-   }
-   token_pair, err = amazon.RefreshToken(token_pair.RefreshToken)
-   if err != nil {
-      return err
-   }
-   profile, err := amazon.GetPrimaryProfile(token_pair.AccessToken)
-   if err != nil {
-      return fmt.Errorf("failed to get primary profile: %v", err)
-   }
-   actor_token, err := amazon.GetActorToken(
-      token_pair.RefreshToken, profile.ProfileID,
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get actor token: %v", err)
-   }
-   item_details, err := amazon.GetItemDetails(
-      actor_token.Token, string(c.title_id),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get item details (playback envelope): %v", err)
-   }
-   playback := amazon.VodPlaybackParams{
-      BitrateAdaptation:  string(c.bitrate_adaptation),
-      ActorAccessToken:   actor_token.Token,
-      PlaybackEnvelope:   item_details.PlaybackEnvelope,
-      DRMType:            "PlayReady",
-      DynamicRangeFormat: string(c.dynamic_range),
-      MaxVideoResolution: "2160p",
-      TitleId:            string(c.title_id),
-      VideoCodec:         string(c.video_codec),
-   }
-   resources, err := playback.Fetch()
-   if err != nil {
-      return fmt.Errorf("failed to get VOD playback resources: %v", err)
-   }
-   clean, err := resources.Clean()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(clean)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(actor_token, item_details, manifest)
-}
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -142,31 +92,32 @@ func (c *client) do() error {
    }
    return flags.Usage(os.Stderr, "amazon")
 }
-
 func (c *client) do_complete_login() error {
-   var code_pair amazon.CodePair
-   err := c.cache.Decode(&code_pair)
+   var (
+      code_pair amazon.CodePair
+      device_id amazon.DeviceID
+   )
+   err := c.cache.Decode(&code_pair, &device_id)
    if err != nil {
       return err
    }
-   // Call the updated function which now returns a *TokenPair
    tokenPair, err := amazon.PollRegister(
-      code_pair.PublicCode, code_pair.PrivateCode,
+      code_pair.PublicCode, code_pair.PrivateCode, device_id,
    )
    if err != nil {
       return fmt.Errorf("login incomplete or failed: %v", err)
    }
-   // Map the properties of the returned struct into your local test struct
    return c.cache.Encode(tokenPair)
 }
 
 func (c *client) do_dash_id() error {
    var (
       actor_token  amazon.ActorToken
+      device_id    amazon.DeviceID
       item_details amazon.ItemDetails
       manifest     maya.Manifest
    )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   err := c.cache.Decode(&actor_token, &device_id, &item_details, &manifest)
    if err != nil {
       return err
    }
@@ -176,6 +127,7 @@ func (c *client) do_dash_id() error {
          actor_token.Token,
          item_details.PlaybackEnvelope,
          signedRequest,
+         device_id,
       )
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
@@ -184,12 +136,68 @@ func (c *client) do_dash_id() error {
       License: license,
    })
 }
-
 func (c *client) do_initiate_login() error {
-   codes, err := amazon.CreateCodePair()
+   device_id, err := amazon.NewDeviceID()
+   if err != nil {
+      return err
+   }
+   codes, err := amazon.CreateCodePair(device_id)
    if err != nil {
       return fmt.Errorf("failed to create code pair: %v", err)
    }
    log.Print(codes)
-   return c.cache.Encode(codes)
+   return c.cache.Encode(codes, device_id)
+}
+
+func (c *client) do_title_id() error {
+   var (
+      device_id  amazon.DeviceID
+      token_pair amazon.TokenPair
+   )
+   err := c.cache.Decode(&device_id, &token_pair)
+   if err != nil {
+      return err
+   }
+   if err = token_pair.Refresh(); err != nil {
+      return err
+   }
+   profile, err := amazon.GetPrimaryProfile(token_pair.AccessToken, device_id)
+   if err != nil {
+      return fmt.Errorf("failed to get primary profile: %v", err)
+   }
+   actor_token, err := amazon.GetActorToken(
+      token_pair.RefreshToken, profile.ProfileID,
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get actor token: %v", err)
+   }
+   item_details, err := amazon.GetItemDetails(
+      actor_token.Token, string(c.title_id), device_id,
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get item details (playback envelope): %v", err)
+   }
+   playback := amazon.VodPlaybackParams{
+      BitrateAdaptation:  string(c.bitrate_adaptation),
+      ActorAccessToken:   actor_token.Token,
+      PlaybackEnvelope:   item_details.PlaybackEnvelope,
+      DRMType:            "PlayReady",
+      DynamicRangeFormat: string(c.dynamic_range),
+      MaxVideoResolution: "2160p",
+      TitleId:            string(c.title_id),
+      VideoCodec:         string(c.video_codec),
+   }
+   resources, err := playback.Fetch()
+   if err != nil {
+      return fmt.Errorf("failed to get VOD playback resources: %v", err)
+   }
+   clean, err := resources.Clean()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(clean)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(actor_token, item_details, manifest)
 }

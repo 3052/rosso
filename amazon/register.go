@@ -15,7 +15,7 @@ type TokenPair struct {
 
 // PollRegister attempts to register the device. This should typically be called in a loop
 // until it returns success (after the user links the device on the web).
-func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
+func PollRegister(publicCode, privateCode string, deviceID DeviceID) (*TokenPair, error) {
    payload := map[string]any{
       "auth_data": map[string]any{
          "code_pair": map[string]string{
@@ -24,12 +24,15 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
          },
       },
       "registration_data": map[string]string{
-         "app_name":      "AIV",
-         "app_version":   "9",
-         "device_model":  DeviceModel,
-         "device_serial": DeviceID,
-         "device_type":   DeviceTypeID,
-         "os_version":    DeviceOS,
+         "domain":           "Device",
+         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+         "app_name":         "AIV",
+         "app_version":      "3.12.0",
+         "device_model":     "sdk_gphone_x86",
+         "os_version":       "Android",
+         "device_type":      DeviceTypeID,
+         "device_serial":    string(deviceID),
+         "software_version": "999",
       },
       "requested_token_type": []string{"bearer"},
    }
@@ -43,6 +46,9 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
    if err != nil {
       return nil, err
    }
+   req.Header.Set("Content-Type", "application/json")
+   req.Header.Set("Accept", "application/json")
+
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
