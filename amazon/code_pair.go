@@ -19,7 +19,7 @@ func CreateCodePair() (*CodePair, error) {
    payload := map[string]any{
       "code_data": map[string]string{
          "domain":           "Device",
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+         "device_name":      DeviceName,
          "app_name":         "AIV",
          "app_version":      "3.12.0",
          "device_model":     "sdk_gphone_x86",
@@ -72,6 +72,7 @@ func (*CodePair) CachePath() string {
    return "rosso/amazon/CodePair"
 }
 
+// amazon.com/mytv
 func (c *CodePair) String() string {
    var data strings.Builder
    data.WriteString("Please navigate to https://primevideo.com/ontv\n")

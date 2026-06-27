@@ -26,7 +26,7 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
       },
       "registration_data": map[string]string{
          "domain":           "Device",
-         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+         "device_name":      DeviceName,
          "app_name":         "AIV",
          "app_version":      "3.12.0",
          "device_model":     "sdk_gphone_x86",
@@ -61,14 +61,6 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
       return nil, err
    }
    defer resp.Body.Close()
-
-   if resp.StatusCode == http.StatusUnauthorized {
-      return nil, fmt.Errorf("authorization pending/unauthorized")
-   } else if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   // We can embed the new TokenPair struct directly into our anonymous decoder struct
    var result struct {
       Response struct {
          Success struct {
@@ -76,13 +68,21 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
                Bearer TokenPair `json:"bearer"`
             } `json:"tokens"`
          } `json:"success"`
+         Error struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"error"`
       } `json:"response"`
    }
-
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-
+   if result.Response.Error.Code != "" {
+      return nil, fmt.Errorf("amazon API error: %s - %s", result.Response.Error.Code, result.Response.Error.Message)
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
    bearer := result.Response.Success.Tokens.Bearer
    return &bearer, nil
 }

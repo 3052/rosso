@@ -4,6 +4,7 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
+   "io"
    "net/http"
    "net/url"
 )
@@ -55,7 +56,14 @@ func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload 
    }
    defer resp.Body.Close()
 
-   var result struct {
+   // Read the body once so we can attempt multiple unmarshals
+   respBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("failed to read response: %w", err)
+   }
+
+   // 1. Try the standard response format (contains licenses or a nested error object)
+   var standardResp struct {
       WidevineLicense *struct {
          License []byte `json:"license"`
       } `json:"widevineLicense"`
@@ -70,26 +78,32 @@ func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload 
       } `json:"message"`
    }
 
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
+   if err := json.Unmarshal(respBytes, &standardResp); err == nil {
+      if standardResp.Message != nil && standardResp.Message.Body != nil {
+         return nil, fmt.Errorf("API error [%s]: %s", standardResp.Message.Body.Code, standardResp.Message.Body.Message)
+      }
+      if standardResp.WidevineLicense != nil && len(standardResp.WidevineLicense.License) > 0 {
+         return standardResp.WidevineLicense.License, nil
+      }
+      if standardResp.PlayReadyLicense != nil && len(standardResp.PlayReadyLicense.License) > 0 {
+         return standardResp.PlayReadyLicense.License, nil
+      }
    }
 
-   // 1. Check for the structured JSON API error
-   if result.Message != nil && result.Message.Body != nil {
-      return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
+   // 2. If the first unmarshal fails (e.g., "message" is a string causing a type error), try the flat error format
+   var flatErrorResp struct {
+      Code    string `json:"code"`
+      ID      string `json:"id"`
+      Message string `json:"message"`
    }
 
-   // 2. Check for standard HTTP errors if no JSON error message was provided
+   if err := json.Unmarshal(respBytes, &flatErrorResp); err == nil && flatErrorResp.Message != "" {
+      return nil, fmt.Errorf("code: %s, message: %s, id: %s", flatErrorResp.Code, flatErrorResp.Message, flatErrorResp.ID)
+   }
+
+   // 3. Check for standard HTTP errors if no JSON error message was extracted
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   // 3. Extract and return whichever license was provided
-   if result.WidevineLicense != nil && len(result.WidevineLicense.License) > 0 {
-      return result.WidevineLicense.License, nil
-   }
-   if result.PlayReadyLicense != nil && len(result.PlayReadyLicense.License) > 0 {
-      return result.PlayReadyLicense.License, nil
    }
 
    return nil, fmt.Errorf("license not found in response")
