@@ -7,7 +7,8 @@ import (
    "net/http"
 )
 
-// TokenPair represents the access and refresh tokens returned upon successful registration.
+// TokenPair represents the access and refresh tokens returned upon successful
+// registration
 type TokenPair struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
@@ -27,10 +28,11 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
          "app_name":      "AIV",
          "app_version":   "9",
          "device_model":  "device_model",
-         "device_name":   "device_name",
          "device_serial": DeviceID,
          "device_type":   DeviceTypeID,
          "os_version":    "Android",
+         // if you change deviceID this is required
+         "device_name": "device_name",
       },
       "requested_token_type": []string{"bearer"},
    }

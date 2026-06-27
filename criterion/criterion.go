@@ -43,31 +43,14 @@ func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
    return &result.Embedded.Items[0].Links.Files.Href.Url, nil
 }
 
-func (f *File) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "drm.vhx.com",
-         Path:     "/v2/widevine",
-         RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-func GetDash(files []File) (*File, error) {
-   for _, file_data := range files {
-      if file_data.Method == "dash" {
-         return &file_data, nil
+type File struct {
+   DrmAuthorizationToken string `json:"drm_authorization_token"`
+   Links                 struct {
+      Source struct {
+         Href *Url // MPD
       }
-   }
-   return nil, errors.New("DASH media file not found")
+   } `json:"_links"`
+   Method string
 }
 
 func FetchFiles(accessToken string, files *url.URL) ([]File, error) {
@@ -89,18 +72,40 @@ func FetchFiles(accessToken string, files *url.URL) ([]File, error) {
    return result, nil
 }
 
+func GetDash(files []File) (*File, error) {
+   for _, file_data := range files {
+      if file_data.Method == "dash" {
+         return &file_data, nil
+      }
+   }
+   return nil, errors.New("DASH media file not found")
+}
+
 func (*File) CachePath() string {
    return "rosso/criterion/File"
 }
 
-type File struct {
-   DrmAuthorizationToken string `json:"drm_authorization_token"`
-   Links                 struct {
-      Source struct {
-         Href *Url // MPD
-      }
-   } `json:"_links"`
-   Method string
+func (f *File) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme:   "https",
+         Host:     "drm.vhx.com",
+         Path:     "/v2/widevine",
+         RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
+      },
+      nil,
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+type Token struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
 }
 
 func FetchToken(username, password string) (*Token, error) {
@@ -131,6 +136,10 @@ func FetchToken(username, password string) (*Token, error) {
    return &result, nil
 }
 
+func (*Token) CachePath() string {
+   return "rosso/criterion/Token"
+}
+
 func (t *Token) Refresh() error {
    body := url.Values{
       "client_id":     {client_id},
@@ -151,15 +160,6 @@ func (t *Token) Refresh() error {
    }
    defer resp.Body.Close()
    return json.NewDecoder(resp.Body).Decode(t)
-}
-
-func (*Token) CachePath() string {
-   return "rosso/criterion/Token"
-}
-
-type Token struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
 }
 
 type Url struct {

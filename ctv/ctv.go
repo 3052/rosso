@@ -11,11 +11,11 @@ import (
    "strings"
 )
 
-//go:embed resolvePath.gql
-var query_resolve_path string
-
 //go:embed axisContent.gql
 var query_axis_content string
+
+//go:embed resolvePath.gql
+var query_resolve_path string
 
 func FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(
@@ -50,31 +50,6 @@ type AxisContent struct {
    AxisPlaybackLanguages []struct {
       DestinationCode string
    }
-}
-
-func (a *AxisContent) Playback() (*Playback, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprintf(
-            "/destinations/%v/platforms/desktop/contents/%v",
-            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
-         ),
-         RawQuery: "$include=[ContentPackages]",
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   result := &Playback{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
 
 func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
@@ -113,10 +88,89 @@ func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
    return url.Parse(strings.Replace(string(data), "/best/", "/ultimate/", 1))
 }
 
+func (a *AxisContent) Playback() (*Playback, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "capi.9c9media.com",
+         Path: fmt.Sprintf(
+            "/destinations/%v/platforms/desktop/contents/%v",
+            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
+         ),
+         RawQuery: "$include=[ContentPackages]",
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Playback{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 type Playback struct {
    ContentPackages []struct {
       Id int
    }
+}
+
+type ResolvedPath struct {
+   LastSegment struct {
+      Content struct {
+         FirstPlayableContent *struct {
+            Id string
+         }
+         Id string
+      }
+   }
+}
+
+func Resolve(path string) (*ResolvedPath, error) {
+   body, err := json.Marshal(map[string]any{
+      "query": query_resolve_path,
+      "variables": map[string]string{
+         "path": path,
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "www.ctv.ca",
+         Path:   "/space-graphql/apq/graphql",
+      },
+      // you need this for the first request, then can omit
+      map[string]string{"graphql-client-platform": "entpay_web"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   var result struct {
+      Data struct {
+         ResolvedPath *ResolvedPath
+      }
+   }
+   err = json.Unmarshal(body, &result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Data.ResolvedPath == nil {
+      return nil, errors.New(string(body))
+   }
+   return result.Data.ResolvedPath, nil
 }
 
 func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
@@ -161,63 +215,9 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
    return &result.Data.AxisContent, nil
 }
 
-type ResolvedPath struct {
-   LastSegment struct {
-      Content struct {
-         FirstPlayableContent *struct {
-            Id string
-         }
-         Id string
-      }
-   }
-}
-
 func (r *ResolvedPath) get_id() string {
    if fpc := r.LastSegment.Content.FirstPlayableContent; fpc != nil {
       return fpc.Id
    }
    return r.LastSegment.Content.Id
-}
-
-func Resolve(path string) (*ResolvedPath, error) {
-   body, err := json.Marshal(map[string]any{
-      "query": query_resolve_path,
-      "variables": map[string]string{
-         "path": path,
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.ctv.ca",
-         Path:   "/space-graphql/apq/graphql",
-      },
-      // you need this for the first request, then can omit
-      map[string]string{"graphql-client-platform": "entpay_web"},
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   body, err = io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, err
-   }
-   var result struct {
-      Data struct {
-         ResolvedPath *ResolvedPath
-      }
-   }
-   err = json.Unmarshal(body, &result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Data.ResolvedPath == nil {
-      return nil, errors.New(string(body))
-   }
-   return result.Data.ResolvedPath, nil
 }
