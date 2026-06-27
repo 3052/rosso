@@ -15,7 +15,7 @@ type CodePair struct {
 }
 
 // CreateCodePair requests a public and private code pair for device linking.
-func CreateCodePair(deviceID DeviceID) (*CodePair, error) {
+func CreateCodePair() (*CodePair, error) {
    payload := map[string]any{
       "code_data": map[string]string{
          "domain":           "Device",
@@ -25,7 +25,7 @@ func CreateCodePair(deviceID DeviceID) (*CodePair, error) {
          "device_model":     "sdk_gphone_x86",
          "os_version":       "Android",
          "device_type":      DeviceTypeID,
-         "device_serial":    string(deviceID),
+         "device_serial":    DeviceID,
          "software_version": "999",
       },
    }

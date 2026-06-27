@@ -81,7 +81,6 @@ type VodPlaybackParams struct {
    BitrateAdaptation  string // e.g., "CBR" or "CVBR"
    DynamicRangeFormat string // e.g., "None", "DolbyVision", or "HDR10"
    MaxVideoResolution string // e.g., "576p" or "2160p"
-   DeviceID           DeviceID
 }
 
 // Fetch requests the final MPD resources for playback from Amazon's API.
@@ -125,7 +124,7 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, err
    }
    query := url.Values{}
-   query.Add("deviceID", string(p.DeviceID))
+   query.Add("deviceID", DeviceID)
    query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)
