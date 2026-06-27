@@ -1,5 +1,7 @@
 # fix
 
+## anonymize
+
 ~~~
 8 license.go
 7 playback_resources.go
@@ -9,4 +11,8 @@
 3 refresh.go
 2 register.go
 1 code_pair.go
+
+0 constants.go
 ~~~
+
+## log

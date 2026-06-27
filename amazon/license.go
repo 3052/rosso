@@ -8,12 +8,12 @@ import (
    "net/url"
 )
 
-// GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
-func GetWidevineLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
-   reqURL := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/drm-vod/GetWidevineLicense"
-   payload := map[string]interface{}{
-      "playbackEnvelope":   playbackEnvelope,
-      "licenseChallenge":   licenseChallenge,
+// GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
+func GetPlayReadyLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
+   reqURL := HostATVPS + "/playback/drm-vod/GetPlayReadyLicense"
+   payload := map[string]any{
+      "playbackEnvelope": playbackEnvelope,
+      "licenseChallenge": licenseChallenge,
    }
    query := url.Values{}
    query.Add("deviceTypeID", DeviceTypeID)
@@ -21,10 +21,10 @@ func GetWidevineLicense(actorAccessToken, playbackEnvelope string, licenseChalle
    return fetchDRMLicense(reqURL, actorAccessToken, query, payload)
 }
 
-// GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
-func GetPlayReadyLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
-   reqURL := "https://atv-ps.primevideo.com/playback/drm-vod/GetPlayReadyLicense"
-   payload := map[string]interface{}{
+// GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
+func GetWidevineLicense(actorAccessToken, playbackEnvelope string, licenseChallenge []byte) ([]byte, error) {
+   reqURL := HostATVPS + "/playback/drm-vod/GetWidevineLicense"
+   payload := map[string]any{
       "playbackEnvelope": playbackEnvelope,
       "licenseChallenge": licenseChallenge,
    }
@@ -35,7 +35,7 @@ func GetPlayReadyLicense(actorAccessToken, playbackEnvelope string, licenseChall
 }
 
 // fetchDRMLicense is the shared base function for making DRM requests
-func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload map[string]interface{}) ([]byte, error) {
+func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload map[string]any) ([]byte, error) {
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, fmt.Errorf("failed to marshal payload: %w", err)

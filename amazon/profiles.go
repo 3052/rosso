@@ -14,7 +14,7 @@ type Profile struct {
 
 // GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
 func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
-   url := "https://ab8mt4dd97et.na.api.amazonvideo.com/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
+   url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err

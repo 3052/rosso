@@ -16,6 +16,42 @@ import (
 //go:embed GetShowpage.gql
 var get_showpage string
 
+// SL2000 max 2160p
+func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "license.9c9media.com",
+      Path:   "/playready",
+   }
+
+   bodyMap := map[string]interface{}{
+      "payload": base64.StdEncoding.EncodeToString(challenge),
+      "playbackContext": map[string]interface{}{
+         "contentId": activePlayback.ContentId,
+         // lower-case 'p' as per their API
+         "contentpackageId": activePlayback.ContentPackage.Id,
+         "destinationId":    activePlayback.DestinationId,
+         "jwt":              token.AccessToken,
+         "platformId":       48,
+      },
+   }
+
+   body, err := json.Marshal(bodyMap)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(endpoint, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -55,40 +91,11 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) 
    return url.Parse(result.Playback)
 }
 
-// SL2000 max 2160p
-func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "license.9c9media.com",
-      Path:   "/playready",
-   }
-
-   bodyMap := map[string]interface{}{
-      "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]interface{}{
-         "contentId": activePlayback.ContentId,
-         // lower-case 'p' as per their API
-         "contentpackageId": activePlayback.ContentPackage.Id,
-         "destinationId":    activePlayback.DestinationId,
-         "jwt":              token.AccessToken,
-         "platformId":       48,
-      },
-   }
-
-   body, err := json.Marshal(bodyMap)
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(endpoint, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
+type AccountToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   AccountId    string `json:"account_id"`
+   Jti          string `json:"jti"`
 }
 
 func PerformLogin(username string, password string) (*AccountToken, error) {
@@ -129,13 +136,6 @@ func (*AccountToken) CachePath() string {
    return "rosso/crave/AccountToken"
 }
 
-type AccountToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   AccountId    string `json:"account_id"`
-   Jti          string `json:"jti"`
-}
-
 type ContentPackage struct {
    DurationInSeconds int    `json:"durationInSeconds"`
    Id                int    `json:"id"`
@@ -152,6 +152,11 @@ type Experience struct {
 
 type FirstContent struct {
    Id int `json:"id,string"`
+}
+
+type Media struct {
+   FirstContent FirstContent `json:"firstContent"`
+   Id           int          `json:"id,string"`
 }
 
 func GetMedia(showId int) (*Media, error) {
@@ -255,15 +260,6 @@ func (*Media) CachePath() string {
    return "rosso/crave/Media"
 }
 
-type Media struct {
-   FirstContent FirstContent `json:"firstContent"`
-   Id           int          `json:"id,string"`
-}
-
-func (*Playback) CachePath() string {
-   return "rosso/crave/Playback"
-}
-
 type Playback struct {
    ContentId      int            `json:"contentId,string"`
    ContentPackage ContentPackage `json:"contentPackage"`
@@ -297,6 +293,10 @@ func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
       return nil, errors.New(result.Error)
    }
    return &result, nil
+}
+
+func (*Playback) CachePath() string {
+   return "rosso/crave/Playback"
 }
 
 type Profile struct {
@@ -359,6 +359,14 @@ func (p *Profile) String() string {
    return data.String()
 }
 
+type ProfileToken struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+   Scope        string `json:"scope"`
+   TokenType    string `json:"token_type"`
+   ExpiresIn    int    `json:"expires_in"`
+}
+
 func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
    endpoint := &url.URL{
       Scheme: "https",
@@ -395,14 +403,6 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
 
 func (*ProfileToken) CachePath() string {
    return "rosso/crave/ProfileToken"
-}
-
-type ProfileToken struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-   Scope        string `json:"scope"`
-   TokenType    string `json:"token_type"`
-   ExpiresIn    int    `json:"expires_in"`
 }
 
 type Subscription struct {

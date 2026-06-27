@@ -15,14 +15,15 @@ type ItemDetails struct {
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
 func GetItemDetails(actorAccessToken, titleId string) (*ItemDetails, error) {
-   url := "https://s0s7.api.amazonvideo.com/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
+   url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err
    }
    query := req.URL.Query()
    query.Add("itemId", titleId)
-   // Critical UI and Feature flags to force the V2/V3 BuyBox response with PlaybackEnvelope
+   // Critical UI and Feature flags to force the V2/V3 BuyBox response with
+   // PlaybackEnvelope
    query.Add("roles", "playback-envelope-supported")
    query.Add("presentationScheme", "android-tv-react")
    // Device parameters

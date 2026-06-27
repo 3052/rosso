@@ -16,8 +16,8 @@ type TokenPair struct {
 // PollRegister attempts to register the device. This should typically be called in a loop
 // until it returns success (after the user links the device on the web).
 func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
-   payload := map[string]interface{}{
-      "auth_data": map[string]interface{}{
+   payload := map[string]any{
+      "auth_data": map[string]any{
          "code_pair": map[string]string{
             "public_code":  publicCode,
             "private_code": privateCode,
@@ -25,7 +25,7 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
       },
       "registration_data": map[string]string{
          "app_name":      "AIV",
-         "app_version":   "3.12.0",
+         "app_version":   "9",
          "device_model":  DeviceModel,
          "device_serial": DeviceID,
          "device_type":   DeviceTypeID,
@@ -38,7 +38,7 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
       return nil, err
    }
    req, err := http.NewRequest(
-      "POST", "https://api.amazon.com/auth/register", bytes.NewBuffer(body),
+      "POST", HostAmazonAPI+"/auth/register", bytes.NewBuffer(body),
    )
    if err != nil {
       return nil, err

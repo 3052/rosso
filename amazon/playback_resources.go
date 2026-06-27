@@ -88,11 +88,6 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    if p == nil {
       return nil, fmt.Errorf("VodPlaybackParams cannot be nil")
    }
-
-   if p.VideoCodec == "" {
-      return nil, fmt.Errorf("VideoCodec cannot be empty")
-   }
-
    payload := map[string]any{
       "globalParameters": map[string]any{
          "playbackEnvelope":       p.PlaybackEnvelope,
@@ -100,27 +95,21 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       },
       "vodPlaylistedPlaybackUrlsRequest": map[string]any{
          "device": map[string]any{
-            "supportedStreamingTechnologies": []string{"DASH"},
-            "streamingTechnologies": map[string]any{
-               "DASH": map[string]any{
-                  "drmType": p.DRMType,
-                  "codecs": []string{
-                     p.VideoCodec,
-                  },
-                  "dynamicRangeFormats": []string{
-                     p.DynamicRangeFormat,
-                  },
-                  "bitrateAdaptations": []string{
-                     p.BitrateAdaptation,
-                  },
-               },
-            },
             "hdcpLevel":          "2.3", // at least 2.2 is needed for UHD with hev1
             "maxVideoResolution": p.MaxVideoResolution,
+            "streamingTechnologies": map[string]any{
+               "DASH": map[string]any{
+                  "bitrateAdaptations":  []string{p.BitrateAdaptation},
+                  "codecs":              []string{p.VideoCodec},
+                  "drmType":             p.DRMType,
+                  "dynamicRangeFormats": []string{p.DynamicRangeFormat},
+               },
+            },
+            "supportedStreamingTechnologies": []string{"DASH"},
          },
          "playbackSettingsRequest": map[string]any{
-            "firmware": DeviceFirmware,
             "titleId":  p.TitleId,
+            "firmware": DeviceFirmware,
          },
       },
    }
@@ -128,7 +117,8 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    if err != nil {
       return nil, err
    }
-   urlStr := "https://ab8mt4dd97et.na.api.amazonvideo.com/playback/prs/GetVodPlaybackResources"
+
+   urlStr := HostATVPS + "/playback/prs/GetVodPlaybackResources"
    req, err := http.NewRequest("POST", urlStr, bytes.NewReader(body))
    if err != nil {
       return nil, err
@@ -138,7 +128,6 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    query.Add("deviceTypeID", DeviceTypeID)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {

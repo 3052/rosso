@@ -14,13 +14,13 @@ type ActorToken struct {
 
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
 func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
-   payload := map[string]interface{}{
+   payload := map[string]any{
       "actor_id":             actorId,
       "app_name":             "AIV",
       "requested_token_type": "actor_access_token",
       "source_token_type":    "refresh_token",
-      "source_device_tokens": []map[string]interface{}{
-         {
+      "source_device_tokens": []any{
+         map[string]any{
             "device_type": DeviceTypeID,
             "account_refresh_token": map[string]string{
                "token": refreshToken,
@@ -33,12 +33,12 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
       return nil, err
    }
    req, err := http.NewRequest(
-      "POST", "https://api.amazon.com/auth/token", bytes.NewBuffer(body),
+      "POST", HostAmazonAPI+"/auth/token", bytes.NewBuffer(body),
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("Content-Type", "application/json")
+   req.Header.Set("content-type", "application/json")
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {

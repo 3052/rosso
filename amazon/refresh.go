@@ -10,23 +10,23 @@ import (
 // RefreshToken exchanges an existing refresh token for a new access token
 // using the /auth/token endpoint.
 func RefreshToken(refreshToken string) (*TokenPair, error) {
-   payload := map[string]interface{}{
+   payload := map[string]string{
       "app_name":             "AIV",
-      "source_token_type":    "refresh_token",
-      "source_token":         refreshToken,
       "requested_token_type": "access_token",
+      "source_token":         refreshToken,
+      "source_token_type":    "refresh_token",
    }
    body, err := json.Marshal(payload)
    if err != nil {
       return nil, err
    }
    req, err := http.NewRequest(
-      "POST", "https://api.amazon.com/auth/token", bytes.NewBuffer(body),
+      "POST", HostAmazonAPI+"/auth/token", bytes.NewBuffer(body),
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("Content-Type", "application/json")
+   req.Header.Set("content-type", "application/json")
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
