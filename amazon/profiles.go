@@ -24,6 +24,7 @@ func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
    query.Add("deviceID", DeviceID)
    req.Header.Set("Authorization", "Bearer "+accountAccessToken)
    req.URL.RawQuery = query.Encode()
+
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -31,32 +32,41 @@ func GetPrimaryProfile(accountAccessToken string) (*Profile, error) {
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-   }
-
-   // Embed our new Profile struct into the anonymous decoder struct
+   // Embed our new Profile struct alongside the error Message struct
    var result struct {
       Resource struct {
          Profiles []Profile `json:"profiles"`
       } `json:"resource"`
+      Message *struct {
+         Body *struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"body"`
+      } `json:"message"`
    }
 
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
+      return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
    }
 
+   // 1. Check for the structured JSON API error
+   if result.Message != nil && result.Message.Body != nil {
+      return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
+   }
+
+   // 2. Check for standard HTTP errors if no JSON error message was provided
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+
+   // 3. Extract and return the primary profile
    for _, profile := range result.Resource.Profiles {
       if profile.IsDefaultProfile {
          return &profile, nil
       }
    }
 
-   if len(result.Resource.Profiles) > 0 {
-      return &result.Resource.Profiles[0], nil
-   }
-
-   return nil, fmt.Errorf("no profiles found")
+   return nil, fmt.Errorf("default profile not found")
 }
 
 func (*Profile) CachePath() string {

@@ -40,14 +40,14 @@ func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload 
    if err != nil {
       return nil, fmt.Errorf("failed to marshal payload: %w", err)
    }
-   // bytes.NewReader automatically handles ContentLength and Read closures
+
    req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(body))
    if err != nil {
       return nil, fmt.Errorf("failed to create request: %w", err)
    }
    req.URL.RawQuery = query.Encode()
-   // Standardized headers for both Widevine and PlayReady
    req.Header.Set("Authorization", "Bearer "+actorAccessToken)
+
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -55,23 +55,42 @@ func fetchDRMLicense(reqURL, actorAccessToken string, query url.Values, payload 
    }
    defer resp.Body.Close()
 
+   var result struct {
+      WidevineLicense *struct {
+         License []byte `json:"license"`
+      } `json:"widevineLicense"`
+      PlayReadyLicense *struct {
+         License []byte `json:"license"`
+      } `json:"playReadyLicense"`
+      Message *struct {
+         Body *struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"body"`
+      } `json:"message"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
+   }
+
+   // 1. Check for the structured JSON API error
+   if result.Message != nil && result.Message.Body != nil {
+      return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
+   }
+
+   // 2. Check for standard HTTP errors if no JSON error message was provided
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
-   // By using a map, we can dynamically handle either "widevineLicense" or "playReadyLicense" top-level keys.
-   // Go automatically base64-decodes JSON strings when unmarshaling into a []byte!
-   var result map[string]struct {
-      License []byte `json:"license"`
+
+   // 3. Extract and return whichever license was provided
+   if result.WidevineLicense != nil && len(result.WidevineLicense.License) > 0 {
+      return result.WidevineLicense.License, nil
    }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, fmt.Errorf("failed to decode response: %w", err)
+   if result.PlayReadyLicense != nil && len(result.PlayReadyLicense.License) > 0 {
+      return result.PlayReadyLicense.License, nil
    }
-   // Extract and return whichever license was provided in the response
-   if wv, ok := result["widevineLicense"]; ok && len(wv.License) > 0 {
-      return wv.License, nil
-   }
-   if pr, ok := result["playReadyLicense"]; ok && len(pr.License) > 0 {
-      return pr.License, nil
-   }
+
    return nil, fmt.Errorf("license not found in response")
 }

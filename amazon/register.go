@@ -25,14 +25,15 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
          },
       },
       "registration_data": map[string]string{
-         "app_name":      "AIV",
-         "app_version":   "9",
-         "device_model":  "device_model",
-         "device_serial": DeviceID,
-         "device_type":   DeviceTypeID,
-         "os_version":    "Android",
-         // if you change deviceID this is required
-         "device_name": "device_name",
+         "domain":           "Device",
+         "device_name":      "%FIRST_NAME%'s%DUPE_STRATEGY_1ST% sdk_gphone_x86",
+         "app_name":         "AIV",
+         "app_version":      "3.12.0",
+         "device_model":     "sdk_gphone_x86",
+         "os_version":       "Android",
+         "device_type":      DeviceTypeID, // from HAR: A2SNKIF736WF4T
+         "device_serial":    DeviceID,     // from HAR: uuidb43bee409bd448cfb5ba3337bd241645
+         "software_version": "999",
       },
       "requested_token_type": []string{"bearer"},
    }
@@ -46,6 +47,14 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
    if err != nil {
       return nil, err
    }
+
+   // Headers matching the HAR file
+   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
+   req.Header.Set("Accept-Encoding", "identity")
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("accept-language", "en_US")
+   req.Header.Set("accept", "application/json")
+
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
