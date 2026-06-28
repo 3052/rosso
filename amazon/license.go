@@ -11,41 +11,35 @@ import (
 
 // GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
 func GetPlayReadyLicense(actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
-   reqURL := HostATVPS + "/playback/drm-vod/GetPlayReadyLicense"
-   payload := map[string]any{
-      "playbackEnvelope": itemDetails.PlaybackEnvelope,
-      "licenseChallenge": licenseChallenge,
-   }
-   query := url.Values{}
-   query.Add("deviceTypeID", deviceTypeID)
-   query.Add("deviceID", DeviceID)
-   return fetchDRMLicense(reqURL, actorToken, query, payload)
+   return fetchDRMLicense("/playback/drm-vod/GetPlayReadyLicense", actorToken, itemDetails, licenseChallenge, deviceTypeID)
 }
 
 // GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
 func GetWidevineLicense(actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
-   reqURL := HostATVPS + "/playback/drm-vod/GetWidevineLicense"
+   return fetchDRMLicense("/playback/drm-vod/GetWidevineLicense", actorToken, itemDetails, licenseChallenge, deviceTypeID)
+}
+
+// fetchDRMLicense is the shared base function for making DRM requests
+func fetchDRMLicense(path string, actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
    payload := map[string]any{
       "playbackEnvelope": itemDetails.PlaybackEnvelope,
       "licenseChallenge": licenseChallenge,
    }
-   query := url.Values{}
-   query.Add("deviceTypeID", deviceTypeID)
-   query.Add("deviceID", DeviceID)
-   return fetchDRMLicense(reqURL, actorToken, query, payload)
-}
 
-// fetchDRMLicense is the shared base function for making DRM requests
-func fetchDRMLicense(reqURL string, actorToken *ActorToken, query url.Values, payload map[string]any) ([]byte, error) {
    body, err := marshal(payload)
    if err != nil {
       return nil, fmt.Errorf("failed to marshal payload: %w", err)
    }
 
-   req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, HostATVPS+path, bytes.NewReader(body))
    if err != nil {
       return nil, fmt.Errorf("failed to create request: %w", err)
    }
+
+   query := url.Values{}
+   query.Add("deviceTypeID", deviceTypeID)
+   query.Add("deviceID", DeviceID)
+
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+actorToken.Token)
 

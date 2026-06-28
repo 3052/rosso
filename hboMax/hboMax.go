@@ -19,12 +19,9 @@ const (
 
 const Markets = "amer apac emea latam"
 
-func (*Cookie) CachePath() string {
-   return "rosso/hboMax/Cookie"
-}
-
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+type Cookie struct {
+   Name  string
+   Value string
 }
 
 func StRequest() (*Cookie, error) {
@@ -52,160 +49,12 @@ func StRequest() (*Cookie, error) {
    return nil, errors.New("named cookie not present")
 }
 
-type Cookie struct {
-   Name  string
-   Value string
+func (*Cookie) CachePath() string {
+   return "rosso/hboMax/Cookie"
 }
 
-// String implements the fmt.Stringer interface to provide a clean visual
-// output for the Entity
-func (e *Entity) String() string {
-   data := &strings.Builder{}
-   if e.Attributes.MaterialType == "EPISODE" {
-      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
-   }
-   if e.Attributes.ShowType != "" {
-      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
-   } else if e.Attributes.VideoType != "" {
-      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
-   }
-   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
-   if e.Type == "video" {
-      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
-   } else {
-      fmt.Fprintf(data, "ID: %s\n", e.Id)
-   }
-   return strings.TrimSpace(data.String())
-}
-
-func SearchRequest(token, query string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func MovieRequest(token, movieId string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("page[items.size]", "1")
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/movie/" + movieId,
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("pf[show.id]", showId)
-   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
-   parsedUrl := &url.URL{
-      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
-   // Scheme
-   endpoint.Scheme = "https"
-   // Host
-   endpoint.Host = "default.prd.api.hbomax.com"
-   // RawQuery
-   query := endpoint.Query()
-   query.Set("include", "default")
-   endpoint.RawQuery = query.Encode()
-   resp, err := maya.Get(
-      endpoint, map[string]string{"authorization": "Bearer " + token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Errors []struct { // 2026-05-27
-         Detail string // 2026-05-27
-      }
-      Included []*Entity `json:"included"`
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Detail)
-   }
-   return result.Included, nil
-}
-
-func (*Login) CachePath() string {
-   return "rosso/hboMax/Login"
-}
-
-type Login struct {
-   Token string
-}
-
-func (*Playback) CachePath() string {
-   return "rosso/hboMax/Playback"
-}
-
-func PlayReadyRequest(token, editId string) (*Playback, error) {
-   return playback_request(token, editId, "playready")
-}
-
-func WidevineRequest(token, editId string) (*Playback, error) {
-   return playback_request(token, editId, "widevine")
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors []struct { // 2026-05-27
-      Detail string // 2026-05-27
-   }
-   Fallback struct {
-      Manifest struct {
-         Url *Url // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
-}
-
-///
-
-func MovieResults(entities []*Entity) []*Entity {
-   var movies []*Entity
-   for _, item := range entities {
-      // Identify the primary video entity for the movie
-      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
-         movies = append(movies, item)
-      }
-   }
-   return movies
-}
-
-func SeasonResults(entities []*Entity) []*Entity {
-   var results []*Entity
-   for _, item := range entities {
-      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
-         results = append(results, item)
-      }
-   }
-   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
-   slices.SortFunc(results, func(entityA, entityB *Entity) int {
-      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
-   })
-   return results
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
 // Entity represents a single unified node in the Max API response
@@ -237,6 +86,39 @@ type Entity struct {
       }
    }
    Type string
+}
+
+func MovieRequest(token, movieId string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("page[items.size]", "1")
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/movie/" + movieId,
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
+}
+
+///
+
+func MovieResults(entities []*Entity) []*Entity {
+   var movies []*Entity
+   for _, item := range entities {
+      // Identify the primary video entity for the movie
+      if item.Type == "video" && item.Attributes.VideoType == "MOVIE" {
+         movies = append(movies, item)
+      }
+   }
+   return movies
+}
+
+func SearchRequest(token, query string) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("contentFilter[query]", query)
+   parsedUrl := &url.URL{
+      Path:     "/cms/routes/search/result",
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
 }
 
 func SearchResults(entities []*Entity) ([]*Entity, error) {
@@ -284,6 +166,89 @@ func SearchResults(entities []*Entity) ([]*Entity, error) {
    return results, nil
 }
 
+func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
+   values := url.Values{}
+   values.Set("pf[show.id]", showId)
+   values.Set("pf[seasonNumber]", fmt.Sprint(seasonNumber))
+   parsedUrl := &url.URL{
+      Path:     "/cms/collections/generic-show-page-rail-episodes-tabbed-content",
+      RawQuery: values.Encode(),
+   }
+   return entity_request(token, parsedUrl)
+}
+
+func SeasonResults(entities []*Entity) []*Entity {
+   var results []*Entity
+   for _, item := range entities {
+      if item.Type == "video" && item.Attributes.MaterialType == "EPISODE" {
+         results = append(results, item)
+      }
+   }
+   // Sort episodes by EpisodeNumber using the modern slices.SortFunc
+   slices.SortFunc(results, func(entityA, entityB *Entity) int {
+      return cmp.Compare(entityA.Attributes.EpisodeNumber, entityB.Attributes.EpisodeNumber)
+   })
+   return results
+}
+
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
+   resp, err := maya.Get(
+      endpoint, map[string]string{"authorization": "Bearer " + token},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Errors []struct { // 2026-05-27
+         Detail string // 2026-05-27
+      }
+      Included []*Entity `json:"included"`
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) >= 1 {
+      return nil, errors.New(result.Errors[0].Detail)
+   }
+   return result.Included, nil
+}
+
+// String implements the fmt.Stringer interface to provide a clean visual
+// output for the Entity
+func (e *Entity) String() string {
+   data := &strings.Builder{}
+   if e.Attributes.MaterialType == "EPISODE" {
+      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
+   }
+   if e.Attributes.ShowType != "" {
+      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
+   } else if e.Attributes.VideoType != "" {
+      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
+   }
+   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
+   if e.Type == "video" {
+      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
+   } else {
+      fmt.Fprintf(data, "ID: %s\n", e.Id)
+   }
+   return strings.TrimSpace(data.String())
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
 func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -316,11 +281,6 @@ func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
    return &result.Data.Attributes, nil
 }
 
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
 func (i *Initiate) String() string {
    var data strings.Builder
    data.WriteString("target URL: ")
@@ -328,6 +288,10 @@ func (i *Initiate) String() string {
    data.WriteString("\nlinking code: ")
    data.WriteString(i.LinkingCode)
    return data.String()
+}
+
+type Login struct {
+   Token string
 }
 
 // you must
@@ -359,42 +323,36 @@ func LoginRequest(st *Cookie) (*Login, error) {
    return &result.Data.Attributes, nil
 }
 
-func (p *Playback) GetManifest() *url.URL {
-   manifest := p.Fallback.Manifest.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
-   return &manifest
+func (*Login) CachePath() string {
+   return "rosso/hboMax/Login"
 }
 
-// SL2000 max 1080p
-// SL3000 max 2160p
-func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
-      map[string]string{"content-type": "text/xml"}, body,
-   )
-   if err != nil {
-      return nil, err
+type Playback struct {
+   Drm struct {
+      Schemes struct {
+         PlayReady *Scheme
+         Widevine  *Scheme
+      }
    }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
+   Errors []struct { // 2026-05-27
+      Detail string // 2026-05-27
    }
-   return io.ReadAll(resp.Body)
+   Fallback struct {
+      Manifest struct {
+         Url *Url // _fallback.mpd:1080p, .mpd:4K
+      }
+   }
+   Manifest struct {
+      Url string // 1080p
+   }
 }
 
-func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
+func PlayReadyRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "playready")
+}
+
+func WidevineRequest(token, editId string) (*Playback, error) {
+   return playback_request(token, editId, "widevine")
 }
 
 func playback_request(token, edit_id, drm string) (*Playback, error) {
@@ -468,6 +426,48 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
    return &result, nil
 }
 
+func (*Playback) CachePath() string {
+   return "rosso/hboMax/Playback"
+}
+
+func (p *Playback) GetManifest() *url.URL {
+   manifest := p.Fallback.Manifest.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
+   return &manifest
+}
+
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
+      map[string]string{"content-type": "text/xml"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
+func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
+}
+
 // Resource represents a relationship pointer in the JSON:API graph
 type Resource struct {
    Id   string
@@ -482,10 +482,10 @@ type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
