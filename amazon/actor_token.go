@@ -13,7 +13,7 @@ type ActorToken struct {
 }
 
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
-func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
+func GetActorToken(refreshToken, actorId, deviceTypeID string) (*ActorToken, error) {
    payload := map[string]any{
       "actor_id":             actorId,
       "app_name":             "AIV",
@@ -21,7 +21,7 @@ func GetActorToken(refreshToken, actorId string) (*ActorToken, error) {
       "source_token_type":    "refresh_token",
       "source_device_tokens": []any{
          map[string]any{
-            "device_type": DeviceTypeID,
+            "device_type": deviceTypeID, // Updated to use function input
             "account_refresh_token": map[string]string{
                "token": refreshToken,
             },

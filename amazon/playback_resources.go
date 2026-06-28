@@ -76,6 +76,7 @@ type VodPlaybackParams struct {
    ActorAccessToken   string
    TitleId            string
    PlaybackEnvelope   string
+   DeviceTypeID       string // Updated: Added to struct
    VideoCodec         string // e.g., "H264" or "H265"
    DRMType            string // e.g., "Widevine" or "PlayReady"
    BitrateAdaptation  string // e.g., "CBR" or "CVBR"
@@ -125,7 +126,7 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    }
    query := url.Values{}
    query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", DeviceTypeID)
+   query.Add("deviceTypeID", p.DeviceTypeID) // Updated to use struct property
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)
    client := &http.Client{}

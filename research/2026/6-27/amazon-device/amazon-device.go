@@ -10,22 +10,10 @@ import (
    "strings"
 )
 
-// InitConfig represents the outer JSON object assigned to ATVDeviceInitializationConfig
+// InitConfig represents the common properties we care about in the config
 type InitConfig struct {
    DeviceProperties string `json:"DEVICE_PROPERTIES"`
    BlastOverride    string `json:"blastDeviceOverrideConfigJSON"`
-}
-
-// DeviceProps represents the unmarshaled DEVICE_PROPERTIES string
-type DeviceProps struct {
-   ClientName string `json:"CLIENT_NAME"`
-}
-
-// BlastOverride represents the unmarshaled blastDeviceOverrideConfigJSON string
-type BlastOverride struct {
-   Configs struct {
-      ProductType map[string]interface{} `json:"PRODUCT_TYPE"`
-   } `json:"configs"`
 }
 
 func main() {
@@ -50,55 +38,77 @@ func printDeviceInfo(dtid string) error {
       return fmt.Errorf("failed to fetch data for DTID %s: %w", dtid, err)
    }
 
-   // 1. Isolate the JSON block using strings.Cut
-   _, after, ok := strings.Cut(htmlContent, `ATVDeviceInitializationConfig=`)
-   if !ok {
-      return fmt.Errorf("ATVDeviceInitializationConfig not found in the HTML payload")
+   initConfig, err := extractInitConfig(htmlContent)
+   if err != nil {
+      return err
    }
 
-   // The JSON block ends right before the next variable assignment in the script
-   jsonStr, _, ok := strings.Cut(after, `; injectedEnvValues`)
-   if !ok {
-      return fmt.Errorf("could not find the end boundary of the JSON payload")
+   // Unmarshal the nested DEVICE_PROPERTIES JSON to extract manufacturer
+   var deviceProps struct {
+      ClientName string `json:"CLIENT_NAME"`
+   }
+   if initConfig.DeviceProperties != "" {
+      if err := json.Unmarshal([]byte(initConfig.DeviceProperties), &deviceProps); err != nil {
+         return fmt.Errorf("failed to unmarshal DEVICE_PROPERTIES: %w", err)
+      }
    }
 
-   // 2. Unmarshal the outer JSON payload
-   var initConfig InitConfig
-   if err := json.Unmarshal([]byte(jsonStr), &initConfig); err != nil {
-      return fmt.Errorf("failed to unmarshal outer JSON: %w", err)
-   }
-
-   // 3. Unmarshal the nested DEVICE_PROPERTIES JSON
-   var deviceProps DeviceProps
-   if err := json.Unmarshal([]byte(initConfig.DeviceProperties), &deviceProps); err != nil {
-      return fmt.Errorf("failed to unmarshal DEVICE_PROPERTIES: %w", err)
-   }
-
-   if deviceProps.ClientName == "" {
-      return fmt.Errorf("manufacturer not found in the configuration payload")
-   }
-
-   // 4. Unmarshal the nested blastDeviceOverrideConfigJSON
-   var blastOverride BlastOverride
-   if err := json.Unmarshal([]byte(initConfig.BlastOverride), &blastOverride); err != nil {
-      return fmt.Errorf("failed to unmarshal blastDeviceOverrideConfigJSON: %w", err)
-   }
-
-   // The model number is the dynamic key inside the PRODUCT_TYPE object
+   // Unmarshal the nested blastDeviceOverrideConfigJSON to extract the model
    var modelNumber string
-   for key := range blastOverride.Configs.ProductType {
-      modelNumber = key
-      break // We just need the first/only key
+   if initConfig.BlastOverride != "" {
+      var blastOverride struct {
+         Configs struct {
+            ProductType map[string]interface{} `json:"PRODUCT_TYPE"`
+         } `json:"configs"`
+      }
+      if err := json.Unmarshal([]byte(initConfig.BlastOverride), &blastOverride); err != nil {
+         return fmt.Errorf("failed to unmarshal blastDeviceOverrideConfigJSON: %w", err)
+      }
+
+      // The model number is dynamically set as the key inside PRODUCT_TYPE
+      for key := range blastOverride.Configs.ProductType {
+         modelNumber = key
+         break
+      }
    }
 
-   if modelNumber == "" {
-      return fmt.Errorf("model number not found in the configuration payload")
+   // Output ONLY the fields that were actually found
+   if deviceProps.ClientName != "" {
+      fmt.Printf("manufacturer name: %s\n", deviceProps.ClientName)
    }
-
-   fmt.Printf("manufacturer name: %s\n", deviceProps.ClientName)
-   fmt.Printf("model number: %s\n", modelNumber)
+   if modelNumber != "" {
+      fmt.Printf("model number: %s\n", modelNumber)
+   }
 
    return nil
+}
+
+// extractInitConfig checks known HTML injection patterns and extracts the config
+func extractInitConfig(htmlContent string) (*InitConfig, error) {
+   // Format 1: PS4 style -> `injectedEnvValues = {"ATVDeviceInitializationConfig": {...}}; </script>`
+   if _, after, ok := strings.Cut(htmlContent, "injectedEnvValues = "); ok {
+      if jsonStr, _, ok := strings.Cut(after, "; </script>"); ok {
+         var wrapper struct {
+            ATV InitConfig `json:"ATVDeviceInitializationConfig"`
+         }
+         // If this fails (e.g. invalid JSON), just fall through to the next format check
+         if err := json.Unmarshal([]byte(jsonStr), &wrapper); err == nil && wrapper.ATV.DeviceProperties != "" {
+            return &wrapper.ATV, nil
+         }
+      }
+   }
+
+   // Format 2: Hisense style -> `ATVDeviceInitializationConfig={...}; injectedEnvValues`
+   if _, after, ok := strings.Cut(htmlContent, "ATVDeviceInitializationConfig="); ok {
+      if jsonStr, _, ok := strings.Cut(after, "; injectedEnvValues"); ok {
+         var initConfig InitConfig
+         if err := json.Unmarshal([]byte(jsonStr), &initConfig); err == nil && initConfig.DeviceProperties != "" {
+            return &initConfig, nil
+         }
+      }
+   }
+
+   return nil, fmt.Errorf("could not find valid configuration block in HTML payload")
 }
 
 func fetchAmazonConfig(dtid string) (string, error) {

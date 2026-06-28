@@ -16,3 +16,5 @@
 ~~~
 
 ## log
+
+## use struct as function input

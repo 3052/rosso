@@ -16,7 +16,7 @@ type TokenPair struct {
 
 // PollRegister attempts to register the device. This should typically be called in a loop
 // until it returns success (after the user links the device on the web).
-func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
+func PollRegister(publicCode, privateCode, deviceTypeID string) (*TokenPair, error) {
    payload := map[string]any{
       "auth_data": map[string]any{
          "code_pair": map[string]string{
@@ -31,7 +31,7 @@ func PollRegister(publicCode, privateCode string) (*TokenPair, error) {
          "app_version":      "3.12.0",
          "device_model":     "sdk_gphone_x86",
          "os_version":       "Android",
-         "device_type":      DeviceTypeID, // from HAR: A2SNKIF736WF4T
+         "device_type":      deviceTypeID, // Updated to use function input
          "device_serial":    DeviceID,     // from HAR: uuidb43bee409bd448cfb5ba3337bd241645
          "software_version": "999",
       },
