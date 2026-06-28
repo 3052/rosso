@@ -3,6 +3,7 @@ package amazon
 import (
    "bytes"
    "encoding/json"
+   "errors"
    "fmt"
    "net/http"
    "strings"
@@ -16,17 +17,15 @@ type CodePair struct {
 
 // CreateCodePair requests a public and private code pair for device linking.
 func CreateCodePair(deviceTypeID string) (*CodePair, error) {
+   if deviceTypeID == "" {
+      return nil, errors.New("deviceTypeID cannot be empty")
+   }
+
    payload := map[string]any{
       "code_data": map[string]string{
-         "domain":           "Device",
-         "device_name":      DeviceName,
-         "app_name":         "AIV",
-         "app_version":      "3.12.0",
-         "device_model":     "sdk_gphone_x86",
-         "os_version":       "Android",
-         "device_type":      deviceTypeID, // Updated to use function input
-         "device_serial":    DeviceID,     // from HAR: uuidb43bee409bd448cfb5ba3337bd241645
-         "software_version": "999",
+         "domain":        "Device",
+         "device_type":   deviceTypeID,
+         "device_serial": DeviceID,
       },
    }
    body, err := json.Marshal(payload)
@@ -40,14 +39,6 @@ func CreateCodePair(deviceTypeID string) (*CodePair, error) {
    if err != nil {
       return nil, err
    }
-
-   // Headers matching the HAR file
-   req.Header.Set("User-Agent", "Android/google/sdk_gphone_x86/generic_x86_arm:11/RSR1.240422.006/12134477:userdebug/dev-keys, Ignition X/15.5.2026042820-android, Google")
-   req.Header.Set("Accept-Encoding", "identity")
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("accept-language", "en_US")
-   req.Header.Set("accept", "application/json")
-
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
@@ -72,11 +63,9 @@ func (*CodePair) CachePath() string {
    return "rosso/amazon/CodePair"
 }
 
-// amazon.com/mytv
 func (c *CodePair) String() string {
    var data strings.Builder
-   data.WriteString("Please navigate to https://primevideo.com/ontv\n")
-   data.WriteString("or https://amazon.com/code\n")
+   data.WriteString("Please navigate to https://amazon.com/gp/video/ontv\n")
    data.WriteString("Enter the following code: ")
    data.WriteString(c.PublicCode)
    return data.String()

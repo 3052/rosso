@@ -1,22 +1,18 @@
 package amazon
 
-const (
-   // API Hosts
+const ( // API Hosts
    HostAmazonAPI = "https://api.amazon.com"
    HostATVPS     = "https://atv-ps.amazon.com"
    HostATVExt    = "https://atv-ext.amazon.com"
-
-   // the wrong DTID will fail the license request. if you change the DTID you
-   // need to relog
-
-   //DeviceID = "deviceID"
-   DeviceID = "uuidd9b2d63da09b46c1952a8c7b3e1f0a4d"
-
-   // time.is/Unix_time
-   DeviceName = "1782591345"
 )
 
-// Devices is a slice containing all supported device configurations.
+const DeviceID = "deviceID"
+
+// time.is/Unix_time
+const DeviceName = "device_name"
+
+// the wrong DTID will fail the license request. if you change the DTID you
+// need to relog
 var Devices = []Device{
    {
       Manufacturer:  "Hisense",
