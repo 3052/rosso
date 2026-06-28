@@ -15,10 +15,17 @@ const (
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
 )
 
-func (a *Asset) GetManifest() *url.URL {
-   manifest := a.Stream.Url.Url
-   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
-   return &manifest
+type Asset struct {
+   Drm struct {
+      Token string
+   }
+   Stream struct {
+      Url *Url // MPD
+   }
+}
+
+func (*Asset) CachePath() string {
+   return "rosso/molotov/Asset"
 }
 
 func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
@@ -48,36 +55,49 @@ func (a *Asset) FetchWidevine(body []byte) ([]byte, error) {
    return result.License, nil
 }
 
-func (*Asset) CachePath() string {
-   return "rosso/molotov/Asset"
+func (a *Asset) GetManifest() *url.URL {
+   manifest := a.Stream.Url.Url
+   manifest.Path = strings.Replace(manifest.Path, "high", "fhdready", 1)
+   return &manifest
 }
 
-type Asset struct {
-   Drm struct {
-      Token string
-   }
-   Stream struct {
-      Url *Url // MPD
-   }
+type Auth struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
 }
 
-// authorization server issues a new refresh token, in which case the
-// client MUST discard the old refresh token and replace it with the new
-// refresh token
-func (a *Auth) Refresh() error {
-   resp, err := maya.Get(
+func FetchAuth(email, password string) (*Auth, error) {
+   body, err := json.Marshal(map[string]string{
+      "grant_type": "password",
+      "email":      email,
+      "password":   password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
       &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path:   "/v3/auth/refresh/" + a.RefreshToken,
+         Scheme: "https", Host: "fapi.molotov.tv", Path: "/v3.1/auth/login",
       },
       map[string]string{"x-molotov-agent": customer_area},
+      body,
    )
    if err != nil {
-      return err
+      return nil, err
    }
    defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(a)
+   var result struct {
+      Auth Auth
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Auth, nil
+}
+
+func (*Auth) CachePath() string {
+   return "rosso/molotov/Auth"
 }
 
 func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
@@ -99,15 +119,6 @@ func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
       return nil, err
    }
    return &result, nil
-}
-
-func (*Auth) CachePath() string {
-   return "rosso/molotov/Auth"
-}
-
-type Auth struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
 }
 
 func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
@@ -144,38 +155,32 @@ func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
    return result.Program.Actions.Play, nil
 }
 
-func FetchAuth(email, password string) (*Auth, error) {
-   body, err := json.Marshal(map[string]string{
-      "grant_type": "password",
-      "email":      email,
-      "password":   password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
+// authorization server issues a new refresh token, in which case the
+// client MUST discard the old refresh token and replace it with the new
+// refresh token
+func (a *Auth) Refresh() error {
+   resp, err := maya.Get(
       &url.URL{
-         Scheme: "https", Host: "fapi.molotov.tv", Path: "/v3.1/auth/login",
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path:   "/v3/auth/refresh/" + a.RefreshToken,
       },
       map[string]string{"x-molotov-agent": customer_area},
-      body,
    )
    if err != nil {
-      return nil, err
+      return err
    }
    defer resp.Body.Close()
-   var result struct {
-      Auth Auth
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Auth, nil
+   return json.NewDecoder(resp.Body).Decode(a)
 }
 
 type Play struct {
    Url *Url // fapi.molotov.tv/v2/me/assets
+}
+
+type Program struct {
+   Id        int
+   ChannelId int
 }
 
 // https://molotov.tv/fr_fr/p/15301-2328
@@ -204,19 +209,14 @@ func ParseProgram(data string) (*Program, error) {
    return &p, nil
 }
 
-type Program struct {
-   Id        int
-   ChannelId int
-}
-
 type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }

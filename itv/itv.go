@@ -28,6 +28,12 @@ func graphql_compact(data string) string {
    return strings.Join(strings.Fields(data), " ")
 }
 
+type MediaFile struct {
+   Href          *Url // MPD
+   KeyServiceUrl *Url // DRM
+   Resolution    string
+}
+
 func (*MediaFile) CachePath() string {
    return "rosso/itv/MediaFile"
 }
@@ -41,12 +47,6 @@ func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type MediaFile struct {
-   Href          *Url // MPD
-   KeyServiceUrl *Url // DRM
-   Resolution    string
-}
-
 type Playlist struct {
    Error    string
    Playlist struct {
@@ -54,15 +54,6 @@ type Playlist struct {
          MediaFiles []MediaFile
       }
    }
-}
-
-func (p *Playlist) Get1080() (*MediaFile, error) {
-   for _, file := range p.Playlist.Video.MediaFiles {
-      if file.Resolution == "1080" {
-         return &file, nil
-      }
-   }
-   return nil, errors.New("1080p media file not found")
 }
 
 // FetchPlayReady fetches a playlist with PlayReady DRM requirements
@@ -124,6 +115,15 @@ func fetchPlaylist(address, drmSystem, maxSupported string) (*Playlist, error) {
    return &result, nil
 }
 
+func (p *Playlist) Get1080() (*MediaFile, error) {
+   for _, file := range p.Playlist.Video.MediaFiles {
+      if file.Resolution == "1080" {
+         return &file, nil
+      }
+   }
+   return nil, errors.New("1080p media file not found")
+}
+
 type Title struct {
    LatestAvailableVersion struct {
       PlaylistUrl string
@@ -133,19 +133,6 @@ type Title struct {
    }
    EpisodeNumber int
    Title         string
-}
-
-func (t *Title) String() string {
-   data := &strings.Builder{}
-   if t.Series != nil {
-      fmt.Fprintln(data, "series:", t.Series.SeriesNumber)
-      fmt.Fprintln(data, "episode:", t.EpisodeNumber)
-   }
-   if t.Title != "" {
-      fmt.Fprintln(data, "title:", t.Title)
-   }
-   fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
-   return data.String()
 }
 
 func FetchTitles(legacyId string) ([]Title, error) {
@@ -184,14 +171,27 @@ func FetchTitles(legacyId string) ([]Title, error) {
    return result.Data.Titles, nil
 }
 
+func (t *Title) String() string {
+   data := &strings.Builder{}
+   if t.Series != nil {
+      fmt.Fprintln(data, "series:", t.Series.SeriesNumber)
+      fmt.Fprintln(data, "episode:", t.EpisodeNumber)
+   }
+   if t.Title != "" {
+      fmt.Fprintln(data, "title:", t.Title)
+   }
+   fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
+   return data.String()
+}
+
 type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }

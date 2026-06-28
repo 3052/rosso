@@ -90,10 +90,6 @@ func (*Login) CachePath() string {
    return "rosso/kanopy/Login"
 }
 
-func (*Manifest) CachePath() string {
-   return "rosso/kanopy/Manifest"
-}
-
 type Manifest struct {
    Url            *Url
    ManifestType   string `json:"manifestType"`
@@ -101,6 +97,22 @@ type Manifest struct {
    StorageService string `json:"storageService"`
    Cdn            string `json:"cdn"`
    DrmLicenseId   string `json:"drmLicenseID"`
+}
+
+func (*Manifest) CachePath() string {
+   return "rosso/kanopy/Manifest"
+}
+
+type Membership struct {
+   IdentityId         int    `json:"identityId"`
+   DomainId           int    `json:"domainId"`
+   UserId             int    `json:"userId"`
+   Status             string `json:"status"`
+   IsDefault          bool   `json:"isDefault"`
+   Sitename           string `json:"sitename"`
+   Subdomain          string `json:"subdomain"`
+   TicketsAvailable   int    `json:"ticketsAvailable"`
+   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
 }
 
 func GetMemberships(loginData *Login) ([]Membership, error) {
@@ -133,31 +145,10 @@ func GetMemberships(loginData *Login) ([]Membership, error) {
    return result.List, nil
 }
 
-type Membership struct {
-   IdentityId         int    `json:"identityId"`
-   DomainId           int    `json:"domainId"`
-   UserId             int    `json:"userId"`
-   Status             string `json:"status"`
-   IsDefault          bool   `json:"isDefault"`
-   Sitename           string `json:"sitename"`
-   Subdomain          string `json:"subdomain"`
-   TicketsAvailable   int    `json:"ticketsAvailable"`
-   MaxTicketsPerMonth int    `json:"maxTicketsPerMonth"`
-}
-
 type PlayRequest struct {
    DomainId int `json:"domainId"`
    UserId   int `json:"userId"`
    VideoId  int `json:"videoId"`
-}
-
-func (p *PlayResponse) GetDash() (*Manifest, error) {
-   for _, manifest_data := range p.Manifests {
-      if manifest_data.ManifestType == "dash" {
-         return &manifest_data, nil
-      }
-   }
-   return nil, errors.New("dash manifest not found")
 }
 
 type PlayResponse struct {
@@ -201,16 +192,33 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
    return &play, nil
 }
 
+func (p *PlayResponse) GetDash() (*Manifest, error) {
+   for _, manifest_data := range p.Manifests {
+      if manifest_data.ManifestType == "dash" {
+         return &manifest_data, nil
+      }
+   }
+   return nil, errors.New("dash manifest not found")
+}
+
 type Url struct {
    Url url.URL
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
 func (u *Url) UnmarshalText(text []byte) error {
    return u.Url.UnmarshalBinary(text)
 }
 
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
+type Video struct {
+   VideoId         int    `json:"videoId"`
+   Title           string `json:"title"`
+   DescriptionHtml string `json:"descriptionHtml"`
+   DurationSeconds int    `json:"durationSeconds"`
+   Alias           string `json:"alias"`
 }
 
 func GetVideo(loginData *Login, alias string) (*Video, error) {
@@ -236,14 +244,6 @@ func GetVideo(loginData *Login, alias string) (*Video, error) {
       return nil, err
    }
    return &result.Video, nil
-}
-
-type Video struct {
-   VideoId         int    `json:"videoId"`
-   Title           string `json:"title"`
-   DescriptionHtml string `json:"descriptionHtml"`
-   DurationSeconds int    `json:"durationSeconds"`
-   Alias           string `json:"alias"`
 }
 
 // https://kanopy.com/product/6440418
