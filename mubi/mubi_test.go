@@ -2,10 +2,6 @@ package mubi
 
 import "testing"
 
-func Test(t *testing.T) {
-   t.Log(tests)
-}
-
 var tests = []struct {
    locations []string
    url       string
@@ -26,4 +22,8 @@ var tests = []struct {
          "AT", "BR", "CL", "CO", "DE", "GB", "IE", "MX", "PE", "TR",
       },
    },
+}
+
+func Test(t *testing.T) {
+   t.Log(tests)
 }

@@ -15,7 +15,7 @@ type ItemDetails struct {
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
 func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*ItemDetails, error) {
-   url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
+   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err
@@ -30,7 +30,7 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Item
    query.Add("deviceTypeID", deviceTypeID)
    query.Add("deviceID", DeviceID)
    req.URL.RawQuery = query.Encode()
-   
+
    // you can get the envelope without this, but it will be trailer:
    // resource.secondaryActions[0].presentation.label = "Watch trailer"
    req.Header.Set("Authorization", "Bearer "+actorToken.Token)
@@ -80,7 +80,7 @@ type Profile struct {
 
 // GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
 func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error) {
-   url := HostATVExt + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
+   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
       return nil, err

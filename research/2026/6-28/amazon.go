@@ -17,7 +17,7 @@ func fetchAndTest(itemID string) error {
    client := &http.Client{}
    reqURL := &url.URL{
       Scheme: "https",
-      Host:   "s0s7.api.amazonvideo.com",
+      Host: "atv-ps.amazon.com",
       Path:   "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF",
    }
    // Build Query Parameters

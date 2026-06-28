@@ -11,15 +11,6 @@ import (
 
 const azure = "oldflix-api.azurewebsites.net"
 
-func (b *Browse) GetOriginal() (*Track, error) {
-   for _, track_data := range b.Movie.Tracks {
-      if track_data.Lang == "Original" {
-         return &track_data, nil
-      }
-   }
-   return nil, errors.New("track with language 'Original' not found")
-}
-
 type Browse struct {
    Id    string
    Movie struct {
@@ -63,6 +54,20 @@ func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {
    return &result, nil
 }
 
+func (b *Browse) GetOriginal() (*Track, error) {
+   for _, track_data := range b.Movie.Tracks {
+      if track_data.Lang == "Original" {
+         return &track_data, nil
+      }
+   }
+   return nil, errors.New("track with language 'Original' not found")
+}
+
+type Login struct {
+   Status int
+   Token  string
+}
+
 func FetchLogin(username, password string) (*Login, error) {
    body := url.Values{
       "password": {password},
@@ -100,11 +105,6 @@ func (*Login) CachePath() string {
    return "rosso/oldflix/Login"
 }
 
-type Login struct {
-   Status int
-   Token  string
-}
-
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
 func (l *Login) FetchBrowse(id string) (*Browse, error) {
    body := url.Values{"id": {id}}.Encode()
@@ -135,16 +135,22 @@ func (l *Login) FetchBrowse(id string) (*Browse, error) {
    return result, nil
 }
 
+type Track struct {
+   Id   string
+   Lang string
+   Lnk  string
+}
+
 type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
 
 type Watch struct {
@@ -152,10 +158,4 @@ type Watch struct {
    Playlist []struct {
       File *Url
    }
-}
-
-type Track struct {
-   Id   string
-   Lang string
-   Lnk  string
 }

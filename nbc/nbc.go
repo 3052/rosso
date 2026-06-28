@@ -21,29 +21,6 @@ const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
 //go:embed page.gql
 var query_page string
 
-func build_query(drmType string) string {
-   timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
-   mac := hmac.New(sha256.New, []byte(drmProxySecret))
-   // Use io.WriteString to write string data directly to the Writer
-   io.WriteString(mac, timestamp)
-   io.WriteString(mac, drmType)
-   hash := hex.EncodeToString(mac.Sum(nil))
-   return url.Values{
-      "device": {"web"},
-      "hash":   {hash},
-      "time":   {timestamp},
-   }.Encode()
-}
-
-func playReady() *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-      Path:     "/drm-proxy/license/playready",
-      RawQuery: build_query("playready"),
-   }
-}
-
 func FetchWidevine(body []byte) ([]byte, error) {
    resp, err := maya.Post(
       &url.URL{
@@ -71,38 +48,33 @@ func GetName(urlData string) (string, error) {
    return strings.TrimPrefix(parse.Path, "/"), nil
 }
 
+func build_query(drmType string) string {
+   timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+   mac := hmac.New(sha256.New, []byte(drmProxySecret))
+   // Use io.WriteString to write string data directly to the Writer
+   io.WriteString(mac, timestamp)
+   io.WriteString(mac, drmType)
+   hash := hex.EncodeToString(mac.Sum(nil))
+   return url.Values{
+      "device": {"web"},
+      "hash":   {hash},
+      "time":   {timestamp},
+   }.Encode()
+}
+
+func playReady() *url.URL {
+   return &url.URL{
+      Scheme:   "https",
+      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
+      Path:     "/drm-proxy/license/playready",
+      RawQuery: build_query("playready"),
+   }
+}
+
 type Metadata struct {
    MpxAccountId    int `json:",string"`
    MpxGuid         int `json:",string"`
    ProgrammingType string
-}
-
-func (m *Metadata) FetchStream() (*Stream, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "lemonade.nbc.com",
-         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
-         RawQuery: url.Values{
-            "platform":        {"web"},
-            "programmingType": {m.ProgrammingType},
-         }.Encode(),
-      },
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   result := &Stream{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
-      return nil, err
-   }
-   return result, nil
 }
 
 func FetchMetadata(name string) (*Metadata, error) {
@@ -155,6 +127,34 @@ func FetchMetadata(name string) (*Metadata, error) {
    return &result.Data.Page.Metadata, nil
 }
 
+func (m *Metadata) FetchStream() (*Stream, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "lemonade.nbc.com",
+         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
+         RawQuery: url.Values{
+            "platform":        {"web"},
+            "programmingType": {m.ProgrammingType},
+         }.Encode(),
+      },
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   result := &Stream{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
 type Stream struct {
    PlaybackUrl *Url // MPD
 }
@@ -169,10 +169,10 @@ type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }

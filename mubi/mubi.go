@@ -48,15 +48,6 @@ func FetchEpisodes(slug string, season int) ([]*Film, error) {
    return result.Episodes, nil
 }
 
-func (f *Film) String() string {
-   data := &strings.Builder{}
-   data.WriteString("title: ")
-   data.WriteString(f.Title)
-   data.WriteString("\nid: ")
-   fmt.Fprint(data, f.Id)
-   return data.String()
-}
-
 func FetchFilm(slug string) (*Film, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -79,6 +70,20 @@ func FetchFilm(slug string) (*Film, error) {
    return result, nil
 }
 
+func (f *Film) String() string {
+   data := &strings.Builder{}
+   data.WriteString("title: ")
+   data.WriteString(f.Title)
+   data.WriteString("\nid: ")
+   fmt.Fprint(data, f.Id)
+   return data.String()
+}
+
+type LinkCode struct {
+   AuthToken string `json:"auth_token"`
+   LinkCode  string `json:"link_code"`
+}
+
 func FetchLinkCode() (*LinkCode, error) {
    resp, err := maya.Get(
       &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
@@ -97,6 +102,10 @@ func FetchLinkCode() (*LinkCode, error) {
       return nil, err
    }
    return result, nil
+}
+
+func (*LinkCode) CachePath() string {
+   return "rosso/mubi/LinkCode"
 }
 
 func (l *LinkCode) FetchSession() (*Session, error) {
@@ -139,15 +148,6 @@ func (l *LinkCode) String() string {
    return data.String()
 }
 
-func (*LinkCode) CachePath() string {
-   return "rosso/mubi/LinkCode"
-}
-
-type LinkCode struct {
-   AuthToken string `json:"auth_token"`
-   LinkCode  string `json:"link_code"`
-}
-
 type SecureUrl struct {
    TextTrackUrls []struct {
       Id  string
@@ -165,6 +165,13 @@ func (s *SecureUrl) GetManifest() *url.URL {
       ".ex-vtt", "",
    ).Replace(manifest.Path)
    return &manifest
+}
+
+type Session struct {
+   Token string
+   User  struct {
+      Id int
+   }
 }
 
 func (*Session) CachePath() string {
@@ -198,13 +205,6 @@ func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
       return nil, errors.New(result.UserMessage)
    }
    return &result, nil
-}
-
-type Session struct {
-   Token string
-   User  struct {
-      Id int
-   }
 }
 
 // to get the MPD you have to call this or view video on the website. request
@@ -281,10 +281,10 @@ type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }

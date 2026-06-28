@@ -13,7 +13,6 @@ import (
 const ( // API Hosts
    HostAmazonAPI = "https://api.amazon.com"
    HostATVPS     = "https://atv-ps.amazon.com"
-   HostATVExt    = "https://atv-ext.amazon.com"
 )
 
 const DeviceID = "deviceID"
