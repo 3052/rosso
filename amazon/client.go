@@ -15,7 +15,11 @@ const ( // API Hosts
 const DeviceID = "deviceID"
 
 // the wrong DTID will fail the license request. if you change the DTID you
-// need to relog. also if you get a failed license request try provision again
+// need to relog. also if you get a failed license request try provision again.
+// this might be UHD also
+// > amazon-device -dtid A3GTP8TAF8V3YG
+// manufacturer name: Hisense TV
+// model number: HU43K3110FW
 var Devices = []Device{
    {
       Manufacturer:  "Hisense",

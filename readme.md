@@ -21,7 +21,7 @@ streaming API authentication, metadata, and DRM playback
 | 1347 | FR | [Molotov TV] |
 | 1295 | US | [HBO Max] |
 | 1114 | US | [Criterion Channel] |
-| 981 | US | [Hulu] |
+| 982 | US | [Hulu] |
 | 822 | US | [AMC+] |
 | 795 | NL | [CineMember] |
 | 591 | US | [Paramount Plus Premium] |
@@ -35,27 +35,27 @@ streaming API authentication, metadata, and DRM playback
 | 285 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
 
-[Kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=50
-[Rakuten TV]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=50
 [Amazon Prime Video]:https://justwatch.com/us/provider/amazon-prime-video?tomatoMeter=50
-[The Roku Channel]:https://justwatch.com/us/provider/the-roku-channel?tomatoMeter=50
+[Oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=50
 [Crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=50
-[Pluto TV]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=50
+[Peacock Premium]:https://justwatch.com/us/provider/peacock?tomatoMeter=50
+[Disney Plus]:https://justwatch.com/us/provider/disney-plus?tomatoMeter=50
 [Molotov TV]:https://justwatch.com/fr/plateforme/molotov-tv?tomatoMeter=50
+[Canal+]:https://justwatch.com/cz/poskytovatel/canal-plus?tomatoMeter=50
+[Kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=50
+[ITVX]:https://justwatch.com/uk/provider/itvx?tomatoMeter=50
 [HBO Max]:https://justwatch.com/us/provider/hbo-max?tomatoMeter=50
+[RTBF Auvio]:https://justwatch.com/be/plateforme/rtbf-auvio?tomatoMeter=50
+[Rakuten TV]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=50
 [Criterion Channel]:https://justwatch.com/us/provider/criterion-channel?tomatoMeter=50
+[CineMember]:https://justwatch.com/nl/provider/cinemember?tomatoMeter=50
+[CTV]:https://justwatch.com/ca/provider/ctv?tomatoMeter=50
+[Pluto TV]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=50
+[MUBI]:https://justwatch.com/us/provider/mubi?tomatoMeter=50
 [Hulu]:https://justwatch.com/us/provider/hulu?tomatoMeter=50
 [AMC+]:https://justwatch.com/us/provider/amc-plus?tomatoMeter=50
-[CineMember]:https://justwatch.com/nl/provider/cinemember?tomatoMeter=50
+[The Roku Channel]:https://justwatch.com/us/provider/the-roku-channel?tomatoMeter=50
 [Paramount Plus Premium]:https://justwatch.com/us/provider/paramount-plus-premium?tomatoMeter=50
-[Disney Plus]:https://justwatch.com/us/provider/disney-plus?tomatoMeter=50
-[CTV]:https://justwatch.com/ca/provider/ctv?tomatoMeter=50
-[Peacock Premium]:https://justwatch.com/us/provider/peacock?tomatoMeter=50
-[Oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=50
-[Canal+]:https://justwatch.com/cz/poskytovatel/canal-plus?tomatoMeter=50
-[ITVX]:https://justwatch.com/uk/provider/itvx?tomatoMeter=50
-[MUBI]:https://justwatch.com/us/provider/mubi?tomatoMeter=50
-[RTBF Auvio]:https://justwatch.com/be/plateforme/rtbf-auvio?tomatoMeter=50
 [NBC]:https://justwatch.com/us/provider/nbc?tomatoMeter=50
 
 ## contact

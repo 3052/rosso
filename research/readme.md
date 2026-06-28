@@ -1,61 +1,27 @@
 # research
 
-## 2026
+| Date | Country | Provider | Count |
+|---|---|---|---|
+| 2026-06-28 | US | Amazon Prime Video | 5 |
+| 2026-04-05 | BR | Oldflix | 4 |
+| 2026-03-23 | CA | Crave | 3 |
+| 2026-02-14 | US | Peacock Premium | 2 |
+| 2026-01-11 | US | Disney Plus | 1 |
+| 2025-03-27 | FR | Molotov TV | 3 |
+| 2025-03-25 | CZ | Canal+ | 2 |
+| 2025-01-23 | US | Kanopy | 1 |
+| 2024-10-24 | UK | ITVX | 9 |
+| 2024-06-16 | US | HBO Max | 8 |
+| 2024-06-07 | BE | RTBF Auvio | 7 |
+| 2024-05-23 | UK | Rakuten TV | 6 |
+| 2024-05-19 | US | Criterion Channel | 5 |
+| 2024-05-12 | NL | CineMember | 4 |
+| 2024-04-29 | CA | CTV | 3 |
+| 2024-04-20 | US | Pluto TV | 2 |
+| 2024-02-20 | US | MUBI | 1 |
+| 2023-11-14 | US | Hulu | 1 |
+| 2022-05-27 | US | AMC+ | 3 |
+| 2022-05-05 | US | The Roku Channel | 2 |
+| 2022-03-09 | US | Paramount Plus Premium | 1 |
+| 2021-12-04 | US | NBC | 1 |
 
-1. us | disney-plus
-   - January 11
-2. us | peacock
-   - February 14
-3. ca | crave
-   - March 23
-4. br | oldflix
-   - April 5
-
-## 2025
-
-1. us | kanopy
-   - January 23
-2. cz | canal-plus
-   - March 25
-3. fr | molotov-tv
-   - March 27
-
-## 2024
-
-1. us | mubi
-   - February 20
-2. us | pluto-tv
-   - April 20
-3. ca | ctv
-   - April 29
-4. nl | cinemember
-   - May 12
-5. us | criterion-channel
-   - May 19
-6. uk | rakuten-tv
-   - May 23
-7. be | rtbf-auvio
-    - June 7
-8. us | hbo-max
-    - June 16
-9. uk | itvx
-    - October 24
-
-## 2023
-
-1. us | hulu
-   - November 14
-
-## 2022
-
-1. us | paramount-plus-premium
-   - March 9
-2. us | the-roku-channel
-   - May 5
-3. us | amc-plus
-   - May 27
-
-## 2021
-
-1. us | nbc
-   - December 4
