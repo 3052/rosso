@@ -12,30 +12,32 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 6483 | US | [Kanopy] |
-| 5262 | UK | [Rakuten TV] |
-| 4446 | US | [The Roku Channel] |
+| 6443 | US | [Kanopy] |
+| 5247 | UK | [Rakuten TV] |
+| 4443 | US | [Amazon Prime Video] |
+| 4441 | US | [The Roku Channel] |
 | 1967 | CA | [Crave] |
 | 1818 | US | [Pluto TV] |
-| 1323 | FR | [Molotov TV] |
-| 1294 | US | [HBO Max] |
+| 1347 | FR | [Molotov TV] |
+| 1295 | US | [HBO Max] |
 | 1114 | US | [Criterion Channel] |
-| 980 | US | [Hulu] |
-| 823 | US | [AMC+] |
+| 981 | US | [Hulu] |
+| 822 | US | [AMC+] |
 | 795 | NL | [CineMember] |
 | 591 | US | [Paramount Plus Premium] |
 | 559 | US | [Disney Plus] |
-| 460 | CA | [CTV] |
-| 410 | US | [Peacock Premium] |
+| 461 | CA | [CTV] |
+| 411 | US | [Peacock Premium] |
 | 390 | BR | [Oldflix] |
-| 387 | CZ | [Canal+] |
-| 373 | UK | [ITVX] |
+| 388 | CZ | [Canal+] |
+| 367 | UK | [ITVX] |
 | 332 | US | [MUBI] |
-| 284 | BE | [RTBF Auvio] |
+| 285 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
 
 [Kanopy]:https://justwatch.com/us/provider/kanopy?tomatoMeter=50
 [Rakuten TV]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=50
+[Amazon Prime Video]:https://justwatch.com/us/provider/amazon-prime-video?tomatoMeter=50
 [The Roku Channel]:https://justwatch.com/us/provider/the-roku-channel?tomatoMeter=50
 [Crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=50
 [Pluto TV]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=50

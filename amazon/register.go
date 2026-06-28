@@ -5,6 +5,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "time"
 )
 
 // TokenPair represents the access and refresh tokens returned upon successful
@@ -16,12 +17,12 @@ type TokenPair struct {
 
 // PollRegister attempts to register the device. This should typically be called in a loop
 // until it returns success (after the user links the device on the web).
-func PollRegister(publicCode, privateCode, deviceTypeID string) (*TokenPair, error) {
+func PollRegister(codes *CodePair, deviceTypeID string) (*TokenPair, error) {
    payload := map[string]any{
       "auth_data": map[string]any{
          "code_pair": map[string]string{
-            "public_code":  publicCode,
-            "private_code": privateCode,
+            "public_code":  codes.PublicCode,
+            "private_code": codes.PrivateCode,
          },
       },
       "registration_data": map[string]string{
@@ -32,7 +33,7 @@ func PollRegister(publicCode, privateCode, deviceTypeID string) (*TokenPair, err
          "device_type":   deviceTypeID,
          "os_version":    "Android",
          // if you change deviceID this is required
-         "device_name": DeviceName,
+         "device_name": fmt.Sprint(time.Now().Unix()),
       },
       "requested_token_type": []string{"bearer"},
    }
@@ -46,8 +47,8 @@ func PollRegister(publicCode, privateCode, deviceTypeID string) (*TokenPair, err
    if err != nil {
       return nil, err
    }
-   client := &http.Client{}
-   resp, err := client.Do(req)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }

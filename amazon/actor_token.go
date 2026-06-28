@@ -13,17 +13,17 @@ type ActorToken struct {
 }
 
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
-func GetActorToken(refreshToken, actorId, deviceTypeID string) (*ActorToken, error) {
+func GetActorToken(tokens *TokenPair, profile *Profile, deviceTypeID string) (*ActorToken, error) {
    payload := map[string]any{
-      "actor_id":             actorId,
+      "actor_id":             profile.ProfileID,
       "app_name":             "AIV",
       "requested_token_type": "actor_access_token",
       "source_token_type":    "refresh_token",
       "source_device_tokens": []any{
          map[string]any{
-            "device_type": deviceTypeID, // Updated to use function input
+            "device_type": deviceTypeID,
             "account_refresh_token": map[string]string{
-               "token": refreshToken,
+               "token": tokens.RefreshToken,
             },
          },
       },
@@ -39,8 +39,8 @@ func GetActorToken(refreshToken, actorId, deviceTypeID string) (*ActorToken, err
       return nil, err
    }
    req.Header.Set("content-type", "application/json")
-   client := &http.Client{}
-   resp, err := client.Do(req)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }

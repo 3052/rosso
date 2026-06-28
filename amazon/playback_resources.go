@@ -19,18 +19,9 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
 
    // Handle "/dm/3$..." structure
    if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
-      // parts[0] = ""
-      // parts[1] = "dm"
-      // parts[2] = "3$..."
-      // parts[3] = "iad_2"
-      // parts[4:] = raw path
       parsedURL.Path = "/" + strings.Join(parts[4:], "/")
       // Handle "/3$..." structure
    } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
-      // parts[0] = ""
-      // parts[1] = "3$..."
-      // parts[2] = "iad_2"
-      // parts[3:] = raw path
       parsedURL.Path = "/" + strings.Join(parts[3:], "/")
    }
 
@@ -73,10 +64,10 @@ func (p *PlaybackUrls) Clean() (*url.URL, error) {
 
 // VodPlaybackParams holds the configuration for fetching playback resources.
 type VodPlaybackParams struct {
-   ActorAccessToken   string
+   ActorToken         *ActorToken
    TitleId            string
-   PlaybackEnvelope   string
-   DeviceTypeID       string // Updated: Added to struct
+   ItemDetails        *ItemDetails
+   DeviceTypeID       string
    VideoCodec         string // e.g., "H264" or "H265"
    DRMType            string // e.g., "Widevine" or "PlayReady"
    BitrateAdaptation  string // e.g., "CBR" or "CVBR"
@@ -110,7 +101,7 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
          },
       },
       "globalParameters": map[string]any{
-         "playbackEnvelope":       p.PlaybackEnvelope,
+         "playbackEnvelope":       p.ItemDetails.PlaybackEnvelope,
          "deviceCapabilityFamily": "LivingRoomPlayer",
       },
    }
@@ -126,11 +117,11 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    }
    query := url.Values{}
    query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", p.DeviceTypeID) // Updated to use struct property
+   query.Add("deviceTypeID", p.DeviceTypeID)
    req.URL.RawQuery = query.Encode()
-   req.Header.Set("Authorization", "Bearer "+p.ActorAccessToken)
-   client := &http.Client{}
-   resp, err := client.Do(req)
+   req.Header.Set("Authorization", "Bearer "+p.ActorToken.Token)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }

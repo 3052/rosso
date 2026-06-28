@@ -39,8 +39,8 @@ func CreateCodePair(deviceTypeID string) (*CodePair, error) {
    if err != nil {
       return nil, err
    }
-   client := &http.Client{}
-   resp, err := client.Do(req)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }

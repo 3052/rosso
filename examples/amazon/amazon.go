@@ -18,31 +18,31 @@ func (c *client) do_title_id() error {
       return err
    }
    profile, err := amazon.GetPrimaryProfile(
-      token_pair.AccessToken, string(c.DeviceTypeId),
+      &token_pair, string(c.DeviceTypeId),
    )
    if err != nil {
       return fmt.Errorf("failed to get primary profile: %v", err)
    }
    actor_token, err := amazon.GetActorToken(
-      token_pair.RefreshToken, profile.ProfileID, string(c.DeviceTypeId),
+      &token_pair, profile, string(c.DeviceTypeId),
    )
    if err != nil {
       return fmt.Errorf("failed to get actor token: %v", err)
    }
    item_details, err := amazon.GetItemDetails(
-      actor_token.Token, string(c.title_id), string(c.DeviceTypeId),
+      actor_token, string(c.title_id), string(c.DeviceTypeId),
    )
    if err != nil {
       return fmt.Errorf("failed to get item details (playback envelope): %v", err)
    }
    playback := amazon.VodPlaybackParams{
-      ActorAccessToken:   actor_token.Token,
+      ActorToken:         actor_token,
       BitrateAdaptation:  string(c.bitrate_adaptation),
-      DeviceTypeID: string(c.DeviceTypeId),
+      DeviceTypeID:       string(c.DeviceTypeId),
       DRMType:            "PlayReady",
       DynamicRangeFormat: string(c.dynamic_range),
       MaxVideoResolution: "2160p",
-      PlaybackEnvelope:   item_details.PlaybackEnvelope,
+      ItemDetails:        item_details,
       TitleId:            string(c.title_id),
       VideoCodec:         string(c.video_codec),
    }
@@ -155,7 +155,7 @@ func (c *client) do_complete_login() error {
       return err
    }
    tokenPair, err := amazon.PollRegister(
-      code_pair.PublicCode, code_pair.PrivateCode, string(c.DeviceTypeId),
+      &code_pair, string(c.DeviceTypeId),
    )
    if err != nil {
       return fmt.Errorf("login incomplete or failed: %v", err)
@@ -176,8 +176,8 @@ func (c *client) do_dash_id() error {
    // Fetch the license from Amazon
    license := func(signedRequest []byte) ([]byte, error) {
       return amazon.GetPlayReadyLicense(
-         actor_token.Token,
-         item_details.PlaybackEnvelope,
+         &actor_token,
+         &item_details,
          signedRequest,
          string(c.DeviceTypeId),
       )
@@ -197,4 +197,3 @@ func (c *client) do_initiate_login() error {
    log.Print(codes)
    return c.cache.Encode(codes)
 }
-

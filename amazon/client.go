@@ -1,5 +1,11 @@
 package amazon
 
+import (
+   "encoding/json"
+   "log"
+   "net/http"
+)
+
 const ( // API Hosts
    HostAmazonAPI = "https://api.amazon.com"
    HostATVPS     = "https://atv-ps.amazon.com"
@@ -7,9 +13,6 @@ const ( // API Hosts
 )
 
 const DeviceID = "deviceID"
-
-// time.is/Unix_time
-const DeviceName = "device_name"
 
 // the wrong DTID will fail the license request. if you change the DTID you
 // need to relog
@@ -38,6 +41,17 @@ var Devices = []Device{
       SecurityLevel: 3000,
       DeviceTypeID:  "A3NM0WFSU3DLT5",
    },
+}
+
+// doRequest wraps the http.Client Do method to log every outgoing request.
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   client := &http.Client{}
+   return client.Do(req)
+}
+
+func marshal(value any) ([]byte, error) {
+   return json.MarshalIndent(value, "", " ")
 }
 
 // Device represents the metadata for a supported hardware device.

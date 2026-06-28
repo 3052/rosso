@@ -31,8 +31,8 @@ func (t *TokenPair) Refresh() error {
       return err
    }
    req.Header.Set("content-type", "application/json")
-   client := &http.Client{}
-   resp, err := client.Do(req)
+
+   resp, err := doRequest(req)
    if err != nil {
       return err
    }
