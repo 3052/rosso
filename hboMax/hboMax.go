@@ -98,8 +98,6 @@ func MovieRequest(token, movieId string) ([]*Entity, error) {
    return entity_request(token, parsedUrl)
 }
 
-///
-
 func MovieResults(entities []*Entity) []*Entity {
    var movies []*Entity
    for _, item := range entities {
