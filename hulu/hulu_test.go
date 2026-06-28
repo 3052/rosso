@@ -2,10 +2,6 @@ package hulu
 
 import "testing"
 
-func Test(t *testing.T) {
-   t.Log(tests)
-}
-
 var tests = []struct {
    height    int
    hulu      string
@@ -24,4 +20,8 @@ var tests = []struct {
    {
       hulu: "https://hulu.com/series/house-ef39603f-eb90-4248-8237-f6168d7c1be1",
    },
+}
+
+func Test(t *testing.T) {
+   t.Log(tests)
 }

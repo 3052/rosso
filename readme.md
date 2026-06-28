@@ -12,13 +12,14 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 6443 | US | [Kanopy] |
+| 7217 | US | [Tubi TV] |
+| 6442 | US | [Kanopy] |
 | 5247 | UK | [Rakuten TV] |
 | 4443 | US | [Amazon Prime Video] |
 | 4441 | US | [The Roku Channel] |
 | 1967 | CA | [Crave] |
 | 1818 | US | [Pluto TV] |
-| 1347 | FR | [Molotov TV] |
+| 1350 | FR | [Molotov TV] |
 | 1295 | US | [HBO Max] |
 | 1114 | US | [Criterion Channel] |
 | 982 | US | [Hulu] |
@@ -27,15 +28,16 @@ streaming API authentication, metadata, and DRM playback
 | 591 | US | [Paramount Plus Premium] |
 | 559 | US | [Disney Plus] |
 | 461 | CA | [CTV] |
-| 411 | US | [Peacock Premium] |
+| 412 | US | [Peacock Premium] |
 | 390 | BR | [Oldflix] |
 | 388 | CZ | [Canal+] |
 | 367 | UK | [ITVX] |
 | 332 | US | [MUBI] |
-| 285 | BE | [RTBF Auvio] |
+| 286 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
 
 [Amazon Prime Video]:https://justwatch.com/us/provider/amazon-prime-video?tomatoMeter=50
+[Tubi TV]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=50
 [Oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=50
 [Crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=50
 [Peacock Premium]:https://justwatch.com/us/provider/peacock?tomatoMeter=50

@@ -2,7 +2,8 @@
 
 | Date | Country | Provider | Count |
 |---|---|---|---|
-| 2026-06-28 | US | Amazon Prime Video | 5 |
+| 2026-06-28 | US | Amazon Prime Video | 6 |
+| 2026-06-28 | US | Tubi TV | 5 |
 | 2026-04-05 | BR | Oldflix | 4 |
 | 2026-03-23 | CA | Crave | 3 |
 | 2026-02-14 | US | Peacock Premium | 2 |
@@ -24,4 +25,3 @@
 | 2022-05-05 | US | The Roku Channel | 2 |
 | 2022-03-09 | US | Paramount Plus Premium | 1 |
 | 2021-12-04 | US | NBC | 1 |
-

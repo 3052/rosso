@@ -92,6 +92,49 @@ type Details struct {
    } `json:"vod_items"`
 }
 
+type Device struct {
+   DeviceToken string `json:"device_token"`
+   Message     string // 2026-05-02
+   UserToken   string `json:"user_token"`
+}
+
+func FetchDevice(email, password string) (*Device, error) {
+   body := url.Values{
+      "friendly_name": {"!"},
+      "password":      {password},
+      "serial_number": {"!"},
+      "user_email":    {email},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "auth.hulu.com",
+         Path:   "/v2/livingroom/password/authenticate",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Data Device
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data, nil
+}
+
+func (*Device) CachePath() string {
+   return "rosso/hulu/Device"
+}
+
 func (d *Device) DeepLink(id string) (*DeepLink, error) {
    resp, err := maya.Get(
       &url.URL{
@@ -119,36 +162,6 @@ func (d *Device) DeepLink(id string) (*DeepLink, error) {
       return nil, errors.New("content is not playable: missing eab_id in response")
    }
    return &result, nil
-}
-
-// returns user_token only
-func (d *Device) TokenRefresh() error {
-   body := url.Values{
-      "action":       {"token_refresh"},
-      "device_token": {d.DeviceToken},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.hulu.com",
-         Path:   "/v1/device/device_token/authenticate",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   var result Device
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return err
-   }
-   if result.Message != "" {
-      return errors.New(result.Message)
-   }
-   return nil
 }
 
 func (d *Device) GetDetails(movie string) (*Details, error) {
@@ -277,51 +290,34 @@ func (d *Device) Playlist(eabId string) (*Playlist, error) {
    return &result, nil
 }
 
-func FetchDevice(email, password string) (*Device, error) {
+// returns user_token only
+func (d *Device) TokenRefresh() error {
    body := url.Values{
-      "friendly_name": {"!"},
-      "password":      {password},
-      "serial_number": {"!"},
-      "user_email":    {email},
+      "action":       {"token_refresh"},
+      "device_token": {d.DeviceToken},
    }.Encode()
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
          Host:   "auth.hulu.com",
-         Path:   "/v2/livingroom/password/authenticate",
+         Path:   "/v1/device/device_token/authenticate",
       },
       map[string]string{"content-type": "application/x-www-form-urlencoded"},
       []byte(body),
    )
    if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
+      return err
    }
    defer resp.Body.Close()
-   var result struct {
-      Data Device
-   }
+   var result Device
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
-      return nil, err
+      return err
    }
-   return &result.Data, nil
-}
-
-func (*Device) CachePath() string {
-   return "rosso/hulu/Device"
-}
-
-type Device struct {
-   DeviceToken string `json:"device_token"`
-   Message     string // 2026-05-02
-   UserToken   string `json:"user_token"`
-}
-
-func (*Playlist) CachePath() string {
-   return "rosso/hulu/Playlist"
+   if result.Message != "" {
+      return errors.New(result.Message)
+   }
+   return nil
 }
 
 type Playlist struct {
@@ -330,16 +326,8 @@ type Playlist struct {
    WvServer     *Url `json:"wv_server"`
 }
 
-func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.WvServer.Url,
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
+func (*Playlist) CachePath() string {
+   return "rosso/hulu/Playlist"
 }
 
 func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
@@ -365,14 +353,26 @@ func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
    return body, nil
 }
 
+func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &p.WvServer.Url,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
 type Url struct {
    Url url.URL
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
