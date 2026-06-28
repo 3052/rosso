@@ -15,7 +15,7 @@ const ( // API Hosts
 const DeviceID = "deviceID"
 
 // the wrong DTID will fail the license request. if you change the DTID you
-// need to relog
+// need to relog. also if you get a failed license request try provision again
 var Devices = []Device{
    {
       Manufacturer:  "Hisense",
