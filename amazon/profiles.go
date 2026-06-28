@@ -29,8 +29,11 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Item
    // Device parameters
    query.Add("deviceTypeID", deviceTypeID)
    query.Add("deviceID", DeviceID)
-   req.Header.Set("Authorization", "Bearer "+actorToken.Token)
    req.URL.RawQuery = query.Encode()
+   
+   // you can get the envelope without this, but it will be trailer:
+   // resource.secondaryActions[0].presentation.label = "Watch trailer"
+   req.Header.Set("Authorization", "Bearer "+actorToken.Token)
 
    resp, err := doRequest(req)
    if err != nil {
