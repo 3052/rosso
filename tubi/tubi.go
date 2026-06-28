@@ -9,15 +9,14 @@ import (
    "strconv"
 )
 
-func (*LicenseServer) CachePath() string {
-   return "rosso/tubi/LicenseServer"
-}
+func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
+   resp, err := maya.Post(&server.Url.Url, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
 
-type LicenseServer struct {
-   Url             *Url
-   HdcpVersion     string `json:"hdcp_version"`
-   AuthHeaderKey   string `json:"auth_header_key"`
-   AuthHeaderValue string `json:"auth_header_value"`
+   return io.ReadAll(resp.Body)
 }
 
 type ContentResponse struct {
@@ -97,31 +96,32 @@ func GetContent(contentId int) (*ContentResponse, error) {
    return &content, nil
 }
 
-type Url struct {
-   Url url.URL
+type LicenseServer struct {
+   Url             *Url
+   HdcpVersion     string `json:"hdcp_version"`
+   AuthHeaderKey   string `json:"auth_header_key"`
+   AuthHeaderValue string `json:"auth_header_value"`
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
+func (*LicenseServer) CachePath() string {
+   return "rosso/tubi/LicenseServer"
+}
+
+type Manifest struct {
+   Url      *Url
+   Duration int `json:"duration"`
+}
+
+type Url struct {
+   Url url.URL
 }
 
 func (u *Url) MarshalText() ([]byte, error) {
    return u.Url.MarshalBinary()
 }
 
-func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
-   resp, err := maya.Post(&server.Url.Url, nil, body)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   return io.ReadAll(resp.Body)
-}
-
-type Manifest struct {
-   Url      *Url
-   Duration int `json:"duration"`
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
 
 type VideoResource struct {
