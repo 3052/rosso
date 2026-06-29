@@ -17,8 +17,10 @@ func trimURLPath(rawUrl string) (*url.URL, error) {
 
    parts := strings.Split(parsedURL.Path, "/")
 
+   // Handle "/dm/3$..." structure
    if len(parts) > 4 && parts[1] == "dm" && strings.HasPrefix(parts[2], "3$") {
       parsedURL.Path = "/" + strings.Join(parts[4:], "/")
+      // Handle "/3$..." structure
    } else if len(parts) > 3 && strings.HasPrefix(parts[1], "3$") {
       parsedURL.Path = "/" + strings.Join(parts[3:], "/")
    }
@@ -32,11 +34,13 @@ type PlaybackUrls struct {
       Type string `json:"type"`
       Urls []struct {
          Url string `json:"url"`
-         Cdn string `json:"cdn"`
+         Cdn string `json:"cdn"` // Used to identify Akamai vs Cloudfront
       } `json:"urls"`
    } `json:"intraTitlePlaylist"`
 }
 
+// Clean extracts the Akamai MPD URL from the main playlist and sanitizes its path.
+// Returns an error if the Main playlist or Akamai CDN is not found.
 func (p *PlaybackUrls) Clean() (*url.URL, error) {
    for _, playlist := range p.IntraTitlePlaylist {
       if playlist.Type == "Main" {
@@ -44,6 +48,7 @@ func (p *PlaybackUrls) Clean() (*url.URL, error) {
             return nil, fmt.Errorf("no urls found in main playlist")
          }
 
+         // Require Akamai to avoid the 30MB Cloudfront/Amazon MPD bloat
          for _, u := range playlist.Urls {
             if u.Cdn == "akamai" {
                return trimURLPath(u.Url)
@@ -63,11 +68,11 @@ type VodPlaybackParams struct {
    TitleId                    string
    PlaybackExperienceMetadata *PlaybackExperienceMetadata
    DeviceTypeID               string
-   VideoCodec                 string
-   DRMType                    string
-   BitrateAdaptation          string
-   DynamicRangeFormat         string
-   MaxVideoResolution         string
+   VideoCodec                 string // e.g., "H264" or "H265"
+   DRMType                    string // e.g., "Widevine" or "PlayReady"
+   BitrateAdaptation          string // e.g., "CBR" or "CVBR"
+   DynamicRangeFormat         string // e.g., "None", "DolbyVision", or "HDR10"
+   MaxVideoResolution         string // e.g., "576p" or "2160p"
 }
 
 // Fetch requests the final MPD resources for playback from Amazon's API.
@@ -75,15 +80,14 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
    if p == nil {
       return nil, fmt.Errorf("VodPlaybackParams cannot be nil")
    }
-
    payload := map[string]any{
       "vodPlaylistedPlaybackUrlsRequest": map[string]any{
          "playbackSettingsRequest": map[string]any{
-            "firmware": "",
+            "firmware": "", // required but can be empty
             "titleId":  p.TitleId,
          },
          "device": map[string]any{
-            "hdcpLevel":          "2.3",
+            "hdcpLevel":          "2.3", // at least 2.2 is needed for UHD with hev1
             "maxVideoResolution": p.MaxVideoResolution,
             "streamingTechnologies": map[string]any{
                "DASH": map[string]any{
@@ -154,5 +158,6 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, fmt.Errorf("API error: %s", result.VodPlaylistedPlaybackUrls.Error.Message)
    }
 
+   // Return the parent struct holding the playlists
    return &result.VodPlaylistedPlaybackUrls.Result.PlaybackUrls, nil
 }

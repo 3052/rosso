@@ -4,7 +4,6 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
-   "strings"
 )
 
 // PlaybackExperienceMetadata contains the envelope and related data needed for playback requests.
@@ -39,6 +38,7 @@ func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error)
    }
    defer resp.Body.Close()
 
+   // Embed our new Profile struct alongside the error Message struct
    var result struct {
       Resource struct {
          Profiles []Profile `json:"profiles"`
@@ -55,14 +55,17 @@ func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error)
       return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
    }
 
+   // 1. Check for the structured JSON API error
    if result.Message != nil && result.Message.Body != nil {
       return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
    }
 
+   // 2. Check for standard HTTP errors if no JSON error message was provided
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
+   // 3. Extract and return the primary profile
    for _, profile := range result.Resource.Profiles {
       if profile.IsDefaultProfile {
          return &profile, nil
@@ -88,6 +91,7 @@ type Resource struct {
 }
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.
+// It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
 func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Resource, error) {
    url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
    req, err := http.NewRequest("GET", url, nil)
@@ -96,12 +100,17 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Reso
    }
    query := req.URL.Query()
    query.Add("itemId", titleId)
+   // Critical UI and Feature flags to force the V2/V3 BuyBox response with
+   // PlaybackEnvelope
    query.Add("roles", "playback-envelope-supported")
    query.Add("presentationScheme", "android-tv-react")
+   // Device parameters
    query.Add("deviceTypeID", deviceTypeID)
    query.Add("deviceID", DeviceID)
    req.URL.RawQuery = query.Encode()
 
+   // you can get the envelope without this, but it will be trailer:
+   // resource.secondaryActions[0].presentation.label = "Watch trailer"
    req.Header.Set("Authorization", "Bearer "+actorToken.Token)
 
    resp, err := doRequest(req)
@@ -114,12 +123,19 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Reso
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
 
+   // Embed our new Resource struct into the anonymous decoder struct
    var result struct {
       Resource Resource `json:"resource"`
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
+
+   // Ensure we actually got a playback envelope before returning
+   if _, err := result.Resource.GetPlaybackExperienceMetadata(); err != nil {
+      return nil, fmt.Errorf("for titleId %s: %w", titleId, err)
+   }
+
    return &result.Resource, nil
 }
 
@@ -136,20 +152,4 @@ func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata,
       }
    }
    return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
-}
-
-func (r *Resource) String() string {
-   var data strings.Builder
-   if r.ApplyHdr {
-      data.WriteString("HDR: true")
-   } else {
-      data.WriteString("HDR: false")
-   }
-   data.WriteByte('\n')
-   if r.ApplyUhd {
-      data.WriteString("UHD: true")
-   } else {
-      data.WriteString("UHD: false")
-   }
-   return data.String()
 }

@@ -49,11 +49,13 @@ func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExpe
    }
    defer resp.Body.Close()
 
+   // Read the body once so we can attempt multiple unmarshals
    respBytes, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, fmt.Errorf("failed to read response: %w", err)
    }
 
+   // 1. Try the standard response format (contains licenses or a nested error object)
    var standardResp struct {
       WidevineLicense *struct {
          License []byte `json:"license"`
@@ -81,6 +83,7 @@ func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExpe
       }
    }
 
+   // 2. If the first unmarshal fails (e.g., "message" is a string causing a type error), try the flat error format
    var flatErrorResp struct {
       Code    string `json:"code"`
       ID      string `json:"id"`
@@ -91,6 +94,7 @@ func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExpe
       return nil, fmt.Errorf("code: %s, message: %s, id: %s", flatErrorResp.Code, flatErrorResp.Message, flatErrorResp.ID)
    }
 
+   // 3. Check for standard HTTP errors if no JSON error message was extracted
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }

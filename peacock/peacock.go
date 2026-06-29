@@ -18,8 +18,64 @@ import (
    "time"
 )
 
-func (*Cookie) CachePath() string {
-   return "rosso/peacock/Cookie"
+const (
+   sky_client  = "NBCU-ANDROID-v3"
+   sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
+   sky_version = "1.0"
+)
+
+var Territory = "US"
+
+func generate_sky_ott(method, path string, header map[string]string, body []byte) string {
+   // Sort headers by key
+   header_keys := slices.Sorted(maps.Keys(header))
+   // Build the special headers string
+   var headers bytes.Buffer
+   for _, key := range header_keys {
+      lowerKey := strings.ToLower(key)
+      if strings.HasPrefix(lowerKey, "x-skyott-") {
+         headers.WriteString(lowerKey)
+         headers.WriteString(": ")
+         headers.WriteString(header[key])
+         headers.WriteByte('\n')
+      }
+   }
+   // MD5 the headers string and request body.
+   headersHash := md5.Sum(headers.Bytes())
+   headersMD5 := fmt.Sprintf("%x", headersHash)
+   bodyHash := md5.Sum(body)
+   bodyMD5 := fmt.Sprintf("%x", bodyHash)
+   // Get current timestamp string directly.
+   timestampStr := fmt.Sprint(time.Now().Unix())
+   // Construct the payload to be signed for the HMAC.
+   var payload bytes.Buffer
+   payload.WriteString(method)
+   payload.WriteByte('\n')
+   payload.WriteString(path)
+   payload.WriteByte('\n')
+   payload.WriteByte('\n')
+   payload.WriteString(sky_client)
+   payload.WriteByte('\n')
+   payload.WriteString(sky_version)
+   payload.WriteByte('\n')
+   payload.WriteString(headersMD5)
+   payload.WriteByte('\n')
+   payload.WriteString(timestampStr)
+   payload.WriteByte('\n')
+   payload.WriteString(bodyMD5)
+   payload.WriteByte('\n')
+   // Calculate the HMAC signature.
+   mac := hmac.New(sha1.New, []byte(sky_key))
+   payload.WriteTo(mac)
+   signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+   // Format the final output string.
+   return fmt.Sprintf(
+      "SkyOTT client=%q,signature=%q,timestamp=%q,version=%q",
+      sky_client,
+      signature,
+      timestampStr,
+      sky_version,
+   )
 }
 
 type Cookie struct {
@@ -27,8 +83,64 @@ type Cookie struct {
    Value string
 }
 
-func (*Playout) CachePath() string {
-   return "rosso/peacock/Playout"
+func FetchIdSession(user, password string) (*Cookie, error) {
+   body := url.Values{
+      "userIdentifier": {user},
+      "password":       {password},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "rango.id.peacocktv.com",
+         Path:   "/signin/service/international",
+      },
+      map[string]string{
+         "content-type":         "application/x-www-form-urlencoded",
+         "x-skyott-proposition": "NBCUOTT",
+         "x-skyott-provider":    "NBCU",
+         "x-skyott-territory":   Territory,
+      },
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Properties struct {
+         Errors struct {
+            CategoryErrors []struct {
+               Code string
+            }
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != 201 {
+      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
+   }
+   for _, c := range resp.Cookies() {
+      if c.Name == "idsession" {
+         return &Cookie{Name: c.Name, Value: c.Value}, nil
+      }
+   }
+   return nil, errors.New("idsession cookie not present")
+}
+
+func (*Cookie) CachePath() string {
+   return "rosso/peacock/Cookie"
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+}
+
+type Endpoint struct {
+   Cdn string
+   Url string
 }
 
 type Playout struct {
@@ -41,16 +153,43 @@ type Playout struct {
    }
 }
 
-type Url struct {
-   Url url.URL
+func (*Playout) CachePath() string {
+   return "rosso/peacock/Playout"
 }
 
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
+// L3 max 1080p
+func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
+   target := p.Protection.LicenceAcquisitionUrl.Url
+   resp, err := maya.Post(
+      &target,
+      map[string]string{
+         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   if resp.StatusCode != 200 {
+      return nil, errors.New(resp.Status)
+   }
+   return io.ReadAll(resp.Body)
 }
 
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
+func (p *Playout) GetFastly() (*url.URL, error) {
+   for _, endpoint_data := range p.Asset.Endpoints {
+      if endpoint_data.Cdn == "FASTLY" {
+         return url.Parse(endpoint_data.Url)
+      }
+   }
+   return nil, errors.New("FASTLY endpoint not found")
+}
+
+// userToken is good for one day
+type Token struct {
+   Description string
+   UserToken   string
 }
 
 func FetchToken(idSession *Cookie) (*Token, error) {
@@ -115,54 +254,6 @@ func FetchToken(idSession *Cookie) (*Token, error) {
    return &result, nil
 }
 
-const (
-   sky_client  = "NBCU-ANDROID-v3"
-   sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
-   sky_version = "1.0"
-)
-
-// userToken is good for one day
-type Token struct {
-   Description string
-   UserToken   string
-}
-
-var Territory = "US"
-
-type Endpoint struct {
-   Cdn string
-   Url string
-}
-
-func (p *Playout) GetFastly() (*url.URL, error) {
-   for _, endpoint_data := range p.Asset.Endpoints {
-      if endpoint_data.Cdn == "FASTLY" {
-         return url.Parse(endpoint_data.Url)
-      }
-   }
-   return nil, errors.New("FASTLY endpoint not found")
-}
-
-// L3 max 1080p
-func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   target := p.Protection.LicenceAcquisitionUrl.Url
-   resp, err := maya.Post(
-      &target,
-      map[string]string{
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   if resp.StatusCode != 200 {
-      return nil, errors.New(resp.Status)
-   }
-   return io.ReadAll(resp.Body)
-}
-
 func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    body, err := json.Marshal(map[string]any{
       "device": map[string]any{
@@ -213,105 +304,14 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    return &result, nil
 }
 
-func generate_sky_ott(method, path string, header map[string]string, body []byte) string {
-   // Sort headers by key
-   header_keys := slices.Sorted(maps.Keys(header))
-   // Build the special headers string
-   var headers bytes.Buffer
-   for _, key := range header_keys {
-      lowerKey := strings.ToLower(key)
-      if strings.HasPrefix(lowerKey, "x-skyott-") {
-         headers.WriteString(lowerKey)
-         headers.WriteString(": ")
-         headers.WriteString(header[key])
-         headers.WriteByte('\n')
-      }
-   }
-   // MD5 the headers string and request body.
-   headersHash := md5.Sum(headers.Bytes())
-   headersMD5 := fmt.Sprintf("%x", headersHash)
-   bodyHash := md5.Sum(body)
-   bodyMD5 := fmt.Sprintf("%x", bodyHash)
-   // Get current timestamp string directly.
-   timestampStr := fmt.Sprint(time.Now().Unix())
-   // Construct the payload to be signed for the HMAC.
-   var payload bytes.Buffer
-   payload.WriteString(method)
-   payload.WriteByte('\n')
-   payload.WriteString(path)
-   payload.WriteByte('\n')
-   payload.WriteByte('\n')
-   payload.WriteString(sky_client)
-   payload.WriteByte('\n')
-   payload.WriteString(sky_version)
-   payload.WriteByte('\n')
-   payload.WriteString(headersMD5)
-   payload.WriteByte('\n')
-   payload.WriteString(timestampStr)
-   payload.WriteByte('\n')
-   payload.WriteString(bodyMD5)
-   payload.WriteByte('\n')
-   // Calculate the HMAC signature.
-   mac := hmac.New(sha1.New, []byte(sky_key))
-   payload.WriteTo(mac)
-   signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
-   // Format the final output string.
-   return fmt.Sprintf(
-      "SkyOTT client=%q,signature=%q,timestamp=%q,version=%q",
-      sky_client,
-      signature,
-      timestampStr,
-      sky_version,
-   )
+type Url struct {
+   Url url.URL
 }
 
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
-func FetchIdSession(user, password string) (*Cookie, error) {
-   body := url.Values{
-      "userIdentifier": {user},
-      "password":       {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "rango.id.peacocktv.com",
-         Path:   "/signin/service/international",
-      },
-      map[string]string{
-         "content-type":         "application/x-www-form-urlencoded",
-         "x-skyott-proposition": "NBCUOTT",
-         "x-skyott-provider":    "NBCU",
-         "x-skyott-territory":   Territory,
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Properties struct {
-         Errors struct {
-            CategoryErrors []struct {
-               Code string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 201 {
-      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
-   }
-   for _, c := range resp.Cookies() {
-      if c.Name == "idsession" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
-      }
-   }
-   return nil, errors.New("idsession cookie not present")
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
 }
