@@ -8,8 +8,12 @@ import (
    "path"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/criterion/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -20,6 +24,10 @@ type client struct {
    password maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/criterion/client"
 }
 
 func (c *client) do() error {
@@ -101,14 +109,6 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmWidevine,
       License: file.FetchWidevine,
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 func (c *client) do_email_password() error {

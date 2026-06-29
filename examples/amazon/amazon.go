@@ -17,6 +17,7 @@ func main() {
 }
 
 type client struct {
+   Proxy              maya.FlagString
    DeviceTypeId       maya.FlagString
    PlayReady          maya.FlagString
    TitleId            maya.FlagString
@@ -34,6 +35,7 @@ type client struct {
 func (*client) CachePath() string {
    return "rosso/examples/amazon/client"
 }
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -47,8 +49,9 @@ func (c *client) do() error {
    c.video_codec = "H264"
 
    flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
       {Name: "device-type-id", Value: &c.DeviceTypeId},
+      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "proxy", Value: &c.Proxy},
       {Name: "initiate-login", Value: &c.initiate_login},
       {Name: "complete-login", Value: &c.complete_login},
       {Name: "title-id", Value: &c.TitleId},
@@ -76,10 +79,15 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
+   if err := maya.SetProxy(string(c.Proxy)); err != nil {
+      return err
+   }
    switch {
-   case flags.IsSet(&c.PlayReady):
-      return c.cache.Encode(c)
    case flags.IsSet(&c.DeviceTypeId):
+      return c.cache.Encode(c)
+   case flags.IsSet(&c.Proxy):
+      return c.cache.Encode(c)
+   case flags.IsSet(&c.PlayReady):
       return c.cache.Encode(c)
    case bool(c.initiate_login):
       return c.do_initiate_login()

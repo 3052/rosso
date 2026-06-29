@@ -7,6 +7,23 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   email    maya.FlagString
+   password maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -66,23 +83,6 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, nil)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   email    maya.FlagString
-   password maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_email_password() error {

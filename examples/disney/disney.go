@@ -8,8 +8,12 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/disney/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -26,6 +30,10 @@ type client struct {
    threads   maya.FlagInt
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/disney/client"
 }
 
 func (c *client) do() error {
@@ -84,6 +92,40 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "disney")
 }
 
+func (c *client) do_address() error {
+   entity_id, err := disney.GetEntityId(string(c.address))
+   if err != nil {
+      return err
+   }
+   entity, err := disney.GetEntityId(entity_id)
+   if err != nil {
+      return err
+   }
+   var token disney.Token
+   if err = c.cache.Decode(&token); err != nil {
+      return err
+   }
+   page, err := token.FetchPage(entity)
+   if err != nil {
+      return err
+   }
+   fmt.Println(page)
+   return nil
+}
+
+func (c *client) do_email() error {
+   token, err := disney.RegisterDevice()
+   if err != nil {
+      return err
+   }
+   request_otp, err := token.RequestOtp(string(c.Email))
+   if err != nil {
+      return err
+   }
+   fmt.Println(request_otp)
+   return c.cache.Encode(c, token)
+}
+
 func (c *client) do_hls() error {
    var (
       manifest maya.Manifest
@@ -101,25 +143,21 @@ func (c *client) do_hls() error {
    })
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email() error {
-   token, err := disney.RegisterDevice()
+func (c *client) do_media() error {
+   var token disney.Token
+   err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
-   request_otp, err := token.RequestOtp(string(c.Email))
+   stream, err := token.FetchStream(string(c.media))
    if err != nil {
       return err
    }
-   fmt.Println(request_otp)
-   return c.cache.Encode(c, token)
+   manifest, err := maya.ListHls(stream)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
 }
 
 func (c *client) do_passcode() error {
@@ -171,27 +209,6 @@ func (c *client) do_refresh() error {
    return c.cache.Encode(&token)
 }
 
-func (c *client) do_address() error {
-   entity_id, err := disney.GetEntityId(string(c.address))
-   if err != nil {
-      return err
-   }
-   entity, err := disney.GetEntityId(entity_id)
-   if err != nil {
-      return err
-   }
-   var token disney.Token
-   if err = c.cache.Decode(&token); err != nil {
-      return err
-   }
-   page, err := token.FetchPage(entity)
-   if err != nil {
-      return err
-   }
-   fmt.Println(page)
-   return nil
-}
-
 func (c *client) do_season() error {
    var token disney.Token
    err := c.cache.Decode(&token)
@@ -204,21 +221,4 @@ func (c *client) do_season() error {
    }
    fmt.Println(season)
    return nil
-}
-
-func (c *client) do_media() error {
-   var token disney.Token
-   err := c.cache.Decode(&token)
-   if err != nil {
-      return err
-   }
-   stream, err := token.FetchStream(string(c.media))
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListHls(stream)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
 }
