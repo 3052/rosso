@@ -8,8 +8,12 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/amc/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -23,6 +27,10 @@ type client struct {
    dash             maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/amc/client"
 }
 
 func (c *client) do() error {
@@ -109,65 +117,6 @@ func (c *client) do_email_password() error {
    return c.cache.Encode(auth_data)
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_refresh() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   err = auth_data.Refresh()
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(&auth_data)
-}
-
-func (c *client) do_series() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   series, err := amc.SeriesDetail(auth_data.AccessToken, int(c.series))
-   if err != nil {
-      return err
-   }
-   for i, season := range series.SeasonsMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(season)
-   }
-   return nil
-}
-
-func (c *client) do_season() error {
-   var auth_data amc.AuthData
-   err := c.cache.Decode(&auth_data)
-   if err != nil {
-      return err
-   }
-   season, err := amc.SeasonEpisodes(auth_data.AccessToken, int(c.season))
-   if err != nil {
-      return err
-   }
-   for i, episode := range season.EpisodesMetadata() {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
 func (c *client) do_episode_or_movie() error {
    var auth_data amc.AuthData
    err := c.cache.Decode(&auth_data)
@@ -189,4 +138,55 @@ func (c *client) do_episode_or_movie() error {
       return err
    }
    return c.cache.Encode(manifest, playback, source)
+}
+
+func (c *client) do_refresh() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   err = auth_data.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(&auth_data)
+}
+
+func (c *client) do_season() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   season, err := amc.SeasonEpisodes(auth_data.AccessToken, int(c.season))
+   if err != nil {
+      return err
+   }
+   for i, episode := range season.EpisodesMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
+func (c *client) do_series() error {
+   var auth_data amc.AuthData
+   err := c.cache.Decode(&auth_data)
+   if err != nil {
+      return err
+   }
+   series, err := amc.SeriesDetail(auth_data.AccessToken, int(c.series))
+   if err != nil {
+      return err
+   }
+   for i, season := range series.SeasonsMetadata() {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(season)
+   }
+   return nil
 }

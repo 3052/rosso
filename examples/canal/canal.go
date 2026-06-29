@@ -10,6 +10,29 @@ import (
    "path"
 )
 
+func get(address *url.URL) error {
+   resp, err := maya.Get(address, nil)
+   if err != nil {
+      return err
+   }
+   defer resp.Body.Close()
+   file, err := os.Create(path.Base(address.Path))
+   if err != nil {
+      return err
+   }
+   defer file.Close()
+   _, err = file.ReadFrom(resp.Body)
+   return err
+}
+
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    Widevine  maya.FlagString
    dash      maya.FlagString
@@ -23,6 +46,10 @@ type client struct {
    tracking  maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/canal/client"
 }
 
 func (c *client) do() error {
@@ -93,29 +120,6 @@ func (c *client) do_dash() error {
    })
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func get(address *url.URL) error {
-   resp, err := maya.Get(address, nil)
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-   file, err := os.Create(path.Base(address.Path))
-   if err != nil {
-      return err
-   }
-   defer file.Close()
-   _, err = file.ReadFrom(resp.Body)
-   return err
-}
-
 func (c *client) do_email_password() error {
    ticket, err := canal.FetchTicket()
    if err != nil {
@@ -126,19 +130,6 @@ func (c *client) do_email_password() error {
       return err
    }
    session, err := canal.FetchSession(login.SsoToken)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
-
-func (c *client) do_refresh() error {
-   session := &canal.Session{}
-   err := c.cache.Decode(session)
-   if err != nil {
-      return err
-   }
-   session, err = canal.FetchSession(session.SsoToken)
    if err != nil {
       return err
    }
@@ -164,21 +155,30 @@ func (c *client) do_query() error {
    return nil
 }
 
-func (c *client) do_tracking_season() error {
-   var session canal.Session
-   err := c.cache.Decode(&session)
+func (c *client) do_refresh() error {
+   session := &canal.Session{}
+   err := c.cache.Decode(session)
    if err != nil {
       return err
    }
-   episodes, err := session.Episodes(string(c.tracking), int(c.season))
+   session, err = canal.FetchSession(session.SsoToken)
    if err != nil {
       return err
    }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
+   return c.cache.Encode(session)
+}
+
+func (c *client) do_subtitles() error {
+   var player canal.Player
+   err := c.cache.Decode(&player)
+   if err != nil {
+      return err
+   }
+   for _, subtitles := range player.Subtitles {
+      err := get(&subtitles.Url.Url)
+      if err != nil {
+         return err
       }
-      fmt.Println(&episode)
    }
    return nil
 }
@@ -200,21 +200,21 @@ func (c *client) do_tracking() error {
    return c.cache.Encode(manifest, player)
 }
 
-func (*client) CachePath() string {
-   return "rosso/examples/canal/client"
-}
-
-func (c *client) do_subtitles() error {
-   var player canal.Player
-   err := c.cache.Decode(&player)
+func (c *client) do_tracking_season() error {
+   var session canal.Session
+   err := c.cache.Decode(&session)
    if err != nil {
       return err
    }
-   for _, subtitles := range player.Subtitles {
-      err := get(&subtitles.Url.Url)
-      if err != nil {
-         return err
+   episodes, err := session.Episodes(string(c.tracking), int(c.season))
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
       }
+      fmt.Println(&episode)
    }
    return nil
 }
