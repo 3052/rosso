@@ -8,19 +8,54 @@ import (
    "strings"
 )
 
-func (*Playback) CachePath() string {
-   return "rosso/roku/Playback"
+type AccountActivation struct {
+   Code string `json:"code"`
 }
 
-type Playback struct {
-   Url         *Url   // MPD
-   Drm         Drm    `json:"drm"`
-   MediaFormat string `json:"mediaFormat"`
-   TraceId     string `json:"traceId"`
+func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "googletv.web.roku.com",
+      Path:   "/api/v1/account/activation",
+   }
+   headers := map[string]string{
+      "content-type":         "application/json",
+      "user-agent":           "trc-googletv; production; 0",
+      "x-roku-content-token": token.AuthToken,
+   }
+
+   reqBody, err := json.Marshal(map[string]string{
+      "platform": "googletv",
+   })
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := maya.Post(target, headers, reqBody)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var activation AccountActivation
+   if err := json.NewDecoder(resp.Body).Decode(&activation); err != nil {
+      return nil, err
+   }
+   return &activation, nil
 }
 
-func (*AccountToken) CachePath() string {
-   return "rosso/roku/AccountToken"
+func (*AccountActivation) CachePath() string {
+   return "rosso/roku/AccountActivation"
+}
+
+func (a *AccountActivation) String() string {
+   var data strings.Builder
+   data.WriteString("1 Visit the URL\n")
+   data.WriteString("\ttherokuchannel.com/link\n")
+   data.WriteString("2 Enter the activation code\n")
+   data.WriteByte('\t')
+   data.WriteString(a.Code)
+   return data.String()
 }
 
 type AccountToken struct {
@@ -30,8 +65,35 @@ type AccountToken struct {
    Rida       string `json:"rida"`
 }
 
-func (*ActivationStatus) CachePath() string {
-   return "rosso/roku/ActivationStatus"
+// status can be nil
+func GetAccountToken(status *ActivationStatus) (*AccountToken, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "googletv.web.roku.com",
+      Path:   "/api/v1/account/token",
+   }
+   headers := map[string]string{
+      "user-agent": "trc-googletv; production; 0",
+   }
+   if status != nil {
+      headers["x-roku-content-token"] = status.Token
+   }
+
+   resp, err := maya.Get(target, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var token AccountToken
+   if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
+      return nil, err
+   }
+   return &token, nil
+}
+
+func (*AccountToken) CachePath() string {
+   return "rosso/roku/AccountToken"
 }
 
 type ActivationStatus struct {
@@ -43,12 +105,43 @@ type ActivationStatus struct {
    Status    string    `json:"status"`
 }
 
-func (*AccountActivation) CachePath() string {
-   return "rosso/roku/AccountActivation"
+func GetActivationStatus(token *AccountToken, activation *AccountActivation) (*ActivationStatus, error) {
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "googletv.web.roku.com",
+      Path:   "/api/v1/account/activation/" + activation.Code,
+   }
+   headers := map[string]string{
+      "user-agent":           "trc-googletv; production; 0",
+      "x-roku-content-token": token.AuthToken,
+   }
+
+   resp, err := maya.Get(target, headers)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var status ActivationStatus
+   if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+      return nil, err
+   }
+   return &status, nil
 }
 
-type AccountActivation struct {
-   Code string `json:"code"`
+func (*ActivationStatus) CachePath() string {
+   return "rosso/roku/ActivationStatus"
+}
+
+type Drm struct {
+   Widevine Widevine `json:"widevine"`
+}
+
+type Playback struct {
+   Url         *Url   // MPD
+   Drm         Drm    `json:"drm"`
+   MediaFormat string `json:"mediaFormat"`
+   TraceId     string `json:"traceId"`
 }
 
 func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
@@ -85,111 +178,8 @@ func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
    return &result, nil
 }
 
-type Profile struct {
-   Id      string `json:"id"`
-   IsKids  bool   `json:"isKids"`
-   IsOwner bool   `json:"isOwner"`
-}
-
-func GetActivationStatus(token *AccountToken, activation *AccountActivation) (*ActivationStatus, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "googletv.web.roku.com",
-      Path:   "/api/v1/account/activation/" + activation.Code,
-   }
-   headers := map[string]string{
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": token.AuthToken,
-   }
-
-   resp, err := maya.Get(target, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var status ActivationStatus
-   if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
-      return nil, err
-   }
-   return &status, nil
-}
-
-func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "googletv.web.roku.com",
-      Path:   "/api/v1/account/activation",
-   }
-   headers := map[string]string{
-      "content-type":         "application/json",
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": token.AuthToken,
-   }
-
-   reqBody, err := json.Marshal(map[string]string{
-      "platform": "googletv",
-   })
-   if err != nil {
-      return nil, err
-   }
-
-   resp, err := maya.Post(target, headers, reqBody)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var activation AccountActivation
-   if err := json.NewDecoder(resp.Body).Decode(&activation); err != nil {
-      return nil, err
-   }
-   return &activation, nil
-}
-
-// status can be nil
-func GetAccountToken(status *ActivationStatus) (*AccountToken, error) {
-   target := &url.URL{
-      Scheme: "https",
-      Host:   "googletv.web.roku.com",
-      Path:   "/api/v1/account/token",
-   }
-   headers := map[string]string{
-      "user-agent": "trc-googletv; production; 0",
-   }
-   if status != nil {
-      headers["x-roku-content-token"] = status.Token
-   }
-
-   resp, err := maya.Get(target, headers)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var token AccountToken
-   if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-      return nil, err
-   }
-   return &token, nil
-}
-
-func (a *AccountActivation) String() string {
-   var data strings.Builder
-   data.WriteString("1 Visit the URL\n")
-   data.WriteString("\ttherokuchannel.com/link\n")
-   data.WriteString("2 Enter the activation code\n")
-   data.WriteByte('\t')
-   data.WriteString(a.Code)
-   return data.String()
-}
-
-type Drm struct {
-   Widevine Widevine `json:"widevine"`
-}
-
-type Widevine struct {
-   LicenseServer *Url `json:"licenseServer"`
+func (*Playback) CachePath() string {
+   return "rosso/roku/Playback"
 }
 
 func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
@@ -207,14 +197,24 @@ func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
+type Profile struct {
+   Id      string `json:"id"`
+   IsKids  bool   `json:"isKids"`
+   IsOwner bool   `json:"isOwner"`
+}
+
 type Url struct {
    Url url.URL
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
 }
 
 func (u *Url) UnmarshalText(text []byte) error {
    return u.Url.UnmarshalBinary(text)
 }
 
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
+type Widevine struct {
+   LicenseServer *Url `json:"licenseServer"`
 }

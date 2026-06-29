@@ -10,47 +10,49 @@ import (
    "strings"
 )
 
-func (*Series) CachePath() string {
-   return "rosso/pluto/Series"
+// Define constants for the hardcoded URL parts
+const (
+   stitcherScheme = "https"
+   stitcherHost   = "cfd-v4-service-stitcher-dash-use1-1.prd.pluto.tv"
+)
+
+var (
+   app_name         = "androidtv"
+   drm_capabilities = "widevine:L1"
+)
+
+func FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "service-concierge.clusters.pluto.tv",
+         Path:   "/v1/wv/alt",
+      },
+      map[string]string{"content-type": "application/x-protobuf"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+func build_stitcher(session_token, path string) *url.URL {
+   stitcher := &url.URL{
+      Host:   stitcherHost,
+      Path:   "/v2" + path,
+      Scheme: stitcherScheme,
+   }
+   values := url.Values{}
+   values.Set("jwt", session_token)
+   stitcher.RawQuery = values.Encode()
+   return stitcher
 }
 
 type Series struct {
    SessionToken string
    Vod          []Vod
-}
-
-func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
-   // Iterate through all seasons and episodes to find the matching ID
-   for _, season := range s.Vod[0].Seasons {
-      for _, episode := range season.Episodes {
-         if episode.Id == episodeId {
-            // Directly access the path based on the data guarantees
-            return build_stitcher(
-               s.SessionToken, episode.Stitched.Paths[0].Path,
-            ), nil
-         }
-      }
-   }
-   return nil, errors.New("episode not found")
-}
-
-func (v *Vod) String() string {
-   data := &strings.Builder{}
-   var lines bool
-   for _, season := range v.Seasons {
-      for _, episode := range season.Episodes {
-         if lines {
-            data.WriteString("\n\n")
-         } else {
-            lines = true
-         }
-         fmt.Fprintln(data, "season:", season.Number)
-         fmt.Fprintln(data, "episode:", episode.Number)
-         fmt.Fprintln(data, "name:", episode.Name)
-         fmt.Fprint(data, "id: ", episode.Id)
-      }
-   }
-   return data.String()
 }
 
 // pluto.tv/on-demand/movies/64946365c5ae350013623630
@@ -98,21 +100,23 @@ func FetchSeries(movieShow string) (*Series, error) {
    return &result, nil
 }
 
-func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "service-concierge.clusters.pluto.tv",
-         Path:   "/v1/wv/alt",
-      },
-      map[string]string{"content-type": "application/x-protobuf"},
-      body,
-   )
-   if err != nil {
-      return nil, err
+func (*Series) CachePath() string {
+   return "rosso/pluto/Series"
+}
+
+func (s *Series) GetEpisodeUrl(episodeId string) (*url.URL, error) {
+   // Iterate through all seasons and episodes to find the matching ID
+   for _, season := range s.Vod[0].Seasons {
+      for _, episode := range season.Episodes {
+         if episode.Id == episodeId {
+            // Directly access the path based on the data guarantees
+            return build_stitcher(
+               s.SessionToken, episode.Stitched.Paths[0].Path,
+            ), nil
+         }
+      }
    }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
+   return nil, errors.New("episode not found")
 }
 
 // It assumes Vod and Stitched.Paths always have at least one entry
@@ -120,29 +124,6 @@ func (s *Series) GetMovieUrl() *url.URL {
    // Directly access the required path based on the data guarantees
    return build_stitcher(s.SessionToken, s.Vod[0].Stitched.Paths[0].Path)
 }
-
-func build_stitcher(session_token, path string) *url.URL {
-   stitcher := &url.URL{
-      Host:   stitcherHost,
-      Path:   "/v2" + path,
-      Scheme: stitcherScheme,
-   }
-   values := url.Values{}
-   values.Set("jwt", session_token)
-   stitcher.RawQuery = values.Encode()
-   return stitcher
-}
-
-// Define constants for the hardcoded URL parts
-const (
-   stitcherScheme = "https"
-   stitcherHost   = "cfd-v4-service-stitcher-dash-use1-1.prd.pluto.tv"
-)
-
-var (
-   app_name         = "androidtv"
-   drm_capabilities = "widevine:L1"
-)
 
 type Stitched struct {
    Paths []struct {
@@ -163,4 +144,23 @@ type Vod struct {
    }
    Slug     string
    Stitched *Stitched
+}
+
+func (v *Vod) String() string {
+   data := &strings.Builder{}
+   var lines bool
+   for _, season := range v.Seasons {
+      for _, episode := range season.Episodes {
+         if lines {
+            data.WriteString("\n\n")
+         } else {
+            lines = true
+         }
+         fmt.Fprintln(data, "season:", season.Number)
+         fmt.Fprintln(data, "episode:", episode.Number)
+         fmt.Fprintln(data, "name:", episode.Name)
+         fmt.Fprint(data, "id: ", episode.Id)
+      }
+   }
+   return data.String()
 }

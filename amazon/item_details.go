@@ -130,12 +130,6 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Reso
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
-
-   // Ensure we actually got a playback envelope before returning
-   if _, err := result.Resource.GetPlaybackExperienceMetadata(); err != nil {
-      return nil, fmt.Errorf("for titleId %s: %w", titleId, err)
-   }
-
    return &result.Resource, nil
 }
 
@@ -152,4 +146,20 @@ func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata,
       }
    }
    return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
+}
+
+func (r *Resource) String() string {
+   var data strings.Builder
+   if r.ApplyHdr {
+      data.WriteString("HDR: true")
+   } else {
+      data.WriteString("HDR: false")
+   }
+   data.WriteByte('\n')
+   if r.ApplyUhd {
+      data.WriteString("UHD: true")
+   } else {
+      data.WriteString("UHD: false")
+   }
+   return data.String()
 }
