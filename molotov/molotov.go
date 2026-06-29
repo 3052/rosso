@@ -10,6 +10,43 @@ import (
    "strings"
 )
 
+// https://molotov.tv/fr_fr/p/15301-2328
+// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
+func ParseProgram(data string) (*Program, error) {
+   var found bool
+   _, data, found = strings.Cut(data, "/p/")
+   if !found {
+      return nil, errors.New("url does not contain the /p/ marker")
+   }
+   data, _, _ = strings.Cut(data, "/")
+   id, channel_id, found := strings.Cut(data, "-")
+   if !found {
+      return nil, errors.New("invalid format: hyphen not found between IDs")
+   }
+   var (
+      p   Program
+      err error
+   )
+   if p.Id, err = strconv.Atoi(id); err != nil {
+      return nil, errors.New("program ID is not a valid integer")
+   }
+   if p.ChannelId, err = strconv.Atoi(channel_id); err != nil {
+      return nil, errors.New("channel ID is not a valid integer")
+   }
+   return &p, nil
+}
+
+type Url struct {
+   Url url.URL
+}
+
+func (u *Url) MarshalText() ([]byte, error) {
+   return u.Url.MarshalBinary()
+}
+
+func (u *Url) UnmarshalText(text []byte) error {
+   return u.Url.UnmarshalBinary(text)
+}
 const (
    browser_app   = `{ "app_build": 4, "app_id": "browser_app", "inner_app_version_name": "5.7.0" }`
    customer_area = `{ "app_build": 1, "app_id": "customer_area" }`
@@ -181,42 +218,4 @@ type Play struct {
 type Program struct {
    Id        int
    ChannelId int
-}
-
-// https://molotov.tv/fr_fr/p/15301-2328
-// https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
-func ParseProgram(data string) (*Program, error) {
-   var found bool
-   _, data, found = strings.Cut(data, "/p/")
-   if !found {
-      return nil, errors.New("url does not contain the /p/ marker")
-   }
-   data, _, _ = strings.Cut(data, "/")
-   id, channel_id, found := strings.Cut(data, "-")
-   if !found {
-      return nil, errors.New("invalid format: hyphen not found between IDs")
-   }
-   var (
-      p   Program
-      err error
-   )
-   if p.Id, err = strconv.Atoi(id); err != nil {
-      return nil, errors.New("program ID is not a valid integer")
-   }
-   if p.ChannelId, err = strconv.Atoi(channel_id); err != nil {
-      return nil, errors.New("channel ID is not a valid integer")
-   }
-   return &p, nil
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
 }
