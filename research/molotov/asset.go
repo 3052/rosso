@@ -8,7 +8,7 @@ import (
 )
 
 // GetAsset retrieves the MPD URL, the license URL, and the DRM auth token.
-func GetAsset(assetID, accessToken, userID, profileID, deviceID, sessionID string) (string, string, string, error) {
+func GetAsset(assetID, accessToken, userID, profileID, sessionID string) (string, string, string, error) {
    // Constructing URL using the specific asset ID (VOD_314017 in this case)
    url := fmt.Sprintf("https://api-eu.fubo.tv/vapi/asset/v1?id=%s&type=vod", assetID)
 
@@ -20,7 +20,7 @@ func GetAsset(assetID, accessToken, userID, profileID, deviceID, sessionID strin
    req.Header.Set("Authorization", "Bearer "+accessToken)
    req.Header.Set("x-user-id", userID)
    req.Header.Set("x-profile-id", profileID)
-   req.Header.Set("x-device-id", deviceID)
+   req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-session-id", sessionID)
    req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-client-version", "6.12.0")

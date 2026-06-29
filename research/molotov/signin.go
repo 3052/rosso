@@ -9,13 +9,16 @@ import (
 )
 
 // Signin performs the authentication request and returns the access token.
-func Signin(username, password, deviceID string) (string, error) {
+func Signin(username, password string) (string, error) {
    url := "https://api-eu.fubo.tv/v2/signin"
 
-   reqBody, _ := json.Marshal(SigninRequest{
+   reqBody, err := json.Marshal(SigninRequest{
       Username: username,
       Password: password,
    })
+   if err != nil {
+      return "", err
+   }
 
    req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
    if err != nil {
@@ -23,7 +26,7 @@ func Signin(username, password, deviceID string) (string, error) {
    }
 
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("x-device-id", deviceID)
+   req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-device-type", "desktop")
    req.Header.Set("x-client-version", "6.12.0")

@@ -8,7 +8,7 @@ import (
 )
 
 // GetUser fetches the user's ID and their first profile ID.
-func GetUser(accessToken, deviceID, sessionID string) (string, string, error) {
+func GetUser(accessToken, sessionID string) (string, string, error) {
    url := "https://api-eu.fubo.tv/user"
 
    req, err := http.NewRequest("GET", url, nil)
@@ -17,7 +17,7 @@ func GetUser(accessToken, deviceID, sessionID string) (string, string, error) {
    }
 
    req.Header.Set("Authorization", "Bearer "+accessToken)
-   req.Header.Set("x-device-id", deviceID)
+   req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-session-id", sessionID)
    req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-client-version", "6.12.0")
