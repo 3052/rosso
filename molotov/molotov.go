@@ -10,6 +10,40 @@ import (
    "strings"
 )
 
+func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "fapi.molotov.tv",
+         Path: fmt.Sprintf(
+            "/v2/channels/%v/programs/%v/view",
+            programData.ChannelId, programData.Id,
+         ),
+         RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
+      },
+      map[string]string{"x-molotov-agent": customer_area},
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Program struct {
+         Actions struct {
+            Play *Play
+         }
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Program.Actions.Play == nil {
+      return nil, errors.New("program is not available for playback")
+   }
+   return result.Program.Actions.Play, nil
+}
+
 // https://molotov.tv/fr_fr/p/15301-2328
 // https://molotov.tv/fr_fr/p/15301-2328/closer-entre-adultes-consentants
 func ParseProgram(data string) (*Program, error) {
@@ -156,40 +190,6 @@ func (a *Auth) FetchAsset(playData *Play) (*Asset, error) {
       return nil, err
    }
    return &result, nil
-}
-
-func (a *Auth) FetchPlay(programData *Program) (*Play, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "fapi.molotov.tv",
-         Path: fmt.Sprintf(
-            "/v2/channels/%v/programs/%v/view",
-            programData.ChannelId, programData.Id,
-         ),
-         RawQuery: url.Values{"access_token": {a.AccessToken}}.Encode(),
-      },
-      map[string]string{"x-molotov-agent": customer_area},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Program struct {
-         Actions struct {
-            Play *Play
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Program.Actions.Play == nil {
-      return nil, errors.New("program is not available for playback")
-   }
-   return result.Program.Actions.Play, nil
 }
 
 // authorization server issues a new refresh token, in which case the
