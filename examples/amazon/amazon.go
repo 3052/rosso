@@ -8,58 +8,6 @@ import (
    "os"
 )
 
-func (c *client) do_title_id() error {
-   var token_pair amazon.TokenPair
-   err := c.cache.Decode(&token_pair)
-   if err != nil {
-      return err
-   }
-   if err = token_pair.Refresh(); err != nil {
-      return err
-   }
-   profile, err := amazon.GetPrimaryProfile(
-      &token_pair, string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get primary profile: %v", err)
-   }
-   actor_token, err := amazon.GetActorToken(
-      &token_pair, profile, string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get actor token: %v", err)
-   }
-   item_details, err := amazon.GetItemDetails(
-      actor_token, string(c.title_id), string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get item details (playback envelope): %v", err)
-   }
-   playback := amazon.VodPlaybackParams{
-      ActorToken:         actor_token,
-      BitrateAdaptation:  string(c.bitrate_adaptation),
-      DeviceTypeID:       string(c.DeviceTypeId),
-      DRMType:            "PlayReady",
-      DynamicRangeFormat: string(c.dynamic_range),
-      MaxVideoResolution: "2160p",
-      ItemDetails:        item_details,
-      TitleId:            string(c.title_id),
-      VideoCodec:         string(c.video_codec),
-   }
-   resources, err := playback.Fetch()
-   if err != nil {
-      return fmt.Errorf("failed to get VOD playback resources: %v", err)
-   }
-   clean, err := resources.Clean()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(clean)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(actor_token, item_details, manifest)
-}
 func main() {
    log.SetFlags(log.Ltime)
    err := new(client).do()
@@ -96,7 +44,7 @@ func (c *client) do() error {
 
    c.bitrate_adaptation = "CVBR"
    c.dynamic_range = "None"
-   c.video_codec = "H265"
+   c.video_codec = "H264"
 
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
@@ -196,4 +144,56 @@ func (c *client) do_initiate_login() error {
    }
    log.Print(codes)
    return c.cache.Encode(codes)
+}
+func (c *client) do_title_id() error {
+   var token_pair amazon.TokenPair
+   err := c.cache.Decode(&token_pair)
+   if err != nil {
+      return err
+   }
+   if err = token_pair.Refresh(); err != nil {
+      return err
+   }
+   profile, err := amazon.GetPrimaryProfile(
+      &token_pair, string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get primary profile: %v", err)
+   }
+   actor_token, err := amazon.GetActorToken(
+      &token_pair, profile, string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get actor token: %v", err)
+   }
+   item_details, err := amazon.GetItemDetails(
+      actor_token, string(c.title_id), string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get item details (playback envelope): %v", err)
+   }
+   playback := amazon.VodPlaybackParams{
+      ActorToken:         actor_token,
+      BitrateAdaptation:  string(c.bitrate_adaptation),
+      DeviceTypeID:       string(c.DeviceTypeId),
+      DRMType:            "PlayReady",
+      DynamicRangeFormat: string(c.dynamic_range),
+      MaxVideoResolution: "2160p",
+      ItemDetails:        item_details,
+      TitleId:            string(c.title_id),
+      VideoCodec:         string(c.video_codec),
+   }
+   resources, err := playback.Fetch()
+   if err != nil {
+      return fmt.Errorf("failed to get VOD playback resources: %v", err)
+   }
+   clean, err := resources.Clean()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(clean)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(actor_token, item_details, manifest)
 }
