@@ -1,0 +1,155 @@
+package amazon
+
+import (
+   "encoding/json"
+   "fmt"
+   "net/http"
+   "strings"
+)
+
+// PlaybackExperienceMetadata contains the envelope and related data needed for playback requests.
+type PlaybackExperienceMetadata struct {
+   PlaybackEnvelope string `json:"playbackEnvelope"`
+   ExpiryTime       int64  `json:"expiryTime"`
+   CorrelationId    string `json:"correlationId"`
+}
+
+// Profile represents an Amazon actor profile.
+type Profile struct {
+   ProfileID        string `json:"profileId"`
+   IsDefaultProfile bool   `json:"isDefaultProfile"`
+}
+
+// GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
+func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error) {
+   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
+   req, err := http.NewRequest("GET", url, nil)
+   if err != nil {
+      return nil, err
+   }
+   query := req.URL.Query()
+   query.Add("deviceTypeID", deviceTypeID)
+   query.Add("deviceID", DeviceID)
+   req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+   req.URL.RawQuery = query.Encode()
+
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Resource struct {
+         Profiles []Profile `json:"profiles"`
+      } `json:"resource"`
+      Message *struct {
+         Body *struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"body"`
+      } `json:"message"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
+   }
+
+   if result.Message != nil && result.Message.Body != nil {
+      return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
+   }
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+
+   for _, profile := range result.Resource.Profiles {
+      if profile.IsDefaultProfile {
+         return &profile, nil
+      }
+   }
+
+   return nil, fmt.Errorf("default profile not found")
+}
+
+func (*Profile) CachePath() string {
+   return "rosso/amazon/Profile"
+}
+
+// Resource represents the "resource" object returned from the detailsPageATF endpoint.
+type Resource struct {
+   Actions []struct {
+      Metadata struct {
+         PlaybackExperienceMetadata PlaybackExperienceMetadata `json:"playbackExperienceMetadata"`
+      } `json:"metadata"`
+   } `json:"actions"`
+   ApplyHdr bool `json:"applyHdr"`
+   ApplyUhd bool `json:"applyUhd"`
+}
+
+// GetItemDetails uses the actor access token to get metadata for a specific title.
+func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Resource, error) {
+   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
+   req, err := http.NewRequest("GET", url, nil)
+   if err != nil {
+      return nil, err
+   }
+   query := req.URL.Query()
+   query.Add("itemId", titleId)
+   query.Add("roles", "playback-envelope-supported")
+   query.Add("presentationScheme", "android-tv-react")
+   query.Add("deviceTypeID", deviceTypeID)
+   query.Add("deviceID", DeviceID)
+   req.URL.RawQuery = query.Encode()
+
+   req.Header.Set("Authorization", "Bearer "+actorToken.Token)
+
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+
+   var result struct {
+      Resource Resource `json:"resource"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return &result.Resource, nil
+}
+
+func (*Resource) CachePath() string {
+   return "rosso/amazon/Resource"
+}
+
+// GetPlaybackExperienceMetadata searches the Actions array and returns the first valid PlaybackExperienceMetadata.
+func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata, error) {
+   for _, action := range r.Actions {
+      pem := action.Metadata.PlaybackExperienceMetadata
+      if pem.PlaybackEnvelope != "" {
+         return &pem, nil
+      }
+   }
+   return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
+}
+
+func (r *Resource) String() string {
+   var data strings.Builder
+   if r.ApplyHdr {
+      data.WriteString("HDR: true")
+   } else {
+      data.WriteString("HDR: false")
+   }
+   data.WriteByte('\n')
+   if r.ApplyUhd {
+      data.WriteString("UHD: true")
+   } else {
+      data.WriteString("UHD: false")
+   }
+   return data.String()
+}

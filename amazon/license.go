@@ -10,19 +10,19 @@ import (
 )
 
 // GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
-func GetPlayReadyLicense(actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
-   return fetchDRMLicense("/playback/drm-vod/GetPlayReadyLicense", actorToken, itemDetails, licenseChallenge, deviceTypeID)
+func GetPlayReadyLicense(actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+   return fetchDRMLicense("/playback/drm-vod/GetPlayReadyLicense", actorToken, metadata, licenseChallenge, deviceTypeID)
 }
 
 // GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
-func GetWidevineLicense(actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
-   return fetchDRMLicense("/playback/drm-vod/GetWidevineLicense", actorToken, itemDetails, licenseChallenge, deviceTypeID)
+func GetWidevineLicense(actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+   return fetchDRMLicense("/playback/drm-vod/GetWidevineLicense", actorToken, metadata, licenseChallenge, deviceTypeID)
 }
 
 // fetchDRMLicense is the shared base function for making DRM requests
-func fetchDRMLicense(path string, actorToken *ActorToken, itemDetails *ItemDetails, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
    payload := map[string]any{
-      "playbackEnvelope": itemDetails.PlaybackEnvelope,
+      "playbackEnvelope": metadata.PlaybackEnvelope,
       "licenseChallenge": licenseChallenge,
    }
 
@@ -49,13 +49,11 @@ func fetchDRMLicense(path string, actorToken *ActorToken, itemDetails *ItemDetai
    }
    defer resp.Body.Close()
 
-   // Read the body once so we can attempt multiple unmarshals
    respBytes, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, fmt.Errorf("failed to read response: %w", err)
    }
 
-   // 1. Try the standard response format (contains licenses or a nested error object)
    var standardResp struct {
       WidevineLicense *struct {
          License []byte `json:"license"`
@@ -83,7 +81,6 @@ func fetchDRMLicense(path string, actorToken *ActorToken, itemDetails *ItemDetai
       }
    }
 
-   // 2. If the first unmarshal fails (e.g., "message" is a string causing a type error), try the flat error format
    var flatErrorResp struct {
       Code    string `json:"code"`
       ID      string `json:"id"`
@@ -94,7 +91,6 @@ func fetchDRMLicense(path string, actorToken *ActorToken, itemDetails *ItemDetai
       return nil, fmt.Errorf("code: %s, message: %s, id: %s", flatErrorResp.Code, flatErrorResp.Message, flatErrorResp.ID)
    }
 
-   // 3. Check for standard HTTP errors if no JSON error message was extracted
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
    }
