@@ -197,6 +197,14 @@ type Device struct {
    DeviceTypeID  string
 }
 
+func (*PlaybackExperienceMetadata) CachePath() string {
+   return "rosso/amazon/PlaybackExperienceMetadata"
+}
+
+func (*TokenPair) CachePath() string {
+   return "rosso/amazon/TokenPair"
+}
+
 // Refresh exchanges the existing refresh token for a new access token
 // using the /auth/token endpoint, mutating the TokenPair in-place.
 func (t *TokenPair) Refresh() error {

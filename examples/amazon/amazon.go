@@ -19,13 +19,14 @@ func main() {
 type client struct {
    DeviceTypeId       maya.FlagString
    PlayReady          maya.FlagString
+   TitleId            maya.FlagString
    bitrate_adaptation maya.FlagString
    complete_login     maya.FlagBool
    dash_id            maya.FlagString
    dynamic_range      maya.FlagString
    initiate_login     maya.FlagBool
-   title_id           maya.FlagString
    video_codec        maya.FlagString
+   playback           maya.FlagBool
 
    cache maya.Cache
 }
@@ -33,7 +34,6 @@ type client struct {
 func (*client) CachePath() string {
    return "rosso/examples/amazon/client"
 }
-
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -51,28 +51,25 @@ func (c *client) do() error {
       {Name: "device-type-id", Value: &c.DeviceTypeId},
       {Name: "initiate-login", Value: &c.initiate_login},
       {Name: "complete-login", Value: &c.complete_login},
-      {
-         Name:  "title-id",
-         Value: &c.title_id,
-         Usage: "amzn1.dv.gti.28b85d90-1338-720b-4be7-3247683a7624",
-      },
-      {
-         Name:  "video-codec",
-         Value: &c.video_codec,
-         Usage: "H264 H265",
-         Needs: "title-id",
-      },
+      {Name: "title-id", Value: &c.TitleId},
+      {Name: "playback", Value: &c.playback},
       {
          Name:  "bitrate-adaptation",
          Value: &c.bitrate_adaptation,
          Usage: "CVBR CBR",
-         Needs: "title-id",
+         Needs: "playback",
       },
       {
          Name:  "dynamic-range",
          Value: &c.dynamic_range,
          Usage: "None HDR10 DolbyVision",
-         Needs: "title-id",
+         Needs: "playback",
+      },
+      {
+         Name:  "video-codec",
+         Value: &c.video_codec,
+         Usage: "H264 H265",
+         Needs: "playback",
       },
       {Name: "dash-id", Value: &c.dash_id},
    }
@@ -88,8 +85,10 @@ func (c *client) do() error {
       return c.do_initiate_login()
    case bool(c.complete_login):
       return c.do_complete_login()
-   case c.title_id != "":
+   case flags.IsSet(&c.TitleId):
       return c.do_title_id()
+   case bool(c.playback):
+      return c.do_playback()
    case c.dash_id != "":
       return c.do_dash_id()
    }
@@ -113,11 +112,11 @@ func (c *client) do_complete_login() error {
 
 func (c *client) do_dash_id() error {
    var (
-      actor_token  amazon.ActorToken
-      item_details amazon.ItemDetails
-      manifest     maya.Manifest
+      actor_token amazon.ActorToken
+      manifest    maya.Manifest
+      metadata    amazon.PlaybackExperienceMetadata
    )
-   err := c.cache.Decode(&actor_token, &item_details, &manifest)
+   err := c.cache.Decode(&actor_token, &manifest, &metadata)
    if err != nil {
       return err
    }
@@ -125,7 +124,7 @@ func (c *client) do_dash_id() error {
    license := func(signedRequest []byte) ([]byte, error) {
       return amazon.GetPlayReadyLicense(
          &actor_token,
-         &item_details,
+         &metadata,
          signedRequest,
          string(c.DeviceTypeId),
       )
@@ -142,46 +141,29 @@ func (c *client) do_initiate_login() error {
    if err != nil {
       return fmt.Errorf("failed to create code pair: %v", err)
    }
-   log.Print(codes)
+   fmt.Println(codes)
    return c.cache.Encode(codes)
 }
-func (c *client) do_title_id() error {
-   var token_pair amazon.TokenPair
-   err := c.cache.Decode(&token_pair)
+
+func (c *client) do_playback() error {
+   var (
+      actor_token amazon.ActorToken
+      metadata    amazon.PlaybackExperienceMetadata
+   )
+   err := c.cache.Decode(&actor_token, &metadata)
    if err != nil {
       return err
-   }
-   if err = token_pair.Refresh(); err != nil {
-      return err
-   }
-   profile, err := amazon.GetPrimaryProfile(
-      &token_pair, string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get primary profile: %v", err)
-   }
-   actor_token, err := amazon.GetActorToken(
-      &token_pair, profile, string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get actor token: %v", err)
-   }
-   item_details, err := amazon.GetItemDetails(
-      actor_token, string(c.title_id), string(c.DeviceTypeId),
-   )
-   if err != nil {
-      return fmt.Errorf("failed to get item details (playback envelope): %v", err)
    }
    playback := amazon.VodPlaybackParams{
-      ActorToken:         actor_token,
-      BitrateAdaptation:  string(c.bitrate_adaptation),
-      DeviceTypeID:       string(c.DeviceTypeId),
-      DRMType:            "PlayReady",
-      DynamicRangeFormat: string(c.dynamic_range),
-      MaxVideoResolution: "2160p",
-      ItemDetails:        item_details,
-      TitleId:            string(c.title_id),
-      VideoCodec:         string(c.video_codec),
+      DRMType:                    "PlayReady",
+      MaxVideoResolution:         "2160p",
+      BitrateAdaptation:          string(c.bitrate_adaptation),
+      DynamicRangeFormat:         string(c.dynamic_range),
+      VideoCodec:                 string(c.video_codec),
+      DeviceTypeID:               string(c.DeviceTypeId),
+      TitleId:                    string(c.TitleId),
+      ActorToken:                 &actor_token,
+      PlaybackExperienceMetadata: &metadata,
    }
    resources, err := playback.Fetch()
    if err != nil {
@@ -195,5 +177,38 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(actor_token, item_details, manifest)
+   return c.cache.Encode(manifest)
+}
+
+func (c *client) do_title_id() error {
+   var token_pair amazon.TokenPair
+   err := c.cache.Decode(&token_pair)
+   if err != nil {
+      return err
+   }
+   if err = token_pair.Refresh(); err != nil {
+      return err
+   }
+   profile, err := amazon.GetPrimaryProfile(&token_pair, string(c.DeviceTypeId))
+   if err != nil {
+      return fmt.Errorf("failed to get primary profile: %v", err)
+   }
+   actor_token, err := amazon.GetActorToken(
+      &token_pair, profile, string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return fmt.Errorf("failed to get actor token: %v", err)
+   }
+   resource, err := amazon.GetItemDetails(
+      actor_token, string(c.TitleId), string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return err
+   }
+   metadata, err := resource.GetPlaybackExperienceMetadata()
+   if err != nil {
+      return err
+   }
+   fmt.Println(resource)
+   return c.cache.Encode(actor_token, c, metadata)
 }

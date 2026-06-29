@@ -4,6 +4,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "strings"
 )
 
 // PlaybackExperienceMetadata contains the envelope and related data needed for playback requests.
@@ -75,10 +76,6 @@ func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error)
    return nil, fmt.Errorf("default profile not found")
 }
 
-func (*Profile) CachePath() string {
-   return "rosso/amazon/Profile"
-}
-
 // Resource represents the "resource" object returned from the detailsPageATF endpoint.
 type Resource struct {
    Actions []struct {
@@ -131,10 +128,6 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Reso
       return nil, err
    }
    return &result.Resource, nil
-}
-
-func (*Resource) CachePath() string {
-   return "rosso/amazon/Resource"
 }
 
 // GetPlaybackExperienceMetadata searches the Actions array and returns the first valid PlaybackExperienceMetadata.

@@ -5,16 +5,6 @@ import (
    "time"
 )
 
-func TestRtbf(t *testing.T) {
-   for _, test := range tests {
-      _, err := FetchAssetId(test.path)
-      if err != nil {
-         t.Fatal(err)
-      }
-      time.Sleep(time.Second)
-   }
-}
-
 var tests = []struct {
    category string
    path     string
@@ -30,4 +20,14 @@ var tests = []struct {
       path:     "/media/l-affaire-thomas-crown-avec-steve-mcqueen-et-faye-dunawa-3381405",
       url:      "https://auvio.rtbf.be/media/l-affaire-thomas-crown-avec-steve-mcqueen-et-faye-dunawa-3381405",
    },
+}
+
+func TestRtbf(t *testing.T) {
+   for _, test := range tests {
+      _, err := FetchAssetId(test.path)
+      if err != nil {
+         t.Fatal(err)
+      }
+      time.Sleep(time.Second)
+   }
 }

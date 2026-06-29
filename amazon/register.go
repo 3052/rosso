@@ -78,7 +78,3 @@ func PollRegister(codes *CodePair, deviceTypeID string) (*TokenPair, error) {
    bearer := result.Response.Success.Tokens.Bearer
    return &bearer, nil
 }
-
-func (*TokenPair) CachePath() string {
-   return "rosso/amazon/TokenPair"
-}

@@ -9,122 +9,8 @@ import (
    "net/url"
 )
 
-func (*Entitlement) CachePath() string {
-   return "rosso/rtbf/Entitlement"
-}
-
-type Entitlement struct {
-   AssetId string
-   Formats []struct {
-      Format       string
-      MediaLocator string // MPD
-   }
-   Message   string
-   PlayToken string
-}
-
-func (*Account) CachePath() string {
-   return "rosso/rtbf/Account"
-}
-
-type Account struct {
-   SessionInfo struct {
-      CookieValue string
-   }
-}
-
-func GetPath(urlData string) (string, error) {
-   parse, err := url.Parse(urlData)
-   if err != nil {
-      return "", err
-   }
-   if parse.Scheme == "" {
-      return "", errors.New("invalid URL: scheme is missing")
-   }
-   return parse.Path, nil
-}
-
-func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path: fmt.Sprintf(
-            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
-         ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + s.SessionToken,
-         "x-forwarded-for": "91.90.123.17",
-      },
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Entitlement
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   return &result, nil
-}
-
-func FetchAccount(id, password string) (*Account, error) {
-   body := url.Values{
-      "APIKey":   {api_key},
-      "loginID":  {id},
-      "password": {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "login.auvio.rtbf.be",
-         Path:   "/accounts.login",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Account
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (a *Account) Identity() (*Identity, error) {
-   body := url.Values{
-      "APIKey":      {api_key},
-      "login_token": {a.SessionInfo.CookieValue},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "login.auvio.rtbf.be",
-         Path:   "/accounts.getJWT",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Identity
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
+// hard coded in JavaScript
+const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
 func FetchAssetId(path string) (string, error) {
    resp, err := maya.Get(
@@ -166,36 +52,92 @@ func FetchAssetId(path string) (string, error) {
    return "", errors.New("assetId not found")
 }
 
-func (i *Identity) Session() (*Session, error) {
-   body, err := json.Marshal(map[string]any{
-      "device": map[string]string{
-         "deviceId": "",
-         "type":     "WEB",
-      },
-      "jwt": i.IdToken,
-   })
+func GetPath(urlData string) (string, error) {
+   parse, err := url.Parse(urlData)
    if err != nil {
-      return nil, err
+      return "", err
    }
+   if parse.Scheme == "" {
+      return "", errors.New("invalid URL: scheme is missing")
+   }
+   return parse.Path, nil
+}
+
+type Account struct {
+   SessionInfo struct {
+      CookieValue string
+   }
+}
+
+func FetchAccount(id, password string) (*Account, error) {
+   body := url.Values{
+      "APIKey":   {api_key},
+      "loginID":  {id},
+      "password": {password},
+   }.Encode()
    resp, err := maya.Post(
       &url.URL{
          Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path:   "/v2/customer/RTBF/businessunit/Auvio/auth/gigyaLogin",
+         Host:   "login.auvio.rtbf.be",
+         Path:   "/accounts.login",
       },
-      map[string]string{"content-type": "application/json"},
-      body,
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
    )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   result := &Session{}
-   err = json.NewDecoder(resp.Body).Decode(result)
+   var result Account
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return result, nil
+   return &result, nil
+}
+
+func (*Account) CachePath() string {
+   return "rosso/rtbf/Account"
+}
+
+func (a *Account) Identity() (*Identity, error) {
+   body := url.Values{
+      "APIKey":      {api_key},
+      "login_token": {a.SessionInfo.CookieValue},
+   }.Encode()
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "login.auvio.rtbf.be",
+         Path:   "/accounts.getJWT",
+      },
+      map[string]string{"content-type": "application/x-www-form-urlencoded"},
+      []byte(body),
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Identity
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+type Entitlement struct {
+   AssetId string
+   Formats []struct {
+      Format       string
+      MediaLocator string // MPD
+   }
+   Message   string
+   PlayToken string
+}
+
+func (*Entitlement) CachePath() string {
+   return "rosso/rtbf/Entitlement"
 }
 
 func (e *Entitlement) FetchWidevine(body []byte) ([]byte, error) {
@@ -229,17 +171,6 @@ func (e *Entitlement) FetchWidevine(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-type Identity struct {
-   IdToken string `json:"id_token"`
-}
-
-type Session struct {
-   SessionToken string
-}
-
-// hard coded in JavaScript
-const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
-
 func (e *Entitlement) GetDash() (*url.URL, error) {
    for _, format := range e.Formats {
       if format.Format == "DASH" {
@@ -247,4 +178,73 @@ func (e *Entitlement) GetDash() (*url.URL, error) {
       }
    }
    return nil, errors.New("DASH format not found")
+}
+
+type Identity struct {
+   IdToken string `json:"id_token"`
+}
+
+func (i *Identity) Session() (*Session, error) {
+   body, err := json.Marshal(map[string]any{
+      "device": map[string]string{
+         "deviceId": "",
+         "type":     "WEB",
+      },
+      "jwt": i.IdToken,
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := maya.Post(
+      &url.URL{
+         Scheme: "https",
+         Host:   "exposure.api.redbee.live",
+         Path:   "/v2/customer/RTBF/businessunit/Auvio/auth/gigyaLogin",
+      },
+      map[string]string{"content-type": "application/json"},
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   result := &Session{}
+   err = json.NewDecoder(resp.Body).Decode(result)
+   if err != nil {
+      return nil, err
+   }
+   return result, nil
+}
+
+type Session struct {
+   SessionToken string
+}
+
+func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
+   resp, err := maya.Get(
+      &url.URL{
+         Scheme: "https",
+         Host:   "exposure.api.redbee.live",
+         Path: fmt.Sprintf(
+            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
+         ),
+      },
+      map[string]string{
+         "authorization":   "Bearer " + s.SessionToken,
+         "x-forwarded-for": "91.90.123.17",
+      },
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Entitlement
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if result.Message != "" {
+      return nil, errors.New(result.Message)
+   }
+   return &result, nil
 }
