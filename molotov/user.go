@@ -7,13 +7,13 @@ import (
    "net/http"
 )
 
+type Profile struct {
+   ID string `json:"id"`
+}
+
 type UserResponse struct {
-   Data struct {
-      ID       string `json:"id"`
-      Profiles []struct {
-         ID string `json:"id"`
-      } `json:"profiles"`
-   } `json:"data"`
+   ID       string    `json:"id"`
+   Profiles []Profile `json:"profiles"`
 }
 
 // GetUser fetches the user profile using the token from the Signin response.
@@ -25,7 +25,8 @@ func GetUser(signinResp *SigninResponse) (*UserResponse, error) {
       return nil, err
    }
 
-   req.Header.Set("Authorization", "Bearer "+signinResp.Payload.AccessToken)
+   // Accessing the unwrapped field directly
+   req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
    req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-client-version", "6.12.0")
@@ -42,14 +43,17 @@ func GetUser(signinResp *SigninResponse) (*UserResponse, error) {
       return nil, fmt.Errorf("get user failed with status: %d", resp.StatusCode)
    }
 
-   var userResp UserResponse
-   if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
+   // Unwrap the "data" envelope layer
+   var envelope struct {
+      Data UserResponse `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   if len(userResp.Data.Profiles) == 0 {
+   if len(envelope.Data.Profiles) == 0 {
       return nil, fmt.Errorf("no profiles found for user")
    }
 
-   return &userResp, nil
+   return &envelope.Data, nil
 }

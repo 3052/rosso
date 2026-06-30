@@ -14,9 +14,7 @@ type SigninRequest struct {
 }
 
 type SigninResponse struct {
-   Payload struct {
-      AccessToken string `json:"access_token"`
-   } `json:"payload"`
+   AccessToken string `json:"access_token"`
 }
 
 // Signin performs the authentication request and returns the SigninResponse struct.
@@ -54,10 +52,13 @@ func Signin(username, password string) (*SigninResponse, error) {
       return nil, fmt.Errorf("signin failed with status: %d", resp.StatusCode)
    }
 
-   var signinResp SigninResponse
-   if err := json.NewDecoder(resp.Body).Decode(&signinResp); err != nil {
+   // Unwrap the "payload" envelope layer
+   var envelope struct {
+      Payload SigninResponse `json:"payload"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
       return nil, err
    }
 
-   return &signinResp, nil
+   return &envelope.Payload, nil
 }

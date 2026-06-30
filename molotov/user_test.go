@@ -18,17 +18,16 @@ func TestGetUser(t *testing.T) {
       t.Fatalf("Failed to unmarshal SigninResponse: %v", err)
    }
 
-   // Use the struct from the previous request
    userResp, err := GetUser(&signinResp)
    if err != nil {
       t.Fatalf("GetUser failed: %v", err)
    }
 
-   if userResp.Data.ID == "" || userResp.Data.Profiles[0].ID == "" {
+   // Accessing the unwrapped fields directly
+   if userResp.ID == "" || userResp.Profiles[0].ID == "" {
       t.Fatalf("Expected non-empty user and profile IDs")
    }
 
-   // Directly save the UserResponse struct for the next test
    data, err := json.MarshalIndent(userResp, "", "  ")
    if err != nil {
       t.Fatalf("Failed to marshal user data: %v", err)

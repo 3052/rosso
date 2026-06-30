@@ -20,8 +20,8 @@ func TestGetLicense(t *testing.T) {
 
    t.Logf("Requesting license from: %s", assetResp.DRM.LicenseURL)
 
-   // Use the struct from the previous request
-   license, err := GetLicense(&assetResp, nil)
+   // Use the method on the struct
+   license, err := assetResp.GetLicense(nil)
    if err != nil {
       t.Fatalf("GetLicense failed (this is expected with a nil challenge!): %v", err)
    }

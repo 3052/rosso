@@ -7,7 +7,6 @@ import (
    "net/http"
 )
 
-// strings.Replace(manifest.Path, "high", "fhdready", 1)
 type AssetResponse struct {
    Stream struct {
       URL string `json:"url"` // The MPD URL
@@ -27,9 +26,12 @@ func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse
       return nil, err
    }
 
-   req.Header.Set("Authorization", "Bearer "+signinResp.Payload.AccessToken)
-   req.Header.Set("x-user-id", userResp.Data.ID)
-   req.Header.Set("x-profile-id", userResp.Data.Profiles[0].ID)
+   // Accessing the unwrapped field directly
+   req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
+
+   req.Header.Set("x-user-id", userResp.ID)
+   req.Header.Set("x-profile-id", userResp.Profiles[0].ID)
+
    req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-application-id", "molotov")
    req.Header.Set("x-device-group", "desktop")

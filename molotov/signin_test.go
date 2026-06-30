@@ -29,7 +29,8 @@ func TestSignin(t *testing.T) {
       t.Fatalf("Signin failed: %v", err)
    }
 
-   if resp.Payload.AccessToken == "" {
+   // Accessing the unwrapped field directly
+   if resp.AccessToken == "" {
       t.Fatal("Expected an access token in the response, but got an empty string")
    }
 
