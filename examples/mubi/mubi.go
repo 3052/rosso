@@ -9,6 +9,32 @@ import (
    "path"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   Proxy     maya.FlagString
+   Widevine  maya.FlagString
+   address   maya.FlagString
+   dash      maya.FlagString
+   link_code maya.FlagBool
+   mubi_id   maya.FlagInt
+   season    maya.FlagInt
+   session   maya.FlagBool
+   threads   maya.FlagInt
+
+   cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/mubi/client"
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -60,6 +86,31 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "mubi")
 }
 
+func (c *client) do_address() error {
+   slug := path.Base(string(c.address))
+   film, err := mubi.FetchFilm(slug)
+   if err != nil {
+      return err
+   }
+   fmt.Println(film)
+   return nil
+}
+
+func (c *client) do_address_season() error {
+   slug := path.Base(string(c.address))
+   episodes, err := mubi.FetchEpisodes(slug, int(c.season))
+   if err != nil {
+      return err
+   }
+   for i, episode := range episodes {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(episode)
+   }
+   return nil
+}
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
@@ -77,12 +128,13 @@ func (c *client) do_dash() error {
    })
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
+func (c *client) do_link_code() error {
+   link_code, err := mubi.FetchLinkCode()
    if err != nil {
-      log.Fatal(err)
+      return err
    }
+   fmt.Println(link_code)
+   return c.cache.Encode(link_code)
 }
 
 func (c *client) do_mubi() error {
@@ -106,30 +158,6 @@ func (c *client) do_mubi() error {
    return c.cache.Encode(manifest)
 }
 
-func (c *client) do_address_season() error {
-   slug := path.Base(string(c.address))
-   episodes, err := mubi.FetchEpisodes(slug, int(c.season))
-   if err != nil {
-      return err
-   }
-   for i, episode := range episodes {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(episode)
-   }
-   return nil
-}
-
-func (c *client) do_link_code() error {
-   link_code, err := mubi.FetchLinkCode()
-   if err != nil {
-      return err
-   }
-   fmt.Println(link_code)
-   return c.cache.Encode(link_code)
-}
-
 func (c *client) do_session() error {
    var link_code mubi.LinkCode
    err := c.cache.Decode(&link_code)
@@ -141,32 +169,4 @@ func (c *client) do_session() error {
       return err
    }
    return c.cache.Encode(session)
-}
-
-func (c *client) do_address() error {
-   slug := path.Base(string(c.address))
-   film, err := mubi.FetchFilm(slug)
-   if err != nil {
-      return err
-   }
-   fmt.Println(film)
-   return nil
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/mubi/client"
-}
-
-type client struct {
-   Proxy     maya.FlagString
-   Widevine  maya.FlagString
-   address   maya.FlagString
-   dash      maya.FlagString
-   link_code maya.FlagBool
-   mubi_id   maya.FlagInt
-   season    maya.FlagInt
-   session   maya.FlagBool
-   threads   maya.FlagInt
-
-   cache maya.Cache
 }

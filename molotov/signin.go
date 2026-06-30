@@ -9,7 +9,7 @@ import (
 )
 
 func (*SigninResponse) CachePath() string {
-   return ""
+   return "rosso/molotov/SigninResponse"
 }
 
 type SigninResponse struct {

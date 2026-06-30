@@ -8,6 +8,14 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    Proxy    maya.FlagString
    Widevine maya.FlagString
@@ -17,6 +25,10 @@ type client struct {
    threads  maya.FlagInt
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/itv/client"
 }
 
 func (c *client) do() error {
@@ -58,6 +70,22 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "itv")
 }
 
+func (c *client) do_address() error {
+   titles, err := itv.FetchTitles(
+      itv.ParseLegacyId(string(c.address)),
+   )
+   if err != nil {
+      return err
+   }
+   for i, title := range titles {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&title)
+   }
+   return nil
+}
+
 func (c *client) do_dash() error {
    var (
       manifest   maya.Manifest
@@ -73,34 +101,6 @@ func (c *client) do_dash() error {
       License: media_file.FetchKeyService,
       Threads: int(c.threads),
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/itv/client"
-}
-
-func (c *client) do_address() error {
-   titles, err := itv.FetchTitles(
-      itv.ParseLegacyId(string(c.address)),
-   )
-   if err != nil {
-      return err
-   }
-   for i, title := range titles {
-      if i >= 1 {
-         fmt.Println()
-      }
-      fmt.Println(&title)
-   }
-   return nil
 }
 
 func (c *client) do_playlist() error {
