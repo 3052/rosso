@@ -22,8 +22,12 @@ func GetAsset(assetID, accessToken, userID, profileID, sessionID string) (string
    req.Header.Set("x-profile-id", profileID)
    req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-session-id", sessionID)
+   req.Header.Set("x-application-id", "molotov")
    req.Header.Set("x-device-group", "desktop")
+   req.Header.Set("x-device-type", "desktop")
+   req.Header.Set("x-device-app", "web")
    req.Header.Set("x-client-version", "6.12.0")
+   req.Header.Set("x-drm-scheme", "widevine")
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
    client := &http.Client{}
@@ -44,7 +48,7 @@ func GetAsset(assetID, accessToken, userID, profileID, sessionID string) (string
 
    mpdURL := assetResp.Stream.URL
    licenseURL := assetResp.DRM.LicenseURL
-   dtAuthToken := assetResp.DRM.LicenseURLHeaders.XDtAuthToken
+   dtAuthToken := assetResp.DRM.Token // Extracted from the new token field location
 
    return mpdURL, licenseURL, dtAuthToken, nil
 }
@@ -54,9 +58,7 @@ type AssetResponse struct {
       URL string `json:"url"` // The MPD URL
    } `json:"stream"`
    DRM struct {
-      LicenseURL        string `json:"licenseUrl"`
-      LicenseURLHeaders struct {
-         XDtAuthToken string `json:"x-dt-auth-token"`
-      } `json:"licenseUrlHeaders"`
+      LicenseURL string `json:"licenseUrl"`
+      Token      string `json:"token"` // Captures the token directly for both Irdeto and DRMtoday
    } `json:"drm"`
 }

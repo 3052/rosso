@@ -24,10 +24,7 @@ func TestGetUser(t *testing.T) {
       t.Fatal("Access token is empty in auth_test.json")
    }
 
-   // Session ID is used for tracking; we can use a static one from the HAR for the test
-   sessionID := "gjpwHZ2x-z5tRFHuEh"
-
-   userID, profileID, err := GetUser(authData.AccessToken, sessionID)
+   userID, profileID, err := GetUser(authData.AccessToken)
    if err != nil {
       t.Fatalf("GetUser failed: %v", err)
    }
