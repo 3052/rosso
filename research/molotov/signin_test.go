@@ -9,7 +9,6 @@ import (
 )
 
 func TestSignin(t *testing.T) {
-   // Fetch credentials using the local credential executable
    cmd := exec.Command("credential.exe", "-j", "molotov.tv")
    output, err := cmd.Output()
    if err != nil {
@@ -25,43 +24,30 @@ func TestSignin(t *testing.T) {
       t.Fatal("No credentials returned by credential.exe")
    }
 
-   username := creds[0].Username
-   password := creds[0].Password
-
-   token, err := Signin(username, password)
+   resp, err := Signin(creds[0].Username, creds[0].Password)
    if err != nil {
       t.Fatalf("Signin failed: %v", err)
    }
 
-   if token == "" {
-      t.Fatal("Expected an access token, but got an empty string")
+   if resp.Payload.AccessToken == "" {
+      t.Fatal("Expected an access token in the response, but got an empty string")
    }
 
-   // Prepare the data to be written for future tests (e.g., GetUser, GetAsset)
-   authData := TestAuthData{
-      AccessToken: token,
-   }
-
-   data, err := json.MarshalIndent(authData, "", "  ")
+   // Directly save the SigninResponse struct for the next test
+   data, err := json.MarshalIndent(resp, "", "  ")
    if err != nil {
       t.Fatalf("Failed to marshal auth data: %v", err)
    }
 
-   // Write the resulting token to a file
    err = os.WriteFile("auth_test.json", data, 0600)
    if err != nil {
       t.Fatalf("Failed to write auth data to file: %v", err)
    }
 
-   t.Log("Successfully signed in and saved credentials to auth_test.json")
+   t.Log("Successfully signed in and saved SigninResponse to auth_test.json")
 }
 
 type CredentialItem struct {
    Username string `json:"username"`
    Password string `json:"password"`
-}
-
-// TestAuthData is used to serialize the authentication result for future tests.
-type TestAuthData struct {
-   AccessToken string `json:"access_token"`
 }

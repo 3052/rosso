@@ -7,21 +7,29 @@ import (
    "net/http"
 )
 
-// GetAsset retrieves the MPD URL, the license URL, and the DRM auth token.
-func GetAsset(assetID, accessToken, userID, profileID, sessionID string) (string, string, string, error) {
-   // Constructing URL using the specific asset ID (VOD_314017 in this case)
+type AssetResponse struct {
+   Stream struct {
+      URL string `json:"url"` // The MPD URL
+   } `json:"stream"`
+   DRM struct {
+      LicenseURL string `json:"licenseUrl"`
+      Token      string `json:"token"`
+   } `json:"drm"`
+}
+
+// GetAsset retrieves the asset playback details using the auth and user contexts.
+func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse) (*AssetResponse, error) {
    url := fmt.Sprintf("https://api-eu.fubo.tv/vapi/asset/v1?id=%s&type=vod", assetID)
 
    req, err := http.NewRequest("GET", url, nil)
    if err != nil {
-      return "", "", "", err
+      return nil, err
    }
 
-   req.Header.Set("Authorization", "Bearer "+accessToken)
-   req.Header.Set("x-user-id", userID)
-   req.Header.Set("x-profile-id", profileID)
+   req.Header.Set("Authorization", "Bearer "+signinResp.Payload.AccessToken)
+   req.Header.Set("x-user-id", userResp.Data.ID)
+   req.Header.Set("x-profile-id", userResp.Data.Profiles[0].ID)
    req.Header.Set("x-device-id", DeviceID)
-   req.Header.Set("x-session-id", sessionID)
    req.Header.Set("x-application-id", "molotov")
    req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-device-type", "desktop")
@@ -33,32 +41,18 @@ func GetAsset(assetID, accessToken, userID, profileID, sessionID string) (string
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", "", "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", "", "", fmt.Errorf("get asset failed with status: %d", resp.StatusCode)
+      return nil, fmt.Errorf("get asset failed with status: %d", resp.StatusCode)
    }
 
    var assetResp AssetResponse
    if err := json.NewDecoder(resp.Body).Decode(&assetResp); err != nil {
-      return "", "", "", err
+      return nil, err
    }
 
-   mpdURL := assetResp.Stream.URL
-   licenseURL := assetResp.DRM.LicenseURL
-   dtAuthToken := assetResp.DRM.Token // Extracted from the new token field location
-
-   return mpdURL, licenseURL, dtAuthToken, nil
-}
-
-type AssetResponse struct {
-   Stream struct {
-      URL string `json:"url"` // The MPD URL
-   } `json:"stream"`
-   DRM struct {
-      LicenseURL string `json:"licenseUrl"`
-      Token      string `json:"token"` // Captures the token directly for both Irdeto and DRMtoday
-   } `json:"drm"`
+   return &assetResp, nil
 }

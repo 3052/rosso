@@ -8,8 +8,19 @@ import (
    "net/http"
 )
 
-// Signin performs the authentication request and returns the access token.
-func Signin(username, password string) (string, error) {
+type SigninRequest struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
+}
+
+type SigninResponse struct {
+   Payload struct {
+      AccessToken string `json:"access_token"`
+   } `json:"payload"`
+}
+
+// Signin performs the authentication request and returns the SigninResponse struct.
+func Signin(username, password string) (*SigninResponse, error) {
    url := "https://api-eu.fubo.tv/v2/signin"
 
    reqBody, err := json.Marshal(SigninRequest{
@@ -17,12 +28,12 @@ func Signin(username, password string) (string, error) {
       Password: password,
    })
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
    if err != nil {
-      return "", err
+      return nil, err
    }
 
    req.Header.Set("Content-Type", "application/json")
@@ -35,29 +46,18 @@ func Signin(username, password string) (string, error) {
    client := &http.Client{}
    resp, err := client.Do(req)
    if err != nil {
-      return "", err
+      return nil, err
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("signin failed with status: %d", resp.StatusCode)
+      return nil, fmt.Errorf("signin failed with status: %d", resp.StatusCode)
    }
 
    var signinResp SigninResponse
    if err := json.NewDecoder(resp.Body).Decode(&signinResp); err != nil {
-      return "", err
+      return nil, err
    }
 
-   return signinResp.Payload.AccessToken, nil
-}
-
-type SigninRequest struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
-}
-
-type SigninResponse struct {
-   Payload struct {
-      AccessToken string `json:"access_token"`
-   } `json:"payload"`
+   return &signinResp, nil
 }
