@@ -7,13 +7,17 @@ import (
    "net/http"
 )
 
-type Profile struct {
-   ID string `json:"id"`
+func (*UserResponse) CachePath() string {
+   return "rosso/molotov/UserResponse"
 }
 
 type UserResponse struct {
    ID       string    `json:"id"`
    Profiles []Profile `json:"profiles"`
+}
+
+type Profile struct {
+   ID string `json:"id"`
 }
 
 // GetUser fetches the user profile using the token from the Signin response.

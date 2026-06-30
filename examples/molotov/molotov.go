@@ -4,52 +4,9 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/molotov"
    "log"
+   "net/url"
    "os"
 )
-
-func (c *client) do_dash_id() error {
-   var (
-      asset    molotov.AssetResponse
-      manifest maya.Manifest
-   )
-   err := c.cache.Decode(&asset, &manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: asset.GetLicense,
-   })
-}
-
-func (c *client) do_asset_id() error {
-   var (
-      signin molotov.SigninResponse
-      user molotov.UserResponse
-   )
-   err := c.cache.Decode(&signin, &user)
-   if err != nil {
-      return err
-   }
-   asset, err := molotov.GetAsset(string(c.asset_id), signin, user)
-   if err != nil {
-      return err
-   }
-   address, err := url.Parse(asset.Stream.URL)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(address)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(asset, manifest)
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/molotov/client"
-}
 
 func main() {
    log.SetFlags(log.Ltime)
@@ -61,23 +18,15 @@ func main() {
 
 type client struct {
    Widevine maya.FlagString
-   cache maya.Cache
-   asset_id  maya.FlagString
-   dash_id     maya.FlagString
-   username    maya.FlagString
+   cache    maya.Cache
+   asset_id maya.FlagString
+   dash_id  maya.FlagString
+   username maya.FlagString
    password maya.FlagString
 }
 
-func (c *client) do_username_password() error {
-   signin, err := molotov.Signin(string(c.username), string(c.password))
-   if err != nil {
-      return err
-   }
-   user, err := molotov.GetUser(signin)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(signin, user)
+func (*client) CachePath() string {
+   return "rosso/examples/molotov/client"
 }
 
 func (c *client) do() error {
@@ -112,4 +61,55 @@ func (c *client) do() error {
       return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "molotov")
+}
+
+func (c *client) do_asset_id() error {
+   var (
+      signin molotov.SigninResponse
+      user   molotov.UserResponse
+   )
+   err := c.cache.Decode(&signin, &user)
+   if err != nil {
+      return err
+   }
+   asset, err := molotov.GetAsset(string(c.asset_id), &signin, &user)
+   if err != nil {
+      return err
+   }
+   address, err := url.Parse(asset.Stream.URL)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(asset, manifest)
+}
+func (c *client) do_dash_id() error {
+   var (
+      asset    molotov.AssetResponse
+      manifest maya.Manifest
+   )
+   err := c.cache.Decode(&asset, &manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: asset.GetLicense,
+   })
+}
+
+func (c *client) do_username_password() error {
+   signin, err := molotov.Signin(string(c.username), string(c.password))
+   if err != nil {
+      return err
+   }
+   user, err := molotov.GetUser(signin)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(signin, user)
 }

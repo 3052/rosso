@@ -7,6 +7,10 @@ import (
    "net/http"
 )
 
+func (*AssetResponse) CachePath() string {
+   return "rosso/molotov/AssetResponse"
+}
+
 type AssetResponse struct {
    Stream struct {
       URL string `json:"url"` // The MPD URL

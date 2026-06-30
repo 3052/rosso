@@ -8,13 +8,17 @@ import (
    "net/http"
 )
 
-type SigninRequest struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
+func (*SigninResponse) CachePath() string {
+   return ""
 }
 
 type SigninResponse struct {
    AccessToken string `json:"access_token"`
+}
+
+type SigninRequest struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
 }
 
 // Signin performs the authentication request and returns the SigninResponse struct.
