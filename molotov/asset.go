@@ -7,6 +7,7 @@ import (
    "net/http"
 )
 
+// strings.Replace(manifest.Path, "high", "fhdready", 1)
 type AssetResponse struct {
    Stream struct {
       URL string `json:"url"` // The MPD URL
