@@ -7,17 +7,13 @@ import (
    "net/http"
 )
 
-func (*UserResponse) CachePath() string {
-   return "rosso/molotov/UserResponse"
+type Profile struct {
+   ID string `json:"id"`
 }
 
 type UserResponse struct {
    ID       string    `json:"id"`
    Profiles []Profile `json:"profiles"`
-}
-
-type Profile struct {
-   ID string `json:"id"`
 }
 
 // GetUser fetches the user profile using the token from the Signin response.
@@ -36,8 +32,7 @@ func GetUser(signinResp *SigninResponse) (*UserResponse, error) {
    req.Header.Set("x-client-version", "6.12.0")
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
-   client := &http.Client{}
-   resp, err := client.Do(req)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -60,4 +55,8 @@ func GetUser(signinResp *SigninResponse) (*UserResponse, error) {
    }
 
    return &envelope.Data, nil
+}
+
+func (*UserResponse) CachePath() string {
+   return "rosso/molotov/UserResponse"
 }

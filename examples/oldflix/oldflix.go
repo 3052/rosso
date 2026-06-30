@@ -7,6 +7,23 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
+type client struct {
+   username maya.FlagString
+   password maya.FlagString
+   browse   maya.FlagString
+   hls      maya.FlagString
+
+   cache maya.Cache
+}
+
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
       return err
@@ -66,23 +83,6 @@ func (c *client) do_hls() error {
       return err
    }
    return maya.DownloadHls(string(c.hls), &manifest, nil)
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-type client struct {
-   username maya.FlagString
-   password maya.FlagString
-   browse   maya.FlagString
-   hls      maya.FlagString
-
-   cache maya.Cache
 }
 
 func (c *client) do_username_password() error {

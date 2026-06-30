@@ -7,10 +7,6 @@ import (
    "net/http"
 )
 
-func (*AssetResponse) CachePath() string {
-   return "rosso/molotov/AssetResponse"
-}
-
 type AssetResponse struct {
    Stream struct {
       URL string `json:"url"` // The MPD URL
@@ -45,8 +41,7 @@ func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse
    req.Header.Set("x-drm-scheme", "widevine")
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
-   client := &http.Client{}
-   resp, err := client.Do(req)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -62,4 +57,8 @@ func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse
    }
 
    return &assetResp, nil
+}
+
+func (*AssetResponse) CachePath() string {
+   return "rosso/molotov/AssetResponse"
 }

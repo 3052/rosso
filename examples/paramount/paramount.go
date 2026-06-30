@@ -7,6 +7,14 @@ import (
    "os"
 )
 
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
+}
+
 type client struct {
    App       maya.FlagString
    ContentId maya.FlagString
@@ -18,6 +26,10 @@ type client struct {
    username  maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/paramount/client"
 }
 
 func (c *client) do() error {
@@ -66,6 +78,30 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "paramount")
 }
 
+func (c *client) do_content_id() error {
+   app, err := paramount.GetApp(string(c.App))
+   if err != nil {
+      return err
+   }
+   var cbs_com *paramount.Cookie
+   if c.cookie {
+      cbs_com = &paramount.Cookie{}
+      err = c.cache.Decode(cbs_com)
+      if err != nil {
+         return err
+      }
+   }
+   session, err := app.FetchStreamingUrl(string(c.ContentId), cbs_com)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(c, manifest)
+}
+
 func (c *client) do_dash() error {
    // 1. manifest
    var manifest maya.Manifest
@@ -99,14 +135,6 @@ func (c *client) do_dash() error {
    })
 }
 
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
 func (c *client) do_username_password() error {
    app, err := paramount.GetApp(string(c.App))
    if err != nil {
@@ -117,32 +145,4 @@ func (c *client) do_username_password() error {
       return err
    }
    return c.cache.Encode(cbs_com)
-}
-
-func (*client) CachePath() string {
-   return "rosso/examples/paramount/client"
-}
-
-func (c *client) do_content_id() error {
-   app, err := paramount.GetApp(string(c.App))
-   if err != nil {
-      return err
-   }
-   var cbs_com *paramount.Cookie
-   if c.cookie {
-      cbs_com = &paramount.Cookie{}
-      err = c.cache.Decode(cbs_com)
-      if err != nil {
-         return err
-      }
-   }
-   session, err := app.FetchStreamingUrl(string(c.ContentId), cbs_com)
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(&session.StreamingUrl.Url)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(c, manifest)
 }

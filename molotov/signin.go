@@ -8,17 +8,13 @@ import (
    "net/http"
 )
 
-func (*SigninResponse) CachePath() string {
-   return "rosso/molotov/SigninResponse"
+type SigninRequest struct {
+   Username string `json:"username"`
+   Password string `json:"password"`
 }
 
 type SigninResponse struct {
    AccessToken string `json:"access_token"`
-}
-
-type SigninRequest struct {
-   Username string `json:"username"`
-   Password string `json:"password"`
 }
 
 // Signin performs the authentication request and returns the SigninResponse struct.
@@ -45,8 +41,7 @@ func Signin(username, password string) (*SigninResponse, error) {
    req.Header.Set("x-client-version", "6.12.0")
    req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
 
-   client := &http.Client{}
-   resp, err := client.Do(req)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -65,4 +60,8 @@ func Signin(username, password string) (*SigninResponse, error) {
    }
 
    return &envelope.Payload, nil
+}
+
+func (*SigninResponse) CachePath() string {
+   return "rosso/molotov/SigninResponse"
 }
