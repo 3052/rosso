@@ -6,6 +6,8 @@
 >
 > [NakeyJakey](//youtube.com/watch?v=Cr0UYNKmrUs) (2018)
 
+https://justwatch.com/fr/plateforme/molotov-tv
+
 ## subscribe
 
 1. FRANCE VPN
@@ -13,23 +15,43 @@
 3. e-mail
    - mail.tm
 
-## service info
+## android
 
-https://justwatch.com/fr/plateforme/molotov-tv
+- https://play.google.com/store/apps/details?id=tv.molotov.app
+- https://apkmirror.com/apk/molotov/molotov-tv-en-direct-et-en-replay
 
 ~~~
-tv.molotov.app
+action.name = android.intent.action.VIEW
+category.name = android.intent.category.BROWSABLE
+category.name = android.intent.category.DEFAULT
+data.scheme = https
+data.scheme = http
+data.host = www.molotov.tv
+data.pathPrefix = /deeplink
+
+action.name = android.intent.action.VIEW
+category.name = android.intent.category.BROWSABLE
+category.name = android.intent.category.DEFAULT
+data.scheme = molotov
+
+action.name = android.intent.action.VIEW
+category.name = android.intent.category.BROWSABLE
+category.name = android.intent.category.DEFAULT
+data.host = app.molotov.tv
+data.pathPattern = /.*
+data.scheme = https
 ~~~
 
-480p:
+- <https://app.molotov.tv/p/program-details/program/VOD_314017>
+- <https://molotov.tv/deeplink?channel_id=374&id=233268&type=program>
 
-https://vod-molotov.akamaized.net/output/v2/d8/a1/65/32e3c47902de4911dca77b0ad73e9ac34965a1d8/32e3c47902de4911dca77b0ad73e9ac34965a1d8.ism/high.mpd
+~~~
+adb shell am start -a android.intent.action.VIEW `
+-d molotov://deeplink?page=coupe-du-monde-fifa-2026
+~~~
 
-720p:
+APK lies - you need at least API 31
 
-https://vod-molotov.akamaized.net/output/v2/d8/a1/65/32e3c47902de4911dca77b0ad73e9ac34965a1d8/32e3c47902de4911dca77b0ad73e9ac34965a1d8.ism/hdready.mpd
-
-1080p, exactly the same:
-
-- https://vod-molotov.akamaized.net/output/v2/d8/a1/65/32e3c47902de4911dca77b0ad73e9ac34965a1d8/32e3c47902de4911dca77b0ad73e9ac34965a1d8.ism/fhdready.mpd
-- https://vod-molotov.akamaized.net/output/v2/d8/a1/65/32e3c47902de4911dca77b0ad73e9ac34965a1d8/32e3c47902de4911dca77b0ad73e9ac34965a1d8.ism/fullhd25.mpd
+~~~
+adb shell input text HELLO
+~~~
