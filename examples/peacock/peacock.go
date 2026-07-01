@@ -8,8 +8,12 @@ import (
    "path"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/peacock/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -20,6 +24,10 @@ type client struct {
    password maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/peacock/client"
 }
 
 func (c *client) do() error {
@@ -56,38 +64,6 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "peacock")
 }
 
-func (c *client) do_dash() error {
-   var (
-      manifest maya.Manifest
-      playout  peacock.Playout
-   )
-   err := c.cache.Decode(&manifest, &playout)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: playout.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_email_password() error {
-   id_session, err := peacock.FetchIdSession(string(c.email), string(c.password))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(id_session)
-}
-
 func (c *client) do_address() error {
    id_session := &peacock.Cookie{}
    err := c.cache.Decode(id_session)
@@ -113,4 +89,28 @@ func (c *client) do_address() error {
       return err
    }
    return c.cache.Encode(manifest, playout)
+}
+
+func (c *client) do_dash() error {
+   var (
+      manifest maya.Manifest
+      playout  peacock.Playout
+   )
+   err := c.cache.Decode(&manifest, &playout)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: playout.FetchWidevine,
+   })
+}
+
+func (c *client) do_email_password() error {
+   id_session, err := peacock.FetchIdSession(string(c.email), string(c.password))
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(id_session)
 }

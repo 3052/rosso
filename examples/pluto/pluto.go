@@ -9,8 +9,12 @@ import (
    "path"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/pluto/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -21,6 +25,10 @@ type client struct {
    dash     maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/pluto/client"
 }
 
 func (c *client) do() error {
@@ -55,6 +63,19 @@ func (c *client) do() error {
    return flags.Usage(os.Stderr, "pluto")
 }
 
+func (c *client) do_dash() error {
+   var manifest maya.Manifest
+   err := c.cache.Decode(&manifest)
+   if err != nil {
+      return err
+   }
+   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: pluto.FetchWidevine,
+   })
+}
+
 func (c *client) do_episode() error {
    var series pluto.Series
    err := c.cache.Decode(&series)
@@ -70,27 +91,6 @@ func (c *client) do_episode() error {
       return err
    }
    return c.cache.Encode(manifest)
-}
-
-func (c *client) do_dash() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
-   if err != nil {
-      return err
-   }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: pluto.FetchWidevine,
-   })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
 
 func (c *client) do_movie() error {

@@ -8,8 +8,12 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/rakuten/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -21,6 +25,10 @@ type client struct {
    season    maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/rakuten/client"
 }
 
 func (c *client) do() error {
@@ -54,6 +62,36 @@ func (c *client) do() error {
       return c.do_dash()
    }
    return flags.Usage(os.Stderr, "rakuten")
+}
+
+func (c *client) do_address() error {
+   address, err := rakuten.ParseAddress(string(c.address))
+   if err != nil {
+      return err
+   }
+   start, err := rakuten.FetchStart(address.MarketCode)
+   if err != nil {
+      return err
+   }
+   switch {
+   case address.IsMovie():
+      movie, err := rakuten.FetchMovie(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(movie)
+   case address.IsTvShow():
+      show, err := rakuten.FetchTvShow(
+         address.ContentId, start.Profile.Classification, start.Market,
+      )
+      if err != nil {
+         return err
+      }
+      fmt.Println(show)
+   }
+   return c.cache.Encode(address, start)
 }
 
 func (c *client) do_audio() error {
@@ -100,44 +138,6 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
-}
-
-func (c *client) do_address() error {
-   address, err := rakuten.ParseAddress(string(c.address))
-   if err != nil {
-      return err
-   }
-   start, err := rakuten.FetchStart(address.MarketCode)
-   if err != nil {
-      return err
-   }
-   switch {
-   case address.IsMovie():
-      movie, err := rakuten.FetchMovie(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(movie)
-   case address.IsTvShow():
-      show, err := rakuten.FetchTvShow(
-         address.ContentId, start.Profile.Classification, start.Market,
-      )
-      if err != nil {
-         return err
-      }
-      fmt.Println(show)
-   }
-   return c.cache.Encode(address, start)
 }
 
 func (c *client) do_season() error {

@@ -18,10 +18,9 @@ type SigninResponse struct {
    RefreshToken string `json:"refresh_token"`
 }
 
-// Signin performs the authentication request and returns the SigninResponse struct.
+// too many calls gets 429
 func Signin(username, password string) (*SigninResponse, error) {
    url := "https://api-eu.fubo.tv/v2/signin"
-
    reqBody, err := json.Marshal(SigninRequest{
       Username: username,
       Password: password,
@@ -29,19 +28,11 @@ func Signin(username, password string) (*SigninResponse, error) {
    if err != nil {
       return nil, err
    }
-
    req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
    if err != nil {
       return nil, err
    }
-
-   req.Header.Set("Content-Type", "application/json")
    req.Header.Set("x-device-id", DeviceID)
-   req.Header.Set("x-device-group", "desktop")
-   req.Header.Set("x-device-type", "desktop")
-   req.Header.Set("x-client-version", "6.12.0")
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-
    resp, err := doRequest(req)
    if err != nil {
       return nil, err
@@ -73,26 +64,14 @@ func (s *SigninResponse) Refresh() error {
    if s.RefreshToken == "" {
       return fmt.Errorf("missing refresh token")
    }
-
    url := "https://api-eu.fubo.tv/refresh"
-
    // Request has no body (content-length: 0 in the trace)
    req, err := http.NewRequest("POST", url, nil)
    if err != nil {
       return err
    }
-
    // The refresh token goes in the Authorization header
    req.Header.Set("Authorization", "Bearer "+s.RefreshToken)
-   req.Header.Set("Content-Type", "application/json")
-
-   // Retain the same device tracking headers from Signin
-   req.Header.Set("x-device-id", DeviceID)
-   req.Header.Set("x-device-group", "desktop")
-   req.Header.Set("x-device-type", "desktop")
-   req.Header.Set("x-client-version", "6.12.0")
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-
    resp, err := doRequest(req)
    if err != nil {
       return err
