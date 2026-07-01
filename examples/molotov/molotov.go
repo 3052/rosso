@@ -147,9 +147,5 @@ func (c *client) do_username_password() error {
    if err != nil {
       return err
    }
-   user, err := molotov.GetUser(signin)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(signin, user)
+   return c.cache.Encode(signin)
 }
