@@ -50,8 +50,14 @@ adb shell am start -a android.intent.action.VIEW `
 -d molotov://deeplink?page=coupe-du-monde-fifa-2026
 ~~~
 
-APK lies - you need at least API 31
+pixel 5 - APK lies - you need at least API 31
 
 ~~~
 adb shell input text HELLO
+~~~
+
+then:
+
+~~~
+adb shell pm clear tv.molotov.app
 ~~~
