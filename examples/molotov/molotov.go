@@ -3,6 +3,7 @@ package main
 import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/molotov"
+   "fmt"
    "log"
    "net/url"
    "os"
@@ -23,11 +24,14 @@ type client struct {
    dash_id  maya.FlagString
    username maya.FlagString
    password maya.FlagString
+   search   maya.FlagString
 }
 
 func (*client) CachePath() string {
    return "rosso/examples/molotov/client"
 }
+
+///
 
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
@@ -40,6 +44,7 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "username", Value: &c.username, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "username"},
+      {Name: "search", Value: &c.search},
       {Name: "asset-id", Value: &c.asset_id},
       {Name: "dash-id", Value: &c.dash_id},
    }
@@ -53,6 +58,9 @@ func (c *client) do() error {
       if c.password != "" {
          return c.do_username_password()
       }
+   }
+   if c.search != "" {
+      return c.do_search()
    }
    if c.asset_id != "" {
       return c.do_asset_id()
@@ -86,6 +94,7 @@ func (c *client) do_asset_id() error {
    }
    return c.cache.Encode(asset, manifest)
 }
+
 func (c *client) do_dash_id() error {
    var (
       asset    molotov.AssetResponse
@@ -100,6 +109,28 @@ func (c *client) do_dash_id() error {
       Drm:     maya.DrmWidevine,
       License: asset.GetLicense,
    })
+}
+
+func (c *client) do_search() error {
+   var (
+      signin molotov.SigninResponse
+      user   molotov.UserResponse
+   )
+   err := c.cache.Decode(&signin, &user)
+   if err != nil {
+      return err
+   }
+   results, err := molotov.Search(string(c.search), &signin, &user)
+   if err != nil {
+      return err
+   }
+   for i, result := range results {
+      if i >= 1 {
+         fmt.Println()
+      }
+      fmt.Println(&result)
+   }
+   return nil
 }
 
 func (c *client) do_username_password() error {
