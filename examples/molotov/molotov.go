@@ -25,13 +25,12 @@ type client struct {
    username maya.FlagString
    password maya.FlagString
    search   maya.FlagString
+   refresh  maya.FlagBool
 }
 
 func (*client) CachePath() string {
    return "rosso/examples/molotov/client"
 }
-
-///
 
 func (c *client) do() error {
    if err := c.cache.Setup(); err != nil {
@@ -44,6 +43,7 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "username", Value: &c.username, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "username"},
+      {Name: "refresh", Value: &c.refresh},
       {Name: "search", Value: &c.search},
       {Name: "asset-id", Value: &c.asset_id},
       {Name: "dash-id", Value: &c.dash_id},
@@ -58,6 +58,9 @@ func (c *client) do() error {
       if c.password != "" {
          return c.do_username_password()
       }
+   }
+   if c.refresh {
+      return c.do_refresh()
    }
    if c.search != "" {
       return c.do_search()
@@ -109,6 +112,19 @@ func (c *client) do_dash_id() error {
       Drm:     maya.DrmWidevine,
       License: asset.GetLicense,
    })
+}
+
+func (c *client) do_refresh() error {
+   var signin molotov.SigninResponse
+   err := c.cache.Decode(&signin)
+   if err != nil {
+      return err
+   }
+   err = signin.Refresh()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(&signin)
 }
 
 func (c *client) do_search() error {

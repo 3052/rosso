@@ -9,6 +9,8 @@ import (
    "strings"
 )
 
+const x_forwarded_for = "178.132.106.134"
+
 type SearchComponent struct {
    Endpoint struct {
       Payload struct {
@@ -36,10 +38,10 @@ func Search(query string, signinResp *SigninResponse, userResp *UserResponse) ([
       return nil, err
    }
 
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
    req.Header.Set("x-user-id", userResp.ID)
    req.Header.Set("x-profile-id", userResp.Profiles[0].ID)
-
    req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-application-id", "molotov")
    req.Header.Set("x-device-group", "desktop")
@@ -54,17 +56,20 @@ func Search(query string, signinResp *SigninResponse, userResp *UserResponse) ([
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("search failed with status: %d", resp.StatusCode)
-   }
-
    var envelope struct {
+      Error struct {
+         Code      string `json:"code"`
+         Message   string `json:"message"`
+         LcMessage string `json:"lc_message"`
+      } `json:"error"`
       Content struct {
          Sections []struct {
             Components []struct {
-               Actions struct {
-                  OnDisplay []SearchComponent `json:"on_display"`
-               } `json:"actions"`
+               Body struct {
+                  Actions struct {
+                     OnPlay []SearchComponent `json:"on_play"`
+                  } `json:"actions"`
+               } `json:"body"`
             } `json:"components"`
          } `json:"sections"`
       } `json:"content"`
@@ -74,6 +79,11 @@ func Search(query string, signinResp *SigninResponse, userResp *UserResponse) ([
       return nil, err
    }
 
+   if envelope.Error.Code != "" {
+      return nil, fmt.Errorf("code: %s, message: %s, lc_message: %s",
+         envelope.Error.Code, envelope.Error.Message, envelope.Error.LcMessage)
+   }
+
    if len(envelope.Content.Sections) == 0 {
       return nil, fmt.Errorf("no sections found in response")
    }
@@ -81,7 +91,7 @@ func Search(query string, signinResp *SigninResponse, userResp *UserResponse) ([
    // Extract and flatten the slice of SearchComponent items
    var results []SearchComponent
    for _, comp := range envelope.Content.Sections[0].Components {
-      results = append(results, comp.Actions.OnDisplay...)
+      results = append(results, comp.Body.Actions.OnPlay...)
    }
 
    return results, nil
