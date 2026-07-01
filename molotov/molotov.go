@@ -9,6 +9,8 @@ import (
 // DeviceID is the centralized value used for the x-device-id header across all requests.
 const DeviceID = "x-device-id"
 
+const x_forwarded_for = "178.132.106.134"
+
 // doRequest logs the method and URL, then performs the HTTP request.
 func doRequest(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)

@@ -5,6 +5,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "net/url"
 )
 
 type AssetResponse struct {
@@ -18,29 +19,26 @@ type AssetResponse struct {
 }
 
 // GetAsset retrieves the asset playback details using the auth and user contexts.
-func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse) (*AssetResponse, error) {
-   url := fmt.Sprintf("https://api-eu.fubo.tv/vapi/asset/v1?id=%s&type=vod", assetID)
-
-   req, err := http.NewRequest("GET", url, nil)
+func GetAsset(assetID string, signinResp *SigninResponse) (*AssetResponse, error) {
+   // Initialize the request with the base URL
+   req, err := http.NewRequest("GET", "https://api-eu.fubo.tv/vapi/asset/v1", nil)
    if err != nil {
       return nil, err
    }
-
+   // Properly build and encode the query string
+   query := url.Values{}
+   query.Add("id", assetID)
+   query.Add("type", "vod")
+   req.URL.RawQuery = query.Encode()
+   // Set Headers
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    // Accessing the unwrapped field directly
-   req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
-
-   req.Header.Set("x-user-id", userResp.ID)
-   req.Header.Set("x-profile-id", userResp.Profiles[0].ID)
-
-   req.Header.Set("x-device-id", DeviceID)
    req.Header.Set("x-application-id", "molotov")
-   req.Header.Set("x-device-group", "desktop")
    req.Header.Set("x-device-type", "desktop")
    req.Header.Set("x-device-app", "web")
-   req.Header.Set("x-client-version", "6.12.0")
    req.Header.Set("x-drm-scheme", "widevine")
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-
+   req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
+   // Execute request
    resp, err := doRequest(req)
    if err != nil {
       return nil, err
@@ -51,6 +49,7 @@ func GetAsset(assetID string, signinResp *SigninResponse, userResp *UserResponse
       return nil, fmt.Errorf("get asset failed with status: %d", resp.StatusCode)
    }
 
+   // Decode response
    var assetResp AssetResponse
    if err := json.NewDecoder(resp.Body).Decode(&assetResp); err != nil {
       return nil, err

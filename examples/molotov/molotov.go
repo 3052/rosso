@@ -73,17 +73,13 @@ func (c *client) do() error {
    }
    return flags.Usage(os.Stderr, "molotov")
 }
-
 func (c *client) do_asset_id() error {
-   var (
-      signin molotov.SigninResponse
-      user   molotov.UserResponse
-   )
-   err := c.cache.Decode(&signin, &user)
+   var signin molotov.SigninResponse
+   err := c.cache.Decode(&signin)
    if err != nil {
       return err
    }
-   asset, err := molotov.GetAsset(string(c.asset_id), &signin, &user)
+   asset, err := molotov.GetAsset(string(c.asset_id), &signin)
    if err != nil {
       return err
    }
@@ -128,15 +124,12 @@ func (c *client) do_refresh() error {
 }
 
 func (c *client) do_search() error {
-   var (
-      signin molotov.SigninResponse
-      user   molotov.UserResponse
-   )
-   err := c.cache.Decode(&signin, &user)
+   var signin molotov.SigninResponse
+   err := c.cache.Decode(&signin)
    if err != nil {
       return err
    }
-   results, err := molotov.Search(string(c.search), &signin, &user)
+   results, err := molotov.Search(string(c.search), &signin)
    if err != nil {
       return err
    }

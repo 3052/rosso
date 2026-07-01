@@ -15,11 +15,6 @@ func (a *AssetResponse) GetLicense(challenge []byte) ([]byte, error) {
    if err != nil {
       return nil, err
    }
-
-   req.Header.Set("Content-Type", "application/octet-stream")
-   req.Header.Set("x-dt-auth-token", a.DRM.Token)
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
-
    resp, err := doRequest(req)
    if err != nil {
       return nil, err
