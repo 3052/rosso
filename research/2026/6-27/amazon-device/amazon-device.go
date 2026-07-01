@@ -10,10 +10,25 @@ import (
    "strings"
 )
 
-// InitConfig represents the common properties we care about in the config
-type InitConfig struct {
-   DeviceProperties string `json:"DEVICE_PROPERTIES"`
-   BlastOverride    string `json:"blastDeviceOverrideConfigJSON"`
+func fetchAmazonConfig(dtid string) (string, error) {
+   url := fmt.Sprintf("https://atv-ext.amazon.com/cdp/resources/app_host/index.html?deviceTypeID=%s", dtid)
+
+   resp, err := http.Get(url)
+   if err != nil {
+      return "", err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return "", fmt.Errorf("received HTTP status %d", resp.StatusCode)
+   }
+
+   var builder strings.Builder
+   if _, err := io.Copy(&builder, resp.Body); err != nil {
+      return "", err
+   }
+
+   return builder.String(), nil
 }
 
 func main() {
@@ -83,6 +98,12 @@ func printDeviceInfo(dtid string) error {
    return nil
 }
 
+// InitConfig represents the common properties we care about in the config
+type InitConfig struct {
+   DeviceProperties string `json:"DEVICE_PROPERTIES"`
+   BlastOverride    string `json:"blastDeviceOverrideConfigJSON"`
+}
+
 // extractInitConfig checks known HTML injection patterns and extracts the config
 func extractInitConfig(htmlContent string) (*InitConfig, error) {
    // Format 1: PS4 style -> `injectedEnvValues = {"ATVDeviceInitializationConfig": {...}}; </script>`
@@ -109,25 +130,4 @@ func extractInitConfig(htmlContent string) (*InitConfig, error) {
    }
 
    return nil, fmt.Errorf("could not find valid configuration block in HTML payload")
-}
-
-func fetchAmazonConfig(dtid string) (string, error) {
-   url := fmt.Sprintf("https://atv-ext.amazon.com/cdp/resources/app_host/index.html?deviceTypeID=%s", dtid)
-
-   resp, err := http.Get(url)
-   if err != nil {
-      return "", err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return "", fmt.Errorf("received HTTP status %d", resp.StatusCode)
-   }
-
-   var builder strings.Builder
-   if _, err := io.Copy(&builder, resp.Body); err != nil {
-      return "", err
-   }
-
-   return builder.String(), nil
 }

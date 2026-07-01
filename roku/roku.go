@@ -1,12 +1,19 @@
 package roku
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strings"
 )
+
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
 
 type AccountActivation struct {
    Code string `json:"code"`
@@ -18,11 +25,6 @@ func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {
       Host:   "googletv.web.roku.com",
       Path:   "/api/v1/account/activation",
    }
-   headers := map[string]string{
-      "content-type":         "application/json",
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": token.AuthToken,
-   }
 
    reqBody, err := json.Marshal(map[string]string{
       "platform": "googletv",
@@ -31,7 +33,15 @@ func CreateAccountActivation(token *AccountToken) (*AccountActivation, error) {
       return nil, err
    }
 
-   resp, err := maya.Post(target, headers, reqBody)
+   req, err := http.NewRequest(http.MethodPost, target.String(), bytes.NewReader(reqBody))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("user-agent", "trc-googletv; production; 0")
+   req.Header.Set("x-roku-content-token", token.AuthToken)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -72,14 +82,17 @@ func GetAccountToken(status *ActivationStatus) (*AccountToken, error) {
       Host:   "googletv.web.roku.com",
       Path:   "/api/v1/account/token",
    }
-   headers := map[string]string{
-      "user-agent": "trc-googletv; production; 0",
+
+   req, err := http.NewRequest(http.MethodGet, target.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("user-agent", "trc-googletv; production; 0")
    if status != nil {
-      headers["x-roku-content-token"] = status.Token
+      req.Header.Set("x-roku-content-token", status.Token)
    }
 
-   resp, err := maya.Get(target, headers)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -111,12 +124,15 @@ func GetActivationStatus(token *AccountToken, activation *AccountActivation) (*A
       Host:   "googletv.web.roku.com",
       Path:   "/api/v1/account/activation/" + activation.Code,
    }
-   headers := map[string]string{
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": token.AuthToken,
-   }
 
-   resp, err := maya.Get(target, headers)
+   req, err := http.NewRequest(http.MethodGet, target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("user-agent", "trc-googletv; production; 0")
+   req.Header.Set("x-roku-content-token", token.AuthToken)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -138,7 +154,7 @@ type Drm struct {
 }
 
 type Playback struct {
-   Url         *Url   // MPD
+   Url         string // MPD
    Drm         Drm    `json:"drm"`
    MediaFormat string `json:"mediaFormat"`
    TraceId     string `json:"traceId"`
@@ -150,11 +166,6 @@ func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
       Host:   "googletv.web.roku.com",
       Path:   "/api/v3/playback",
    }
-   headers := map[string]string{
-      "content-type":         "application/json",
-      "user-agent":           "trc-googletv; production; 0",
-      "x-roku-content-token": token.AuthToken,
-   }
 
    reqBody, err := json.Marshal(map[string]string{
       "mediaFormat": "DASH",
@@ -165,7 +176,15 @@ func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
       return nil, err
    }
 
-   resp, err := maya.Post(target, headers, reqBody)
+   req, err := http.NewRequest(http.MethodPost, target.String(), bytes.NewReader(reqBody))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("user-agent", "trc-googletv; production; 0")
+   req.Header.Set("x-roku-content-token", token.AuthToken)
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -183,12 +202,14 @@ func (*Playback) CachePath() string {
 }
 
 func (p *Playback) LicenseWidevine(challenge []byte) ([]byte, error) {
-   headers := map[string]string{
-      "content-type": "application/x-protobuf",
-      "user-agent":   "Go-http-client/2.0",
+   req, err := http.NewRequest(http.MethodPost, p.Drm.Widevine.LicenseServer, bytes.NewReader(challenge))
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("content-type", "application/x-protobuf")
+   req.Header.Set("user-agent", "Go-http-client/2.0")
 
-   resp, err := maya.Post(&p.Drm.Widevine.LicenseServer.Url, headers, challenge)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -203,18 +224,6 @@ type Profile struct {
    IsOwner bool   `json:"isOwner"`
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 type Widevine struct {
-   LicenseServer *Url `json:"licenseServer"`
+   LicenseServer string `json:"licenseServer"`
 }
