@@ -27,8 +27,8 @@ func GetAsset(assetID string, signinResp *SigninResponse) (*AssetResponse, error
    }
    // Properly build and encode the query string
    query := url.Values{}
-   query.Add("id", assetID)
-   query.Add("type", "vod")
+   query.Set("id", assetID)
+   query.Set("type", "vod")
    req.URL.RawQuery = query.Encode()
    // Set Headers
    req.Header.Set("x-forwarded-for", x_forwarded_for)

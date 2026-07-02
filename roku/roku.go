@@ -3,6 +3,7 @@ package roku
 import (
    "bytes"
    "encoding/json"
+   "errors"
    "io"
    "log"
    "net/http"
@@ -189,6 +190,10 @@ func GetPlayback(token *AccountToken, rokuId string) (*Playback, error) {
       return nil, err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
 
    var result Playback
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {

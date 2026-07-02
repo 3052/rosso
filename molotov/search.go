@@ -24,7 +24,7 @@ type SearchComponent struct {
 func Search(query string, signinResp *SigninResponse) ([]SearchComponent, error) {
    baseURL := "https://api-eu.fubo.tv/papi/v1/search/content"
    params := url.Values{}
-   params.Add("query", query)
+   params.Set("query", query)
    fullURL := fmt.Sprintf("%s?%s", baseURL, params.Encode())
    req, err := http.NewRequest("GET", fullURL, nil)
    if err != nil {

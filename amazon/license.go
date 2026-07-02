@@ -37,8 +37,8 @@ func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExpe
    }
 
    query := url.Values{}
-   query.Add("deviceTypeID", deviceTypeID)
-   query.Add("deviceID", DeviceID)
+   query.Set("deviceTypeID", deviceTypeID)
+   query.Set("deviceID", DeviceID)
 
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+actorToken.Token)

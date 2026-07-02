@@ -116,8 +116,8 @@ func (p *VodPlaybackParams) Fetch() (*PlaybackUrls, error) {
       return nil, err
    }
    query := url.Values{}
-   query.Add("deviceID", DeviceID)
-   query.Add("deviceTypeID", p.DeviceTypeID)
+   query.Set("deviceID", DeviceID)
+   query.Set("deviceTypeID", p.DeviceTypeID)
    req.URL.RawQuery = query.Encode()
    req.Header.Set("Authorization", "Bearer "+p.ActorToken.Token)
 

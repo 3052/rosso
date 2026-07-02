@@ -68,8 +68,8 @@ func GetContent(contentId int) (*ContentResponse, error) {
       Path:   "/cms/content",
    }
    query := url.Values{}
-   query.Set("content_id", strconv.Itoa(contentId))
    query.Set("deviceId", "!")
+   query.Set("content_id", strconv.Itoa(contentId))
    query.Add("limit_resolutions[]", "h264_1080p")
    query.Add("limit_resolutions[]", "h265_1080p")
    query.Set("platform", "web")

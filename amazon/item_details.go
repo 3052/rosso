@@ -4,6 +4,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "net/url"
    "strings"
 )
 
@@ -22,14 +23,17 @@ type Profile struct {
 
 // GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
 func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error) {
-   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection"
-   req, err := http.NewRequest("GET", url, nil)
+   req, err := http.NewRequest(
+      "GET",
+      HostATVPS+"/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection",
+      nil,
+   )
    if err != nil {
       return nil, err
    }
-   query := req.URL.Query()
-   query.Add("deviceTypeID", deviceTypeID)
-   query.Add("deviceID", DeviceID)
+   query := url.Values{}
+   query.Set("deviceTypeID", deviceTypeID)
+   query.Set("deviceID", DeviceID)
    req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
    req.URL.RawQuery = query.Encode()
 
@@ -90,20 +94,23 @@ type Resource struct {
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
 func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Resource, error) {
-   url := HostATVPS + "/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF"
-   req, err := http.NewRequest("GET", url, nil)
+   req, err := http.NewRequest(
+      "GET",
+      HostATVPS+"/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF",
+      nil,
+   )
    if err != nil {
       return nil, err
    }
-   query := req.URL.Query()
-   query.Add("itemId", titleId)
+   query := url.Values{}
+   query.Set("itemId", titleId)
    // Critical UI and Feature flags to force the V2/V3 BuyBox response with
    // PlaybackEnvelope
-   query.Add("roles", "playback-envelope-supported")
-   query.Add("presentationScheme", "android-tv-react")
+   query.Set("roles", "playback-envelope-supported")
+   query.Set("presentationScheme", "android-tv-react")
    // Device parameters
-   query.Add("deviceTypeID", deviceTypeID)
-   query.Add("deviceID", DeviceID)
+   query.Set("deviceTypeID", deviceTypeID)
+   query.Set("deviceID", DeviceID)
    req.URL.RawQuery = query.Encode()
 
    // you can get the envelope without this, but it will be trailer:

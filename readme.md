@@ -3,8 +3,7 @@
 > Listen, um, I don’t really know what’s going on here, but I’m leaving. I
 > don’t know where exactly, but I’m gonna start over. Come with me.
 >
-> - [Frankie Rose](//youtube.com/watch?v=2bu6ucZSvx8) (2012)
-> - [Paint it Black](//justwatch.com/us/movie/paint-it-black) (2016)
+> [Paint it Black](//justwatch.com/us/movie/paint-it-black) (2016)
 
 streaming API authentication, metadata, and DRM playback 
 
