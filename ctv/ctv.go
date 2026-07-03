@@ -1,12 +1,14 @@
 package ctv
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    _ "embed"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strings"
 )
@@ -18,16 +20,19 @@ var query_axis_content string
 var query_resolve_path string
 
 func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{Scheme: "https", Host: "license.9c9media.ca", Path: "/widevine"},
-      map[string]string{"content-type": "application/x-protobuf"},
-      body,
-   )
+   req, err := http.NewRequest("POST", "https://license.9c9media.ca/widevine", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Content-Type", "application/x-protobuf")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
@@ -45,6 +50,12 @@ func GetPath(urlData string) (string, error) {
    return parse.Path, nil
 }
 
+// Helper function to perform the request and log Method + URL
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type AxisContent struct {
    AxisId                int
    AxisPlaybackLanguages []struct {
@@ -53,29 +64,28 @@ type AxisContent struct {
 }
 
 func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprint(
-            "/destinations/", a.AxisPlaybackLanguages[0].DestinationCode,
-            "/platforms/desktop/playback/contents/", a.AxisId,
-            "/contentPackages/", play.ContentPackages[0].Id,
-            "/manifest.mpd",
-         ),
-         RawQuery: "action=reference",
-      },
-      nil,
+   endpoint := fmt.Sprintf(
+      "https://capi.9c9media.com/destinations/%v/platforms/desktop/playback/contents/%v/contentPackages/%v/manifest.mpd?action=reference",
+      a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId, play.ContentPackages[0].Id,
    )
+
+   req, err := http.NewRequest("GET", endpoint, nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    data, err := io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != 200 {
+
+   if resp.StatusCode != http.StatusOK {
       var result struct {
          Message string // 2026-05-07
       }
@@ -89,22 +99,26 @@ func (a *AxisContent) Manifest(play *Playback) (*url.URL, error) {
 }
 
 func (a *AxisContent) Playback() (*Playback, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "capi.9c9media.com",
-         Path: fmt.Sprintf(
-            "/destinations/%v/platforms/desktop/contents/%v",
-            a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
-         ),
-         RawQuery: "$include=[ContentPackages]",
-      },
-      nil,
+   endpoint := fmt.Sprintf(
+      "https://capi.9c9media.com/destinations/%v/platforms/desktop/contents/%v?$include=[ContentPackages]",
+      a.AxisPlaybackLanguages[0].DestinationCode, a.AxisId,
    )
+
+   req, err := http.NewRequest("GET", endpoint, nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
    result := &Playback{}
    err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
@@ -140,20 +154,25 @@ func Resolve(path string) (*ResolvedPath, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.ctv.ca",
-         Path:   "/space-graphql/apq/graphql",
-      },
-      // you need this for the first request, then can omit
-      map[string]string{"graphql-client-platform": "entpay_web"},
-      body,
-   )
+
+   req, err := http.NewRequest("POST", "https://www.ctv.ca/space-graphql/apq/graphql", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   // you need this for the first request, then can omit
+   req.Header.Set("graphql-client-platform", "entpay_web")
+   req.Header.Set("Content-Type", "application/json")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
    body, err = io.ReadAll(resp.Body)
    if err != nil {
       return nil, err
@@ -183,20 +202,25 @@ func (r *ResolvedPath) AxisContent() (*AxisContent, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.ctv.ca",
-         Path:   "/space-graphql/apq/graphql",
-      },
-      // you need this for the first request, then can omit
-      map[string]string{"graphql-client-platform": "entpay_web"},
-      body,
-   )
+
+   req, err := http.NewRequest("POST", "https://www.ctv.ca/space-graphql/apq/graphql", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   // you need this for the first request, then can omit
+   req.Header.Set("graphql-client-platform", "entpay_web")
+   req.Header.Set("Content-Type", "application/json")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
    var result struct {
       Data struct {
          AxisContent AxisContent
