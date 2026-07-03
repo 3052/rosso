@@ -1,11 +1,11 @@
 package hboMax
 
 import (
-   "41.neocities.org/maya"
    "cmp"
    "encoding/json"
    "errors"
    "fmt"
+   "net/http"
    "net/url"
    "slices"
    "strings"
@@ -153,30 +153,35 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    query.Set("include", "default")
    endpoint.RawQuery = query.Encode()
 
-   resp, err := maya.Get(
-      endpoint, map[string]string{
-         "authorization":  "Bearer " + token,
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-         "x-disco-params": "realm=bolt",
-      },
-   )
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+token)
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result struct {
-      Errors []struct { // 2026-05-27
-         Detail string // 2026-05-27
-      }
+      Errors []struct {
+         Code   string `json:"code"`
+         Detail string `json:"detail"`
+      } `json:"errors"`
       Included []*Entity `json:"included"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Detail)
+   if len(result.Errors) > 0 {
+      var errMsgs []string
+      for _, e := range result.Errors {
+         errMsgs = append(errMsgs, e.Detail)
+      }
+      return nil, errors.New(strings.Join(errMsgs, ", "))
    }
    return result.Included, nil
 }

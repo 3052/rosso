@@ -1,11 +1,13 @@
 package hboMax
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strings"
 )
@@ -17,29 +19,38 @@ const (
 
 const Markets = "amer apac emea latam"
 
+// doReq handles executing the HTTP request and logging the method/URL
+func doReq(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type Cookie struct {
    Name  string
    Value string
 }
 
 func StRequest() (*Cookie, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "default.prd.api.hbomax.com",
-         Path:     "/token",
-         RawQuery: "realm=bolt",
-      },
-      map[string]string{
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-         "x-disco-params": "realm=bolt",
-      },
-   )
+   u := &url.URL{
+      Scheme:   "https",
+      Host:     "default.prd.api.hbomax.com",
+      Path:     "/token",
+      RawQuery: "realm=bolt",
+   }
+
+   req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    for _, each := range resp.Cookies() {
       if each.Name == "st" {
          return &Cookie{Name: each.Name, Value: each.Value}, nil
@@ -62,27 +73,29 @@ type Initiate struct {
 }
 
 func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-         Path:   "/authentication/linkDevice/initiate",
-      },
-      map[string]string{
-         "cookie":         st.String(),
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-         "x-disco-params": "realm=bolt",
-      },
-      nil,
-   )
+   u := &url.URL{
+      Scheme: "https",
+      Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
+      Path:   "/authentication/linkDevice/initiate",
+   }
+
+   req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("cookie", st.String())
+   req.Header.Set("x-device-info", device_info)
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
+
    var result struct {
       Data struct {
          Attributes Initiate
@@ -112,24 +125,24 @@ type Login struct {
 // /authentication/linkDevice/initiate
 // first or this will always fail
 func LoginRequest(st *Cookie) (*Login, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/authentication/linkDevice/login",
-      },
-      map[string]string{
-         "cookie":         st.String(),
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-         "x-disco-params": "realm=bolt",
-      },
-      nil,
-   )
+   u := &url.URL{
+      Scheme: "https",
+      Host:   "default.prd.api.hbomax.com",
+      Path:   "/authentication/linkDevice/login",
+   }
+
+   req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("cookie", st.String())
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result struct {
       Data struct {
          Attributes Login
@@ -153,9 +166,10 @@ type Playback struct {
          Widevine  *Scheme
       }
    }
-   Errors []struct { // 2026-05-27
-      Detail string // 2026-05-27
-   }
+   Errors []struct {
+      Code   string `json:"code"`
+      Detail string `json:"detail"`
+   } `json:"errors"`
    Fallback struct {
       Manifest struct {
          Url *Url // _fallback.mpd:1080p, .mpd:4K
@@ -218,32 +232,37 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "default.prd.api.hbomax.com",
-         Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
-      },
-      map[string]string{
-         "authorization":  "Bearer " + token,
-         "content-type":   "application/json",
-         "x-device-info":  device_info,
-         "x-disco-client": disco_client,
-         "x-disco-params": "realm=bolt",
-      },
-      body,
-   )
+
+   u := &url.URL{
+      Scheme: "https",
+      Host:   "default.prd.api.hbomax.com",
+      Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
+   }
+
+   req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+token)
+   req.Header.Set("content-type", "application/json")
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result Playback
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if len(result.Errors) >= 1 {
-      return nil, errors.New(result.Errors[0].Detail)
+   if len(result.Errors) > 0 {
+      var errMsgs []string
+      for _, e := range result.Errors {
+         errMsgs = append(errMsgs, e.Detail)
+      }
+      return nil, errors.New(strings.Join(errMsgs, ", "))
    }
    return &result, nil
 }
@@ -261,14 +280,18 @@ func (p *Playback) GetManifest() *url.URL {
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.PlayReady.LicenseUrl.Url,
-      map[string]string{"content-type": "text/xml"}, body,
-   )
+   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.PlayReady.LicenseUrl.Url.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "text/xml")
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
@@ -276,14 +299,18 @@ func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
 }
 
 func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &p.Drm.Schemes.Widevine.LicenseUrl.Url,
-      map[string]string{"content-type": "application/x-protobuf"}, body,
-   )
+   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.Widevine.LicenseUrl.Url.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-protobuf")
+
+   resp, err := doReq(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    if resp.StatusCode != 200 {
       return nil, errors.New(resp.Status)
    }
