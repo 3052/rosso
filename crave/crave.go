@@ -20,11 +20,9 @@ var get_showpage string
 
 // SL2000 max 2160p
 func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := "https://license.9c9media.com/playready"
-
-   bodyMap := map[string]any{
+   bodyMap := map[string]interface{}{
       "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]any{
+      "playbackContext": map[string]interface{}{
          "contentId": activePlayback.ContentId,
          // lower-case 'p' as per their API
          "contentpackageId": activePlayback.ContentPackage.Id,
@@ -39,7 +37,7 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
       return nil, err
    }
 
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, "https://license.9c9media.com/playready", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -57,7 +55,7 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
 }
 
 func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
-   baseURL := fmt.Sprintf(
+   endpoint := fmt.Sprintf(
       "https://stream.video.9c9media.com/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
       activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
    )
@@ -69,7 +67,7 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) 
    values.Set("mcv", "true") // H.264 + HEVC
    values.Set("uhd", "true") // 2160p HEVC
 
-   endpoint := baseURL + "?" + values.Encode()
+   endpoint += "?" + values.Encode()
 
    req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
@@ -110,8 +108,6 @@ type AccountToken struct {
 }
 
 func PerformLogin(username string, password string) (*AccountToken, error) {
-   endpoint := "https://account.bellmedia.ca/api/login/v2.1"
-
    values := url.Values{}
    values.Set("grant_type", "password")
    values.Set("password", password)
@@ -119,7 +115,7 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
 
    body := []byte(values.Encode())
 
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, "https://account.bellmedia.ca/api/login/v2.1", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -170,13 +166,11 @@ type Media struct {
 }
 
 func GetMedia(showId int) (*Media, error) {
-   endpoint := "https://rte-api.bellmedia.ca/graphql"
-
-   bodyMap := map[string]any{
+   bodyMap := map[string]interface{}{
       "query": get_showpage,
-      "variables": map[string]any{
+      "variables": map[string]interface{}{
          "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]any{
+         "sessionContext": map[string]interface{}{
             "userLanguage": "EN",
             "userMaturity": "ADULT",
          },
@@ -188,7 +182,7 @@ func GetMedia(showId int) (*Media, error) {
       return nil, err
    }
 
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, "https://rte-api.bellmedia.ca/graphql", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -284,7 +278,7 @@ type Playback struct {
 }
 
 func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
-   endpoint := "https://playback.rte-api.bellmedia.ca/contents/" + strconv.Itoa(activeMedia.FirstContent.Id)
+   endpoint := fmt.Sprintf("https://playback.rte-api.bellmedia.ca/contents/%d", activeMedia.FirstContent.Id)
 
    req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
@@ -381,8 +375,6 @@ type ProfileToken struct {
 }
 
 func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
-   endpoint := "https://account.bellmedia.ca/api/login/v2.2"
-
    values := url.Values{}
    values.Set("grant_type", "refresh_token")
    values.Set("profile_id", profileId)
@@ -390,7 +382,7 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
 
    body := []byte(values.Encode())
 
-   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, "https://account.bellmedia.ca/api/login/v2.2", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -427,9 +419,7 @@ type Subscription struct {
 }
 
 func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
-   endpoint := "https://account.bellmedia.ca/api/subscription/v5"
-
-   req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+   req, err := http.NewRequest(http.MethodGet, "https://account.bellmedia.ca/api/subscription/v5", nil)
    if err != nil {
       return nil, err
    }
