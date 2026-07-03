@@ -20,15 +20,11 @@ var get_showpage string
 
 // SL2000 max 2160p
 func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playback) ([]byte, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "license.9c9media.com",
-      Path:   "/playready",
-   }
+   endpoint := "https://license.9c9media.com/playready"
 
-   bodyMap := map[string]interface{}{
+   bodyMap := map[string]any{
       "payload": base64.StdEncoding.EncodeToString(challenge),
-      "playbackContext": map[string]interface{}{
+      "playbackContext": map[string]any{
          "contentId": activePlayback.ContentId,
          // lower-case 'p' as per their API
          "contentpackageId": activePlayback.ContentPackage.Id,
@@ -43,7 +39,7 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
       return nil, err
    }
 
-   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -61,23 +57,21 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
 }
 
 func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "stream.video.9c9media.com",
-      Path: fmt.Sprintf(
-         "/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
-         activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
-      ),
-   }
+   baseURL := fmt.Sprintf(
+      "https://stream.video.9c9media.com/meta/content/%d/contentpackage/%d/destination/%d/platform/48",
+      activePlayback.ContentId, activePlayback.ContentPackage.Id, activePlayback.DestinationId,
+   )
+
    values := url.Values{}
    values.Set("filter", "ff") // 2160p HEVC
    values.Set("format", "mpd")
    values.Set("hd", "true")  // 1080p H.264
    values.Set("mcv", "true") // H.264 + HEVC
    values.Set("uhd", "true") // 2160p HEVC
-   endpoint.RawQuery = values.Encode()
 
-   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   endpoint := baseURL + "?" + values.Encode()
+
+   req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
       return nil, err
    }
@@ -116,11 +110,7 @@ type AccountToken struct {
 }
 
 func PerformLogin(username string, password string) (*AccountToken, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.1",
-   }
+   endpoint := "https://account.bellmedia.ca/api/login/v2.1"
 
    values := url.Values{}
    values.Set("grant_type", "password")
@@ -129,7 +119,7 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
 
    body := []byte(values.Encode())
 
-   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -180,17 +170,13 @@ type Media struct {
 }
 
 func GetMedia(showId int) (*Media, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "rte-api.bellmedia.ca",
-      Path:   "/graphql",
-   }
+   endpoint := "https://rte-api.bellmedia.ca/graphql"
 
-   bodyMap := map[string]interface{}{
+   bodyMap := map[string]any{
       "query": get_showpage,
-      "variables": map[string]interface{}{
+      "variables": map[string]any{
          "ids": []string{strconv.Itoa(showId)},
-         "sessionContext": map[string]interface{}{
+         "sessionContext": map[string]any{
             "userLanguage": "EN",
             "userMaturity": "ADULT",
          },
@@ -202,7 +188,7 @@ func GetMedia(showId int) (*Media, error) {
       return nil, err
    }
 
-   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -298,13 +284,9 @@ type Playback struct {
 }
 
 func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "playback.rte-api.bellmedia.ca",
-      Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
-   }
+   endpoint := "https://playback.rte-api.bellmedia.ca/contents/" + strconv.Itoa(activeMedia.FirstContent.Id)
 
-   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
       return nil, err
    }
@@ -347,13 +329,9 @@ type Profile struct {
 }
 
 func GetProfiles(account *AccountToken) ([]Profile, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/profile/v2/account/" + account.AccountId,
-   }
+   endpoint := "https://account.bellmedia.ca/api/profile/v2/account/" + account.AccountId
 
-   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
       return nil, err
    }
@@ -403,11 +381,7 @@ type ProfileToken struct {
 }
 
 func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/login/v2.2",
-   }
+   endpoint := "https://account.bellmedia.ca/api/login/v2.2"
 
    values := url.Values{}
    values.Set("grant_type", "refresh_token")
@@ -416,7 +390,7 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
 
    body := []byte(values.Encode())
 
-   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -453,13 +427,9 @@ type Subscription struct {
 }
 
 func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
-   endpoint := &url.URL{
-      Scheme: "https",
-      Host:   "account.bellmedia.ca",
-      Path:   "/api/subscription/v5",
-   }
+   endpoint := "https://account.bellmedia.ca/api/subscription/v5"
 
-   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, endpoint, nil)
    if err != nil {
       return nil, err
    }
