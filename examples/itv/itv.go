@@ -5,6 +5,7 @@ import (
    "41.neocities.org/rosso/itv"
    "fmt"
    "log"
+   "net/url"
    "os"
 )
 
@@ -112,7 +113,11 @@ func (c *client) do_playlist() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(&media_file.Href.Url)
+   address, err := url.Parse(media_file.Href)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }

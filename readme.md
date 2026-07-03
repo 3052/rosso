@@ -11,32 +11,31 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 6450 | US | [Kanopy] |
-| 5877 | US | [Tubi TV] |
+| 7159 | US | [Tubi TV] |
+| 6550 | US | [Kanopy] |
 | 5248 | UK | [Rakuten TV] |
-| 4654 | US | [The Roku Channel] |
-| 4365 | US | [Amazon Prime Video] |
+| 4367 | US | [The Roku Channel] |
+| 4355 | US | [Amazon Prime Video] |
 | 1967 | CA | [Crave] |
 | 1818 | US | [Pluto TV] |
-| 1398 | FR | [Molotov TV] |
-| 1292 | US | [HBO Max] |
-| 1114 | US | [Criterion Channel] |
-| 981 | US | [Hulu] |
-| 820 | US | [AMC+] |
-| 795 | NL | [CineMember] |
-| 618 | US | [Paramount Plus Premium] |
-| 561 | US | [Disney Plus] |
-| 463 | CA | [CTV] |
-| 442 | US | [Peacock Premium] |
+| 1427 | FR | [Molotov TV] |
+| 1293 | US | [HBO Max] |
+| 1148 | US | [Criterion Channel] |
+| 1016 | US | [Hulu] |
+| 829 | US | [AMC+] |
+| 794 | NL | [CineMember] |
+| 631 | US | [Paramount Plus Premium] |
+| 569 | US | [Disney Plus] |
+| 437 | US | [Peacock Premium] |
 | 390 | BR | [Oldflix] |
 | 388 | CZ | [Canal+] |
-| 371 | UK | [ITVX] |
-| 329 | US | [MUBI] |
-| 288 | BE | [RTBF Auvio] |
+| 362 | UK | [ITVX] |
+| 330 | US | [MUBI] |
+| 289 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
 
-[Tubi TV]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=50
 [Amazon Prime Video]:https://justwatch.com/us/provider/amazon-prime-video?tomatoMeter=50
+[Tubi TV]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=50
 [Oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=50
 [Crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=50
 [Peacock Premium]:https://justwatch.com/us/provider/peacock?tomatoMeter=50
@@ -50,7 +49,6 @@ streaming API authentication, metadata, and DRM playback
 [Rakuten TV]:https://justwatch.com/uk/provider/rakuten-tv?tomatoMeter=50
 [Criterion Channel]:https://justwatch.com/us/provider/criterion-channel?tomatoMeter=50
 [CineMember]:https://justwatch.com/nl/provider/cinemember?tomatoMeter=50
-[CTV]:https://justwatch.com/ca/provider/ctv?tomatoMeter=50
 [Pluto TV]:https://justwatch.com/us/provider/pluto-tv?tomatoMeter=50
 [MUBI]:https://justwatch.com/us/provider/mubi?tomatoMeter=50
 [Hulu]:https://justwatch.com/us/provider/hulu?tomatoMeter=50

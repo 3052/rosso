@@ -1,13 +1,15 @@
 package crave
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    _ "embed"
    "encoding/base64"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -41,7 +43,13 @@ func AcquireLicense(challenge []byte, token *ProfileToken, activePlayback *Playb
       return nil, err
    }
 
-   resp, err := maya.Post(endpoint, nil, body)
+   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Content-Type", "application/json")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -69,15 +77,18 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) 
    values.Set("uhd", "true") // 2160p HEVC
    endpoint.RawQuery = values.Encode()
 
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+token.AccessToken)
 
-   resp, err := maya.Get(endpoint, headers)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result struct {
       Message  string // 2026-05-01
       Playback string `json:"playback"`
@@ -89,6 +100,12 @@ func GetStream(token *ProfileToken, activePlayback *Playback) (*url.URL, error) 
       return nil, errors.New(result.Message)
    }
    return url.Parse(result.Playback)
+}
+
+// doRequest logs the HTTP method and URL, then executes the request.
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL.String())
+   return http.DefaultClient.Do(req)
 }
 
 type AccountToken struct {
@@ -105,12 +122,6 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
       Path:   "/api/login/v2.1",
    }
 
-   headers := map[string]string{
-      // crave-web:default
-      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
-      "content-type":  "application/x-www-form-urlencoded",
-   }
-
    values := url.Values{}
    values.Set("grant_type", "password")
    values.Set("password", password)
@@ -118,7 +129,16 @@ func PerformLogin(username string, password string) (*AccountToken, error) {
 
    body := []byte(values.Encode())
 
-   resp, err := maya.Post(endpoint, headers, body)
+   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+
+   // crave-web:default
+   req.Header.Set("authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -166,11 +186,6 @@ func GetMedia(showId int) (*Media, error) {
       Path:   "/graphql",
    }
 
-   headers := map[string]string{
-      // {"platform":"platform_web"}
-      "authorization": "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9",
-   }
-
    bodyMap := map[string]interface{}{
       "query": get_showpage,
       "variables": map[string]interface{}{
@@ -187,7 +202,16 @@ func GetMedia(showId int) (*Media, error) {
       return nil, err
    }
 
-   resp, err := maya.Post(endpoint, headers, body)
+   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+
+   // {"platform":"platform_web"}
+   req.Header.Set("authorization", "Bearer eyJwbGF0Zm9ybSI6InBsYXRmb3JtX3dlYiJ9")
+   req.Header.Set("Content-Type", "application/json")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -201,6 +225,12 @@ func GetMedia(showId int) (*Media, error) {
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
+
+   // Handle empty slice gracefully to prevent a panic
+   if len(result.Data.Medias) == 0 {
+      return nil, fmt.Errorf("no media found for ID %d", showId)
+   }
+
    return &result.Data.Medias[0], nil
 }
 
@@ -274,13 +304,16 @@ func GetPlayback(token *ProfileToken, activeMedia *Media) (*Playback, error) {
       Path:   "/contents/" + strconv.Itoa(activeMedia.FirstContent.Id),
    }
 
-   headers := map[string]string{
-      "x-client-platform":   "platform_jasper_web", // platform_jasper_html
-      "authorization":       "Bearer " + token.AccessToken,
-      "x-playback-language": "EN",
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
 
-   resp, err := maya.Get(endpoint, headers)
+   req.Header.Set("x-client-platform", "platform_jasper_web") // platform_jasper_html
+   req.Header.Set("authorization", "Bearer "+token.AccessToken)
+   req.Header.Set("x-playback-language", "EN")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -320,11 +353,13 @@ func GetProfiles(account *AccountToken) ([]Profile, error) {
       Path:   "/api/profile/v2/account/" + account.AccountId,
    }
 
-   headers := map[string]string{
-      "authorization": "Bearer " + account.AccessToken,
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+account.AccessToken)
 
-   resp, err := maya.Get(endpoint, headers)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -374,12 +409,6 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
       Path:   "/api/login/v2.2",
    }
 
-   headers := map[string]string{
-      // crave-web:default
-      "authorization": "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=",
-      "content-type":  "application/x-www-form-urlencoded",
-   }
-
    values := url.Values{}
    values.Set("grant_type", "refresh_token")
    values.Set("profile_id", profileId)
@@ -387,7 +416,16 @@ func SwitchProfile(account *AccountToken, profileId string) (*ProfileToken, erro
 
    body := []byte(values.Encode())
 
-   resp, err := maya.Post(endpoint, headers, body)
+   req, err := http.NewRequest(http.MethodPost, endpoint.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+
+   // crave-web:default
+   req.Header.Set("authorization", "Basic Y3JhdmUtd2ViOmRlZmF1bHQ=")
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -421,11 +459,13 @@ func GetSubscriptions(token *ProfileToken) ([]Subscription, error) {
       Path:   "/api/subscription/v5",
    }
 
-   headers := map[string]string{
-      "authorization": "Bearer " + token.AccessToken,
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+token.AccessToken)
 
-   resp, err := maya.Get(endpoint, headers)
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }

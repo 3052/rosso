@@ -1,12 +1,14 @@
 package itv
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    _ "embed"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "path"
    "strings"
@@ -24,13 +26,19 @@ func ParseLegacyId(urlData string) string {
    return strings.Join(parts, "/")
 }
 
+// doRequest is the unified HTTP client function that logs the request and executes it
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 func graphql_compact(data string) string {
    return strings.Join(strings.Fields(data), " ")
 }
 
 type MediaFile struct {
-   Href          *Url // MPD
-   KeyServiceUrl *Url // DRM
+   Href          string // MPD
+   KeyServiceUrl string // DRM
    Resolution    string
 }
 
@@ -39,7 +47,12 @@ func (*MediaFile) CachePath() string {
 }
 
 func (m *MediaFile) FetchKeyService(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&m.KeyServiceUrl.Url, nil, body)
+   req, err := http.NewRequest(http.MethodPost, m.KeyServiceUrl, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -68,10 +81,6 @@ func FetchWidevine(address string) (*Playlist, error) {
 
 // fetchPlaylist is the common underlying function doing the heavy lifting
 func fetchPlaylist(address, drmSystem, maxSupported string) (*Playlist, error) {
-   parse, err := url.Parse(address)
-   if err != nil {
-      return nil, err
-   }
    body, err := json.Marshal(map[string]any{
       "client": map[string]string{
          "id": "browser",
@@ -93,18 +102,20 @@ func fetchPlaylist(address, drmSystem, maxSupported string) (*Playlist, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      parse,
-      map[string]string{
-         "accept":     "application/vnd.itv.vod.playlist.v4+json",
-         "user-agent": "!",
-      },
-      body,
-   )
+
+   req, err := http.NewRequest(http.MethodPost, address, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Accept", "application/vnd.itv.vod.playlist.v4+json")
+   req.Header.Set("User-Agent", "!")
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result Playlist
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
@@ -136,38 +147,49 @@ type Title struct {
 }
 
 func FetchTitles(legacyId string) ([]Title, error) {
-   var data strings.Builder
-   err := json.NewEncoder(&data).Encode(map[string]string{
+   variables, err := json.Marshal(map[string]string{
       "brandLegacyId": legacyId,
    })
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "content-inventory.prd.oasvc.itv.com",
-         Path:   "/discovery",
-         RawQuery: url.Values{
-            "query":     {graphql_compact(programme_page)},
-            "variables": {data.String()},
-         }.Encode(),
-      },
-      nil,
-   )
+
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "content-inventory.prd.oasvc.itv.com",
+      Path:   "/discovery",
+      RawQuery: url.Values{
+         "query":     {graphql_compact(programme_page)},
+         "variables": {string(variables)},
+      }.Encode(),
+   }
+
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    var result struct {
       Data struct {
          Titles []Title
       }
    }
+
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
+
+   if len(result.Data.Titles) == 0 {
+      return nil, errors.New("no titles found")
+   }
+
    return result.Data.Titles, nil
 }
 
@@ -182,16 +204,4 @@ func (t *Title) String() string {
    }
    fmt.Fprint(data, "playlist: ", t.LatestAvailableVersion.PlaylistUrl)
    return data.String()
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
 }

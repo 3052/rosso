@@ -11,13 +11,12 @@
 | 2025-03-27 | FR | Molotov TV | 3 |
 | 2025-03-25 | CZ | Canal+ | 2 |
 | 2025-01-23 | US | Kanopy | 1 |
-| 2024-10-24 | UK | ITVX | 9 |
-| 2024-06-16 | US | HBO Max | 8 |
-| 2024-06-07 | BE | RTBF Auvio | 7 |
-| 2024-05-23 | UK | Rakuten TV | 6 |
-| 2024-05-19 | US | Criterion Channel | 5 |
-| 2024-05-12 | NL | CineMember | 4 |
-| 2024-04-29 | CA | CTV | 3 |
+| 2024-10-24 | UK | ITVX | 8 |
+| 2024-06-16 | US | HBO Max | 7 |
+| 2024-06-07 | BE | RTBF Auvio | 6 |
+| 2024-05-23 | UK | Rakuten TV | 5 |
+| 2024-05-19 | US | Criterion Channel | 4 |
+| 2024-05-12 | NL | CineMember | 3 |
 | 2024-04-20 | US | Pluto TV | 2 |
 | 2024-02-20 | US | MUBI | 1 |
 | 2023-11-14 | US | Hulu | 1 |
@@ -25,3 +24,4 @@
 | 2022-05-05 | US | The Roku Channel | 2 |
 | 2022-03-09 | US | Paramount Plus Premium | 1 |
 | 2021-12-04 | US | NBC | 1 |
+
