@@ -25,9 +25,9 @@ type client struct {
    password maya.FlagString
    search   maya.FlagString
    refresh  maya.FlagBool
-   threads maya.FlagInt
-   
-   cache    maya.Cache
+   threads  maya.FlagInt
+
+   cache maya.Cache
 }
 
 func (*client) CachePath() string {

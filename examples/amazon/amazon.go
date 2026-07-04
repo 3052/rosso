@@ -17,17 +17,17 @@ func main() {
 }
 
 type client struct {
-   Proxy              maya.FlagString
    DeviceTypeId       maya.FlagString
    PlayReady          maya.FlagString
+   Proxy              maya.FlagString
    TitleId            maya.FlagString
    bitrate_adaptation maya.FlagString
    complete_login     maya.FlagBool
    dash_id            maya.FlagString
    dynamic_range      maya.FlagString
    initiate_login     maya.FlagBool
-   video_codec        maya.FlagString
    playback           maya.FlagBool
+   video_codec        maya.FlagString
 
    cache maya.Cache
 }
@@ -154,41 +154,6 @@ func (c *client) do_initiate_login() error {
 }
 
 func (c *client) do_playback() error {
-   var (
-      actor_token amazon.ActorToken
-      metadata    amazon.PlaybackExperienceMetadata
-   )
-   err := c.cache.Decode(&actor_token, &metadata)
-   if err != nil {
-      return err
-   }
-   playback := amazon.VodPlaybackParams{
-      DRMType:                    "PlayReady",
-      MaxVideoResolution:         "2160p",
-      BitrateAdaptation:          string(c.bitrate_adaptation),
-      DynamicRangeFormat:         string(c.dynamic_range),
-      VideoCodec:                 string(c.video_codec),
-      DeviceTypeID:               string(c.DeviceTypeId),
-      TitleId:                    string(c.TitleId),
-      ActorToken:                 &actor_token,
-      PlaybackExperienceMetadata: &metadata,
-   }
-   resources, err := playback.Fetch()
-   if err != nil {
-      return fmt.Errorf("failed to get VOD playback resources: %v", err)
-   }
-   clean, err := resources.Clean()
-   if err != nil {
-      return err
-   }
-   manifest, err := maya.ListDash(clean)
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(manifest)
-}
-
-func (c *client) do_title_id() error {
    var token_pair amazon.TokenPair
    err := c.cache.Decode(&token_pair)
    if err != nil {
@@ -217,6 +182,39 @@ func (c *client) do_title_id() error {
    if err != nil {
       return err
    }
+   playback := amazon.VodPlaybackParams{
+      DRMType:                    "PlayReady",
+      MaxVideoResolution:         "2160p",
+      BitrateAdaptation:          string(c.bitrate_adaptation),
+      DynamicRangeFormat:         string(c.dynamic_range),
+      VideoCodec:                 string(c.video_codec),
+      DeviceTypeID:               string(c.DeviceTypeId),
+      TitleId:                    string(c.TitleId),
+      ActorToken:                 actor_token,
+      PlaybackExperienceMetadata: metadata,
+   }
+   resources, err := playback.Fetch()
+   if err != nil {
+      return fmt.Errorf("failed to get VOD playback resources: %v", err)
+   }
+   clean, err := resources.Clean()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(clean)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(manifest)
+}
+
+func (c *client) do_title_id() error {
+   resource, err := amazon.GetItemDetails(
+      nil, string(c.TitleId), string(c.DeviceTypeId),
+   )
+   if err != nil {
+      return err
+   }
    fmt.Println(resource)
-   return c.cache.Encode(actor_token, c, metadata)
+   return c.cache.Encode(c)
 }

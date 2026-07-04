@@ -87,13 +87,18 @@ type Resource struct {
          PlaybackExperienceMetadata PlaybackExperienceMetadata `json:"playbackExperienceMetadata"`
       } `json:"metadata"`
    } `json:"actions"`
-   ApplyHdr bool `json:"applyHdr"`
-   ApplyUhd bool `json:"applyUhd"`
+   ApplyHdr             bool `json:"applyHdr"`
+   ApplyUhd             bool `json:"applyUhd"`
+   EntitlementMessaging struct {
+      EntitlementMessageSlotDetail struct {
+         Message string `json:"message"`
+      } `json:"ENTITLEMENT_MESSAGE_SLOT_DETAIL"`
+   } `json:"entitlementMessaging"`
 }
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.
 // It explicitly passes UI schema flags to ensure the server returns the PlaybackEnvelope.
-func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Resource, error) {
+func GetItemDetails(token *ActorToken, titleId, deviceTypeID string) (*Resource, error) {
    req, err := http.NewRequest(
       "GET",
       HostATVPS+"/lrcedge/getDataByJavaTransform/v1/lr/detailsPage/detailsPageATF",
@@ -104,18 +109,25 @@ func GetItemDetails(actorToken *ActorToken, titleId, deviceTypeID string) (*Reso
    }
    query := url.Values{}
    query.Set("itemId", titleId)
-   // Critical UI and Feature flags to force the V2/V3 BuyBox response with
-   // PlaybackEnvelope
-   query.Set("roles", "playback-envelope-supported")
    query.Set("presentationScheme", "android-tv-react")
    // Device parameters
    query.Set("deviceTypeID", deviceTypeID)
    query.Set("deviceID", DeviceID)
-   req.URL.RawQuery = query.Encode()
 
-   // you can get the envelope without this, but it will be trailer:
-   // resource.secondaryActions[0].presentation.label = "Watch trailer"
-   req.Header.Set("Authorization", "Bearer "+actorToken.Token)
+   if token != nil {
+      // Critical UI and Feature flags to force the V2/V3 BuyBox response with
+      // PlaybackEnvelope
+      query.Set("roles", "playback-envelope-supported")
+      // you can get the envelope without this, but it will be trailer:
+      // resource.secondaryActions[0].presentation.label = "Watch trailer"
+      req.Header.Set("Authorization", "Bearer "+token.Token)
+   } else {
+      query.Add("firmware", "")
+      query.Add("roles", "prime-offer-supported,svod-supported")
+      query.Add("clientFeatures", "EnableBuyBoxV2")
+   }
+
+   req.URL.RawQuery = query.Encode()
 
    resp, err := doRequest(req)
    if err != nil {
@@ -161,5 +173,10 @@ func (r *Resource) String() string {
    } else {
       data.WriteString("UHD: false")
    }
+
+   data.WriteByte('\n')
+   data.WriteString("Message: ")
+   data.WriteString(r.EntitlementMessaging.EntitlementMessageSlotDetail.Message)
+
    return data.String()
 }
