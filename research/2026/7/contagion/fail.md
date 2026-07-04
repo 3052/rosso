@@ -18,12 +18,6 @@ country: CA
 name: Canada
 monetization: FLATRATE
 
-## https://tv.youtube.com/browse/UC9yuQkMqfaZgLZ5IQ4O4Q4w
-
-country: US
-name: United States
-monetization: FLATRATE
-
 ## https://play.hbomax.com/show/cffaabcb-f731-4439-8872-bf65a4b26b85
 
 country: ID
@@ -186,4 +180,10 @@ monetization: FLATRATE
 
 country: VE
 name: Venezuela
+monetization: FLATRATE
+
+## https://tv.youtube.com/browse/UC9yuQkMqfaZgLZ5IQ4O4Q4w
+
+country: US
+name: United States
 monetization: FLATRATE
