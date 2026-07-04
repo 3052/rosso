@@ -121,7 +121,11 @@ func (c *client) do_edit() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(playback.GetManifest())
+   address, err := playback.GetManifest()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }

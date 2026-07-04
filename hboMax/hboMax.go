@@ -25,20 +25,35 @@ func doReq(req *http.Request) (*http.Response, error) {
    return http.DefaultClient.Do(req)
 }
 
+// APIError represents a single error object from the Max API
+type APIError struct {
+   Code   string `json:"code"`
+   Detail string `json:"detail"`
+}
+
+// APIErrors represents a collection of API errors and implements the error interface
+type APIErrors []APIError
+
+func (e APIErrors) Error() string {
+   var b strings.Builder
+   for i, err := range e {
+      if i > 0 {
+         b.WriteString(", ")
+      }
+      b.WriteString(err.Code)
+      b.WriteString(": ")
+      b.WriteString(err.Detail)
+   }
+   return b.String()
+}
+
 type Cookie struct {
    Name  string
    Value string
 }
 
 func StRequest() (*Cookie, error) {
-   u := &url.URL{
-      Scheme:   "https",
-      Host:     "default.prd.api.hbomax.com",
-      Path:     "/token",
-      RawQuery: "realm=bolt",
-   }
-
-   req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+   req, err := http.NewRequest(http.MethodGet, "https://default.prd.api.hbomax.com/token?realm=bolt", nil)
    if err != nil {
       return nil, err
    }
@@ -73,13 +88,8 @@ type Initiate struct {
 }
 
 func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
-   u := &url.URL{
-      Scheme: "https",
-      Host:   fmt.Sprintf("default.beam-%v.prd.api.discomax.com", market),
-      Path:   "/authentication/linkDevice/initiate",
-   }
-
-   req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+   endpoint := fmt.Sprintf("https://default.beam-%v.prd.api.discomax.com/authentication/linkDevice/initiate", market)
+   req, err := http.NewRequest(http.MethodPost, endpoint, nil)
    if err != nil {
       return nil, err
    }
@@ -92,7 +102,7 @@ func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
 
@@ -125,13 +135,7 @@ type Login struct {
 // /authentication/linkDevice/initiate
 // first or this will always fail
 func LoginRequest(st *Cookie) (*Login, error) {
-   u := &url.URL{
-      Scheme: "https",
-      Host:   "default.prd.api.hbomax.com",
-      Path:   "/authentication/linkDevice/login",
-   }
-
-   req, err := http.NewRequest(http.MethodPost, u.String(), nil)
+   req, err := http.NewRequest(http.MethodPost, "https://default.prd.api.hbomax.com/authentication/linkDevice/login", nil)
    if err != nil {
       return nil, err
    }
@@ -166,13 +170,10 @@ type Playback struct {
          Widevine  *Scheme
       }
    }
-   Errors []struct {
-      Code   string `json:"code"`
-      Detail string `json:"detail"`
-   } `json:"errors"`
+   Errors   APIErrors `json:"errors"`
    Fallback struct {
       Manifest struct {
-         Url *Url // _fallback.mpd:1080p, .mpd:4K
+         Url string // _fallback.mpd:1080p, .mpd:4K
       }
    }
    Manifest struct {
@@ -233,18 +234,19 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
       return nil, err
    }
 
-   u := &url.URL{
-      Scheme: "https",
-      Host:   "default.prd.api.hbomax.com",
-      Path:   "/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
-   }
-
-   req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(
+      http.MethodPost,
+      "https://default.prd.api.hbomax.com/playback-orchestrator/any/playback-orchestrator/v1/playbackInfo",
+      bytes.NewReader(body),
+   )
    if err != nil {
       return nil, err
    }
    req.Header.Set("authorization", "Bearer "+token)
    req.Header.Set("content-type", "application/json")
+   req.Header.Set("x-disco-params", "realm=bolt")
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-device-info", device_info)
 
    resp, err := doReq(req)
    if err != nil {
@@ -258,11 +260,7 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
       return nil, err
    }
    if len(result.Errors) > 0 {
-      var errMsgs []string
-      for _, e := range result.Errors {
-         errMsgs = append(errMsgs, e.Detail)
-      }
-      return nil, errors.New(strings.Join(errMsgs, ", "))
+      return nil, result.Errors
    }
    return &result, nil
 }
@@ -271,16 +269,19 @@ func (*Playback) CachePath() string {
    return "rosso/hboMax/Playback"
 }
 
-func (p *Playback) GetManifest() *url.URL {
-   manifest := p.Fallback.Manifest.Url.Url
+func (p *Playback) GetManifest() (*url.URL, error) {
+   manifest, err := url.Parse(p.Fallback.Manifest.Url)
+   if err != nil {
+      return nil, err
+   }
    manifest.Path = strings.Replace(manifest.Path, "_fallback", "", 1)
-   return &manifest
+   return manifest, nil
 }
 
 // SL2000 max 1080p
 // SL3000 max 2160p
 func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
-   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.PlayReady.LicenseUrl.Url.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.PlayReady.LicenseUrl, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -292,14 +293,14 @@ func (p *Playback) PlayReadyRequest(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
 }
 
 func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
-   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.Widevine.LicenseUrl.Url.String(), bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, p.Drm.Schemes.Widevine.LicenseUrl, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -311,24 +312,12 @@ func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    return io.ReadAll(resp.Body)
 }
 
 type Scheme struct {
-   LicenseUrl *Url
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
+   LicenseUrl string
 }

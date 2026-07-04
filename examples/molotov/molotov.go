@@ -19,13 +19,15 @@ func main() {
 
 type client struct {
    Widevine maya.FlagString
-   cache    maya.Cache
    asset_id maya.FlagString
    dash_id  maya.FlagString
    username maya.FlagString
    password maya.FlagString
    search   maya.FlagString
    refresh  maya.FlagBool
+   threads maya.FlagInt
+   
+   cache    maya.Cache
 }
 
 func (*client) CachePath() string {
@@ -47,6 +49,7 @@ func (c *client) do() error {
       {Name: "search", Value: &c.search},
       {Name: "asset-id", Value: &c.asset_id},
       {Name: "dash-id", Value: &c.dash_id},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -73,6 +76,7 @@ func (c *client) do() error {
    }
    return flags.Usage(os.Stderr, "molotov")
 }
+
 func (c *client) do_asset_id() error {
    var signin molotov.SigninResponse
    err := c.cache.Decode(&signin)
@@ -107,6 +111,7 @@ func (c *client) do_dash_id() error {
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: asset.GetLicense,
+      Threads: int(c.threads),
    })
 }
 

@@ -3,7 +3,6 @@ package hboMax
 import (
    "cmp"
    "encoding/json"
-   "errors"
    "fmt"
    "net/http"
    "net/url"
@@ -158,6 +157,9 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
       return nil, err
    }
    req.Header.Set("authorization", "Bearer "+token)
+   req.Header.Set("x-disco-params", "realm=bolt")
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-device-info", device_info)
 
    resp, err := doReq(req)
    if err != nil {
@@ -166,10 +168,7 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
    defer resp.Body.Close()
 
    var result struct {
-      Errors []struct {
-         Code   string `json:"code"`
-         Detail string `json:"detail"`
-      } `json:"errors"`
+      Errors   APIErrors `json:"errors"`
       Included []*Entity `json:"included"`
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
@@ -177,11 +176,7 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
       return nil, err
    }
    if len(result.Errors) > 0 {
-      var errMsgs []string
-      for _, e := range result.Errors {
-         errMsgs = append(errMsgs, e.Detail)
-      }
-      return nil, errors.New(strings.Join(errMsgs, ", "))
+      return nil, result.Errors
    }
    return result.Included, nil
 }
