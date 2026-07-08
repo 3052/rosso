@@ -1,22 +1,33 @@
 package tubi
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strconv"
 )
 
 func AcquireLicense(server *LicenseServer, body []byte) ([]byte, error) {
-   resp, err := maya.Post(&server.Url.Url, nil, body)
+   req, err := http.NewRequest("POST", server.Url, bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
    return io.ReadAll(resp.Body)
+}
+
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 type ContentResponse struct {
@@ -77,7 +88,11 @@ func GetContent(contentId int) (*ContentResponse, error) {
    query.Add("video_resources[]", "dash_widevine")
    target.RawQuery = query.Encode()
 
-   resp, err := maya.Get(target, nil)
+   req, err := http.NewRequest("GET", target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -97,7 +112,7 @@ func GetContent(contentId int) (*ContentResponse, error) {
 }
 
 type LicenseServer struct {
-   Url             *Url
+   Url             string `json:"url"`
    HdcpVersion     string `json:"hdcp_version"`
    AuthHeaderKey   string `json:"auth_header_key"`
    AuthHeaderValue string `json:"auth_header_value"`
@@ -108,20 +123,8 @@ func (*LicenseServer) CachePath() string {
 }
 
 type Manifest struct {
-   Url      *Url
-   Duration int `json:"duration"`
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
+   Url      string `json:"url"`
+   Duration int    `json:"duration"`
 }
 
 type VideoResource struct {
