@@ -4,6 +4,7 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/tubi"
    "log"
+   "net/url"
    "os"
 )
 
@@ -68,7 +69,11 @@ func (c *client) do_content_id() error {
       return err
    }
    video := content.VideoResources[0]
-   manifest, err := maya.ListDash(&video.Manifest.Url.Url)
+   address, err := url.Parse(video.Manifest.Url)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }
