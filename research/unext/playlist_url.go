@@ -9,26 +9,84 @@ import (
    "net/url"
 )
 
-const persistedQueryHashPlaylistURL = "a2309e22a6819ff747cf9a389dd78db35fa3c386fac1d53461061ba20fa44e34"
+const cosmoGetPlaylistURLQuery = `query cosmo_getPlaylistUrl($code: String, $playMode: String, $bitrateLow: Int, $bitrateHigh: Int, $validationOnly: Boolean) {
+  webfront_playlistUrl(
+    code: $code
+    playMode: $playMode
+    bitrateLow: $bitrateLow
+    bitrateHigh: $bitrateHigh
+    validationOnly: $validationOnly
+  ) {
+    subTitle
+    playToken
+    playTokenHash
+    beaconSpan
+    result {
+      errorCode
+      errorMessage
+      __typename
+    }
+    resultStatus
+    licenseExpireDate
+    urlInfo {
+      code
+      startPoint
+      resumePoint
+      endPoint
+      endrollStartPosition
+      holderId
+      saleTypeCode
+      sceneSearchList {
+        IMS_AD1
+        IMS_L
+        IMS_M
+        IMS_S
+        __typename
+      }
+      movieProfile {
+        cdnId
+        type
+        playlistUrl
+        movieAudioList {
+          audioType
+          __typename
+        }
+        licenseUrlList {
+          type
+          licenseUrl
+          __typename
+        }
+        __typename
+      }
+      umcContentId
+      movieSecurityLevelCode
+      captionFlg
+      dubFlg
+      commodityCode
+      movieAudioList {
+        audioType
+        __typename
+      }
+      moviePartsPositionList {
+        type
+        fromSeconds
+        endSeconds
+        hasRemainingPart
+        __typename
+      }
+      __typename
+    }
+    __typename
+  }
+}
+`
 
-// Inputs that come from previous requests / session state.
+// PlaylistURLInputs holds only the values that come from previous requests or session state.
 type PlaylistURLInputs struct {
-   EpisodeCode    string // e.g. "ED00092859" (from cosmo_getVideoTitleEpisodes / cosmo_getVideoTitle)
-   PlayMode       string // e.g. "caption" (or "dub")
-   BitrateLow     int    // e.g. 192
-   BitrateHigh    *int   // null in capture; pass nil to send null
-   ValidationOnly bool   // false in capture
-
-   // Tracking / client identifiers (zxuid looks generated per session; zxemp appears stable).
-   ZXUID string // e.g. "c1ee23a13f82"
-   ZXEMP string // e.g. "29719883"
-
-   // Auth/session cookie string (must include _at access token, _rt refresh token, _ut, _st, etc.)
-   Cookie string
-
-   // Optional overrides
-   UserAgent string
-   Referer   string // e.g. https://video.unext.jp/play/SID0020149/ED00092859
+   EpisodeCode string // from cosmo_getVideoTitleEpisodes / cosmo_getVideoTitle
+   ZXUID       string // session-generated tracking ID
+   ZXEMP       string // session tracking ID
+   Cookie      string // auth session cookies (_at, _rt, _ut, _st, etc.)
 }
 
 // PlaylistURLResult holds the parsed result of the cosmo_getPlaylistUrl request.
@@ -38,37 +96,32 @@ type PlaylistURLResult struct {
    HLSURL        string
    SmoothURL     string
    MovieFileCode string
-   LicenseURLs   map[string]string // drm type -> license url
+   LicenseURLs   map[string]string
    Raw           []byte
    Response      *graphQLResponse
 }
 
 // GetPlaylistURL performs the cosmo_getPlaylistUrl request and returns the playlist URLs.
-// It prefers the DASH MPD URL but also extracts HLS and Smooth urls.
-func GetPlaylistURL(in PlaylistURLInputs) (*PlaylistURLResult, error) {
+func GetPlaylistURL(in *PlaylistURLInputs) (*PlaylistURLResult, error) {
+   if in == nil {
+      return nil, fmt.Errorf("inputs must not be nil")
+   }
+
    variables := map[string]interface{}{
       "code":           in.EpisodeCode,
-      "playMode":       in.PlayMode,
-      "bitrateLow":     in.BitrateLow,
-      "bitrateHigh":    in.BitrateHigh,
-      "validationOnly": in.ValidationOnly,
+      "playMode":       "caption",
+      "bitrateLow":     192,
+      "bitrateHigh":    nil,
+      "validationOnly": false,
    }
    variablesJSON, _ := json.Marshal(variables)
-
-   extensions := map[string]interface{}{
-      "persistedQuery": map[string]interface{}{
-         "version":    1,
-         "sha256Hash": persistedQueryHashPlaylistURL,
-      },
-   }
-   extensionsJSON, _ := json.Marshal(extensions)
 
    q := url.Values{}
    q.Set("zxuid", in.ZXUID)
    q.Set("zxemp", in.ZXEMP)
    q.Set("operationName", "cosmo_getPlaylistUrl")
    q.Set("variables", string(variablesJSON))
-   q.Set("extensions", string(extensionsJSON))
+   q.Set("query", cosmoGetPlaylistURLQuery)
 
    reqURL := "https://cc.unext.jp/?" + q.Encode()
 
@@ -77,16 +130,12 @@ func GetPlaylistURL(in PlaylistURLInputs) (*PlaylistURLResult, error) {
       return nil, err
    }
 
-   ua := in.UserAgent
-   if ua == "" {
-      ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0"
-   }
-   req.Header.Set("User-Agent", ua)
+   req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0")
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Accept-Language", "en-US,en;q=0.5")
    req.Header.Set("Accept-Encoding", "identity")
    req.Header.Set("Content-Type", "application/json")
-   req.Header.Set("Referer", in.Referer)
+   req.Header.Set("Referer", "https://video.unext.jp/")
    req.Header.Set("Origin", "https://video.unext.jp")
    req.Header.Set("apollographql-client-name", "cosmo")
    req.Header.Set("apollographql-client-version", "v126.0-prod-017e302")
@@ -156,7 +205,6 @@ func GetPlaylistURL(in PlaylistURLInputs) (*PlaylistURLResult, error) {
    return result, nil
 }
 
-// Minimal structs to parse the GraphQL response.
 type graphQLResponse struct {
    Data struct {
       WebfrontPlaylistURL struct {
