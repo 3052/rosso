@@ -1,3 +1,4 @@
+// 1_get_login_page.go
 package unext
 
 import (
@@ -27,6 +28,10 @@ func GetLoginPage(client *http.Client) (string, error) {
       return "", err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return "", fmt.Errorf("login page returned status %d", resp.StatusCode)
+   }
 
    body, err := io.ReadAll(resp.Body)
    if err != nil {
