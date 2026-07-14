@@ -19,7 +19,6 @@ func main() {
 type client struct {
    Email     maya.FlagString
    PlayReady maya.FlagString
-   Proxy     maya.FlagString
    address   maya.FlagString
    hls       maya.FlagString
    media     maya.FlagString
@@ -45,7 +44,6 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "email", Value: &c.Email},
       {Name: "passcode", Value: &c.passcode},
       {Name: "profile-id", Value: &c.profile},
@@ -59,11 +57,8 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if flags.IsSet(&c.PlayReady) || flags.IsSet(&c.Proxy) {
+   if flags.IsSet(&c.PlayReady) {
       return c.cache.Encode(c)
-   }
-   if err := maya.SetProxy(string(c.Proxy)); err != nil {
-      return err
    }
    if flags.IsSet(&c.Email) {
       return c.do_email()
