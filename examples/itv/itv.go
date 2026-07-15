@@ -18,7 +18,6 @@ func main() {
 }
 
 type client struct {
-   Proxy    maya.FlagString
    Widevine maya.FlagString
    address  maya.FlagString
    dash     maya.FlagString
@@ -41,7 +40,6 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "address", Value: &c.address},
       {Name: "playlist", Value: &c.playlist},
       {Name: "dash-id", Value: &c.dash},
@@ -53,14 +51,8 @@ func (c *client) do() error {
    if flags.IsSet(&c.Widevine) {
       return c.cache.Encode(c)
    }
-   if flags.IsSet(&c.Proxy) {
-      return c.cache.Encode(c)
-   }
    if c.address != "" {
       return c.do_address()
-   }
-   if err := maya.SetProxy(string(c.Proxy)); err != nil {
-      return err
    }
    if c.playlist != "" {
       return c.do_playlist()

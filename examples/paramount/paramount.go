@@ -19,7 +19,6 @@ type client struct {
    App       maya.FlagString
    ContentId maya.FlagString
    PlayReady maya.FlagString
-   Proxy     maya.FlagString
    cookie    maya.FlagBool
    dash      maya.FlagString
    password  maya.FlagString
@@ -42,7 +41,6 @@ func (c *client) do() error {
    flags := maya.FlagSet{
       {Name: "app", Value: &c.App, Usage: paramount.AppIds()},
       {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "username", Value: &c.username, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "username"},
       {Name: "content-id", Value: &c.ContentId},
@@ -57,12 +55,6 @@ func (c *client) do() error {
    }
    if flags.IsSet(&c.PlayReady) {
       return c.cache.Encode(c)
-   }
-   if flags.IsSet(&c.Proxy) {
-      return c.cache.Encode(c)
-   }
-   if err := maya.SetProxy(string(c.Proxy)); err != nil {
-      return err
    }
    if c.username != "" {
       if c.password != "" {

@@ -18,7 +18,6 @@ func main() {
 
 type client struct {
    PlayReady maya.FlagString
-   Proxy     maya.FlagString
    dash      maya.FlagString
    edit      maya.FlagString
    initiate  maya.FlagString
@@ -45,7 +44,6 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "initiate", Value: &c.initiate, Usage: hboMax.Markets},
       {Name: "login", Value: &c.login},
       {Name: "search", Value: &c.search},
@@ -61,12 +59,6 @@ func (c *client) do() error {
    }
    if flags.IsSet(&c.PlayReady) {
       return c.cache.Encode(c)
-   }
-   if flags.IsSet(&c.Proxy) {
-      return c.cache.Encode(c)
-   }
-   if err := maya.SetProxy(string(c.Proxy)); err != nil {
-      return err
    }
    if c.initiate != "" {
       return c.do_initiate()

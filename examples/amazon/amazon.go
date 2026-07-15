@@ -19,7 +19,6 @@ func main() {
 type client struct {
    DeviceTypeId       maya.FlagString
    PlayReady          maya.FlagString
-   Proxy              maya.FlagString
    TitleId            maya.FlagString
    bitrate_adaptation maya.FlagString
    complete_login     maya.FlagBool
@@ -52,7 +51,6 @@ func (c *client) do() error {
    flags := maya.FlagSet{
       {Name: "device-type-id", Value: &c.DeviceTypeId},
       {Name: "playReady-folder", Value: &c.PlayReady},
-      {Name: "proxy", Value: &c.Proxy},
       {Name: "initiate-login", Value: &c.initiate_login},
       {Name: "complete-login", Value: &c.complete_login},
       {Name: "title-id", Value: &c.TitleId},
@@ -81,13 +79,8 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if err := maya.SetProxy(string(c.Proxy)); err != nil {
-      return err
-   }
    switch {
    case flags.IsSet(&c.DeviceTypeId):
-      return c.cache.Encode(c)
-   case flags.IsSet(&c.Proxy):
       return c.cache.Encode(c)
    case flags.IsSet(&c.PlayReady):
       return c.cache.Encode(c)
