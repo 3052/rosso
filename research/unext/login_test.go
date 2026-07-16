@@ -1,0 +1,94 @@
+package unext
+
+import (
+   "encoding/json"
+   "net/http"
+   "net/http/cookiejar"
+   "testing"
+)
+
+func TestLogin(t *testing.T) {
+   // --- Fetch credentials from credential.exe ---
+   creds, err := GetCredentials("unext.jp")
+   if err != nil {
+      t.Fatalf("GetCredentials: %v", err)
+   }
+   t.Logf("found %d credential(s) for unext.jp", len(creds))
+
+   cred := creds[0]
+   t.Logf("using username: %s", cred.Username)
+
+   // --- Generate PKCE pair and random state/nonce ---
+   codeVerifier, codeChallenge, err := pkcePair()
+   if err != nil {
+      t.Fatalf("pkcePair: %v", err)
+   }
+
+   state, err := generateRandomString(43)
+   if err != nil {
+      t.Fatalf("generateRandomString (state): %v", err)
+   }
+
+   nonce, err := generateRandomString(43)
+   if err != nil {
+      t.Fatalf("generateRandomString (nonce): %v", err)
+   }
+
+   t.Logf("code_verifier  = %s", codeVerifier)
+   t.Logf("code_challenge = %s", codeChallenge)
+   t.Logf("state          = %s", state)
+   t.Logf("nonce          = %s", nonce)
+
+   // --- HTTP client with cookie jar (needed for oauth_session_id) ---
+   jar, err := cookiejar.New(nil)
+   if err != nil {
+      t.Fatalf("cookiejar.New: %v", err)
+   }
+
+   client := &http.Client{
+      Jar: jar,
+      // Disable auto-redirect so we can capture 302 Location headers.
+      CheckRedirect: func(req *http.Request, via []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
+   }
+
+   // --- Step 1: GET /oauth2/auth → challenge_id ---
+   challengeID, err := Step1GetChallenge(client, state, nonce)
+   if err != nil {
+      t.Fatalf("Step1GetChallenge: %v", err)
+   }
+   t.Logf("challenge_id = %s", challengeID)
+
+   // --- Step 2: POST /oauth2/login → post_auth_endpoint (+ cookie) ---
+   postAuthEndpoint, err := Step2Login(client, cred.Username, cred.Password, challengeID)
+   if err != nil {
+      t.Fatalf("Step2Login: %v", err)
+   }
+   t.Logf("post_auth_endpoint = %s", postAuthEndpoint)
+
+   // --- Step 3: POST /oauth2/auth (with code_challenge) → auth code ---
+   authCode, err := Step3GetAuthCode(client, postAuthEndpoint, codeChallenge)
+   if err != nil {
+      t.Fatalf("Step3GetAuthCode: %v", err)
+   }
+   t.Logf("auth code = %s", authCode)
+
+   // --- Step 4: POST /oauth2/token (with code_verifier) → tokens ---
+   tokens, err := Step4GetToken(client, authCode, codeVerifier)
+   if err != nil {
+      t.Fatalf("Step4GetToken: %v", err)
+   }
+
+   // --- Assert we got meaningful tokens ---
+   if tokens.AccessToken == "" {
+      t.Fatal("access_token is empty")
+   }
+   if tokens.RefreshToken == "" {
+      t.Fatal("refresh_token is empty")
+   }
+
+   // --- Print final result ---
+   out, _ := json.MarshalIndent(tokens, "", "  ")
+   t.Logf("tokens:\n%s", string(out))
+}

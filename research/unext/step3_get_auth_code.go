@@ -1,4 +1,4 @@
-package main
+package unext
 
 import (
    "fmt"
@@ -8,9 +8,9 @@ import (
    "strings"
 )
 
-// step3GetAuthCode sends the code_challenge to the post_auth_endpoint and
+// Step3GetAuthCode sends the code_challenge to the post_auth_endpoint and
 // extracts the authorization code from the 302 redirect Location header.
-func step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge string) (string, error) {
+func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge string) (string, error) {
    // postAuthEndpoint is a path like:
    // /oauth2/auth?challenge_id=...&client_id=...&nonce=...&redirect_uri=...&response_type=code&scope=offline+unext&state=...
    fullURL := "https://oauth.unext.jp" + postAuthEndpoint
@@ -57,6 +57,5 @@ func step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge strin
       return "", fmt.Errorf("step3: code not found in Location: %s", location)
    }
 
-   fmt.Printf("[step3] auth code = %s\n", code)
    return code, nil
 }

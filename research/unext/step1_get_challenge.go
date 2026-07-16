@@ -1,4 +1,4 @@
-package main
+package unext
 
 import (
    "fmt"
@@ -7,9 +7,9 @@ import (
    "net/url"
 )
 
-// step1GetChallenge performs the initial GET to /oauth2/auth and extracts
+// Step1GetChallenge performs the initial GET to /oauth2/auth and extracts
 // the challenge_id from the 302 redirect Location header.
-func step1GetChallenge(client *http.Client, state, nonce string) (string, error) {
+func Step1GetChallenge(client *http.Client, state, nonce string) (string, error) {
    baseURL := "https://oauth.unext.jp/oauth2/auth"
 
    params := url.Values{}
@@ -56,6 +56,5 @@ func step1GetChallenge(client *http.Client, state, nonce string) (string, error)
       return "", fmt.Errorf("step1: challenge_id not found in Location: %s", location)
    }
 
-   fmt.Printf("[step1] challenge_id = %s\n", challengeID)
    return challengeID, nil
 }

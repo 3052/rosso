@@ -1,4 +1,4 @@
-package main
+package unext
 
 import (
    "bytes"
@@ -8,9 +8,9 @@ import (
    "net/http"
 )
 
-// step2Login authenticates with email/password and returns the post_auth_endpoint.
+// Step2Login authenticates with email/password and returns the post_auth_endpoint.
 // The response also sets an oauth_session_id cookie which is stored in the client's cookie jar.
-func step2Login(client *http.Client, email, password, challengeID string) (string, error) {
+func Step2Login(client *http.Client, email, password, challengeID string) (string, error) {
    loginURL := "https://oauth.unext.jp/oauth2/login"
 
    body := map[string]interface{}{
@@ -56,7 +56,6 @@ func step2Login(client *http.Client, email, password, challengeID string) (strin
       return "", fmt.Errorf("step2: post_auth_endpoint is empty")
    }
 
-   fmt.Printf("[step2] post_auth_endpoint = %s\n", loginResp.PostAuthEndpoint)
    return loginResp.PostAuthEndpoint, nil
 }
 

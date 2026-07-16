@@ -1,4 +1,4 @@
-package main
+package unext
 
 import (
    "encoding/json"
@@ -18,8 +18,8 @@ type TokenResponse struct {
    TokenType    string `json:"token_type"`
 }
 
-// step4GetToken exchanges the authorization code for access and refresh tokens.
-func step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenResponse, error) {
+// Step4GetToken exchanges the authorization code for access and refresh tokens.
+func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenResponse, error) {
    tokenURL := "https://oauth.unext.jp/oauth2/token"
 
    form := url.Values{}
@@ -51,16 +51,10 @@ func step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
       return nil, fmt.Errorf("step4: expected 200, got %d: %s", resp.StatusCode, string(respBody))
    }
 
-   // Decompress if gzipped (Go handles this automatically via Transport)
-
    var tokenResp TokenResponse
    if err := json.Unmarshal(respBody, &tokenResp); err != nil {
       return nil, fmt.Errorf("step4: parsing response: %w", err)
    }
-
-   fmt.Printf("[step4] access_token  = %s...\n", tokenResp.AccessToken[:50])
-   fmt.Printf("[step4] refresh_token = %s\n", tokenResp.RefreshToken)
-   fmt.Printf("[step4] expires_in    = %d\n", tokenResp.ExpiresIn)
 
    return &tokenResp, nil
 }
