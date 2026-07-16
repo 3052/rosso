@@ -1,6 +1,7 @@
 package unext
 
 import (
+   "encoding/json"
    "fmt"
    "io"
    "net/http"
@@ -79,9 +80,45 @@ const cosmoGetPlaylistURLQuery = `query cosmo_getPlaylistUrl($code: String, $pla
 }
 `
 
+// PlaylistResponse represents the GraphQL response from the playlist endpoint.
+type PlaylistResponse struct {
+   Data struct {
+      WebfrontPlaylistUrl struct {
+         SubTitle      string `json:"subTitle"`
+         PlayToken     string `json:"playToken"`
+         PlayTokenHash string `json:"playTokenHash"`
+         BeaconSpan    int    `json:"beaconSpan"`
+         Result        struct {
+            ErrorCode    string `json:"errorCode"`
+            ErrorMessage string `json:"errorMessage"`
+         } `json:"result"`
+         ResultStatus      int    `json:"resultStatus"`
+         LicenseExpireDate string `json:"licenseExpireDate"`
+         UrlInfo           []struct {
+            Code         string `json:"code"`
+            MovieProfile []struct {
+               CdnId          string `json:"cdnId"`
+               Type           string `json:"type"`
+               PlaylistUrl    string `json:"playlistUrl"`
+               MovieAudioList []struct {
+                  AudioType string `json:"audioType"`
+               } `json:"movieAudioList"`
+               LicenseUrlList []struct {
+                  Type       string `json:"type"`
+                  LicenseUrl string `json:"licenseUrl"`
+               } `json:"licenseUrlList"`
+            } `json:"movieProfile"`
+         } `json:"urlInfo"`
+      } `json:"webfront_playlistUrl"`
+   } `json:"data"`
+   Errors []struct {
+      Message string `json:"message"`
+   } `json:"errors"`
+}
+
 // GetPlaylistURL calls the cosmo GraphQL endpoint with hardcoded parameters.
 // Only the accessToken is required.
-func GetPlaylistURL(client *http.Client, accessToken string) ([]byte, error) {
+func GetPlaylistURL(client *http.Client, accessToken string) (*PlaylistResponse, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
@@ -128,5 +165,46 @@ func GetPlaylistURL(client *http.Client, accessToken string) ([]byte, error) {
       return nil, fmt.Errorf("get_playlist: unexpected status %d: %s", resp.StatusCode, string(body))
    }
 
-   return body, nil
+   var playlistResp PlaylistResponse
+   if err := json.Unmarshal(body, &playlistResp); err != nil {
+      return nil, fmt.Errorf("get_playlist: parsing response: %w", err)
+   }
+
+   if len(playlistResp.Errors) > 0 {
+      return nil, fmt.Errorf("get_playlist: graphql errors: %v", playlistResp.Errors)
+   }
+
+   if playlistResp.Data.WebfrontPlaylistUrl.ResultStatus != 200 {
+      return nil, fmt.Errorf("get_playlist: resultStatus %d (expected 200, possibly geo-blocked or region-restricted)",
+         playlistResp.Data.WebfrontPlaylistUrl.ResultStatus)
+   }
+
+   return &playlistResp, nil
+}
+
+// GetDASHPlaylistURL finds the DASH MPD URL in the response and appends the play_token query parameter.
+func (p *PlaylistResponse) GetDASHPlaylistURL() (*url.URL, error) {
+   playToken := p.Data.WebfrontPlaylistUrl.PlayToken
+   if playToken == "" {
+      return nil, fmt.Errorf("play token is empty")
+   }
+
+   for _, urlInfo := range p.Data.WebfrontPlaylistUrl.UrlInfo {
+      for _, profile := range urlInfo.MovieProfile {
+         if profile.Type == "DASH" {
+            parsedURL, err := url.Parse(profile.PlaylistUrl)
+            if err != nil {
+               return nil, fmt.Errorf("parsing DASH playlist URL: %w", err)
+            }
+
+            queries := parsedURL.Query()
+            queries.Add("play_token", playToken)
+            parsedURL.RawQuery = queries.Encode()
+
+            return parsedURL, nil
+         }
+      }
+   }
+
+   return nil, fmt.Errorf("no DASH MPD URL found in response")
 }
