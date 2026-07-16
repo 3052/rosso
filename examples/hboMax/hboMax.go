@@ -17,15 +17,15 @@ func main() {
 }
 
 type client struct {
-   PlayReady maya.FlagString
-   dash      maya.FlagString
-   edit      maya.FlagString
-   initiate  maya.FlagString
-   login     maya.FlagBool
-   movie     maya.FlagString
-   search    maya.FlagString
-   season    maya.FlagInt
-   show      maya.FlagString
+   PlayReady   maya.FlagString
+   dash        maya.FlagString
+   edit        maya.FlagString
+   initiate    maya.FlagString
+   login       maya.FlagBool
+   movie       maya.FlagString
+   search      maya.FlagString
+   season      maya.FlagInt
+   show        maya.FlagString
    min_bitrate maya.FlagInt
 
    cache maya.Cache
@@ -96,9 +96,9 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.PlayReady),
-      Drm:     maya.DrmPlayReady,
-      License: playback.PlayReadyRequest,
+      Device:     string(c.PlayReady),
+      Drm:        maya.DrmPlayReady,
+      License:    playback.PlayReadyRequest,
       MinBitrate: int(c.min_bitrate),
    })
 }

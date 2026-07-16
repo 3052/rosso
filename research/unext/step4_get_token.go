@@ -9,6 +9,13 @@ import (
    "strings"
 )
 
+func min(a, b int) int {
+   if a < b {
+      return a
+   }
+   return b
+}
+
 // TokenResponse is the JSON returned by /oauth2/token.
 type TokenResponse struct {
    AccessToken  string `json:"access_token"`
@@ -37,7 +44,6 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("accept-encoding", "gzip")
 
    resp, err := client.Do(req)
    if err != nil {
@@ -53,7 +59,7 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
 
    var tokenResp TokenResponse
    if err := json.Unmarshal(respBody, &tokenResp); err != nil {
-      return nil, fmt.Errorf("step4: parsing response: %w", err)
+      return nil, fmt.Errorf("step4: parsing response: %w (body starts with: %q)", err, string(respBody[:min(len(respBody), 50)]))
    }
 
    return &tokenResp, nil

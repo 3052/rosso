@@ -26,7 +26,6 @@ func Step1GetChallenge(client *http.Client, state, nonce string) (string, error)
    }
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
-   req.Header.Set("accept-encoding", "gzip")
 
    // Do NOT follow redirects — we need the Location header.
    resp, err := client.Do(req)

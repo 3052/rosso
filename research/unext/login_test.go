@@ -7,6 +7,8 @@ import (
    "testing"
 )
 
+const tokensFile = "tokens.json"
+
 func TestLogin(t *testing.T) {
    // --- Fetch credentials from credential.exe ---
    creds, err := GetCredentials("unext.jp")
@@ -91,4 +93,10 @@ func TestLogin(t *testing.T) {
    // --- Print final result ---
    out, _ := json.MarshalIndent(tokens, "", "  ")
    t.Logf("tokens:\n%s", string(out))
+
+   // --- Save tokens to file for future tests ---
+   if err := SaveTokens(tokensFile, tokens); err != nil {
+      t.Fatalf("SaveTokens: %v", err)
+   }
+   t.Logf("tokens saved to %s", tokensFile)
 }

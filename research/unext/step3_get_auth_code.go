@@ -26,7 +26,6 @@ func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge strin
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("accept-encoding", "gzip")
 
    // Do NOT follow redirects.
    resp, err := client.Do(req)
