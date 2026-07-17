@@ -61,3 +61,5 @@ mitmproxy --mode upstream:http://USERNAME:PASSWORD@isp.decodo.com:10001
 emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080
 adb shell "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
 ~~~
+
+Osaka is blocked but Tokyo works - I was tricked because the Osaka error is weird
