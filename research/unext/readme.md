@@ -44,5 +44,20 @@ adb shell input text HELLO
 
 ~~~
 adb shell settings put global http_proxy 10.0.2.2:8080
+
+adb shell settings get global global_http_proxy_host
+adb shell settings get global global_http_proxy_port
+adb shell settings get global http_proxy
+
+adb shell settings delete global global_http_proxy_host
+adb shell settings delete global global_http_proxy_port
 adb shell settings delete global http_proxy
+~~~
+
+or:
+
+~~~
+mitmproxy --mode upstream:http://USERNAME:PASSWORD@isp.decodo.com:10001
+emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080
+adb shell "sysctl -w net.ipv6.conf.all.disable_ipv6=1"
 ~~~
