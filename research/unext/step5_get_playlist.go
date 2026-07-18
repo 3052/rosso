@@ -100,9 +100,50 @@ fragment PlayList on PlaylistUrl {
   }
 }`
 
+// AudioTrack describes an audio track language.
+type AudioTrack struct {
+   Lang     string `json:"lang"`
+   IsNative bool   `json:"isNative"`
+}
+
+// DownloadTitleMeta is metadata about the downloaded title.
+type DownloadTitleMeta struct {
+   TitleInKatakana string   `json:"titleInKatakana"`
+   Keywords        []string `json:"keywords"`
+}
+
 // GraphQLError represents a GraphQL error.
 type GraphQLError struct {
    Message string `json:"message"`
+}
+
+// LicenseUrl describes a DRM license endpoint.
+type LicenseUrl struct {
+   Type       string `json:"type"`
+   LicenseUrl string `json:"licenseUrl"`
+}
+
+// MovieAudio describes the audio codec type.
+type MovieAudio struct {
+   AudioType string `json:"audioType"`
+}
+
+// MoviePartsPosition describes a part of the movie (e.g. ENDING).
+type MoviePartsPosition struct {
+   Type             string  `json:"type"`
+   FromSeconds      float64 `json:"fromSeconds"`
+   EndSeconds       float64 `json:"endSeconds"`
+   HasRemainingPart bool    `json:"hasRemainingPart"`
+}
+
+// MovieProfile describes a streaming profile (DASH, HLS, SMOOTH, etc.).
+type MovieProfile struct {
+   CdnId          string       `json:"cdnId"`
+   Type           string       `json:"type"`
+   PlaylistUrl    string       `json:"playlistUrl"`
+   MovieAudioList []MovieAudio `json:"movieAudioList"`
+   LicenseUrlList []LicenseUrl `json:"licenseUrlList"`
+   AudioTrackList []AudioTrack `json:"audioTrackList"`
 }
 
 // PlaylistResponse is the JSON envelope returned by the GraphQL endpoint.
@@ -113,62 +154,24 @@ type PlaylistResponse struct {
    Errors []GraphQLError `json:"errors"`
 }
 
+// PlaylistResult contains error info from the playlist request.
+type PlaylistResult struct {
+   ErrorCode    string `json:"errorCode"`
+   ErrorMessage string `json:"errorMessage"`
+}
+
 // PlaylistUrl maps to the PlayList fragment on the PlaylistUrl type.
 type PlaylistUrl struct {
-   SubTitle          string `json:"subTitle"`
-   PlayToken         string `json:"playToken"`
-   PlayTokenHash     string `json:"playTokenHash"`
-   BeaconSpan        int    `json:"beaconSpan"`
-   ResultStatus      string `json:"resultStatus"`
-   LicenseExpireDate string `json:"licenseExpireDate"`
-   IsKids            bool   `json:"isKids"`
-   DownloadTitleMeta *struct {
-      TitleInKatakana string   `json:"titleInKatakana"`
-      Keywords        []string `json:"keywords"`
-   } `json:"downloadTitleMeta"`
-   UrlInfo *struct {
-      Code                 string  `json:"code"`
-      StartPoint           float64 `json:"startPoint"`
-      EndPoint             float64 `json:"endPoint"`
-      ResumePoint          float64 `json:"resumePoint"`
-      EndrollStartPosition float64 `json:"endrollStartPosition"`
-      CommodityCode        string  `json:"commodityCode"`
-      SaleTypeCode         string  `json:"saleTypeCode"`
-      CaptionFlg           bool    `json:"captionFlg"`
-      DubFlg               bool    `json:"dubFlg"`
-      SceneSearchList      *struct {
-         IMS_AD1 string `json:"ims_ad1"`
-         IMS_L   string `json:"ims_l"`
-         IMS_M   string `json:"ims_m"`
-         IMS_S   string `json:"ims_s"`
-      } `json:"sceneSearchList"`
-      MovieProfile *struct {
-         CdnId          string `json:"cdnId"`
-         Type           string `json:"type"`
-         PlaylistUrl    string `json:"playlistUrl"`
-         MovieAudioList []struct {
-            AudioType string `json:"audioType"`
-         } `json:"movieAudioList"`
-         LicenseUrlList []struct {
-            Type       string `json:"type"`
-            LicenseUrl string `json:"licenseUrl"`
-         } `json:"licenseUrlList"`
-         AudioTrackList []struct {
-            Lang     string `json:"lang"`
-            IsNative bool   `json:"isNative"`
-         } `json:"audioTrackList"`
-      } `json:"movieProfile"`
-      MoviePartsPositionList []struct {
-         Type             string  `json:"type"`
-         FromSeconds      float64 `json:"fromSeconds"`
-         EndSeconds       float64 `json:"endSeconds"`
-         HasRemainingPart bool    `json:"hasRemainingPart"`
-      } `json:"moviePartsPositionList"`
-   } `json:"urlInfo"`
-   Result *struct {
-      ErrorCode    string `json:"errorCode"`
-      ErrorMessage string `json:"errorMessage"`
-   } `json:"result"`
+   SubTitle          string             `json:"subTitle"`
+   PlayToken         string             `json:"playToken"`
+   PlayTokenHash     string             `json:"playTokenHash"`
+   BeaconSpan        int                `json:"beaconSpan"`
+   ResultStatus      int                `json:"resultStatus"`
+   LicenseExpireDate string             `json:"licenseExpireDate"`
+   IsKids            bool               `json:"isKids"`
+   DownloadTitleMeta *DownloadTitleMeta `json:"downloadTitleMeta"`
+   UrlInfo           []UrlInfo          `json:"urlInfo"`
+   Result            *PlaylistResult    `json:"result"`
 }
 
 // Step5GetPlaylist fetches the playlist using the access token obtained in step 4.
@@ -246,4 +249,46 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
    }
 
    return plResp.Data.WebfrontPlaylistUrl, nil
+}
+
+// MPDURL searches the playlist for the first DASH movie profile and returns
+// its playlistUrl as a *url.URL. Returns an error if no DASH profile is found
+// or the URL cannot be parsed.
+func (p *PlaylistUrl) MPDURL() (*url.URL, error) {
+   for _, ui := range p.UrlInfo {
+      for _, mp := range ui.MovieProfile {
+         if mp.Type == "DASH" && mp.PlaylistUrl != "" {
+            u, err := url.Parse(mp.PlaylistUrl)
+            if err != nil {
+               return nil, fmt.Errorf("parsing MPD URL: %w", err)
+            }
+            return u, nil
+         }
+      }
+   }
+   return nil, fmt.Errorf("no DASH movie profile found")
+}
+
+// SceneSearchList contains IMS (image search) URLs.
+type SceneSearchList struct {
+   IMS_AD1 string `json:"ims_ad1"`
+   IMS_L   string `json:"ims_l"`
+   IMS_M   string `json:"ims_m"`
+   IMS_S   string `json:"ims_s"`
+}
+
+// UrlInfo represents one entry in the urlInfo array.
+type UrlInfo struct {
+   Code                   string               `json:"code"`
+   StartPoint             float64              `json:"startPoint"`
+   EndPoint               float64              `json:"endPoint"`
+   ResumePoint            float64              `json:"resumePoint"`
+   EndrollStartPosition   float64              `json:"endrollStartPosition"`
+   CommodityCode          string               `json:"commodityCode"`
+   SaleTypeCode           string               `json:"saleTypeCode"`
+   CaptionFlg             bool                 `json:"captionFlg"`
+   DubFlg                 bool                 `json:"dubFlg"`
+   SceneSearchList        *SceneSearchList     `json:"sceneSearchList"`
+   MovieProfile           []MovieProfile       `json:"movieProfile"`
+   MoviePartsPositionList []MoviePartsPosition `json:"moviePartsPositionList"`
 }
