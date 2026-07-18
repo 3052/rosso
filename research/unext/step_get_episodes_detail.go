@@ -9,18 +9,331 @@ import (
    "net/url"
 )
 
-// videoDetailQuery is the pruned Mad_VideoDetail query — only requests episode IDs.
+// videoDetailQuery is the full Mad_VideoDetail query (required by server safelist).
 const videoDetailQuery = `query Mad_VideoDetail(
   $titleCode: ID!
+  $episodeCode: ID
+  $featureCode: ID
 ) {
-  webfront_title_stage(id: $titleCode) {
-    titleName
+  webfront_title_stage(id: $titleCode, featureCode: $featureCode) {
+    __typename
+    ...TitleStageCard
+  }
+  webfront_title_relatedTitles(id: $titleCode) {
+    titles {
+      __typename
+      ...BlockVideoTitleInfo
+    }
+  }
+  videoRelatedLives(titleCode: $titleCode, includePositionPlayLive: true) {
+    liveList {
+      __typename
+      ...BlockLiveInfo
+    }
   }
   webfront_title_titleEpisodes(id: $titleCode) {
     episodes {
-      id
+      __typename
+      ...ListVideoEpisodeInfo
     }
   }
+  webfront_title_relatedBooks(id: $titleCode) {
+    books {
+      __typename
+      ...BlockBookTitleInfo
+    }
+  }
+  webfront_title_credits(id: $titleCode, page: 1, pageSize: 100) {
+    hasEpisodeCredits
+    titleCredits {
+      __typename
+      ...Cast
+    }
+  }
+  webfront_title_recommendedTitles(id: $titleCode) {
+    titles {
+      __typename
+      ...BlockVideoTitleInfo
+    }
+  }
+}
+
+fragment BlockVideoEpisodeInfo on Episode {
+  id
+  episodeTitleInfo {
+    id
+    name
+  }
+  episodeName
+  thumbnail {
+    standard
+  }
+  hasSubtitle
+  hasDub
+  duration
+  displayNo
+  interruption
+  completeFlag
+  publishStyleCode
+  chromecastFlag
+  productLineupCodeList
+  hasPackRights
+}
+
+fragment ListVideoEpisodeInfo on Episode {
+  __typename
+  ...BlockVideoEpisodeInfo
+  purchaseEpisodeLimitday
+  endrollPosition
+  downloadFlag
+  chromecastFlag
+  maxResolutionCode
+  no
+  saleTypeCode
+  displayDurationText
+  introduction
+  nodCatchupPlanCode
+  nodSpecialPlanCode
+  movieTypeCode
+  maxResolutionCode
+  saleText
+  isNew
+  paymentBadgeList {
+    name
+    code
+  }
+  isPurchased
+  purchaseEpisodeLimitday
+  publicEndDate
+  minimumPrice
+  hasMultiplePrices
+  episodeNotices
+  playButtonName
+}
+
+fragment VideoExclusiveInfo on ExclusiveInfo {
+  isOnlyOn
+  typeCode
+}
+
+fragment SakuhinEventNotices on SakuhinEventNotice {
+  id
+  heading
+  text
+  url
+  publicStartDatetime
+  publicEndDatetime
+}
+
+fragment TitleStageCard on TitleStage {
+  id
+  titleName
+  bookmarkStatus
+  rate
+  userRate
+  productionYear
+  country
+  catchphrase
+  attractions
+  story
+  check
+  seriesCode
+  seriesName
+  publicStartDate
+  publicEndDate
+  publishStyleCode
+  displayPublicEndDate
+  sakuhinNotices
+  publicMainEpisodeCount
+  restrictedCode
+  copyright
+  bookmarkStatus
+  thumbnail {
+    secondary
+    standard
+  }
+  mainGenreId
+  mainGenreName
+  isKids
+  isNew
+  hasDub
+  hasSubtitle
+  lastEpisode
+  updateOfWeek
+  nextUpdateDate
+  nextUpdateDateTime
+  nodSpecialFlag
+  nodCatchupFlag
+  hasMultiprice
+  minimumPrice
+  country
+  productionYear
+  paymentBadgeList {
+    name
+    code
+  }
+  nfreeBadge
+  saleText
+  missingAlertText
+  episode(id: $episodeCode) {
+    __typename
+    ...ListVideoEpisodeInfo
+  }
+  keyEpisodes {
+    current {
+      __typename
+      ...ListVideoEpisodeInfo
+    }
+    latest {
+      __typename
+      ...ListVideoEpisodeInfo
+    }
+  }
+  comingSoonMainEpisodeCount
+  feature {
+    featureName
+    titleComment
+  }
+  exclusive {
+    __typename
+    ...VideoExclusiveInfo
+    isOnlyOn
+    typeCode
+  }
+  isOriginal
+  productLineupCodeList
+  hasPackRights
+  sakuhinEventNotices {
+    __typename
+    ...SakuhinEventNotices
+  }
+}
+
+fragment BlockVideoTitleInfo on Title {
+  id
+  titleName
+  isNew
+  paymentBadgeList {
+    code
+    name
+  }
+  thumbnail {
+    standard
+    secondary
+  }
+  exclusive {
+    __typename
+    ...VideoExclusiveInfo
+    isOnlyOn
+    typeCode
+  }
+  isOriginal
+  productLineupCodeList
+  hasPackRights
+  hasMultiprice
+  minimumPrice
+  isMaxService
+}
+
+fragment BlockLiveInfo on Live {
+  id
+  name
+  saleTypeCode
+  liveTypeCode
+  parentLiveCode
+  positionPlayLiveStartStatus
+  deliveryStartDateTime
+  deliveryEndDateTime
+  programStartDateTime
+  tickets {
+    id
+    name
+    isSelling
+    price
+    saleEndDateTime
+    saleStartDateTime
+  }
+  notices {
+    thumbnail {
+      standard
+      secondary
+    }
+    name
+    publicStartDateTime
+  }
+  isOnlyOn
+  subContentList {
+    typeCode
+    publicStartDateTime
+    publicEndDateTime
+  }
+  paymentBadgeList {
+    name
+    code
+  }
+  allowsTimeshiftedPlayback
+  hasPackRights
+  productLineupCodeList
+}
+
+fragment BlockBookProductInfo on Book {
+  code
+  name
+  thumbnail {
+    standard
+  }
+  credits {
+    personCode
+    penName
+    penNameCode
+    bookAuthorType
+    unextPublishingDetail {
+      thumbnail {
+        standard
+      }
+      introduction
+    }
+  }
+}
+
+fragment BlockBookTitleInfo on BookSakuhin {
+  sakuhinCode: code
+  name
+  freeBookNum
+  isNew
+  bookViewCode
+  isUnextOriginal
+  isChapter
+  isBookPlusTicketAvailable
+  isBookSakuhinTicketAvailable
+  featurePieceCode
+  bookLabel {
+    code
+    name
+  }
+  paymentBadgeList {
+    code
+    name
+  }
+  book {
+    __typename
+    mediaType {
+      code
+      name
+    }
+    ...BlockBookProductInfo
+  }
+  detail {
+    catchSentence
+  }
+}
+
+fragment Cast on Credit {
+  castTypeName
+  characterName
+  personCode
+  personName
+  personNameCode
 }`
 
 // GetEpisodeCodesViaDetail fetches all episode codes (ED...) for a given title
@@ -97,11 +410,9 @@ func GetEpisodeCodesViaDetail(client *http.Client, accessToken, titleCode string
 }
 
 // VideoDetailResponse is the JSON envelope for the Mad_VideoDetail query.
+// Only webfront_title_titleEpisodes is decoded; extra fields are ignored.
 type VideoDetailResponse struct {
    Data struct {
-      WebfrontTitleStage struct {
-         TitleName string `json:"titleName"`
-      } `json:"webfront_title_stage"`
       WebfrontTitleTitleEpisodes struct {
          Episodes []struct {
             ID string `json:"id"`
