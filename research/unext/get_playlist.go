@@ -149,7 +149,7 @@ func GetPlaylistURL(client *http.Client, accessToken string) (*PlaylistResponse,
    req.Header.Add("apollographql-client-name", "cosmo")
    req.Header.Add("apollographql-client-version", "v126.0-prod-017e302")
    req.Header.Add("authorization", "Bearer "+accessToken)
-
+   
    resp, err := client.Do(req)
    if err != nil {
       return nil, fmt.Errorf("get_playlist: sending request: %w", err)
