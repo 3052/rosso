@@ -8,8 +8,8 @@ https://play.google.com/store/apps/details?id=jp.unext.tv.player
 
 ## jp.unext.mediaplayer
 
+- https://apkpure.com/u-next／ユーネクスト：映画、ドラマ、アニメなどが見放題/jp.unext.mediaplayer
 - https://play.google.com/store/apps/details?id=jp.unext.mediaplayer
-- https://u-next.en.uptodown.com
 
 ~~~
 package: name='jp.unext.mediaplayer' versionCode='57100' versionName='5.71.0'
