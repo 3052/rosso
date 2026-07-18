@@ -175,7 +175,7 @@ type PlaylistUrl struct {
 }
 
 // Step5GetPlaylist fetches the playlist using the access token obtained in step 4.
-func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, error) {
+func Step5GetPlaylist(client *http.Client, accessToken, code string) (*PlaylistUrl, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
@@ -183,9 +183,8 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
    }
    // Variables for the GraphQL operation.
    variables := map[string]interface{}{
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-      "code": "ED00092859",
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // "code": "ED00092859",
+      "code":               code,
       "playMode":           "dub",
       "bitrateLow":         192,
       "validationOnly":     false,
@@ -218,7 +217,7 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
    req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return nil, fmt.Errorf("step5: sending request: %w", err)
    }
@@ -247,6 +246,10 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
    }
 
    return plResp.Data.WebfrontPlaylistUrl, nil
+}
+
+func (*PlaylistUrl) CachePath() string {
+   return "rosso/unext/PlaylistUrl"
 }
 
 // MPDURL searches the playlist for the first DASH movie profile and returns

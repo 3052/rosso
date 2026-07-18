@@ -2,11 +2,36 @@
 package unext
 
 import (
+   "crypto/rand"
+   "crypto/sha256"
+   "encoding/base64"
    "fmt"
    "io"
    "net/http"
    "net/url"
 )
+
+// generateRandomString generates a URL-safe random string of the given length.
+func GenerateRandomString(length int) (string, error) {
+   b := make([]byte, length)
+   _, err := rand.Read(b)
+   if err != nil {
+      return "", err
+   }
+   return base64.RawURLEncoding.EncodeToString(b)[:length], nil
+}
+
+// pkcePair generates a code_verifier and its corresponding code_challenge (S256).
+func PkcePair() (verifier string, challenge string, err error) {
+   verifier, err = GenerateRandomString(43)
+   if err != nil {
+      return "", "", err
+   }
+
+   h := sha256.Sum256([]byte(verifier))
+   challenge = base64.RawURLEncoding.EncodeToString(h[:])
+   return verifier, challenge, nil
+}
 
 // Step1GetChallenge performs the initial GET to /oauth2/auth and extracts
 // the challenge_id from the 302 redirect Location header.
@@ -29,7 +54,7 @@ func Step1GetChallenge(client *http.Client, state, nonce string) (string, error)
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
 
    // Do NOT follow redirects — we need the Location header.
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return "", fmt.Errorf("step1: sending request: %w", err)
    }

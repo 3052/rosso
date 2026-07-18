@@ -377,7 +377,7 @@ func GetEpisodeCodesViaDetail(client *http.Client, accessToken, titleCode string
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
 
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return nil, fmt.Errorf("get_episodes_detail: sending request: %w", err)
    }

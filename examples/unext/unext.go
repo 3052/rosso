@@ -2,7 +2,7 @@ package main
 
 import (
    "41.neocities.org/maya"
-   "41.neocities.org/maya/unext"
+   "41.neocities.org/rosso/unext"
    "log"
    "net/http"
    "net/http/cookiejar"
@@ -23,7 +23,7 @@ type client struct {
    password maya.FlagString
    title    maya.FlagString
    episode  maya.FlagString
-   dash     maya.FlagString
+   dash_id  maya.FlagString
 
    cache maya.Cache
 }
@@ -45,7 +45,7 @@ func (c *client) do() error {
       {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "title-code", Value: &c.title},
       {Name: "episode-code", Value: &c.episode},
-      {Name: "dash", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -64,13 +64,13 @@ func (c *client) do() error {
    if c.episode != "" {
       return c.do_episode_code()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "unext")
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playlist unext.PlaylistUrl
@@ -80,7 +80,7 @@ func (c *client) do_dash() error {
       return err
    }
    httpClient := &http.Client{}
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
       Device: string(c.Widevine),
       Drm:    maya.DrmWidevine,
       License: func(challenge []byte) ([]byte, error) {
@@ -154,14 +154,7 @@ func (c *client) do_episode_code() error {
    if err != nil {
       return err
    }
-
-   resp, err := httpClient.Get(mpdURL.String())
-   if err != nil {
-      return err
-   }
-   defer resp.Body.Close()
-
-   manifest, err := maya.ListDash(resp.Body)
+   manifest, err := maya.ListDash(mpdURL)
    if err != nil {
       return err
    }

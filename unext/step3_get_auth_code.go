@@ -29,7 +29,7 @@ func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge strin
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
    // Do NOT follow redirects.
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return "", fmt.Errorf("step3: sending request: %w", err)
    }

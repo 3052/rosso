@@ -39,7 +39,7 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return nil, fmt.Errorf("step4: sending request: %w", err)
    }
@@ -60,4 +60,8 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
    }
 
    return &tokenResp, nil
+}
+
+func (*TokenResponse) CachePath() string {
+   return "rosso/unext/TokenResponse"
 }

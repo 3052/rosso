@@ -37,7 +37,7 @@ func Step2Login(client *http.Client, email, password, challengeID string) (strin
 
    req.Header.Set("x-forwarded-for", "159.26.119.122")
 
-   resp, err := client.Do(req)
+   resp, err := clientDo(client, req)
    if err != nil {
       return "", fmt.Errorf("step2: sending request: %w", err)
    }
