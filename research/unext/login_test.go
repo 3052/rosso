@@ -1,3 +1,4 @@
+// login_test.go
 package unext
 
 import (
@@ -8,6 +9,8 @@ import (
    "os/exec"
    "testing"
 )
+
+const tokensFile = "tokens.json"
 
 // GetCredentials calls `credential.exe -j <host>` and parses the JSON array.
 func GetCredentials(host string) ([]CredentialEntry, error) {
@@ -28,15 +31,6 @@ func GetCredentials(host string) ([]CredentialEntry, error) {
 
    return entries, nil
 }
-
-// CredentialEntry represents one entry from credential.exe output.
-type CredentialEntry struct {
-   Date     string `json:"date"`
-   Host     string `json:"host"`
-   Password string `json:"password"`
-   Username string `json:"username"`
-}
-const tokensFile = "tokens.json"
 
 func TestLogin(t *testing.T) {
    // --- Fetch credentials from credential.exe ---
@@ -128,4 +122,12 @@ func TestLogin(t *testing.T) {
       t.Fatalf("SaveTokens: %v", err)
    }
    t.Logf("tokens saved to %s", tokensFile)
+}
+
+// CredentialEntry represents one entry from credential.exe output.
+type CredentialEntry struct {
+   Date     string `json:"date"`
+   Host     string `json:"host"`
+   Password string `json:"password"`
+   Username string `json:"username"`
 }

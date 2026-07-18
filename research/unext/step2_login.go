@@ -1,3 +1,4 @@
+// step2_login.go
 package unext
 
 import (
@@ -33,7 +34,9 @@ func Step2Login(client *http.Client, email, password, challengeID string) (strin
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/json; charset=utf-8")
-   
+
+   req.Header.Set("x-forwarded-for", "159.26.119.122")
+
    resp, err := client.Do(req)
    if err != nil {
       return "", fmt.Errorf("step2: sending request: %w", err)

@@ -1,0 +1,249 @@
+// step5_get_playlist.go
+package unext
+
+import (
+   "encoding/json"
+   "fmt"
+   "io"
+   "net/http"
+   "net/url"
+)
+
+// madPlaylistQuery is the full GraphQL operation for fetching a playlist.
+const madPlaylistQuery = `query Mad_Playlist(
+  $code: String!
+  $playMode: String!
+  $bitrateLow: Int!
+  $bitrateHigh: Int
+  $validationOnly: Boolean!
+  $codec: [VideoCodec!]!
+  $dynamicRangeList: [VideoDynamicRangeType!]
+  $audioTypeList: [AudioCodecType!]
+  $playType: PlayType!
+  $keyOnly: Boolean!
+  $mediaType: String
+  $disableRegionCheck: Boolean
+) {
+  webfront_playlistUrl(
+    code: $code
+    playMode: $playMode
+    bitrateLow: $bitrateLow
+    bitrateHigh: $bitrateHigh
+    validationOnly: $validationOnly
+    codec: $codec
+    dynamicRangeList: $dynamicRangeList
+    audioTypeList: $audioTypeList
+    playType: $playType
+    keyOnly: $keyOnly
+    mediaType: $mediaType
+    disableRegionCheck: $disableRegionCheck
+  ) {
+    __typename
+    ...PlayList
+  }
+}
+
+fragment PlayList on PlaylistUrl {
+  subTitle
+  playToken
+  playTokenHash
+  beaconSpan
+  resultStatus
+  licenseExpireDate
+  isKids
+  downloadTitleMeta {
+    titleInKatakana
+    keywords
+  }
+  urlInfo {
+    code
+    startPoint
+    endPoint
+    resumePoint
+    endrollStartPosition
+    commodityCode
+    saleTypeCode
+    captionFlg
+    dubFlg
+    sceneSearchList {
+      ims_ad1: IMS_AD1
+      ims_l: IMS_L
+      ims_m: IMS_M
+      ims_s: IMS_S
+    }
+    movieProfile {
+      cdnId
+      type
+      playlistUrl
+      movieAudioList {
+        audioType
+      }
+      licenseUrlList {
+        type
+        licenseUrl
+      }
+      audioTrackList {
+        lang
+        isNative
+      }
+    }
+    moviePartsPositionList {
+      type
+      fromSeconds
+      endSeconds
+      hasRemainingPart
+    }
+  }
+  result {
+    errorCode
+    errorMessage
+  }
+}`
+
+// GraphQLError represents a GraphQL error.
+type GraphQLError struct {
+   Message string `json:"message"`
+}
+
+// PlaylistResponse is the JSON envelope returned by the GraphQL endpoint.
+type PlaylistResponse struct {
+   Data struct {
+      WebfrontPlaylistUrl *PlaylistUrl `json:"webfront_playlistUrl"`
+   } `json:"data"`
+   Errors []GraphQLError `json:"errors"`
+}
+
+// PlaylistUrl maps to the PlayList fragment on the PlaylistUrl type.
+type PlaylistUrl struct {
+   SubTitle          string `json:"subTitle"`
+   PlayToken         string `json:"playToken"`
+   PlayTokenHash     string `json:"playTokenHash"`
+   BeaconSpan        int    `json:"beaconSpan"`
+   ResultStatus      string `json:"resultStatus"`
+   LicenseExpireDate string `json:"licenseExpireDate"`
+   IsKids            bool   `json:"isKids"`
+   DownloadTitleMeta *struct {
+      TitleInKatakana string   `json:"titleInKatakana"`
+      Keywords        []string `json:"keywords"`
+   } `json:"downloadTitleMeta"`
+   UrlInfo *struct {
+      Code                 string  `json:"code"`
+      StartPoint           float64 `json:"startPoint"`
+      EndPoint             float64 `json:"endPoint"`
+      ResumePoint          float64 `json:"resumePoint"`
+      EndrollStartPosition float64 `json:"endrollStartPosition"`
+      CommodityCode        string  `json:"commodityCode"`
+      SaleTypeCode         string  `json:"saleTypeCode"`
+      CaptionFlg           bool    `json:"captionFlg"`
+      DubFlg               bool    `json:"dubFlg"`
+      SceneSearchList      *struct {
+         IMS_AD1 string `json:"ims_ad1"`
+         IMS_L   string `json:"ims_l"`
+         IMS_M   string `json:"ims_m"`
+         IMS_S   string `json:"ims_s"`
+      } `json:"sceneSearchList"`
+      MovieProfile *struct {
+         CdnId          string `json:"cdnId"`
+         Type           string `json:"type"`
+         PlaylistUrl    string `json:"playlistUrl"`
+         MovieAudioList []struct {
+            AudioType string `json:"audioType"`
+         } `json:"movieAudioList"`
+         LicenseUrlList []struct {
+            Type       string `json:"type"`
+            LicenseUrl string `json:"licenseUrl"`
+         } `json:"licenseUrlList"`
+         AudioTrackList []struct {
+            Lang     string `json:"lang"`
+            IsNative bool   `json:"isNative"`
+         } `json:"audioTrackList"`
+      } `json:"movieProfile"`
+      MoviePartsPositionList []struct {
+         Type             string  `json:"type"`
+         FromSeconds      float64 `json:"fromSeconds"`
+         EndSeconds       float64 `json:"endSeconds"`
+         HasRemainingPart bool    `json:"hasRemainingPart"`
+      } `json:"moviePartsPositionList"`
+   } `json:"urlInfo"`
+   Result *struct {
+      ErrorCode    string `json:"errorCode"`
+      ErrorMessage string `json:"errorMessage"`
+   } `json:"result"`
+}
+
+// Step5GetPlaylist fetches the playlist using the access token obtained in step 4.
+func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, error) {
+   reqURL := &url.URL{
+      Scheme: "https",
+      Host:   "cc.unext.jp",
+      Path:   "/",
+   }
+
+   // Variables for the GraphQL operation.
+   variables := map[string]interface{}{
+      "code":               "ED00092859",
+      "playMode":           "dub",
+      "bitrateLow":         192,
+      "validationOnly":     false,
+      "codec":              []string{"H264"},
+      "playType":           "STREAMING",
+      "keyOnly":            false,
+      "mediaType":          "NORMAL",
+      "disableRegionCheck": false,
+   }
+
+   variablesJSON, err := json.Marshal(variables)
+   if err != nil {
+      return nil, fmt.Errorf("step5: marshalling variables: %w", err)
+   }
+
+   q := url.Values{}
+   q.Add("operationName", "Mad_Playlist")
+   q.Add("variables", string(variablesJSON))
+   q.Add("query", madPlaylistQuery)
+   reqURL.RawQuery = q.Encode()
+
+   req, err := http.NewRequest("GET", reqURL.String(), nil)
+   if err != nil {
+      return nil, fmt.Errorf("step5: creating request: %w", err)
+   }
+
+   req.Header.Set("accept", "multipart/mixed;deferSpec=20220824, application/graphql-response+json, application/json")
+   req.Header.Set("apollo-require-preflight", "true")
+   req.Header.Set("apollographql-client-name", "mad_for_mobile_jp.unext.mediaplayer")
+   req.Header.Set("apollographql-client-version", "5.73.1")
+   req.Header.Set("filmratingcode", "")
+   req.Header.Set("u-device-id", "466d0fcd-79f5-3fb6-b580-cb34999f49dc")
+   req.Header.Set("u-device-type", "920")
+   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.73.1 sdk_gphone64_x86_64")
+   req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
+   req.Header.Set("x-forwarded-for", "159.26.119.122")
+   req.Header.Set("authorization", "Bearer "+accessToken)
+
+   resp, err := client.Do(req)
+   if err != nil {
+      return nil, fmt.Errorf("step5: sending request: %w", err)
+   }
+   defer resp.Body.Close()
+
+   respBody, _ := io.ReadAll(resp.Body)
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("step5: expected 200, got %d: %s", resp.StatusCode, string(respBody))
+   }
+
+   var plResp PlaylistResponse
+   if err := json.Unmarshal(respBody, &plResp); err != nil {
+      return nil, fmt.Errorf("step5: parsing response: %w (body starts with: %q)", err, string(respBody[:min(len(respBody), 50)]))
+   }
+
+   if len(plResp.Errors) > 0 {
+      return nil, fmt.Errorf("step5: GraphQL error: %s", plResp.Errors[0].Message)
+   }
+
+   if plResp.Data.WebfrontPlaylistUrl == nil {
+      return nil, fmt.Errorf("step5: webfront_playlistUrl was null")
+   }
+
+   return plResp.Data.WebfrontPlaylistUrl, nil
+}
