@@ -175,7 +175,8 @@ type PlaylistUrl struct {
 }
 
 // Step5GetPlaylist fetches the playlist using the access token obtained in step 4.
-func Step5GetPlaylist(client *http.Client, accessToken, code string) (*PlaylistUrl, error) {
+// playMode must be either "dub" or "caption".
+func Step5GetPlaylist(client *http.Client, accessToken, code, playMode string) (*PlaylistUrl, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
@@ -185,7 +186,7 @@ func Step5GetPlaylist(client *http.Client, accessToken, code string) (*PlaylistU
    variables := map[string]interface{}{
       // "code": "ED00092859",
       "code":               code,
-      "playMode":           "dub",
+      "playMode":           playMode,
       "bitrateLow":         192,
       "validationOnly":     false,
       "codec":              []string{"H264"},

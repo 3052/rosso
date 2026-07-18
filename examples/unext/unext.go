@@ -18,12 +18,13 @@ func main() {
 }
 
 type client struct {
-   Widevine maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-   title    maya.FlagString
-   episode  maya.FlagString
-   dash_id  maya.FlagString
+   Widevine     maya.FlagString
+   email        maya.FlagString
+   password     maya.FlagString
+   title_code   maya.FlagString
+   episode_code maya.FlagString
+   dash_id      maya.FlagString
+   play_mode    maya.FlagString
 
    cache maya.Cache
 }
@@ -43,8 +44,9 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "email", Value: &c.email, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "email"},
-      {Name: "title-code", Value: &c.title},
-      {Name: "episode-code", Value: &c.episode},
+      {Name: "title-code", Value: &c.title_code},
+      {Name: "episode-code", Value: &c.episode_code},
+      {Name: "play-mode", Value: &c.play_mode, Needs: "episode-code", Usage: "caption dub"},
       {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -58,11 +60,13 @@ func (c *client) do() error {
          return c.do_email_password()
       }
    }
-   if c.title != "" {
+   if c.title_code != "" {
       return c.do_title_code()
    }
-   if c.episode != "" {
-      return c.do_episode_code()
+   if c.episode_code != "" {
+      if c.play_mode != "" {
+         return c.do_episode_code()
+      }
    }
    if c.dash_id != "" {
       return c.do_dash_id()
@@ -136,7 +140,6 @@ func (c *client) do_email_password() error {
    }
    return c.cache.Encode(tokens)
 }
-
 func (c *client) do_episode_code() error {
    tokens := &unext.TokenResponse{}
    err := c.cache.Decode(tokens)
@@ -144,9 +147,9 @@ func (c *client) do_episode_code() error {
       return err
    }
    httpClient := &http.Client{}
-
-   // Assumes Step5GetPlaylist accepts the episode code as a parameter
-   playlist, err := unext.Step5GetPlaylist(httpClient, tokens.AccessToken, string(c.episode))
+   playlist, err := unext.Step5GetPlaylist(
+      httpClient, tokens.AccessToken, string(c.episode_code), string(c.play_mode),
+   )
    if err != nil {
       return err
    }
@@ -168,7 +171,7 @@ func (c *client) do_title_code() error {
       return err
    }
    httpClient := &http.Client{}
-   codes, err := unext.GetEpisodeCodes(httpClient, tokens.AccessToken, string(c.title))
+   codes, err := unext.GetEpisodeCodes(httpClient, tokens.AccessToken, string(c.title_code))
    if err != nil {
       return err
    }
