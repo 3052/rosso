@@ -181,7 +181,6 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
       Host:   "cc.unext.jp",
       Path:   "/",
    }
-
    // Variables for the GraphQL operation.
    variables := map[string]interface{}{
       "code":               "ED00092859",
@@ -194,42 +193,39 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
       "mediaType":          "NORMAL",
       "disableRegionCheck": false,
    }
-
    variablesJSON, err := json.Marshal(variables)
    if err != nil {
       return nil, fmt.Errorf("step5: marshalling variables: %w", err)
    }
-
    q := url.Values{}
    q.Add("operationName", "Mad_Playlist")
    q.Add("variables", string(variablesJSON))
    q.Add("query", madPlaylistQuery)
    reqURL.RawQuery = q.Encode()
-
    req, err := http.NewRequest("GET", reqURL.String(), nil)
    if err != nil {
       return nil, fmt.Errorf("step5: creating request: %w", err)
    }
-
    req.Header.Set("accept", "multipart/mixed;deferSpec=20220824, application/graphql-response+json, application/json")
    req.Header.Set("apollo-require-preflight", "true")
    req.Header.Set("apollographql-client-name", "mad_for_mobile_jp.unext.mediaplayer")
    req.Header.Set("apollographql-client-version", "5.73.1")
    req.Header.Set("filmratingcode", "")
-   req.Header.Set("u-device-id", "466d0fcd-79f5-3fb6-b580-cb34999f49dc")
    req.Header.Set("u-device-type", "920")
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.73.1 sdk_gphone64_x86_64")
    req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
-
    resp, err := client.Do(req)
    if err != nil {
       return nil, fmt.Errorf("step5: sending request: %w", err)
    }
    defer resp.Body.Close()
 
-   respBody, _ := io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("step5: reading response body: %w", err)
+   }
 
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("step5: expected 200, got %d: %s", resp.StatusCode, string(respBody))
@@ -252,8 +248,8 @@ func Step5GetPlaylist(client *http.Client, accessToken string) (*PlaylistUrl, er
 }
 
 // MPDURL searches the playlist for the first DASH movie profile and returns
-// its playlistUrl as a *url.URL. Returns an error if no DASH profile is found
-// or the URL cannot be parsed.
+// its playlistUrl as a *url.URL with the play_token query parameter appended.
+// Returns an error if no DASH profile is found or the URL cannot be parsed.
 func (p *PlaylistUrl) MPDURL() (*url.URL, error) {
    for _, ui := range p.UrlInfo {
       for _, mp := range ui.MovieProfile {
@@ -262,6 +258,9 @@ func (p *PlaylistUrl) MPDURL() (*url.URL, error) {
             if err != nil {
                return nil, fmt.Errorf("parsing MPD URL: %w", err)
             }
+            q := u.Query()
+            q.Set("play_token", p.PlayToken)
+            u.RawQuery = q.Encode()
             return u, nil
          }
       }

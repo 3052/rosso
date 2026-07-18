@@ -43,7 +43,10 @@ func Step2Login(client *http.Client, email, password, challengeID string) (strin
    }
    defer resp.Body.Close()
 
-   respBody, _ := io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return "", fmt.Errorf("step2: reading response body: %w", err)
+   }
 
    if resp.StatusCode != http.StatusOK {
       return "", fmt.Errorf("step2: expected 200, got %d: %s", resp.StatusCode, string(respBody))

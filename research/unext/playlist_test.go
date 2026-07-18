@@ -2,7 +2,6 @@
 package unext
 
 import (
-   "encoding/json"
    "io"
    "net/http"
    "net/http/cookiejar"
@@ -15,7 +14,6 @@ func TestGetPlaylist(t *testing.T) {
    if err != nil {
       t.Fatalf("LoadTokens: %v", err)
    }
-   t.Logf("loaded access_token (first 20 chars): %s...", tokens.AccessToken[:20])
 
    // --- HTTP client with cookie jar ---
    jar, err := cookiejar.New(nil)
@@ -25,7 +23,6 @@ func TestGetPlaylist(t *testing.T) {
 
    client := &http.Client{
       Jar: jar,
-      // Disable auto-redirect so we can capture 302 Location headers if any.
       CheckRedirect: func(req *http.Request, via []*http.Request) error {
          return http.ErrUseLastResponse
       },
@@ -37,17 +34,12 @@ func TestGetPlaylist(t *testing.T) {
       t.Fatalf("Step5GetPlaylist: %v", err)
    }
 
-   // --- Assert we got meaningful data ---
    if playlist.PlayToken == "" {
       t.Fatal("playToken is empty")
    }
    if len(playlist.UrlInfo) == 0 {
       t.Fatal("urlInfo is empty")
    }
-
-   // --- Print playlist result ---
-   out, _ := json.MarshalIndent(playlist, "", "  ")
-   t.Logf("playlist:\n%s", string(out))
 
    // --- Get the MPD URL ---
    mpdURL, err := playlist.MPDURL()

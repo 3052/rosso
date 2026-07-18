@@ -10,13 +10,6 @@ import (
    "strings"
 )
 
-func min(a, b int) int {
-   if a < b {
-      return a
-   }
-   return b
-}
-
 // TokenResponse is the JSON returned by /oauth2/token.
 type TokenResponse struct {
    AccessToken  string `json:"access_token"`
@@ -52,7 +45,10 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
    }
    defer resp.Body.Close()
 
-   respBody, _ := io.ReadAll(resp.Body)
+   respBody, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("step4: reading response body: %w", err)
+   }
 
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("step4: expected 200, got %d: %s", resp.StatusCode, string(respBody))

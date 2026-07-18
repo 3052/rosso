@@ -144,7 +144,10 @@ func TestLogin(t *testing.T) {
    }
 
    // --- Print final result ---
-   out, _ := json.MarshalIndent(tokens, "", "  ")
+   out, err := json.MarshalIndent(tokens, "", "  ")
+   if err != nil {
+      t.Fatalf("marshalling tokens: %v", err)
+   }
    t.Logf("tokens:\n%s", string(out))
 
    // --- Save tokens to file for future tests ---
