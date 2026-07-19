@@ -9,6 +9,11 @@ import (
    "net/url"
 )
 
+// Step6GetLicense POSTs a Widevine license challenge to the U-NEXT license
+// proxy and returns the raw license response bytes.
+//
+// challenge is the binary SignedMessage (protobuf) produced by a Widevine CDM.
+// The play_token must match the one used to fetch the MPD.
 func Step6GetLicense(licenseURL *url.URL, playToken string, challenge []byte) ([]byte, error) {
    q := licenseURL.Query()
    q.Set("play_token", playToken)
@@ -40,6 +45,9 @@ func Step6GetLicense(licenseURL *url.URL, playToken string, challenge []byte) ([
    return body, nil
 }
 
+// WidevineLicenseURL searches the playlist for the first DASH movie profile
+// with a WIDEVINE license URL and returns it (without query parameters).
+// Returns an error if no such profile is found.
 func (p *PlaylistUrl) WidevineLicenseURL() (*url.URL, error) {
    for _, ui := range p.UrlInfo {
       for _, mp := range ui.MovieProfile {

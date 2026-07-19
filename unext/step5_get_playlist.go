@@ -2,6 +2,7 @@
 package unext
 
 import (
+   "bytes"
    "encoding/json"
    "fmt"
    "io"
@@ -91,6 +92,7 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
       Host:   "cc.unext.jp",
       Path:   "/",
    }
+
    variables := map[string]any{
       "code":               code,
       "playMode":           playMode,
@@ -102,20 +104,25 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
       "mediaType":          "NORMAL",
       "disableRegionCheck": false,
    }
-   variablesJSON, err := json.Marshal(variables)
-   if err != nil {
-      return nil, fmt.Errorf("step5: marshalling variables: %w", err)
+
+   body := map[string]any{
+      "operationName": "Mad_Playlist",
+      "variables":     variables,
+      "query":         minPlaylistQuery,
    }
-   q := url.Values{}
-   q.Add("operationName", "Mad_Playlist")
-   q.Add("variables", string(variablesJSON))
-   q.Add("query", minPlaylistQuery)
-   reqURL.RawQuery = q.Encode()
-   req, err := http.NewRequest("GET", reqURL.String(), nil)
+
+   bodyJSON, err := json.Marshal(body)
+   if err != nil {
+      return nil, fmt.Errorf("step5: marshalling body: %w", err)
+   }
+
+   req, err := http.NewRequest("POST", reqURL.String(), bytes.NewReader(bodyJSON))
    if err != nil {
       return nil, fmt.Errorf("step5: creating request: %w", err)
    }
+
    req.Header.Set("accept", "multipart/mixed;deferSpec=20220824, application/graphql-response+json, application/json")
+   req.Header.Set("content-type", "application/json")
    req.Header.Set("apollo-require-preflight", "true")
    req.Header.Set("apollographql-client-name", "mad_for_mobile_jp.unext.mediaplayer")
    req.Header.Set("apollographql-client-version", "5.73.1")
@@ -125,6 +132,7 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
    req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
+
    resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step5: sending request: %w", err)

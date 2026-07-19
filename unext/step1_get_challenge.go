@@ -1,8 +1,7 @@
-// step1_get_challenge.go
 package unext
 
 import (
-   "crypto/rand"
+   "bytes"
    "crypto/sha256"
    _ "embed"
    "encoding/base64"
@@ -11,7 +10,9 @@ import (
    "log"
    "net/http"
    "net/url"
+   "strconv"
    "strings"
+   "time"
 )
 
 // Pre-minified at package init; never recomputed.
@@ -20,11 +21,6 @@ var (
    minAllEpisodesQuery = gqlMinify(rawAllEpisodesQuery)
    minVideoDetailQuery = gqlMinify(rawVideoDetailQuery)
 )
-
-// DefaultClient is the http.Client used by all Step* functions.
-// Set a CookieJar on it before calling Step1 if you need session
-// persistence across steps (which you do).
-var DefaultClient = &http.Client{}
 
 //go:embed mad_all_episodes.graphql
 var rawAllEpisodesQuery string
@@ -35,14 +31,15 @@ var rawPlaylistQuery string
 //go:embed mad_video_detail.graphql
 var rawVideoDetailQuery string
 
-// generateRandomString generates a URL-safe random string of the given length.
+// generateRandomString generates a URL-safe string of the given length,
+// seeded from the current time. Different every nanosecond.
 func GenerateRandomString(length int) (string, error) {
-   b := make([]byte, length)
-   _, err := rand.Read(b)
-   if err != nil {
-      return "", err
+   s := strconv.FormatInt(time.Now().UnixNano(), 10)
+   var buf bytes.Buffer
+   for buf.Len()*4/3 < length {
+      buf.WriteString(s)
    }
-   return base64.RawURLEncoding.EncodeToString(b)[:length], nil
+   return base64.RawURLEncoding.EncodeToString(buf.Bytes())[:length], nil
 }
 
 // pkcePair generates a code_verifier and its corresponding code_challenge (S256).
@@ -77,40 +74,48 @@ func Step1GetChallenge(state, nonce string) (string, error) {
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
 
-   // Do NOT follow redirects — we need the Location header.
-   resp, err := clientDo(req)
+   resp, err := clientDoNoRedirect(req)
    if err != nil {
       return "", fmt.Errorf("step1: sending request: %w", err)
    }
    defer resp.Body.Close()
-   io.Copy(io.Discard, resp.Body)
+
+   if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+      return "", fmt.Errorf("step1: draining response body: %w", err)
+   }
 
    if resp.StatusCode != http.StatusFound {
       return "", fmt.Errorf("step1: expected 302, got %d", resp.StatusCode)
    }
 
-   location := resp.Header.Get("Location")
-   if location == "" {
-      return "", fmt.Errorf("step1: no Location header in response")
-   }
-
-   locURL, err := url.Parse(location)
+   locURL, err := resp.Location()
    if err != nil {
-      return "", fmt.Errorf("step1: parsing Location: %w", err)
+      return "", fmt.Errorf("step1: getting Location header: %w", err)
    }
 
    challengeID := locURL.Query().Get("challenge_id")
    if challengeID == "" {
-      return "", fmt.Errorf("step1: challenge_id not found in Location: %s", location)
+      return "", fmt.Errorf("step1: challenge_id not found in Location: %s", locURL)
    }
 
    return challengeID, nil
 }
 
-// clientDo wraps DefaultClient.Do with a log line so every request is visible.
+// clientDo wraps http.DefaultClient.Do with a log line so every request is visible.
 func clientDo(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)
-   return DefaultClient.Do(req)
+   return http.DefaultClient.Do(req)
+}
+
+// clientDoNoRedirect is like clientDo but does not follow redirects.
+func clientDoNoRedirect(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   client := &http.Client{
+      CheckRedirect: func(*http.Request, []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
+   }
+   return client.Do(req)
 }
 
 // gqlMinify collapses insignificant whitespace in a GraphQL operation

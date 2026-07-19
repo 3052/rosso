@@ -4,7 +4,6 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/unext"
    "log"
-   "net/http"
    "os"
 )
 
@@ -108,13 +107,6 @@ func (c *client) do_email_password() error {
    if err != nil {
       return err
    }
-
-   unext.DefaultClient = &http.Client{
-      CheckRedirect: func(req *http.Request, via []*http.Request) error {
-         return http.ErrUseLastResponse
-      },
-   }
-
    challengeID, err := unext.Step1GetChallenge(state, nonce)
    if err != nil {
       return err

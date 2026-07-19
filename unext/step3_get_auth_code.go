@@ -1,4 +1,3 @@
-// step3_get_auth_code.go
 package unext
 
 import (
@@ -9,7 +8,11 @@ import (
    "strings"
 )
 
+// Step3GetAuthCode sends the code_challenge to the post_auth_endpoint and
+// extracts the authorization code from the 302 redirect Location header.
 func Step3GetAuthCode(postAuthEndpoint, codeChallenge string) (string, error) {
+   // postAuthEndpoint is a path like:
+   // /oauth2/auth?challenge_id=...&client_id=...&nonce=...&redirect_uri=...&response_type=code&scope=offline+unext&state=...
    fullURL := "https://oauth.unext.jp" + postAuthEndpoint
 
    form := url.Values{}
@@ -24,30 +27,28 @@ func Step3GetAuthCode(postAuthEndpoint, codeChallenge string) (string, error) {
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
-   resp, err := clientDo(req)
+   resp, err := clientDoNoRedirect(req)
    if err != nil {
       return "", fmt.Errorf("step3: sending request: %w", err)
    }
    defer resp.Body.Close()
-   io.Copy(io.Discard, resp.Body)
+
+   if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+      return "", fmt.Errorf("step3: draining response body: %w", err)
+   }
 
    if resp.StatusCode != http.StatusFound {
       return "", fmt.Errorf("step3: expected 302, got %d", resp.StatusCode)
    }
 
-   location := resp.Header.Get("Location")
-   if location == "" {
-      return "", fmt.Errorf("step3: no Location header in response")
-   }
-
-   locURL, err := url.Parse(location)
+   locURL, err := resp.Location()
    if err != nil {
-      return "", fmt.Errorf("step3: parsing Location: %w", err)
+      return "", fmt.Errorf("step3: getting Location header: %w", err)
    }
 
    code := locURL.Query().Get("code")
    if code == "" {
-      return "", fmt.Errorf("step3: code not found in Location: %s", location)
+      return "", fmt.Errorf("step3: code not found in Location: %s", locURL)
    }
 
    return code, nil

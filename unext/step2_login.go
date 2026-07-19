@@ -9,6 +9,8 @@ import (
    "net/http"
 )
 
+// Step2Login authenticates with email/password and returns the post_auth_endpoint.
+// The response also sets an oauth_session_id cookie which is stored in the client's cookie jar.
 func Step2Login(email, password, challengeID string) (string, error) {
    loginURL := "https://oauth.unext.jp/oauth2/login"
 
@@ -32,6 +34,7 @@ func Step2Login(email, password, challengeID string) (string, error) {
 
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/json; charset=utf-8")
+
    req.Header.Set("x-forwarded-for", "159.26.119.122")
 
    resp, err := clientDo(req)
@@ -61,6 +64,7 @@ func Step2Login(email, password, challengeID string) (string, error) {
    return loginResp.PostAuthEndpoint, nil
 }
 
+// LoginResponse is the JSON returned by /oauth2/login.
 type LoginResponse struct {
    PostAuthEndpoint string `json:"post_auth_endpoint"`
 }

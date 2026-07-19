@@ -2,6 +2,7 @@
 package unext
 
 import (
+   "bytes"
    "encoding/json"
    "fmt"
    "io"
@@ -9,6 +10,8 @@ import (
    "net/url"
 )
 
+// GetEpisodeCodes fetches all episode codes (ED...) for a given title code (SID...)
+// using the Mad_AllEpisodes operation.
 func GetEpisodeCodes(accessToken, titleCode string) ([]string, error) {
    reqURL := &url.URL{
       Scheme: "https",
@@ -16,29 +19,28 @@ func GetEpisodeCodes(accessToken, titleCode string) ([]string, error) {
       Path:   "/",
    }
 
-   variables := map[string]any{
-      "titleCode":       titleCode,
-      "episodePage":     1,
-      "episodePageSize": 1100,
+   body := map[string]any{
+      "operationName": "Mad_AllEpisodes",
+      "variables": map[string]any{
+         "titleCode":       titleCode,
+         "episodePage":     1,
+         "episodePageSize": 1100,
+      },
+      "query": minAllEpisodesQuery,
    }
 
-   variablesJSON, err := json.Marshal(variables)
+   bodyJSON, err := json.Marshal(body)
    if err != nil {
-      return nil, fmt.Errorf("get_episodes: marshalling variables: %w", err)
+      return nil, fmt.Errorf("get_episodes: marshalling body: %w", err)
    }
 
-   q := url.Values{}
-   q.Add("operationName", "Mad_AllEpisodes")
-   q.Add("variables", string(variablesJSON))
-   q.Add("query", minAllEpisodesQuery)
-   reqURL.RawQuery = q.Encode()
-
-   req, err := http.NewRequest("GET", reqURL.String(), nil)
+   req, err := http.NewRequest("POST", reqURL.String(), bytes.NewReader(bodyJSON))
    if err != nil {
       return nil, fmt.Errorf("get_episodes: creating request: %w", err)
    }
 
    req.Header.Set("accept", "multipart/mixed;deferSpec=20220824, application/graphql-response+json, application/json")
+   req.Header.Set("content-type", "application/json")
    req.Header.Set("apollo-require-preflight", "true")
    req.Header.Set("apollographql-client-name", "mad_for_mobile_jp.unext.mediaplayer")
    req.Header.Set("apollographql-client-version", "5.73.1")
@@ -82,6 +84,8 @@ func GetEpisodeCodes(accessToken, titleCode string) ([]string, error) {
    return codes, nil
 }
 
+// EpisodesResponse is the JSON envelope for the Mad_AllEpisodes query.
+// Only webfront_title_titleEpisodes is decoded; extra fields are ignored.
 type EpisodesResponse struct {
    Data struct {
       WebfrontTitleStage struct {
