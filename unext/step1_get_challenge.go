@@ -4,12 +4,36 @@ package unext
 import (
    "crypto/rand"
    "crypto/sha256"
+   _ "embed"
    "encoding/base64"
    "fmt"
    "io"
+   "log"
    "net/http"
    "net/url"
+   "strings"
 )
+
+// Pre-minified at package init; never recomputed.
+var (
+   minPlaylistQuery    = gqlMinify(rawPlaylistQuery)
+   minAllEpisodesQuery = gqlMinify(rawAllEpisodesQuery)
+   minVideoDetailQuery = gqlMinify(rawVideoDetailQuery)
+)
+
+// DefaultClient is the http.Client used by all Step* functions.
+// Set a CookieJar on it before calling Step1 if you need session
+// persistence across steps (which you do).
+var DefaultClient = &http.Client{}
+
+//go:embed mad_all_episodes.graphql
+var rawAllEpisodesQuery string
+
+//go:embed mad_playlist.graphql
+var rawPlaylistQuery string
+
+//go:embed mad_video_detail.graphql
+var rawVideoDetailQuery string
 
 // generateRandomString generates a URL-safe random string of the given length.
 func GenerateRandomString(length int) (string, error) {
@@ -35,7 +59,7 @@ func PkcePair() (verifier string, challenge string, err error) {
 
 // Step1GetChallenge performs the initial GET to /oauth2/auth and extracts
 // the challenge_id from the 302 redirect Location header.
-func Step1GetChallenge(client *http.Client, state, nonce string) (string, error) {
+func Step1GetChallenge(state, nonce string) (string, error) {
    baseURL := "https://oauth.unext.jp/oauth2/auth"
 
    params := url.Values{}
@@ -54,7 +78,7 @@ func Step1GetChallenge(client *http.Client, state, nonce string) (string, error)
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
 
    // Do NOT follow redirects — we need the Location header.
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return "", fmt.Errorf("step1: sending request: %w", err)
    }
@@ -70,7 +94,6 @@ func Step1GetChallenge(client *http.Client, state, nonce string) (string, error)
       return "", fmt.Errorf("step1: no Location header in response")
    }
 
-   // Location looks like: https://oauth.unext.jp/login?challenge_id=cc4e1aed-...
    locURL, err := url.Parse(location)
    if err != nil {
       return "", fmt.Errorf("step1: parsing Location: %w", err)
@@ -82,4 +105,34 @@ func Step1GetChallenge(client *http.Client, state, nonce string) (string, error)
    }
 
    return challengeID, nil
+}
+
+// clientDo wraps DefaultClient.Do with a log line so every request is visible.
+func clientDo(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return DefaultClient.Do(req)
+}
+
+// gqlMinify collapses insignificant whitespace in a GraphQL operation
+// string. None of the embedded queries contain string literals or
+// comments, so a pure whitespace-collapser is sufficient.
+func gqlMinify(s string) string {
+   var b strings.Builder
+   b.Grow(len(s))
+
+   prevSpace := false
+   for i := 0; i < len(s); i++ {
+      c := s[i]
+      if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+         prevSpace = true
+         continue
+      }
+      if prevSpace {
+         b.WriteByte(' ')
+         prevSpace = false
+      }
+      b.WriteByte(c)
+   }
+
+   return b.String()
 }

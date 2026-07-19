@@ -10,7 +10,6 @@ import (
    "strings"
 )
 
-// TokenResponse is the JSON returned by /oauth2/token.
 type TokenResponse struct {
    AccessToken  string `json:"access_token"`
    ExpiresIn    int    `json:"expires_in"`
@@ -19,8 +18,7 @@ type TokenResponse struct {
    TokenType    string `json:"token_type"`
 }
 
-// Step4GetToken exchanges the authorization code for access and refresh tokens.
-func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenResponse, error) {
+func Step4GetToken(authCode, codeVerifier string) (*TokenResponse, error) {
    tokenURL := "https://oauth.unext.jp/oauth2/token"
 
    form := url.Values{}
@@ -39,7 +37,7 @@ func Step4GetToken(client *http.Client, authCode, codeVerifier string) (*TokenRe
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step4: sending request: %w", err)
    }

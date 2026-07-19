@@ -5,7 +5,6 @@ import (
    "41.neocities.org/rosso/unext"
    "log"
    "net/http"
-   "net/http/cookiejar"
    "os"
 )
 
@@ -83,7 +82,6 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   httpClient := &http.Client{}
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
       Device: string(c.Widevine),
       Drm:    maya.DrmWidevine,
@@ -92,7 +90,7 @@ func (c *client) do_dash_id() error {
          if err != nil {
             return nil, err
          }
-         return unext.Step6GetLicense(httpClient, licenseURL, playlist.PlayToken, challenge)
+         return unext.Step6GetLicense(licenseURL, playlist.PlayToken, challenge)
       },
    })
 }
@@ -111,30 +109,25 @@ func (c *client) do_email_password() error {
       return err
    }
 
-   jar, err := cookiejar.New(nil)
-   if err != nil {
-      return err
-   }
-   httpClient := &http.Client{
-      Jar: jar,
+   unext.DefaultClient = &http.Client{
       CheckRedirect: func(req *http.Request, via []*http.Request) error {
          return http.ErrUseLastResponse
       },
    }
 
-   challengeID, err := unext.Step1GetChallenge(httpClient, state, nonce)
+   challengeID, err := unext.Step1GetChallenge(state, nonce)
    if err != nil {
       return err
    }
-   postAuth, err := unext.Step2Login(httpClient, string(c.email), string(c.password), challengeID)
+   postAuth, err := unext.Step2Login(string(c.email), string(c.password), challengeID)
    if err != nil {
       return err
    }
-   authCode, err := unext.Step3GetAuthCode(httpClient, postAuth, challenge)
+   authCode, err := unext.Step3GetAuthCode(postAuth, challenge)
    if err != nil {
       return err
    }
-   tokens, err := unext.Step4GetToken(httpClient, authCode, verifier)
+   tokens, err := unext.Step4GetToken(authCode, verifier)
    if err != nil {
       return err
    }
@@ -146,9 +139,8 @@ func (c *client) do_episode_code() error {
    if err != nil {
       return err
    }
-   httpClient := &http.Client{}
    playlist, err := unext.Step5GetPlaylist(
-      httpClient, tokens.AccessToken, string(c.episode_code), string(c.play_mode),
+      tokens.AccessToken, string(c.episode_code), string(c.play_mode),
    )
    if err != nil {
       return err
@@ -170,8 +162,7 @@ func (c *client) do_title_code() error {
    if err != nil {
       return err
    }
-   httpClient := &http.Client{}
-   codes, err := unext.GetEpisodeCodes(httpClient, tokens.AccessToken, string(c.title_code))
+   codes, err := unext.GetEpisodeCodes(tokens.AccessToken, string(c.title_code))
    if err != nil {
       return err
    }

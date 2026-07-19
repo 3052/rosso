@@ -85,15 +85,13 @@ type PlaylistUrl struct {
 
 // Step5GetPlaylist fetches the playlist using the access token obtained in step 4.
 // playMode must be either "dub" or "caption".
-func Step5GetPlaylist(client *http.Client, accessToken, code, playMode string) (*PlaylistUrl, error) {
+func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
       Path:   "/",
    }
-   // Variables for the GraphQL operation.
    variables := map[string]any{
-      // "code": "ED00092859",
       "code":               code,
       "playMode":           playMode,
       "bitrateLow":         192,
@@ -127,7 +125,7 @@ func Step5GetPlaylist(client *http.Client, accessToken, code, playMode string) (
    req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step5: sending request: %w", err)
    }

@@ -9,11 +9,7 @@ import (
    "strings"
 )
 
-// Step3GetAuthCode sends the code_challenge to the post_auth_endpoint and
-// extracts the authorization code from the 302 redirect Location header.
-func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge string) (string, error) {
-   // postAuthEndpoint is a path like:
-   // /oauth2/auth?challenge_id=...&client_id=...&nonce=...&redirect_uri=...&response_type=code&scope=offline+unext&state=...
+func Step3GetAuthCode(postAuthEndpoint, codeChallenge string) (string, error) {
    fullURL := "https://oauth.unext.jp" + postAuthEndpoint
 
    form := url.Values{}
@@ -28,8 +24,7 @@ func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge strin
    req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
 
-   // Do NOT follow redirects.
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return "", fmt.Errorf("step3: sending request: %w", err)
    }
@@ -45,8 +40,6 @@ func Step3GetAuthCode(client *http.Client, postAuthEndpoint, codeChallenge strin
       return "", fmt.Errorf("step3: no Location header in response")
    }
 
-   // Location looks like:
-   // jp.unext://page=oauth_callback?code=1SPJHhqz...&scope=offline%20unext&state=...
    locURL, err := url.Parse(location)
    if err != nil {
       return "", fmt.Errorf("step3: parsing Location: %w", err)

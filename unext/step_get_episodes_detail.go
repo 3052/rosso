@@ -9,9 +9,7 @@ import (
    "net/url"
 )
 
-// GetEpisodeCodesViaDetail fetches all episode codes (ED...) for a given title
-// code (SID...) using the Mad_VideoDetail operation.
-func GetEpisodeCodesViaDetail(client *http.Client, accessToken, titleCode string) ([]string, error) {
+func GetEpisodeCodesViaDetail(accessToken, titleCode string) ([]string, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
@@ -48,7 +46,7 @@ func GetEpisodeCodesViaDetail(client *http.Client, accessToken, titleCode string
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
 
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("get_episodes_detail: sending request: %w", err)
    }
@@ -80,8 +78,6 @@ func GetEpisodeCodesViaDetail(client *http.Client, accessToken, titleCode string
    return codes, nil
 }
 
-// VideoDetailResponse is the JSON envelope for the Mad_VideoDetail query.
-// Only webfront_title_titleEpisodes is decoded; extra fields are ignored.
 type VideoDetailResponse struct {
    Data struct {
       WebfrontTitleTitleEpisodes struct {

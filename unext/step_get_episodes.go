@@ -9,9 +9,7 @@ import (
    "net/url"
 )
 
-// GetEpisodeCodes fetches all episode codes (ED...) for a given title code (SID...)
-// using the Mad_AllEpisodes operation.
-func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]string, error) {
+func GetEpisodeCodes(accessToken, titleCode string) ([]string, error) {
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
@@ -52,7 +50,7 @@ func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]stri
    req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
 
-   resp, err := clientDo(client, req)
+   resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("get_episodes: sending request: %w", err)
    }
@@ -84,8 +82,6 @@ func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]stri
    return codes, nil
 }
 
-// EpisodesResponse is the JSON envelope for the Mad_AllEpisodes query.
-// Only webfront_title_titleEpisodes is decoded; extra fields are ignored.
 type EpisodesResponse struct {
    Data struct {
       WebfrontTitleStage struct {
