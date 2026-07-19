@@ -19,13 +19,16 @@ var allEpisodesQuery string
 //go:embed mad_playlist.graphql
 var playlistQuery string
 
-// clientDo wraps http.DefaultClient.Do with a log line so every request is visible.
+func GeneratePKCE() string {
+   sha := sha256.Sum256([]byte(time.Now().String()))
+   return base64.RawURLEncoding.EncodeToString(sha[:])
+}
+
 func clientDo(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)
    return http.DefaultClient.Do(req)
 }
 
-// clientDoNoRedirect is like clientDo but does not follow redirects.
 func clientDoNoRedirect(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)
    client := &http.Client{
@@ -36,50 +39,28 @@ func clientDoNoRedirect(req *http.Request) (*http.Response, error) {
    return client.Do(req)
 }
 
-// generateRandomString generates a 43-character string padded with leading zeros.
-// 43 characters satisfies the minimum length requirement for OAuth state, nonce, and PKCE code_verifier.
-func generateRandomString() string {
-   return fmt.Sprintf("%043d", time.Now().UnixNano())
-}
-
-// AuthState holds the PKCE pair and challenge_id produced by Step1.
-// It is passed to Step3 and Step4 so they can use the matching values.
+// AuthState holds the challenge_id and PKCE verifier produced by Step1.
 type AuthState struct {
-   ChallengeID   string
-   CodeVerifier  string
-   CodeChallenge string
+   ChallengeID  string
+   CodeVerifier string
 }
 
 // Step1GetChallenge performs the initial GET to /oauth2/auth and extracts
 // the challenge_id from the 302 redirect Location header.
-//
-// state, nonce, and the PKCE pair are generated internally. The PKCE
-// pair is returned in AuthState for use by Step3 and Step4.
 func Step1GetChallenge() (*AuthState, error) {
-   state := generateRandomString()
-   nonce := generateRandomString()
-   verifier := generateRandomString()
-
-   h := sha256.Sum256([]byte(verifier))
-   challenge := base64.RawURLEncoding.EncodeToString(h[:])
-
    baseURL := "https://oauth.unext.jp/oauth2/auth"
-
+   pkce := GeneratePKCE()
    params := url.Values{}
-   params.Set("state", state)
+   params.Set("nonce", pkce)
+   params.Set("state", pkce)
    params.Set("scope", "offline unext")
-   params.Set("nonce", nonce)
    params.Set("response_type", "code")
    params.Set("client_id", "unextAndroidApp")
    params.Set("redirect_uri", "jp.unext://page=oauth_callback")
-
    req, err := http.NewRequest("GET", baseURL+"?"+params.Encode(), nil)
    if err != nil {
       return nil, fmt.Errorf("step1: creating request: %w", err)
    }
-
-   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
-
    resp, err := clientDoNoRedirect(req)
    if err != nil {
       return nil, fmt.Errorf("step1: sending request: %w", err)
@@ -105,8 +86,7 @@ func Step1GetChallenge() (*AuthState, error) {
    }
 
    return &AuthState{
-      ChallengeID:   challengeID,
-      CodeVerifier:  verifier,
-      CodeChallenge: challenge,
+      ChallengeID:  challengeID,
+      CodeVerifier: pkce,
    }, nil
 }

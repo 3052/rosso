@@ -22,8 +22,8 @@ type client struct {
    password     maya.FlagString
    title_code   maya.FlagString
    episode_code maya.FlagString
-   dash_id      maya.FlagString
    play_mode    maya.FlagString
+   dash_id      maya.FlagString
    refresh      maya.FlagBool
 
    cache maya.Cache

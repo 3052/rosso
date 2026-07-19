@@ -15,9 +15,10 @@ func Step2Login(email, password, challengeID string) (string, error) {
       "id":           email,
       "password":     password,
       "challenge_id": challengeID,
-      ///////////////////////////////////////////////////////////////////////////////////////////////
-      "device_code": "920",
-      "scope":       []string{"offline", "unext"},
+      "scope": []string{
+         "offline",
+         "unext",
+      },
    }
    jsonBody, err := json.Marshal(body)
    if err != nil {
@@ -27,10 +28,7 @@ func Step2Login(email, password, challengeID string) (string, error) {
    if err != nil {
       return "", fmt.Errorf("step2: creating request: %w", err)
    }
-   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
-   req.Header.Set("content-type", "application/json; charset=utf-8")
    req.Header.Set("x-forwarded-for", "159.26.119.122")
-   ///////////////////////////////////////////////////////////////////////////////////////////////
    resp, err := clientDo(req)
    if err != nil {
       return "", fmt.Errorf("step2: sending request: %w", err)

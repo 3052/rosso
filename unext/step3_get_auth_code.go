@@ -2,6 +2,8 @@
 package unext
 
 import (
+   "crypto/sha256"
+   "encoding/base64"
    "fmt"
    "io"
    "net/http"
@@ -13,8 +15,10 @@ import (
 // extracts the authorization code from the 302 redirect Location header.
 func Step3GetAuthCode(postAuthEndpoint string, auth *AuthState) (string, error) {
    fullURL := "https://oauth.unext.jp" + postAuthEndpoint
+   h := sha256.Sum256([]byte(auth.CodeVerifier))
+   challenge := base64.RawURLEncoding.EncodeToString(h[:])
    form := url.Values{}
-   form.Set("code_challenge", auth.CodeChallenge)
+   form.Set("code_challenge", challenge)
    form.Set("code_challenge_method", "S256")
    req, err := http.NewRequest("POST", fullURL, strings.NewReader(form.Encode()))
    if err != nil {
