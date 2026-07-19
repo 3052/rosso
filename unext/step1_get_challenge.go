@@ -2,41 +2,16 @@
 package unext
 
 import (
-   "crypto/sha256"
-   _ "embed"
    "encoding/base64"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
    "time"
 )
 
-//go:embed mad_all_episodes.graphql
-var allEpisodesQuery string
-
-//go:embed mad_playlist.graphql
-var playlistQuery string
-
 func GeneratePKCE() string {
-   sha := sha256.Sum256([]byte(time.Now().String()))
-   return base64.RawURLEncoding.EncodeToString(sha[:])
-}
-
-func clientDo(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return http.DefaultClient.Do(req)
-}
-
-func clientDoNoRedirect(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   client := &http.Client{
-      CheckRedirect: func(*http.Request, []*http.Request) error {
-         return http.ErrUseLastResponse
-      },
-   }
-   return client.Do(req)
+   return base64.RawURLEncoding.EncodeToString([]byte(time.Now().String()))
 }
 
 // AuthState holds the challenge_id and PKCE verifier produced by Step1.

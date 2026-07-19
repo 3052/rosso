@@ -1,13 +1,69 @@
-// step5_get_playlist.go
+// unext.go
 package unext
 
 import (
    "bytes"
+   _ "embed"
    "encoding/json"
    "fmt"
+   "io"
+   "log"
    "net/http"
    "net/url"
+   "strings"
 )
+
+//go:embed mad_all_episodes.graphql
+var allEpisodesQuery string
+
+//go:embed mad_playlist.graphql
+var playlistQuery string
+
+// Step6GetLicense POSTs a Widevine license challenge to the U-NEXT license
+// proxy and returns the raw license response bytes.
+//
+// challenge is the binary SignedMessage (protobuf) produced by a Widevine CDM.
+// The play_token must match the one used to fetch the MPD.
+func Step6GetLicense(licenseURL *url.URL, playToken string, challenge []byte) ([]byte, error) {
+   query := licenseURL.Query()
+   query.Set("play_token", playToken)
+   licenseURL.RawQuery = query.Encode()
+   req, err := http.NewRequest("POST", licenseURL.String(), bytes.NewReader(challenge))
+   if err != nil {
+      return nil, fmt.Errorf("step6: creating request: %w", err)
+   }
+   resp, err := clientDo(req)
+   if err != nil {
+      return nil, fmt.Errorf("step6: sending request: %w", err)
+   }
+   defer resp.Body.Close()
+
+   body, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("step6: reading response body: %w", err)
+   }
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("step6: expected 200, got %d: %s", resp.StatusCode, string(body))
+   }
+
+   return body, nil
+}
+
+func clientDo(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
+func clientDoNoRedirect(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   client := &http.Client{
+      CheckRedirect: func(*http.Request, []*http.Request) error {
+         return http.ErrUseLastResponse
+      },
+   }
+   return client.Do(req)
+}
 
 // AudioTrack describes an audio track language.
 type AudioTrack struct {
@@ -164,6 +220,29 @@ func (p *PlaylistUrl) MPDURL() (*url.URL, error) {
    return nil, fmt.Errorf("no DASH movie profile found")
 }
 
+// WidevineLicenseURL searches the playlist for the first DASH movie profile
+// with a WIDEVINE license URL and returns it (without query parameters).
+// Returns an error if no such profile is found.
+func (p *PlaylistUrl) WidevineLicenseURL() (*url.URL, error) {
+   for _, ui := range p.UrlInfo {
+      for _, mp := range ui.MovieProfile {
+         if mp.Type != "DASH" {
+            continue
+         }
+         for _, lu := range mp.LicenseUrlList {
+            if lu.Type == "WIDEVINE" && lu.LicenseUrl != "" {
+               u, err := url.Parse(lu.LicenseUrl)
+               if err != nil {
+                  return nil, fmt.Errorf("parsing license URL: %w", err)
+               }
+               return u, nil
+            }
+         }
+      }
+   }
+   return nil, fmt.Errorf("no DASH movie profile with WIDEVINE license found")
+}
+
 // SceneSearchList contains IMS (image search) URLs.
 type SceneSearchList struct {
    IMS_AD1 string `json:"ims_ad1"`
@@ -186,4 +265,37 @@ type UrlInfo struct {
    SceneSearchList        *SceneSearchList     `json:"sceneSearchList"`
    MovieProfile           []MovieProfile       `json:"movieProfile"`
    MoviePartsPositionList []MoviePartsPosition `json:"moviePartsPositionList"`
+}
+
+// Refresh exchanges the receiver's RefreshToken for a new set of tokens
+// and writes the result back into the receiver.
+func (t *TokenResponse) Refresh() error {
+   tokenURL := "https://oauth.unext.jp/oauth2/token"
+   form := url.Values{}
+   form.Set("refresh_token", t.RefreshToken)
+   form.Set("grant_type", "refresh_token")
+   form.Set("client_id", "unextAndroidApp")
+   req, err := http.NewRequest("POST", tokenURL, strings.NewReader(form.Encode()))
+   if err != nil {
+      return fmt.Errorf("refresh: creating request: %w", err)
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := clientDo(req)
+   if err != nil {
+      return fmt.Errorf("refresh: sending request: %w", err)
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return fmt.Errorf("refresh: expected 200, got %d", resp.StatusCode)
+   }
+
+   var newToken TokenResponse
+   if err := json.NewDecoder(resp.Body).Decode(&newToken); err != nil {
+      return fmt.Errorf("refresh: parsing response: %w", err)
+   }
+
+   // Write the new tokens back into the receiver.
+   *t = newToken
+   return nil
 }
