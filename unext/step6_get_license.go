@@ -15,18 +15,13 @@ import (
 // challenge is the binary SignedMessage (protobuf) produced by a Widevine CDM.
 // The play_token must match the one used to fetch the MPD.
 func Step6GetLicense(licenseURL *url.URL, playToken string, challenge []byte) ([]byte, error) {
-   q := licenseURL.Query()
-   q.Set("play_token", playToken)
-   licenseURL.RawQuery = q.Encode()
-
+   query := licenseURL.Query()
+   query.Set("play_token", playToken)
+   licenseURL.RawQuery = query.Encode()
    req, err := http.NewRequest("POST", licenseURL.String(), bytes.NewReader(challenge))
    if err != nil {
       return nil, fmt.Errorf("step6: creating request: %w", err)
    }
-
-   req.Header.Set("content-type", "application/octet-stream")
-   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.73.1 sdk_gphone64_x86_64")
-
    resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step6: sending request: %w", err)

@@ -92,47 +92,29 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
       Host:   "cc.unext.jp",
       Path:   "/",
    }
-
-   variables := map[string]any{
-      "code":               code,
-      "playMode":           playMode,
-      "bitrateLow":         192,
-      "validationOnly":     false,
-      "codec":              []string{"H264"},
-      "playType":           "STREAMING",
-      "keyOnly":            false,
-      "mediaType":          "NORMAL",
-      "disableRegionCheck": false,
-   }
-
    body := map[string]any{
-      "operationName": "Mad_Playlist",
-      "variables":     variables,
-      "query":         playlistQuery,
+      "query": playlistQuery,
+      "variables": map[string]any{
+         "code":               code,
+         "playMode":           playMode,
+         "bitrateLow":         192,
+         "codec":              []string{"H264"},
+         "disableRegionCheck": true,
+         "keyOnly":            false,
+         "playType":           "STREAMING",
+         "validationOnly":     false,
+      },
    }
-
    bodyJSON, err := json.Marshal(body)
    if err != nil {
       return nil, fmt.Errorf("step5: marshalling body: %w", err)
    }
-
    req, err := http.NewRequest("POST", reqURL.String(), bytes.NewReader(bodyJSON))
    if err != nil {
       return nil, fmt.Errorf("step5: creating request: %w", err)
    }
-
-   req.Header.Set("accept", "multipart/mixed;deferSpec=20220824, application/graphql-response+json, application/json")
-   req.Header.Set("content-type", "application/json")
-   req.Header.Set("apollo-require-preflight", "true")
-   req.Header.Set("apollographql-client-name", "mad_for_mobile_jp.unext.mediaplayer")
-   req.Header.Set("apollographql-client-version", "5.73.1")
-   req.Header.Set("filmratingcode", "")
-   req.Header.Set("u-device-type", "920")
-   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.73.1 sdk_gphone64_x86_64")
-   req.Header.Set("x-apollo-operation-name", "Mad_Playlist")
-   req.Header.Set("x-forwarded-for", "159.26.119.122")
    req.Header.Set("authorization", "Bearer "+accessToken)
-
+   req.Header.Set("content-type", "application/json")
    resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step5: sending request: %w", err)
