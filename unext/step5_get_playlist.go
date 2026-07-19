@@ -108,7 +108,7 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
    body := map[string]any{
       "operationName": "Mad_Playlist",
       "variables":     variables,
-      "query":         minPlaylistQuery,
+      "query":         playlistQuery,
    }
 
    bodyJSON, err := json.Marshal(body)

@@ -101,19 +101,19 @@ func (c *client) do_dash_id() error {
 }
 
 func (c *client) do_email_password() error {
-   challengeID, err := unext.Step1GetChallenge()
+   auth, err := unext.Step1GetChallenge()
    if err != nil {
       return err
    }
-   postAuth, err := unext.Step2Login(string(c.email), string(c.password), challengeID)
+   postAuth, err := unext.Step2Login(string(c.email), string(c.password), auth.ChallengeID)
    if err != nil {
       return err
    }
-   authCode, err := unext.Step3GetAuthCode(postAuth)
+   authCode, err := unext.Step3GetAuthCode(postAuth, auth)
    if err != nil {
       return err
    }
-   tokens, err := unext.Step4GetToken(authCode)
+   tokens, err := unext.Step4GetToken(authCode, auth)
    if err != nil {
       return err
    }

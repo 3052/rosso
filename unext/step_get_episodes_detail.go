@@ -22,7 +22,7 @@ func GetEpisodeCodesViaDetail(accessToken, titleCode string) ([]string, error) {
    body := map[string]any{
       "operationName": "Mad_VideoDetail",
       "variables":     map[string]string{"titleCode": titleCode},
-      "query":         minVideoDetailQuery,
+      "query":         videoDetailQuery,
    }
 
    bodyJSON, err := json.Marshal(body)

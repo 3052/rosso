@@ -26,7 +26,7 @@ func GetEpisodeCodes(accessToken, titleCode string) ([]string, error) {
          "episodePage":     1,
          "episodePageSize": 1100,
       },
-      "query": minAllEpisodesQuery,
+      "query": allEpisodesQuery,
    }
 
    bodyJSON, err := json.Marshal(body)
