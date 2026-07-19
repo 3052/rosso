@@ -14,7 +14,7 @@ import (
 func Step2Login(client *http.Client, email, password, challengeID string) (string, error) {
    loginURL := "https://oauth.unext.jp/oauth2/login"
 
-   body := map[string]interface{}{
+   body := map[string]any{
       "id":           email,
       "password":     password,
       "challenge_id": challengeID,

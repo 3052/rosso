@@ -9,87 +9,6 @@ import (
    "net/url"
 )
 
-// allEpisodesQuery is the full Mad_AllEpisodes query (required by server safelist).
-const allEpisodesQuery = `query Mad_AllEpisodes(
-  $titleCode: ID!
-  $episodePage: Int
-  $episodePageSize: Int
-) {
-  webfront_title_stage(id: $titleCode) {
-    titleName
-    nextUpdateDateTime
-  }
-  webfront_title_titleEpisodes(
-    id: $titleCode
-    page: $episodePage
-    pageSize: $episodePageSize
-  ) {
-    pageInfo {
-      page
-      pageSize
-      pages
-      results
-    }
-    episodes {
-      __typename
-      ...ListVideoEpisodeInfo
-    }
-  }
-}
-
-fragment BlockVideoEpisodeInfo on Episode {
-  id
-  episodeTitleInfo {
-    id
-    name
-  }
-  episodeName
-  thumbnail {
-    standard
-  }
-  hasSubtitle
-  hasDub
-  duration
-  displayNo
-  interruption
-  completeFlag
-  publishStyleCode
-  chromecastFlag
-  productLineupCodeList
-  hasPackRights
-}
-
-fragment ListVideoEpisodeInfo on Episode {
-  __typename
-  ...BlockVideoEpisodeInfo
-  purchaseEpisodeLimitday
-  endrollPosition
-  downloadFlag
-  chromecastFlag
-  maxResolutionCode
-  no
-  saleTypeCode
-  displayDurationText
-  introduction
-  nodCatchupPlanCode
-  nodSpecialPlanCode
-  movieTypeCode
-  maxResolutionCode
-  saleText
-  isNew
-  paymentBadgeList {
-    name
-    code
-  }
-  isPurchased
-  purchaseEpisodeLimitday
-  publicEndDate
-  minimumPrice
-  hasMultiplePrices
-  episodeNotices
-  playButtonName
-}`
-
 // GetEpisodeCodes fetches all episode codes (ED...) for a given title code (SID...)
 // using the Mad_AllEpisodes operation.
 func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]string, error) {
@@ -99,7 +18,7 @@ func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]stri
       Path:   "/",
    }
 
-   variables := map[string]interface{}{
+   variables := map[string]any{
       "titleCode":       titleCode,
       "episodePage":     1,
       "episodePageSize": 1100,
@@ -113,7 +32,7 @@ func GetEpisodeCodes(client *http.Client, accessToken, titleCode string) ([]stri
    q := url.Values{}
    q.Add("operationName", "Mad_AllEpisodes")
    q.Add("variables", string(variablesJSON))
-   q.Add("query", allEpisodesQuery)
+   q.Add("query", minAllEpisodesQuery)
    reqURL.RawQuery = q.Encode()
 
    req, err := http.NewRequest("GET", reqURL.String(), nil)

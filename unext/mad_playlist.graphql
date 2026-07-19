@@ -1,0 +1,89 @@
+query Mad_Playlist(
+  $code: String!
+  $playMode: String!
+  $bitrateLow: Int!
+  $bitrateHigh: Int
+  $validationOnly: Boolean!
+  $codec: [VideoCodec!]!
+  $dynamicRangeList: [VideoDynamicRangeType!]
+  $audioTypeList: [AudioCodecType!]
+  $playType: PlayType!
+  $keyOnly: Boolean!
+  $mediaType: String
+  $disableRegionCheck: Boolean
+) {
+  webfront_playlistUrl(
+    code: $code
+    playMode: $playMode
+    bitrateLow: $bitrateLow
+    bitrateHigh: $bitrateHigh
+    validationOnly: $validationOnly
+    codec: $codec
+    dynamicRangeList: $dynamicRangeList
+    audioTypeList: $audioTypeList
+    playType: $playType
+    keyOnly: $keyOnly
+    mediaType: $mediaType
+    disableRegionCheck: $disableRegionCheck
+  ) {
+    __typename
+    ...PlayList
+  }
+}
+
+fragment PlayList on PlaylistUrl {
+  subTitle
+  playToken
+  playTokenHash
+  beaconSpan
+  resultStatus
+  licenseExpireDate
+  isKids
+  downloadTitleMeta {
+    titleInKatakana
+    keywords
+  }
+  urlInfo {
+    code
+    startPoint
+    endPoint
+    resumePoint
+    endrollStartPosition
+    commodityCode
+    saleTypeCode
+    captionFlg
+    dubFlg
+    sceneSearchList {
+      ims_ad1: IMS_AD1
+      ims_l: IMS_L
+      ims_m: IMS_M
+      ims_s: IMS_S
+    }
+    movieProfile {
+      cdnId
+      type
+      playlistUrl
+      movieAudioList {
+        audioType
+      }
+      licenseUrlList {
+        type
+        licenseUrl
+      }
+      audioTrackList {
+        lang
+        isNative
+      }
+    }
+    moviePartsPositionList {
+      type
+      fromSeconds
+      endSeconds
+      hasRemainingPart
+    }
+  }
+  result {
+    errorCode
+    errorMessage
+  }
+}

@@ -1,10 +1,10 @@
 # fix
 
-interface
+graphQL compact
+
+graphQL post
 
 refresh
-
-post
 
 http.Client
 
@@ -24,5 +24,7 @@ http.Client
 ~~~
 
 ## done
+
+interface
 
 dub/sub

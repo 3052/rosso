@@ -9,97 +9,6 @@ import (
    "net/url"
 )
 
-// madPlaylistQuery is the full GraphQL operation for fetching a playlist.
-const madPlaylistQuery = `query Mad_Playlist(
-  $code: String!
-  $playMode: String!
-  $bitrateLow: Int!
-  $bitrateHigh: Int
-  $validationOnly: Boolean!
-  $codec: [VideoCodec!]!
-  $dynamicRangeList: [VideoDynamicRangeType!]
-  $audioTypeList: [AudioCodecType!]
-  $playType: PlayType!
-  $keyOnly: Boolean!
-  $mediaType: String
-  $disableRegionCheck: Boolean
-) {
-  webfront_playlistUrl(
-    code: $code
-    playMode: $playMode
-    bitrateLow: $bitrateLow
-    bitrateHigh: $bitrateHigh
-    validationOnly: $validationOnly
-    codec: $codec
-    dynamicRangeList: $dynamicRangeList
-    audioTypeList: $audioTypeList
-    playType: $playType
-    keyOnly: $keyOnly
-    mediaType: $mediaType
-    disableRegionCheck: $disableRegionCheck
-  ) {
-    __typename
-    ...PlayList
-  }
-}
-
-fragment PlayList on PlaylistUrl {
-  subTitle
-  playToken
-  playTokenHash
-  beaconSpan
-  resultStatus
-  licenseExpireDate
-  isKids
-  downloadTitleMeta {
-    titleInKatakana
-    keywords
-  }
-  urlInfo {
-    code
-    startPoint
-    endPoint
-    resumePoint
-    endrollStartPosition
-    commodityCode
-    saleTypeCode
-    captionFlg
-    dubFlg
-    sceneSearchList {
-      ims_ad1: IMS_AD1
-      ims_l: IMS_L
-      ims_m: IMS_M
-      ims_s: IMS_S
-    }
-    movieProfile {
-      cdnId
-      type
-      playlistUrl
-      movieAudioList {
-        audioType
-      }
-      licenseUrlList {
-        type
-        licenseUrl
-      }
-      audioTrackList {
-        lang
-        isNative
-      }
-    }
-    moviePartsPositionList {
-      type
-      fromSeconds
-      endSeconds
-      hasRemainingPart
-    }
-  }
-  result {
-    errorCode
-    errorMessage
-  }
-}`
-
 // AudioTrack describes an audio track language.
 type AudioTrack struct {
    Lang     string `json:"lang"`
@@ -183,7 +92,7 @@ func Step5GetPlaylist(client *http.Client, accessToken, code, playMode string) (
       Path:   "/",
    }
    // Variables for the GraphQL operation.
-   variables := map[string]interface{}{
+   variables := map[string]any{
       // "code": "ED00092859",
       "code":               code,
       "playMode":           playMode,
@@ -202,7 +111,7 @@ func Step5GetPlaylist(client *http.Client, accessToken, code, playMode string) (
    q := url.Values{}
    q.Add("operationName", "Mad_Playlist")
    q.Add("variables", string(variablesJSON))
-   q.Add("query", madPlaylistQuery)
+   q.Add("query", minPlaylistQuery)
    reqURL.RawQuery = q.Encode()
    req, err := http.NewRequest("GET", reqURL.String(), nil)
    if err != nil {

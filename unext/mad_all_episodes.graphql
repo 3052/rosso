@@ -1,0 +1,79 @@
+query Mad_AllEpisodes(
+  $titleCode: ID!
+  $episodePage: Int
+  $episodePageSize: Int
+) {
+  webfront_title_stage(id: $titleCode) {
+    titleName
+    nextUpdateDateTime
+  }
+  webfront_title_titleEpisodes(
+    id: $titleCode
+    page: $episodePage
+    pageSize: $episodePageSize
+  ) {
+    pageInfo {
+      page
+      pageSize
+      pages
+      results
+    }
+    episodes {
+      __typename
+      ...ListVideoEpisodeInfo
+    }
+  }
+}
+
+fragment BlockVideoEpisodeInfo on Episode {
+  id
+  episodeTitleInfo {
+    id
+    name
+  }
+  episodeName
+  thumbnail {
+    standard
+  }
+  hasSubtitle
+  hasDub
+  duration
+  displayNo
+  interruption
+  completeFlag
+  publishStyleCode
+  chromecastFlag
+  productLineupCodeList
+  hasPackRights
+}
+
+fragment ListVideoEpisodeInfo on Episode {
+  __typename
+  ...BlockVideoEpisodeInfo
+  purchaseEpisodeLimitday
+  endrollPosition
+  downloadFlag
+  chromecastFlag
+  maxResolutionCode
+  no
+  saleTypeCode
+  displayDurationText
+  introduction
+  nodCatchupPlanCode
+  nodSpecialPlanCode
+  movieTypeCode
+  maxResolutionCode
+  saleText
+  isNew
+  paymentBadgeList {
+    name
+    code
+  }
+  isPurchased
+  purchaseEpisodeLimitday
+  publicEndDate
+  minimumPrice
+  hasMultiplePrices
+  episodeNotices
+  playButtonName
+}
