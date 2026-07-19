@@ -2,6 +2,7 @@
 
 | Date | Country | Provider | Count |
 |---|---|---|---|
+| 2026-07-19 | JP | U-NEXT | 7 |
 | 2026-06-28 | US | Amazon Prime Video | 6 |
 | 2026-06-28 | US | Tubi TV | 5 |
 | 2026-04-05 | BR | Oldflix | 4 |
@@ -24,4 +25,3 @@
 | 2022-05-05 | US | The Roku Channel | 2 |
 | 2022-03-09 | US | Paramount Plus Premium | 1 |
 | 2021-12-04 | US | NBC | 1 |
-

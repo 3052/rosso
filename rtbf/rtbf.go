@@ -1,26 +1,33 @@
 package rtbf
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
+   "strings"
 )
 
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
 func FetchAssetId(path string) (string, error) {
-   resp, err := maya.Get(
-      &url.URL{
+   req, err := http.NewRequest("GET",
+      (&url.URL{
          Scheme: "https",
          Host:   "bff-service.rtbf.be",
          Path:   "/auvio/v1.23/pages" + path,
-      },
+      }).String(),
       nil,
    )
+   if err != nil {
+      return "", err
+   }
+   resp, err := do(req)
    if err != nil {
       return "", err
    }
@@ -63,6 +70,11 @@ func GetPath(urlData string) (string, error) {
    return parse.Path, nil
 }
 
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type Account struct {
    SessionInfo struct {
       CookieValue string
@@ -75,15 +87,19 @@ func FetchAccount(id, password string) (*Account, error) {
       "loginID":  {id},
       "password": {password},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest("POST",
+      (&url.URL{
          Scheme: "https",
          Host:   "login.auvio.rtbf.be",
          Path:   "/accounts.login",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
+      }).String(),
+      strings.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -105,15 +121,19 @@ func (a *Account) Identity() (*Identity, error) {
       "APIKey":      {api_key},
       "login_token": {a.SessionInfo.CookieValue},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest("POST",
+      (&url.URL{
          Scheme: "https",
          Host:   "login.auvio.rtbf.be",
          Path:   "/accounts.getJWT",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
+      }).String(),
+      strings.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -141,19 +161,21 @@ func (*Entitlement) CachePath() string {
 }
 
 func (e *Entitlement) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path:   "/v2/license/customer/RTBF/businessunit/Auvio/widevine",
-         RawQuery: url.Values{
-            "contentId":  {e.AssetId},
-            "ls_session": {e.PlayToken},
-         }.Encode(),
-      },
-      map[string]string{"content-type": "application/x-protobuf"},
-      body,
-   )
+   u := &url.URL{
+      Scheme: "https",
+      Host:   "exposure.api.redbee.live",
+      Path:   "/v2/license/customer/RTBF/businessunit/Auvio/widevine",
+      RawQuery: url.Values{
+         "contentId":  {e.AssetId},
+         "ls_session": {e.PlayToken},
+      }.Encode(),
+   }
+   req, err := http.NewRequest("POST", u.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-protobuf")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -195,15 +217,19 @@ func (i *Identity) Session() (*Session, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest("POST",
+      (&url.URL{
          Scheme: "https",
          Host:   "exposure.api.redbee.live",
          Path:   "/v2/customer/RTBF/businessunit/Auvio/auth/gigyaLogin",
-      },
-      map[string]string{"content-type": "application/json"},
-      body,
+      }).String(),
+      bytes.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/json")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -221,19 +247,22 @@ type Session struct {
 }
 
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   resp, err := maya.Get(
-      &url.URL{
+   req, err := http.NewRequest("GET",
+      (&url.URL{
          Scheme: "https",
          Host:   "exposure.api.redbee.live",
          Path: fmt.Sprintf(
             "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
          ),
-      },
-      map[string]string{
-         "authorization":   "Bearer " + s.SessionToken,
-         "x-forwarded-for": "91.90.123.17",
-      },
+      }).String(),
+      nil,
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.SessionToken)
+   req.Header.Set("x-forwarded-for", "91.90.123.17")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
