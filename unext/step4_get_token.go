@@ -4,7 +4,6 @@ package unext
 import (
    "encoding/json"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strings"
@@ -23,38 +22,29 @@ type TokenResponse struct {
 func Step4GetToken(authCode string, auth *AuthState) (*TokenResponse, error) {
    tokenURL := "https://oauth.unext.jp/oauth2/token"
    form := url.Values{}
-   form.Set("grant_type", "authorization_code")
-   form.Set("client_id", "unextAndroidApp")
-   form.Set("client_secret", "unextAndroidApp")
    form.Set("code", authCode)
    form.Set("code_verifier", auth.CodeVerifier)
+   form.Set("grant_type", "authorization_code")
+   form.Set("client_id", "unextAndroidApp")
    form.Set("redirect_uri", "jp.unext://page=oauth_callback")
-
    req, err := http.NewRequest("POST", tokenURL, strings.NewReader(form.Encode()))
    if err != nil {
       return nil, fmt.Errorf("step4: creating request: %w", err)
    }
-   req.Header.Set("user-agent", "U-NEXT Phone App Android12 5.71.0 sdk_gphone64_x86_64")
    req.Header.Set("content-type", "application/x-www-form-urlencoded")
-
    resp, err := clientDo(req)
    if err != nil {
       return nil, fmt.Errorf("step4: sending request: %w", err)
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, fmt.Errorf("step4: reading response body: %w", err)
-   }
-
    if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("step4: expected 200, got %d: %s", resp.StatusCode, string(respBody))
+      return nil, fmt.Errorf("step4: expected 200, got %d", resp.StatusCode)
    }
 
    var tokenResp TokenResponse
-   if err := json.Unmarshal(respBody, &tokenResp); err != nil {
-      return nil, fmt.Errorf("step4: parsing response: %w (body starts with: %q)", err, string(respBody[:min(len(respBody), 50)]))
+   if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+      return nil, fmt.Errorf("step4: parsing response: %w", err)
    }
 
    return &tokenResp, nil

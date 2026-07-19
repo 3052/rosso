@@ -5,7 +5,6 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
-   "io"
    "net/http"
    "net/url"
 )
@@ -90,7 +89,6 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
    reqURL := &url.URL{
       Scheme: "https",
       Host:   "cc.unext.jp",
-      Path:   "/",
    }
    body := map[string]any{
       "query": playlistQuery,
@@ -121,18 +119,13 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
    }
    defer resp.Body.Close()
 
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, fmt.Errorf("step5: reading response body: %w", err)
-   }
-
    if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("step5: expected 200, got %d: %s", resp.StatusCode, string(respBody))
+      return nil, fmt.Errorf("step5: expected 200, got %d", resp.StatusCode)
    }
 
    var plResp PlaylistResponse
-   if err := json.Unmarshal(respBody, &plResp); err != nil {
-      return nil, fmt.Errorf("step5: parsing response: %w (body starts with: %q)", err, string(respBody[:min(len(respBody), 50)]))
+   if err := json.NewDecoder(resp.Body).Decode(&plResp); err != nil {
+      return nil, fmt.Errorf("step5: parsing response: %w", err)
    }
 
    if len(plResp.Errors) > 0 {

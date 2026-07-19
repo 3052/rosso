@@ -155,12 +155,7 @@ func (c *client) do_refresh() error {
 }
 
 func (c *client) do_title_code() error {
-   tokens := &unext.TokenResponse{}
-   err := c.cache.Decode(tokens)
-   if err != nil {
-      return err
-   }
-   codes, err := unext.GetEpisodeCodes(tokens.AccessToken, string(c.title_code))
+   codes, err := unext.GetEpisodeCodes(string(c.title_code))
    if err != nil {
       return err
    }
