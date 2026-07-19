@@ -1,3 +1,4 @@
+// examples/unext/unext.go
 package main
 
 import (
@@ -23,6 +24,7 @@ type client struct {
    episode_code maya.FlagString
    dash_id      maya.FlagString
    play_mode    maya.FlagString
+   refresh      maya.FlagBool
 
    cache maya.Cache
 }
@@ -42,6 +44,7 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "email", Value: &c.email, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "refresh", Value: &c.refresh},
       {Name: "title-code", Value: &c.title_code},
       {Name: "episode-code", Value: &c.episode_code},
       {Name: "play-mode", Value: &c.play_mode, Needs: "episode-code", Usage: "caption dub"},
@@ -57,6 +60,9 @@ func (c *client) do() error {
       if c.password != "" {
          return c.do_email_password()
       }
+   }
+   if c.refresh {
+      return c.do_refresh()
    }
    if c.title_code != "" {
       return c.do_title_code()
@@ -95,19 +101,7 @@ func (c *client) do_dash_id() error {
 }
 
 func (c *client) do_email_password() error {
-   verifier, challenge, err := unext.PkcePair()
-   if err != nil {
-      return err
-   }
-   state, err := unext.GenerateRandomString(43)
-   if err != nil {
-      return err
-   }
-   nonce, err := unext.GenerateRandomString(43)
-   if err != nil {
-      return err
-   }
-   challengeID, err := unext.Step1GetChallenge(state, nonce)
+   challengeID, err := unext.Step1GetChallenge()
    if err != nil {
       return err
    }
@@ -115,16 +109,17 @@ func (c *client) do_email_password() error {
    if err != nil {
       return err
    }
-   authCode, err := unext.Step3GetAuthCode(postAuth, challenge)
+   authCode, err := unext.Step3GetAuthCode(postAuth)
    if err != nil {
       return err
    }
-   tokens, err := unext.Step4GetToken(authCode, verifier)
+   tokens, err := unext.Step4GetToken(authCode)
    if err != nil {
       return err
    }
    return c.cache.Encode(tokens)
 }
+
 func (c *client) do_episode_code() error {
    tokens := &unext.TokenResponse{}
    err := c.cache.Decode(tokens)
@@ -146,6 +141,17 @@ func (c *client) do_episode_code() error {
       return err
    }
    return c.cache.Encode(manifest, playlist)
+}
+
+func (c *client) do_refresh() error {
+   var tokens unext.TokenResponse
+   if err := c.cache.Decode(&tokens); err != nil {
+      return err
+   }
+   if err := tokens.Refresh(); err != nil {
+      return err
+   }
+   return c.cache.Encode(&tokens)
 }
 
 func (c *client) do_title_code() error {
