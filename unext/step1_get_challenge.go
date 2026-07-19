@@ -19,9 +19,6 @@ var allEpisodesQuery string
 //go:embed mad_playlist.graphql
 var playlistQuery string
 
-//go:embed mad_video_detail.graphql
-var videoDetailQuery string
-
 // clientDo wraps http.DefaultClient.Do with a log line so every request is visible.
 func clientDo(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)

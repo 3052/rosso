@@ -1,25 +1,27 @@
 # fix
 
-refresh
-
-random
-
 ## files
 
 ~~~
-1. login_test.go
-2. step6_get_license.go
-3. step5_get_playlist.go
-4. step_get_episodes.go
-5. step_get_episodes_detail.go
-6. step4_get_token.go
-7. step3_get_auth_code.go
-8. step2_login.go
-9. step1_get_challenge.go
-10. client_do.go
+mad_all_episodes.graphql
+mad_playlist.graphql
+mad_video_detail.graphql
+step1_get_challenge.go
+step2_login.go
+step3_get_auth_code.go
+step4_get_token.go
+step5_get_playlist.go
+step5_refresh_token.go
+step6_get_license.go
+step_get_episodes.go
+step_get_episodes_detail.go
 ~~~
 
 ## done
+
+random
+
+refresh
 
 graphQL post
 
