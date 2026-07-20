@@ -17,6 +17,18 @@ Even though it's a TV app, you can use it with a phone device - just install as 
 Create Pixel 5, Android 11 device. Install system certificate
 
 ~~~
+emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080 -no-snapshot-load
+~~~
+
+then:
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+then:
+
+~~~
 adb shell monkey -p com.wbd.stream -c android.intent.category.LEANBACK_LAUNCHER 1
 ~~~
 
@@ -24,10 +36,4 @@ Stop/Clear the app:
 
 ~~~
 adb shell pm clear com.wbd.stream
-~~~
-
-then:
-
-~~~
-emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080 -no-snapshot-load
 ~~~
