@@ -7,7 +7,6 @@ import (
    "errors"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
    "slices"
@@ -21,39 +20,6 @@ const device_info = "hboMax/hboMax (hboMax/hboMax; hboMax/hboMax; hboMax/hboMax)
 const disco_client = "hboMax:hboMax:hboMax:hboMax"
 
 const disco_params = "hboMax=hboMax"
-
-// doReq handles executing the HTTP request and logging the method/URL
-func doReq(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return http.DefaultClient.Do(req)
-}
-
-// APIError represents a single error object from the Max API
-type APIError struct {
-   Code   string `json:"code"`
-   Detail string `json:"detail"`
-}
-
-// APIErrors represents a collection of API errors and implements the error interface
-type APIErrors []APIError
-
-func (e APIErrors) Error() string {
-   var b strings.Builder
-   for i, err := range e {
-      if i > 0 {
-         b.WriteString(", ")
-      }
-      b.WriteString(err.Code)
-      b.WriteString(": ")
-      b.WriteString(err.Detail)
-   }
-   return b.String()
-}
-
-type Cookie struct {
-   Name  string
-   Value string
-}
 
 func StRequest() (*Cookie, error) {
    req, err := http.NewRequest(
@@ -83,12 +49,26 @@ func StRequest() (*Cookie, error) {
    return nil, errors.New("named cookie not present")
 }
 
-func (*Cookie) CachePath() string {
-   return "rosso/hboMax/Cookie"
+// APIError represents a single error object from the Max API
+type APIError struct {
+   Code   string `json:"code"`
+   Detail string `json:"detail"`
 }
 
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
+// APIErrors represents a collection of API errors and implements the error interface
+type APIErrors []APIError
+
+func (e APIErrors) Error() string {
+   var b strings.Builder
+   for i, err := range e {
+      if i > 0 {
+         b.WriteString(", ")
+      }
+      b.WriteString(err.Code)
+      b.WriteString(": ")
+      b.WriteString(err.Detail)
+   }
+   return b.String()
 }
 
 // Entity represents a single unified node in the Max API response
@@ -335,42 +315,6 @@ func (i *Initiate) String() string {
    return data.String()
 }
 
-type Login struct {
-   Token string
-}
-
-// you must
-// /authentication/linkDevice/initiate
-// first or this will always fail
-func LoginRequest(st *Cookie) (*Login, error) {
-   req, err := http.NewRequest(http.MethodPost, "https://default.prd.api.hbomax.com/authentication/linkDevice/login", nil)
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("cookie", st.String())
-
-   resp, err := doReq(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Data struct {
-         Attributes Login
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-func (*Login) CachePath() string {
-   return "rosso/hboMax/Login"
-}
-
 type Playback struct {
    Drm struct {
       Schemes struct {
@@ -534,4 +478,12 @@ type Resource struct {
 
 type Scheme struct {
    LicenseUrl string
+}
+
+func (*Cookie) CachePath() string {
+   return "rosso/hboMax/Cookie"
+}
+
+func (*Login) CachePath() string {
+   return "rosso/hboMax/Login"
 }
