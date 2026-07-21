@@ -7,6 +7,7 @@ import (
    "errors"
    "fmt"
    "io"
+   "log"
    "net/http"
    "net/url"
    "slices"
@@ -15,34 +16,16 @@ import (
 
 const Markets = "amer apac emea latam"
 
-const disco_client = "!:!:beam:!"
+const device_info = "hboMax/hboMax (hboMax/hboMax; hboMax/hboMax; hboMax/hboMax)"
 
-func StRequest() (*Cookie, error) {
-   req, err := http.NewRequest(
-      http.MethodGet,
-      "https://default.prd.api.hbomax.com/token?realm=bolt",
-      nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-device-info", device_info)
-   req.Header.Set("x-disco-client", disco_client)
+const disco_client = "hboMax:hboMax:hboMax:hboMax"
 
-   req.Header.Set("x-disco-params", "realm=bolt")
+const disco_params = "hboMax=hboMax"
 
-   resp, err := doReq(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   for _, each := range resp.Cookies() {
-      if each.Name == "st" {
-         return &Cookie{Name: each.Name, Value: each.Value}, nil
-      }
-   }
-   return nil, errors.New("named cookie not present")
+// doReq handles executing the HTTP request and logging the method/URL
+func doReq(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 // APIError represents a single error object from the Max API
@@ -65,6 +48,47 @@ func (e APIErrors) Error() string {
       b.WriteString(err.Detail)
    }
    return b.String()
+}
+
+type Cookie struct {
+   Name  string
+   Value string
+}
+
+func StRequest() (*Cookie, error) {
+   req, err := http.NewRequest(
+      http.MethodGet,
+      "https://default.prd.api.hbomax.com/token?realm=bolt",
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+
+   req.Header.Set("x-disco-params", disco_params)
+
+   resp, err := doReq(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   for _, each := range resp.Cookies() {
+      if each.Name == "st" {
+         return &Cookie{Name: each.Name, Value: each.Value}, nil
+      }
+   }
+   return nil, errors.New("named cookie not present")
+}
+
+func (*Cookie) CachePath() string {
+   return "rosso/hboMax/Cookie"
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
 // Entity represents a single unified node in the Max API response
@@ -214,7 +238,7 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
       return nil, err
    }
    req.Header.Set("authorization", "Bearer "+token)
-   req.Header.Set("x-disco-params", "realm=bolt")
+   req.Header.Set("x-disco-params", disco_params)
    req.Header.Set("x-disco-client", disco_client)
    req.Header.Set("x-device-info", device_info)
 
@@ -257,6 +281,58 @@ func (e *Entity) String() string {
       fmt.Fprintf(data, "ID: %s\n", e.Id)
    }
    return strings.TrimSpace(data.String())
+}
+
+type Initiate struct {
+   LinkingCode string
+   TargetUrl   string
+}
+
+func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
+   address := url.URL{
+      Scheme: "https",
+      Host:   fmt.Sprintf("default.any-%v.prd.api.discomax.com", market),
+      Path:   "/authentication/linkDevice/initiate",
+   }
+   req, err := http.NewRequest(http.MethodPost, address.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   req.Header.Set("cookie", st.String())
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-disco-params", disco_params)
+
+   resp, err := doReq(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data struct {
+         Attributes Initiate
+      }
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
+}
+
+func (i *Initiate) String() string {
+   var data strings.Builder
+   data.WriteString("target URL: ")
+   data.WriteString(i.TargetUrl)
+   data.WriteString("\nlinking code: ")
+   data.WriteString(i.LinkingCode)
+   return data.String()
 }
 
 type Login struct {
@@ -376,7 +452,7 @@ func playback_request(token, edit_id, drm string) (*Playback, error) {
    }
    req.Header.Set("authorization", "Bearer "+token)
    req.Header.Set("content-type", "application/json")
-   req.Header.Set("x-disco-params", "realm=bolt")
+   req.Header.Set("x-disco-params", disco_params)
    req.Header.Set("x-disco-client", disco_client)
    req.Header.Set("x-device-info", device_info)
 
@@ -458,17 +534,4 @@ type Resource struct {
 
 type Scheme struct {
    LicenseUrl string
-}
-
-func (*Cookie) CachePath() string {
-   return "rosso/hboMax/Cookie"
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL: ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code: ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
 }

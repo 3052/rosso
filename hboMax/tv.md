@@ -29,6 +29,12 @@ adb install-multiple (Get-ChildItem *.apk)
 then:
 
 ~~~
+python patch-max-ssl.py
+~~~
+
+then:
+
+~~~
 adb shell monkey -p com.wbd.stream -c android.intent.category.LEANBACK_LAUNCHER 1
 ~~~
 
