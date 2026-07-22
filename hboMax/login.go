@@ -14,6 +14,28 @@ func doReq(req *http.Request) (*http.Response, error) {
    return http.DefaultClient.Do(req)
 }
 
+// APIError represents a single error object from the Max API
+type APIError struct {
+   Code   string `json:"code"`
+   Detail string `json:"detail"`
+}
+
+// APIErrors represents a collection of API errors and implements the error interface
+type APIErrors []APIError
+
+func (e APIErrors) Error() string {
+   var b strings.Builder
+   for i, err := range e {
+      if i > 0 {
+         b.WriteString(", ")
+      }
+      b.WriteString(err.Code)
+      b.WriteString(": ")
+      b.WriteString(err.Detail)
+   }
+   return b.String()
+}
+
 type Cookie struct {
    Name  string
    Value string

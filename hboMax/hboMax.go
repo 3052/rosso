@@ -49,28 +49,6 @@ func StRequest() (*Cookie, error) {
    return nil, errors.New("named cookie not present")
 }
 
-// APIError represents a single error object from the Max API
-type APIError struct {
-   Code   string `json:"code"`
-   Detail string `json:"detail"`
-}
-
-// APIErrors represents a collection of API errors and implements the error interface
-type APIErrors []APIError
-
-func (e APIErrors) Error() string {
-   var b strings.Builder
-   for i, err := range e {
-      if i > 0 {
-         b.WriteString(", ")
-      }
-      b.WriteString(err.Code)
-      b.WriteString(": ")
-      b.WriteString(err.Detail)
-   }
-   return b.String()
-}
-
 // Entity represents a single unified node in the Max API response
 type Entity struct {
    Attributes struct {
