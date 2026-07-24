@@ -1,7 +1,7 @@
+// peacock.go
 package peacock
 
 import (
-   "41.neocities.org/maya"
    "bytes"
    "crypto/hmac"
    "crypto/md5"
@@ -11,7 +11,9 @@ import (
    "errors"
    "fmt"
    "io"
+   "log"
    "maps"
+   "net/http"
    "net/url"
    "slices"
    "strings"
@@ -24,7 +26,10 @@ const (
    sky_version = "1.0"
 )
 
-var Territory = "US"
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
 
 func generate_sky_ott(method, path string, header map[string]string, body []byte) string {
    // Sort headers by key
@@ -78,66 +83,6 @@ func generate_sky_ott(method, path string, header map[string]string, body []byte
    )
 }
 
-type Cookie struct {
-   Name  string
-   Value string
-}
-
-func FetchIdSession(user, password string) (*Cookie, error) {
-   body := url.Values{
-      "userIdentifier": {user},
-      "password":       {password},
-   }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "rango.id.peacocktv.com",
-         Path:   "/signin/service/international",
-      },
-      map[string]string{
-         "content-type":         "application/x-www-form-urlencoded",
-         "x-skyott-proposition": "NBCUOTT",
-         "x-skyott-provider":    "NBCU",
-         "x-skyott-territory":   Territory,
-      },
-      []byte(body),
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Properties struct {
-         Errors struct {
-            CategoryErrors []struct {
-               Code string
-            }
-         }
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != 201 {
-      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
-   }
-   for _, c := range resp.Cookies() {
-      if c.Name == "idsession" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
-      }
-   }
-   return nil, errors.New("idsession cookie not present")
-}
-
-func (*Cookie) CachePath() string {
-   return "rosso/peacock/Cookie"
-}
-
-func (c *Cookie) String() string {
-   return fmt.Sprintf("%v=%v", c.Name, c.Value)
-}
-
 type Endpoint struct {
    Cdn string
    Url string
@@ -160,13 +105,12 @@ func (*Playout) CachePath() string {
 // L3 max 1080p
 func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
    target := p.Protection.LicenceAcquisitionUrl.Url
-   resp, err := maya.Post(
-      &target,
-      map[string]string{
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-sky-signature", generate_sky_ott("POST", target.Path, nil, body))
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -230,15 +174,14 @@ func FetchToken(idSession *Cookie) (*Token, error) {
       Host:   "ovp.peacocktv.com",
       Path:   "/auth/tokens",
    }
-   resp, err := maya.Post(
-      &target,
-      map[string]string{
-         "content-type":    "application/vnd.tokens.v1+json",
-         "cookie":          idSession.String(),
-         "x-sky-signature": generate_sky_ott("POST", target.Path, nil, body),
-      },
-      body,
-   )
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/vnd.tokens.v1+json")
+   req.Header.Set("cookie", idSession.String())
+   req.Header.Set("x-sky-signature", generate_sky_ott("POST", target.Path, nil, body))
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -280,15 +223,21 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
       Host:   "ovp.peacocktv.com",
       Path:   "/video/playouts/vod",
    }
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   // `application/json` fails
+   req.Header.Set("content-type", "application/vnd.playvod.v1+json")
+   req.Header.Set("x-skyott-usertoken", t.UserToken)
    header := map[string]string{
-      // `application/json` fails
       "content-type":       "application/vnd.playvod.v1+json",
       "x-skyott-usertoken": t.UserToken,
    }
-   header["x-sky-signature"] = generate_sky_ott(
+   req.Header.Set("x-sky-signature", generate_sky_ott(
       "POST", target.Path, header, body,
-   )
-   resp, err := maya.Post(&target, header, body)
+   ))
+   resp, err := doRequest(req)
    if err != nil {
       return nil, err
    }
@@ -314,4 +263,12 @@ func (u *Url) MarshalText() ([]byte, error) {
 
 func (u *Url) UnmarshalText(text []byte) error {
    return u.Url.UnmarshalBinary(text)
+}
+
+func (*Cookie) CachePath() string {
+   return "rosso/peacock/Cookie"
+}
+
+func (c *Cookie) String() string {
+   return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
