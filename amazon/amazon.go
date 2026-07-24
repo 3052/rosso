@@ -5,17 +5,12 @@ import (
    "encoding/json"
    "errors"
    "fmt"
-   "log"
    "net/http"
+   "net/url"
    "strings"
 )
 
-const ( // API Hosts
-   HostAmazonAPI = "https://api.amazon.com"
-   HostATVPS     = "https://atv-ps.amazon.com"
-)
-
-const DeviceID = "deviceID"
+const HostAmazonAPI = "https://api.amazon.com"
 
 // the wrong DTID will fail the license request. if you change the DTID you
 // need to relog. also if you get a failed license request try provision again.
@@ -50,20 +45,8 @@ var Devices = []Device{
    },
 }
 
-// doRequest wraps the http.Client Do method to log every outgoing request.
-func doRequest(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   client := &http.Client{}
-   return client.Do(req)
-}
-
 func marshal(value any) ([]byte, error) {
    return json.MarshalIndent(value, "", " ")
-}
-
-// ActorToken represents an actor-specific access token.
-type ActorToken struct {
-   Token string `json:"token"`
 }
 
 // GetActorToken exchanges the account refresh token and actor ID for an actor-specific access token.
@@ -121,10 +104,6 @@ func GetActorToken(tokens *TokenPair, profile *Profile, deviceTypeID string) (*A
 
    token := result.DeviceTokens[0].ActorAccessToken
    return &token, nil
-}
-
-func (*ActorToken) CachePath() string {
-   return "rosso/amazon/ActorToken"
 }
 
 // CodePair represents the public and private codes used for device linking.
@@ -195,6 +174,107 @@ type Device struct {
    Model         string
    SecurityLevel int
    DeviceTypeID  string
+}
+
+// Profile represents an Amazon actor profile.
+type Profile struct {
+   ProfileID        string `json:"profileId"`
+   IsDefaultProfile bool   `json:"isDefaultProfile"`
+}
+
+// GetPrimaryProfile uses the account access token to fetch available profiles and returns the primary profile.
+func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error) {
+   req, err := http.NewRequest(
+      "GET",
+      HostATVPS+"/lrcedge/getDataByJavaTransform/v1/lr/profiles/profileSelection",
+      nil,
+   )
+   if err != nil {
+      return nil, err
+   }
+   query := url.Values{}
+   query.Set("deviceTypeID", deviceTypeID)
+   query.Set("deviceID", DeviceID)
+   req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+   req.URL.RawQuery = query.Encode()
+
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   // Embed our new Profile struct alongside the error Message struct
+   var result struct {
+      Resource struct {
+         Profiles []Profile `json:"profiles"`
+      } `json:"resource"`
+      Message *struct {
+         Body *struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"body"`
+      } `json:"message"`
+   }
+
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, fmt.Errorf("failed to decode response (status %d): %w", resp.StatusCode, err)
+   }
+
+   // 1. Check for the structured JSON API error
+   if result.Message != nil && result.Message.Body != nil {
+      return nil, fmt.Errorf("API error [%s]: %s", result.Message.Body.Code, result.Message.Body.Message)
+   }
+
+   // 2. Check for standard HTTP errors if no JSON error message was provided
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+
+   // 3. Extract and return the primary profile
+   for _, profile := range result.Resource.Profiles {
+      if profile.IsDefaultProfile {
+         return &profile, nil
+      }
+   }
+
+   return nil, fmt.Errorf("default profile not found")
+}
+
+// GetPlaybackExperienceMetadata searches the Actions array and returns the first valid PlaybackExperienceMetadata.
+func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata, error) {
+   for _, action := range r.Actions {
+      pem := action.Metadata.PlaybackExperienceMetadata
+      if pem.PlaybackEnvelope != "" {
+         return &pem, nil
+      }
+   }
+   return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
+}
+
+func (r *Resource) String() string {
+   var data strings.Builder
+   if r.ApplyHdr {
+      data.WriteString("HDR: true")
+   } else {
+      data.WriteString("HDR: false")
+   }
+   data.WriteByte('\n')
+   if r.ApplyUhd {
+      data.WriteString("UHD: true")
+   } else {
+      data.WriteString("UHD: false")
+   }
+
+   data.WriteByte('\n')
+   data.WriteString("Message: ")
+   data.WriteString(r.EntitlementMessaging.EntitlementMessageSlotDetail.Message)
+
+   return data.String()
+}
+
+func (*ActorToken) CachePath() string {
+   return "rosso/amazon/ActorToken"
 }
 
 func (*PlaybackExperienceMetadata) CachePath() string {

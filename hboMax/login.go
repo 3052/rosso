@@ -57,7 +57,11 @@ func LoginRequest(st *Cookie) (*Login, error) {
    if err != nil {
       return nil, err
    }
+
    req.Header.Set("cookie", st.String())
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-disco-params", disco_params)
 
    resp, err := doReq(req)
    if err != nil {
