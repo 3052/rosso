@@ -1,15 +1,22 @@
 package rakuten
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strconv"
    "strings"
 )
+
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
 
 func formatPlayableDetails(identifier string, title string, playbackStreams []Stream) string {
    seenLanguages := make(map[string]bool)
@@ -150,7 +157,12 @@ func FetchMovie(movieId string, userClassification Classification, targetMarket 
    query.Set("market_code", targetMarket.Code)
    target.RawQuery = query.Encode()
 
-   resp, err := maya.Get(target, nil)
+   req, err := http.NewRequest("GET", target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -199,7 +211,12 @@ func FetchSeason(id string, userClassification Classification, targetMarket Mark
    query.Set("market_code", targetMarket.Code)
    target.RawQuery = query.Encode()
 
-   resp, err := maya.Get(target, nil)
+   req, err := http.NewRequest("GET", target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -250,11 +267,13 @@ func FetchStart(marketCode string) (*Start, error) {
       return nil, err
    }
 
-   headers := map[string]string{
-      "content-type": "application/json",
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("content-type", "application/json")
 
-   resp, err := maya.Post(target, headers, body)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -323,11 +342,13 @@ func fetchStreaming(contentId string, contentType string, userClassification Cla
       return nil, err
    }
 
-   headers := map[string]string{
-      "content-type": "application/json",
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("content-type", "application/json")
 
-   resp, err := maya.Post(target, headers, body)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -355,7 +376,12 @@ func (*StreamInfo) CachePath() string {
 }
 
 func (s *StreamInfo) FetchLicense(challenge []byte) ([]byte, error) {
-   resp, err := maya.Post(&s.LicenseUrl.Url, nil, challenge)
+   req, err := http.NewRequest("POST", s.LicenseUrl.Url.String(), bytes.NewReader(challenge))
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -396,7 +422,12 @@ func FetchTvShow(tvShowId string, userClassification Classification, targetMarke
    query.Set("market_code", targetMarket.Code)
    target.RawQuery = query.Encode()
 
-   resp, err := maya.Get(target, nil)
+   req, err := http.NewRequest("GET", target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }

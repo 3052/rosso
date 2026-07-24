@@ -1,11 +1,13 @@
 package pluto
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strings"
 )
@@ -22,15 +24,18 @@ var (
 )
 
 func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "service-concierge.clusters.pluto.tv",
-         Path:   "/v1/wv/alt",
-      },
-      map[string]string{"content-type": "application/x-protobuf"},
-      body,
-   )
+   target := &url.URL{
+      Scheme: "https",
+      Host:   "service-concierge.clusters.pluto.tv",
+      Path:   "/v1/wv/alt",
+   }
+   req, err := http.NewRequest("POST", target.String(), bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-protobuf")
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -48,6 +53,11 @@ func build_stitcher(session_token, path string) *url.URL {
    values.Set("jwt", session_token)
    stitcher.RawQuery = values.Encode()
    return stitcher
+}
+
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 type Series struct {
@@ -72,15 +82,18 @@ func FetchSeries(movieShow string) (*Series, error) {
    } else {
       data.Set("seriesIDs", movieShow)
    }
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "boot.pluto.tv",
-         Path:     "/v4/start",
-         RawQuery: data.Encode(),
-      },
-      nil,
-   )
+   target := &url.URL{
+      Scheme:   "https",
+      Host:     "boot.pluto.tv",
+      Path:     "/v4/start",
+      RawQuery: data.Encode(),
+   }
+   req, err := http.NewRequest("GET", target.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }

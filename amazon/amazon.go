@@ -252,27 +252,6 @@ func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata,
    return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
 }
 
-func (r *Resource) String() string {
-   var data strings.Builder
-   if r.ApplyHdr {
-      data.WriteString("HDR: true")
-   } else {
-      data.WriteString("HDR: false")
-   }
-   data.WriteByte('\n')
-   if r.ApplyUhd {
-      data.WriteString("UHD: true")
-   } else {
-      data.WriteString("UHD: false")
-   }
-
-   data.WriteByte('\n')
-   data.WriteString("Message: ")
-   data.WriteString(r.EntitlementMessaging.EntitlementMessageSlotDetail.Message)
-
-   return data.String()
-}
-
 func (*ActorToken) CachePath() string {
    return "rosso/amazon/ActorToken"
 }

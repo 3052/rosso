@@ -6,6 +6,7 @@ import (
    "log"
    "net/http"
    "net/url"
+   "strings"
 )
 
 const DeviceID = "deviceID"
@@ -39,13 +40,17 @@ type Resource struct {
          PlaybackExperienceMetadata PlaybackExperienceMetadata `json:"playbackExperienceMetadata"`
       } `json:"metadata"`
    } `json:"actions"`
-   ApplyHdr             bool `json:"applyHdr"`
-   ApplyUhd             bool `json:"applyUhd"`
-   EntitlementMessaging struct {
-      EntitlementMessageSlotDetail struct {
-         Message string `json:"message"`
-      } `json:"ENTITLEMENT_MESSAGE_SLOT_DETAIL"`
-   } `json:"entitlementMessaging"`
+   ApplyHdr       bool `json:"applyHdr"`
+   ApplyUhd       bool `json:"applyUhd"`
+   PrimaryActions []struct {
+      OfferCards []struct {
+         OfferCardDecoration struct {
+            TransactionDetail []struct {
+               Text string
+            }
+         }
+      }
+   }
 }
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.
@@ -75,7 +80,7 @@ func GetItemDetails(token *ActorToken, titleId, deviceTypeID string) (*Resource,
       req.Header.Set("Authorization", "Bearer "+token.Token)
    } else {
       query.Add("firmware", "")
-      query.Add("roles", "prime-offer-supported,svod-supported")
+      query.Add("roles", "prime-offer-supported,svod-supported,tvod-supported")
       query.Add("clientFeatures", "EnableBuyBoxV2")
    }
 
@@ -99,4 +104,38 @@ func GetItemDetails(token *ActorToken, titleId, deviceTypeID string) (*Resource,
       return nil, err
    }
    return &result.Resource, nil
+}
+
+func (r *Resource) String() string {
+   var data strings.Builder
+   if r.ApplyHdr {
+      data.WriteString("HDR: true")
+   } else {
+      data.WriteString("HDR: false")
+   }
+   data.WriteByte('\n')
+   if r.ApplyUhd {
+      data.WriteString("UHD: true")
+   } else {
+      data.WriteString("UHD: false")
+   }
+
+   for _, pa := range r.PrimaryActions {
+      for _, oc := range pa.OfferCards {
+         details := oc.OfferCardDecoration.TransactionDetail
+         if len(details) == 0 {
+            continue
+         }
+         data.WriteByte('\n')
+         data.WriteString("offer card: ")
+         for j, td := range details {
+            if j > 0 {
+               data.WriteByte(' ')
+            }
+            data.WriteString(td.Text)
+         }
+      }
+   }
+
+   return data.String()
 }
