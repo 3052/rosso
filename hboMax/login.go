@@ -45,21 +45,6 @@ func (c *Cookie) String() string {
    return fmt.Sprintf("%v=%v", c.Name, c.Value)
 }
 
-type Error struct {
-   Code   string `json:"code"`
-   Detail string `json:"detail"`
-}
-
-type Errors []Error
-
-func (e Errors) Error() string {
-   parts := make([]string, len(e))
-   for i, err := range e {
-      parts[i] = err.Detail + " (" + err.Code + ")"
-   }
-   return strings.Join(parts, "; ")
-}
-
 type Login struct {
    Token string
 }
@@ -81,7 +66,7 @@ func LoginRequest(st *Cookie) (*Login, error) {
    defer resp.Body.Close()
 
    var result struct {
-      Errors Errors `json:"errors"`
+      Errors APIErrors `json:"errors"`
       Data   struct {
          Attributes Login `json:"attributes"`
       } `json:"data"`
