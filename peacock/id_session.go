@@ -1,4 +1,3 @@
-// id_session.go
 package peacock
 
 import (
@@ -11,12 +10,11 @@ import (
 
 var Territory = "US"
 
-type Cookie struct {
-   Name  string
-   Value string
+type IdSession struct {
+   Cookie *http.Cookie
 }
 
-func FetchIdSession(user, password string) (*Cookie, error) {
+func FetchIdSession(user, password string) (*IdSession, error) {
    body := url.Values{
       "userIdentifier": {user},
       "password":       {password},
@@ -26,7 +24,7 @@ func FetchIdSession(user, password string) (*Cookie, error) {
       Host:   "rango.id.peacocktv.com",
       Path:   "/signin/service/international",
    }
-   req, err := http.NewRequest("POST", target.String(), strings.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, target.String(), strings.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -40,25 +38,44 @@ func FetchIdSession(user, password string) (*Cookie, error) {
    }
    defer resp.Body.Close()
    var result struct {
-      Properties struct {
-         Errors struct {
-            CategoryErrors []struct {
-               Code string
-            }
-         }
-      }
+      Properties SignInErrors
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != 201 {
-      return nil, errors.New(result.Properties.Errors.CategoryErrors[0].Code)
+   if resp.StatusCode != http.StatusCreated {
+      return nil, &result.Properties
    }
    for _, c := range resp.Cookies() {
       if c.Name == "idsession" {
-         return &Cookie{Name: c.Name, Value: c.Value}, nil
+         return &IdSession{Cookie: c}, nil
       }
    }
    return nil, errors.New("idsession cookie not present")
+}
+
+func (*IdSession) CachePath() string {
+   return "rosso/peacock/IdSession"
+}
+
+type SignInErrors struct {
+   Code   string
+   Errors struct {
+      CategoryErrors []struct {
+         Code    string
+         Message string
+      }
+   }
+}
+
+func (e *SignInErrors) Error() string {
+   if e.Code != "" {
+      return e.Code
+   }
+   var parts []string
+   for _, ce := range e.Errors.CategoryErrors {
+      parts = append(parts, ce.Code+": "+ce.Message)
+   }
+   return strings.Join(parts, "; ")
 }

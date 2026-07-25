@@ -1,3 +1,4 @@
+// examples/peacock/peacock.go
 package main
 
 import (
@@ -65,7 +66,7 @@ func (c *client) do() error {
 }
 
 func (c *client) do_address() error {
-   id_session := &peacock.Cookie{}
+   id_session := &peacock.IdSession{}
    err := c.cache.Decode(id_session)
    if err != nil {
       return err
