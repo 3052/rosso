@@ -1,6 +1,27 @@
 # phone
 
-https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid
+- https://apkmirror.com/apk/peacock-tv-llc/peacock-tv
+- https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid
+
+create Pixel 5, APK lies you need at least API 31. install system certificate
+
+~~~
+emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080
+~~~
+
+then:
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+then:
+
+~~~
+adb shell pm clear com.peacocktv.peacockandroid
+~~~
+
+-----------------------------------------------------------------------------------
 
 If you start the app and Sign In, this request:
 
@@ -25,7 +46,16 @@ You can fix this problem by removing this request header before starting the
 app:
 
 ~~~
-set modify_headers '/~u signin.service.international/x-skyott-device/'
+mitmproxy `
+--modify-headers '/~q/k1qbesdhkq-a/' `
+--modify-headers '/~q/k1qbesdhkq-b/' `
+--modify-headers '/~q/k1qbesdhkq-c/' `
+--modify-headers '/~q/k1qbesdhkq-d/' `
+--modify-headers '/~q/k1qbesdhkq-e/' `
+--modify-headers '/~q/k1qbesdhkq-f/' `
+--modify-headers '/~q/k1qbesdhkq-g/' `
+--modify-headers '/~q/k1qbesdhkq-z/' `
+--modify-headers '/~u service.international/x-skyott-device/'
 ~~~
 
 Header needs to be removed from that request only, since other requests need the
