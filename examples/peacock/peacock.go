@@ -22,7 +22,9 @@ type client struct {
    address  maya.FlagString
    dash     maya.FlagString
    email    maya.FlagString
-   password maya.FlagString
+   otp      maya.FlagString
+
+   otpToken maya.FlagString
 
    cache maya.Cache
 }
@@ -40,8 +42,8 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "email", Value: &c.email, Needs: "password"},
-      {Name: "password", Value: &c.password, Needs: "email"},
+      {Name: "email", Value: &c.email},
+      {Name: "otp", Value: &c.otp, Needs: "email"},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
    }
@@ -51,10 +53,11 @@ func (c *client) do() error {
    if flags.IsSet(&c.Widevine) {
       return c.cache.Encode(c)
    }
-   if c.email != "" {
-      if c.password != "" {
-         return c.do_email_password()
-      }
+   if c.email != "" && c.otp == "" {
+      return c.do_email()
+   }
+   if c.otp != "" {
+      return c.do_otp()
    }
    if c.address != "" {
       return c.do_address()
@@ -108,10 +111,26 @@ func (c *client) do_dash() error {
    })
 }
 
-func (c *client) do_email_password() error {
-   id_session, err := peacock.FetchIdSession(string(c.email), string(c.password))
+func (c *client) do_email() error {
+   var session peacock.IdSession
+   token, err := session.InitiateOTP(string(c.email))
    if err != nil {
       return err
    }
-   return c.cache.Encode(id_session)
+   c.otpToken = maya.FlagString(token)
+   return c.cache.Encode(c)
+}
+
+func (c *client) do_otp() error {
+   var session peacock.IdSession
+   session.Cookie = nil // will be set by VerifyOTP
+   err := session.VerifyOTP(string(c.otpToken), string(c.otp))
+   if err != nil {
+      return err
+   }
+   c.otpToken = "" // token consumed
+   if err := c.cache.Encode(&session); err != nil {
+      return err
+   }
+   return c.cache.Encode(c)
 }

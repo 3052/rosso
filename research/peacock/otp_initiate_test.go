@@ -1,10 +1,40 @@
 package peacock
 
 import (
+   "encoding/json"
+   "fmt"
    "os"
+   "os/exec"
    "path/filepath"
    "testing"
 )
+
+// GetFirstEmail returns the username of the first credential entry.
+func GetFirstEmail(host string) (string, error) {
+   creds, err := GetCredentials(host)
+   if err != nil {
+      return "", err
+   }
+   return creds[0].Username, nil
+}
+
+// GetCredentials invokes credential.exe with the given host.
+func GetCredentials(host string) ([]Credential, error) {
+   cmd := exec.Command("credential.exe", fmt.Sprintf("-j=%s", host))
+   out, err := cmd.Output()
+   if err != nil {
+      return nil, fmt.Errorf("running credential.exe: %w", err)
+   }
+
+   var creds []Credential
+   if err := json.Unmarshal(out, &creds); err != nil {
+      return nil, fmt.Errorf("parsing credential.exe output: %w", err)
+   }
+   if len(creds) == 0 {
+      return nil, fmt.Errorf("no credentials returned for host %q", host)
+   }
+   return creds, nil
+}
 
 // TestRequestInitiateOTP hits the live Peacock identity endpoint to
 // initiate an OTP sign-in. The email is fetched from credential.exe
@@ -35,4 +65,12 @@ func TestRequestInitiateOTP(t *testing.T) {
       t.Fatalf("writing token file: %v", err)
    }
    t.Log("token written to token.txt")
+}
+
+// Credential represents one entry returned by credential.exe.
+type Credential struct {
+   Date     string `json:"date"`
+   Host     string `json:"host"`
+   Password string `json:"password"`
+   Username string `json:"username"`
 }

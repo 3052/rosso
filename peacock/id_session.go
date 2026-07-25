@@ -1,64 +1,43 @@
+// id_session.go
 package peacock
 
 import (
-   "encoding/json"
-   "errors"
    "net/http"
-   "net/url"
    "strings"
 )
 
 var Territory = "US"
 
+// IdSession holds the idsession cookie obtained via the OTP sign-in flow.
 type IdSession struct {
    Cookie *http.Cookie
-}
-
-func FetchIdSession(user, password string) (*IdSession, error) {
-   body := url.Values{
-      "userIdentifier": {user},
-      "password":       {password},
-   }.Encode()
-   target := url.URL{
-      Scheme: "https",
-      Host:   "rango.id.peacocktv.com",
-      Path:   "/signin/service/international",
-   }
-   req, err := http.NewRequest(http.MethodPost, target.String(), strings.NewReader(body))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Header.Set("x-skyott-proposition", "NBCUOTT")
-   req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("x-skyott-territory", Territory)
-   resp, err := doRequest(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Properties SignInErrors
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if resp.StatusCode != http.StatusCreated {
-      return nil, &result.Properties
-   }
-   for _, c := range resp.Cookies() {
-      if c.Name == "idsession" {
-         return &IdSession{Cookie: c}, nil
-      }
-   }
-   return nil, errors.New("idsession cookie not present")
 }
 
 func (*IdSession) CachePath() string {
    return "rosso/peacock/IdSession"
 }
 
+// InitiateOTP starts the OTP sign-in journey by sending a one-time passcode
+// to the given email address. It returns the opaque token that must be
+// passed to VerifyOTP.
+func (*IdSession) InitiateOTP(email string) (string, error) {
+   return RequestInitiateOTP(email)
+}
+
+// VerifyOTP completes the OTP sign-in by submitting the token (from
+// InitiateOTP) and the 6-digit code the user received by email. On success
+// the idsession cookie is stored.
+func (s *IdSession) VerifyOTP(token, otp string) error {
+   _, cookie, err := RequestVerifyOTP(token, otp)
+   if err != nil {
+      return err
+   }
+   s.Cookie = cookie
+   return nil
+}
+
+// SignInErrors is retained for compatibility but is no longer populated
+// by the OTP flow.
 type SignInErrors struct {
    Code   string
    Errors struct {
