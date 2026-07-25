@@ -10,51 +10,8 @@ import (
    "strings"
 )
 
-// RequestInitiateOTP sends the email to Peacock's identity service to
-// start the OTP sign-in journey. It returns the opaque token that must
-// be passed to RequestVerifyOTP.
-func RequestInitiateOTP(email string) (string, error) {
-   form := url.Values{}
-   form.Set("userIdentifier", email)
-   form.Set("journeyContext", "web-signin")
-
-   body := form.Encode()
-   req, err := http.NewRequest(http.MethodPost, BaseID+"/signin/otp", nil)
-   if err != nil {
-      return "", fmt.Errorf("building request: %w", err)
-   }
-   req.Header = SkyHeaders()
-   req.Header.Set("content-type", "application/x-www-form-urlencoded")
-   req.Body = io.NopCloser(strings.NewReader(body))
-   req.ContentLength = int64(len(body))
-
-   resp, err := doRequest(req)
-   if err != nil {
-      return "", fmt.Errorf("sending request: %w", err)
-   }
-   defer resp.Body.Close()
-
-   respBody, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return "", fmt.Errorf("reading body: %w", err)
-   }
-   if resp.StatusCode != http.StatusCreated {
-      return "", fmt.Errorf("unexpected status %d: %s", resp.StatusCode, respBody)
-   }
-
-   var result OTPInitiateResponse
-   if err := json.Unmarshal(respBody, &result); err != nil {
-      return "", fmt.Errorf("parsing JSON: %w", err)
-   }
-
-   if result.Properties.Data.Token == "" {
-      return "", fmt.Errorf("no token in response: %s", respBody)
-   }
-   return result.Properties.Data.Token, nil
-}
-
-// OTPInitiateResponse is the JSON returned by POST /signin/otp.
-type OTPInitiateResponse struct {
+// OtpInitiate is the JSON returned by POST /signin/otp.
+type OtpInitiate struct {
    Class      []string `json:"class"`
    Properties struct {
       EventType string `json:"eventType"`
@@ -64,4 +21,45 @@ type OTPInitiateResponse struct {
          Timestamp string `json:"timestamp"`
       } `json:"data"`
    } `json:"properties"`
+}
+
+// RequestInitiateOTP sends the email to Peacock's identity service to
+// start the OTP sign-in journey. It returns the opaque token that must
+// be passed to RequestVerifyOTP.
+func RequestInitiateOTP(email string) (*OtpInitiate, error) {
+   form := url.Values{}
+   form.Set("userIdentifier", email)
+   form.Set("journeyContext", "web-signin")
+
+   body := form.Encode()
+   req, err := http.NewRequest(http.MethodPost, BaseID+"/signin/otp", nil)
+   if err != nil {
+      return nil, fmt.Errorf("building request: %w", err)
+   }
+   req.Header = SkyHeaders()
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.Body = io.NopCloser(strings.NewReader(body))
+   req.ContentLength = int64(len(body))
+
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, fmt.Errorf("sending request: %w", err)
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusCreated {
+      return nil, fmt.Errorf("unexpected status %v", resp.StatusCode)
+   }
+   var result OtpInitiate
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, fmt.Errorf("parsing JSON: %w", err)
+   }
+   if result.Properties.Data.Token == "" {
+      return nil, fmt.Errorf("no token in response")
+   }
+   return &result, nil
+}
+
+func (*OtpInitiate) CachePath() string {
+   return "rosso/peacock/OtpInitiate"
 }

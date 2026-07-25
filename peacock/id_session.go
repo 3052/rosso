@@ -13,27 +13,19 @@ type IdSession struct {
    Cookie *http.Cookie
 }
 
-func (*IdSession) CachePath() string {
-   return "rosso/peacock/IdSession"
-}
-
-// InitiateOTP starts the OTP sign-in journey by sending a one-time passcode
-// to the given email address. It returns the opaque token that must be
-// passed to VerifyOTP.
-func (*IdSession) InitiateOTP(email string) (string, error) {
-   return RequestInitiateOTP(email)
-}
-
 // VerifyOTP completes the OTP sign-in by submitting the token (from
 // InitiateOTP) and the 6-digit code the user received by email. On success
 // the idsession cookie is stored.
-func (s *IdSession) VerifyOTP(token, otp string) error {
+func VerifyOTP(token, otp string) (*IdSession, error) {
    _, cookie, err := RequestVerifyOTP(token, otp)
    if err != nil {
-      return err
+      return nil, err
    }
-   s.Cookie = cookie
-   return nil
+   return &IdSession{cookie}, nil
+}
+
+func (*IdSession) CachePath() string {
+   return "rosso/peacock/IdSession"
 }
 
 // SignInErrors is retained for compatibility but is no longer populated

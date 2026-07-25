@@ -145,10 +145,25 @@ func FetchToken(idSession *IdSession) (*Token, error) {
          "providerTerritory": Territory,
       },
       "device": map[string]string{
+         // if empty /drm/widevine/acquirelicense will fail with
+         // {
+         //    "errorCode": "OVP_00306",
+         //    "description": "Security failure"
+         // }
          "drmDeviceId": "UNKNOWN",
-         "id":          "PC",
-         "platform":    "ANDROIDTV",
-         "type":        "TV",
+         // if incorrect /video/playouts/vod will fail with
+         // {
+         //    "errorCode": "OVP_00311",
+         //    "description": "Unknown deviceId"
+         // }
+         // changing this too often will result in a four hour block
+         // {
+         //    "errorCode": "OVP_00014",
+         //    "description": "Maximum number of streaming devices exceeded"
+         // }
+         "id":       "PC",
+         "platform": "ANDROIDTV",
+         "type":     "TV",
       },
    })
    if err != nil {
@@ -197,7 +212,8 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
          "maxVideoFormat": "HD",
       },
       "personaParentalControlRating": 9,
-      "providerVariantId":            variantId,
+      // "contentId": "GMO_00000000261361_02_HDSDR",
+      "providerVariantId": variantId,
    })
    if err != nil {
       return nil, err
@@ -211,6 +227,7 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    if err != nil {
       return nil, err
    }
+   // `application/json` fails
    req.Header.Set("content-type", "application/vnd.playvod.v1+json")
    req.Header.Set("x-skyott-usertoken", t.UserToken)
    header := map[string]string{
