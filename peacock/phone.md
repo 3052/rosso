@@ -21,8 +21,6 @@ then:
 adb shell pm clear com.peacocktv.peacockandroid
 ~~~
 
------------------------------------------------------------------------------------
-
 If you start the app and Sign In, this request:
 
 ~~~

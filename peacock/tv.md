@@ -1,20 +1,29 @@
 # tv
 
+- https://apkmirror.com/apk/peacock-tv-llc/peacock-tv-android-tv
+- https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid
+
+create Pixel 5, APK lies you need at least API 31. install system certificate
+
 ~~~
-$env:path = 'C:\windows\system32'
-.\rootAVD.bat system-images\android-29\android-tv\x86\ramdisk.img
-
-adb shell mkdir -p /data/local/tmp/cacerts
-adb push C:/Users/Steven/.mitmproxy/mitmproxy-ca-cert.pem /data/local/tmp/cacerts/c8750f0d.0
-adb shell cp /system/etc/security/cacerts/* /data/local/tmp/cacerts
-
-adb shell su -c 'mount -t tmpfs tmpfs /system/etc/security/cacerts'
-adb shell su -c 'cp /data/local/tmp/cacerts/* /system/etc/security/cacerts'
-adb shell su -c 'chcon u:object_r:system_file:s0 /system/etc/security/cacerts/*'
-
-adb push frida-server-16.2.1-android-x86 /data/local/tmp/frida-server
-adb shell chmod +x /data/local/tmp/frida-server
-adb shell su -c /data/local/tmp/frida-server
+emulator -avd Pixel_5 -http-proxy http://127.0.0.1:8080
 ~~~
 
-https://issuetracker.google.com/issues/331256113
+then:
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+then:
+
+~~~
+adb shell monkey -p com.peacocktv.peacockandroid `
+-c android.intent.category.LEANBACK_LAUNCHER 1
+~~~
+
+then:
+
+~~~
+adb shell pm clear com.peacocktv.peacockandroid
+~~~
