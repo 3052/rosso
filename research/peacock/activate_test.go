@@ -39,4 +39,16 @@ func TestActivateLive(t *testing.T) {
    }
 
    t.Logf("Token: %s", token)
+
+   // Update the state file with the token for any subsequent tests
+   state.Token = token
+
+   updatedData, err := json.MarshalIndent(state, "", "  ")
+   if err != nil {
+      t.Fatalf("failed to marshal updated journey state: %v", err)
+   }
+
+   if err := os.WriteFile("journey_state.json", updatedData, 0644); err != nil {
+      t.Fatalf("failed to write updated journey_state.json: %v", err)
+   }
 }

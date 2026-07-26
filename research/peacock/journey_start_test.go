@@ -75,4 +75,5 @@ type journeyState struct {
    RemainingOTPTTLSecs int    `json:"remainingOtpTtlSecs"`
    Status              string `json:"status"`
    HouseholdID         string `json:"householdId,omitempty"`
+   Token               string `json:"token,omitempty"`
 }

@@ -1,9 +1,0 @@
-{
-  "deviceId": "821492e07a224bd4",
-  "journeyId": "c623a6cd-ca35-49a9-a3cd-18aa2b91d755",
-  "oneTimePassword": "s448f7",
-  "pollingPeriodSecs": 2,
-  "remainingOtpTtlSecs": 299,
-  "status": "COMPLETED",
-  "householdId": "4c7cdc9a-d2bc-4889-a8e3-24a6a00700bc"
-}
