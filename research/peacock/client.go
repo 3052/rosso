@@ -1,7 +1,6 @@
 package peacock
 
 import (
-   "context"
    "crypto/rand"
    "encoding/hex"
    "fmt"
@@ -18,13 +17,10 @@ func randomDeviceID() string {
    return hex.EncodeToString(b)
 }
 
-// randomUUID generates a standard RFC 4122 Version 4 UUID string.
 func randomUUID() string {
    b := make([]byte, 16)
    _, _ = rand.Read(b)
-   // Set version to 4 (UUID v4)
    b[6] = (b[6] & 0x0f) | 0x40
-   // Set variant to 10 (RFC 4122)
    b[8] = (b[8] & 0x3f) | 0x80
    return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
@@ -47,9 +43,8 @@ func NewClient(deviceID string) *Client {
    }
 }
 
-// newRequest builds an http.Request with the standard Peacock headers set.
-func (c *Client) newRequest(ctx context.Context, method, url string, body io.Reader) (*http.Request, error) {
-   req, err := http.NewRequestWithContext(ctx, method, url, body)
+func (c *Client) newRequest(method, url string, body io.Reader) (*http.Request, error) {
+   req, err := http.NewRequest(method, url, body)
    if err != nil {
       return nil, err
    }

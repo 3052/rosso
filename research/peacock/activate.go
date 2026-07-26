@@ -2,7 +2,6 @@ package peacock
 
 import (
    "bytes"
-   "context"
    "encoding/json"
    "fmt"
    "net/http"
@@ -14,14 +13,13 @@ type activateRequest struct {
 }
 
 // Activate exchanges the completed journeyId for the OAuth2 user token.
-// The token is stored in c.Token and returned as a string.
-func (c *Client) Activate(ctx context.Context, journeyID string) (string, error) {
+func (c *Client) Activate(journeyID string) (string, error) {
    body, _ := json.Marshal(activateRequest{
       DeviceID:  c.DeviceID,
       JourneyID: journeyID,
    })
 
-   req, err := c.newRequest(ctx, http.MethodPost, sasBase+"/commerce/activation/activate?type=sign-in", bytes.NewReader(body))
+   req, err := c.newRequest(http.MethodPost, sasBase+"/commerce/activation/activate?type=sign-in", bytes.NewReader(body))
    if err != nil {
       return "", err
    }
@@ -34,7 +32,6 @@ func (c *Client) Activate(ctx context.Context, journeyID string) (string, error)
    }
    defer resp.Body.Close()
 
-   // We expect a 204 No Content response
    if resp.StatusCode != http.StatusNoContent {
       return "", fmt.Errorf("activate: bad status %d", resp.StatusCode)
    }

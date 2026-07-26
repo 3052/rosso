@@ -1,0 +1,8 @@
+{
+  "deviceId": "ebed2196a4949d1f",
+  "journeyId": "d74ed74c-b267-4b63-b6d4-dad17094f1ed",
+  "oneTimePassword": "b89fs6",
+  "pollingPeriodSecs": 2,
+  "remainingOtpTtlSecs": 299,
+  "status": "NOT_STARTED"
+}

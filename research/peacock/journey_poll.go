@@ -1,7 +1,6 @@
 package peacock
 
 import (
-   "context"
    "encoding/json"
    "fmt"
    "net/http"
@@ -26,8 +25,8 @@ type JourneyStatusResponse struct {
 }
 
 // PollJourney fetches the current state of an activation journey exactly once.
-func (c *Client) PollJourney(ctx context.Context, journeyID string) (*JourneyStatusResponse, error) {
-   req, err := c.newRequest(ctx, http.MethodGet, sasBase+"/companion-service/journeys/"+journeyID, nil)
+func (c *Client) PollJourney(journeyID string) (*JourneyStatusResponse, error) {
+   req, err := c.newRequest(http.MethodGet, sasBase+"/companion-service/journeys/"+journeyID, nil)
    if err != nil {
       return nil, err
    }
@@ -50,12 +49,16 @@ func (c *Client) PollJourney(ctx context.Context, journeyID string) (*JourneySta
 }
 
 // WaitForJourney polls until the journey reaches a terminal state (COMPLETED / EXPIRED).
-func (c *Client) WaitForJourney(ctx context.Context, journeyID string, pollInterval time.Duration) (*JourneyStatusResponse, error) {
+// A timeout is required to prevent indefinite blocking.
+func (c *Client) WaitForJourney(journeyID string, pollInterval, timeout time.Duration) (*JourneyStatusResponse, error) {
    ticker := time.NewTicker(pollInterval)
    defer ticker.Stop()
 
+   timeoutTimer := time.NewTimer(timeout)
+   defer timeoutTimer.Stop()
+
    for {
-      status, err := c.PollJourney(ctx, journeyID)
+      status, err := c.PollJourney(journeyID)
       if err != nil {
          return nil, err
       }
@@ -64,8 +67,8 @@ func (c *Client) WaitForJourney(ctx context.Context, journeyID string, pollInter
       }
 
       select {
-      case <-ctx.Done():
-         return nil, ctx.Err()
+      case <-timeoutTimer.C:
+         return nil, fmt.Errorf("wait for journey: timed out after %s", timeout)
       case <-ticker.C:
       }
    }

@@ -2,7 +2,6 @@ package peacock
 
 import (
    "bytes"
-   "context"
    "encoding/json"
    "fmt"
    "net/http"
@@ -18,11 +17,10 @@ type JourneyStartResponse struct {
 }
 
 // StartJourney creates a new companion-device activation journey.
-// The returned OneTimePassword is the 6-character code the user must enter at peacocktv.com/tv.
-func (c *Client) StartJourney(ctx context.Context) (*JourneyStartResponse, error) {
+func (c *Client) StartJourney() (*JourneyStartResponse, error) {
    body, _ := json.Marshal(map[string]string{"deviceId": c.DeviceID})
 
-   req, err := c.newRequest(ctx, http.MethodPost, sasBase+"/companion-service/journeys?type=sign-in", bytes.NewReader(body))
+   req, err := c.newRequest(http.MethodPost, sasBase+"/companion-service/journeys/sign-in", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
