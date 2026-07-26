@@ -11,7 +11,6 @@ import (
    "errors"
    "fmt"
    "io"
-   "log"
    "maps"
    "net/http"
    "net/url"
@@ -25,11 +24,6 @@ const (
    sky_key     = "JuLQgyFz9n89D9pxcN6ZWZXKWfgj2PNBUb32zybj"
    sky_version = "1.0"
 )
-
-func doRequest(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return http.DefaultClient.Do(req)
-}
 
 func generate_sky_ott(method, path string, header map[string]string, body []byte) string {
    // Sort headers by key
@@ -83,6 +77,10 @@ func generate_sky_ott(method, path string, header map[string]string, body []byte
    )
 }
 
+// ---------------------------------------------------------------------------
+// Shared response types
+// ---------------------------------------------------------------------------
+
 type Endpoint struct {
    Cdn string
    Url string
@@ -94,7 +92,7 @@ type Playout struct {
    }
    Description string
    Protection  struct {
-      LicenceAcquisitionUrl *Url
+      LicenceAcquisitionUrl *string
    }
 }
 
@@ -104,7 +102,10 @@ func (*Playout) CachePath() string {
 
 // L3 max 1080p
 func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   target := p.Protection.LicenceAcquisitionUrl.Url
+   target, err := url.Parse(*p.Protection.LicenceAcquisitionUrl)
+   if err != nil {
+      return nil, err
+   }
    req, err := http.NewRequest(http.MethodPost, target.String(), bytes.NewReader(body))
    if err != nil {
       return nil, err
@@ -129,6 +130,10 @@ func (p *Playout) GetFastly() (*url.URL, error) {
    }
    return nil, errors.New("FASTLY endpoint not found")
 }
+
+// ---------------------------------------------------------------------------
+// POST /auth/tokens — exchange the idsession cookie for a user token
+// ---------------------------------------------------------------------------
 
 // userToken is good for one day
 type Token struct {
@@ -197,6 +202,10 @@ func FetchToken(idSession *IdSession) (*Token, error) {
    return &result, nil
 }
 
+// ---------------------------------------------------------------------------
+// POST /video/playouts/vod — resolve a variant to stream endpoints
+// ---------------------------------------------------------------------------
+
 func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
    body, err := json.Marshal(map[string]any{
       "device": map[string]any{
@@ -251,16 +260,4 @@ func (t *Token) FetchPlayout(variantId string) (*Playout, error) {
       return nil, errors.New(result.Description)
    }
    return &result, nil
-}
-
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
 }
