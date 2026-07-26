@@ -4,7 +4,6 @@ import (
    "encoding/json"
    "os"
    "testing"
-   "time"
 )
 
 // TestStartJourneyLive makes a real request to the Peacock API to start a journey.
@@ -66,11 +65,6 @@ func TestStartJourneyLive(t *testing.T) {
    if err := os.WriteFile("journey_state.json", data, 0644); err != nil {
       t.Fatalf("failed to write journey_state.json: %v", err)
    }
-
-   // Give the user time to manually visit the URL and enter the code
-   // before the test exits and the next test (polling) begins.
-   t.Log("Pausing for 120 seconds to allow manual entry...")
-   time.Sleep(120 * time.Second)
 }
 
 type journeyState struct {
@@ -80,4 +74,5 @@ type journeyState struct {
    PollingPeriodSecs   int    `json:"pollingPeriodSecs"`
    RemainingOTPTTLSecs int    `json:"remainingOtpTtlSecs"`
    Status              string `json:"status"`
+   HouseholdID         string `json:"householdId,omitempty"`
 }
