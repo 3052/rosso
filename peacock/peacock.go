@@ -92,7 +92,7 @@ type Playout struct {
    }
    Description string
    Protection  struct {
-      LicenceAcquisitionUrl *string
+      LicenceAcquisitionUrl string
    }
 }
 
@@ -102,7 +102,7 @@ func (*Playout) CachePath() string {
 
 // L3 max 1080p
 func (p *Playout) FetchWidevine(body []byte) ([]byte, error) {
-   target, err := url.Parse(*p.Protection.LicenceAcquisitionUrl)
+   target, err := url.Parse(p.Protection.LicenceAcquisitionUrl)
    if err != nil {
       return nil, err
    }
