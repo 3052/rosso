@@ -1,81 +1,107 @@
-# Peacock TV DRM License Capture via Frida
+# Peacock
 
 https://peacocktv.com/activate
 
-## Why is this needed?
+> I've just given this a quick test, and on my machine (with an emulator and a
+> US VPN) I can start the app and start intercepting, but I quickly get a 403
+> response from tv.clients.peacocktv.com, which seems to be an Akamai endpoint.
+> It's hard to know for sure, but I'd best this is TLS fingerprinting (some
+> context: https://httptoolkit.com/blog/tls-fingerprinting-node-js/) which
+> Akamai uses to block all sorts of slightly unusual clients. 
 
-When analyzing the network traffic of the Peacock TV Android app
-(`com.peacocktv.peacockandroid`) using a proxy like `mitmproxy`, certain
-endpoints—specifically `play.clients.peacocktv.com` and
-`tv.clients.peacocktv.com`—will return `403 Access Denied`. 
+The endpoint `tv.clients.peacocktv.com` enforces **mutual TLS (mTLS)** at the
+CDN edge layer. The Peacock Android TV app presents a client certificate during
+the TLS handshake that is validated against a specific CA ("NOWTV INTL
+CERTIFICATE AUTHORITY"). Without this certificate, the CDN rejects the request
+before it reaches the origin — regardless of HTTP headers.
 
-This is **not** standard Certificate Pinning. If it were pinning, the app would simply refuse to connect. Instead, the request goes through, but the server blocks it.
+The client certificate is **not stored as a file** in the APK. It is loaded at runtime from a native library (`libwebview.so`).
 
-### The Real Problem: TLS / HTTP2 Fingerprinting
+### 2. Extract the cert at runtime with Frida
 
-These endpoints are protected by Akamai. Akamai inspects the TLS ClientHello (JA3/JA4 fingerprint) and the HTTP/2 SETTINGS frame. 
+Since the cert is generated/retrieved inside native code, use **Frida** to hook
+the Java method (`com.sky.core.webview.TVWebView.load()`) and dump the objects
+after the native call returns.
 
-When `mitmproxy` intercepts a TLS connection, it establishes its own TLS
-session with the server using its own cryptographic library (usually OpenSSL).
-The app's original network stack (Android's Conscrypt / OkHttp) has a very
-specific TLS fingerprint. Because `mitmproxy`'s fingerprint does not match what
-Akamai expects from an Android app, Akamai detects the proxy and returns a
-`403` status code. 
+**Frida script (`extract_cert.js`):**
 
-**Mitmproxy cannot currently spoof Android/OkHttp TLS fingerprints.** There is no configuration flag or addon script that can bypass this.
+```javascript
+Java.perform(function() {
+    var TVWebView = Java.use("com.sky.core.webview.TVWebView");
+    var OpenSSLRSAPrivateKey = Java.use("com.android.org.conscrypt.OpenSSLRSAPrivateKey");
+    var OpenSSLX509Certificate = Java.use("com.android.org.conscrypt.OpenSSLX509Certificate");
 
-### The Solution
+    TVWebView.load.implementation = function() {
+        var result = this.load();
 
-Since we cannot proxy the connection without being blocked, we must intercept the traffic **inside the app's memory** before it gets encrypted. 
+        if (result !== null && result.length >= 2) {
+            var privateKey = Java.cast(result[0], OpenSSLRSAPrivateKey);
+            var cert = Java.cast(result[1], OpenSSLX509Certificate);
 
-This Frida script hooks `okhttp3.internal.http.RealInterceptorChain.proceed()`.
-Every HTTP request made by the app passes through this method. We check if the
-request is destined for the Widevine license endpoint
-(`https://play.clients.peacocktv.com/drm/widevine/acquirelicense`). If it is,
-we extract the exact HTTP headers and the raw binary protobuf request body (the
-Widevine challenge) and dump them to a text file.
+            var keyBytes = privateKey.getEncoded();
+            var certBytes = cert.getEncoded();
 
-Because the traffic is captured from memory and sent directly by the app,
-Akamai sees the correct TLS fingerprint and allows the connection. We get to
-see the plaintext request payload without fighting the TLS fingerprint.
+            // Convert Java byte[] to JavaScript ArrayBuffer
+            var keyBuffer = new ArrayBuffer(keyBytes.length);
+            var keyView = new Uint8Array(keyBuffer);
+            for (var i = 0; i < keyBytes.length; i++) {
+                keyView[i] = keyBytes[i] & 0xff;
+            }
 
-## How to Use
+            var certBuffer = new ArrayBuffer(certBytes.length);
+            var certView = new Uint8Array(certBuffer);
+            for (var i = 0; i < certBytes.length; i++) {
+                certView[i] = certBytes[i] & 0xff;
+            }
 
-### Prerequisites
-* A rooted Android device or emulator (e.g., Android Studio Emulator with `adb root`)
-* `frida-server` running on the device
-* `frida-tools` installed on your PC (`pip install frida-tools`)
-* `mitmproxy` installed on your PC
+            // Write to app's private files directory
+            var ActivityThread = Java.use("android.app.ActivityThread");
+            var context = ActivityThread.currentApplication().getApplicationContext();
+            var filesDir = context.getFilesDir().getAbsolutePath();
 
-### Step 1: Capture non-blocked traffic with mitmproxy
-Start mitmproxy, ignoring the hosts that block the proxy so they fall back to direct connections:
+            var fKey = new File(filesDir + "/extracted_client.key", "wb");
+            fKey.write(keyBuffer);
+            fKey.flush();
+            fKey.close();
 
-```powershell
-mitmproxy --ignore-hosts play.clients.peacocktv.com --ignore-hosts tv.clients.peacocktv.com -w mitm_capture.mitm
+            var fCert = new File(filesDir + "/extracted_client.pem", "wb");
+            fCert.write(certBuffer);
+            fCert.flush();
+            fCert.close();
+
+            console.log("[+] Cert and key saved to: " + filesDir);
+        }
+
+        return result;
+    };
+});
 ```
 
-### Step 2: Run the Frida script
-In a separate terminal, spawn the app and load the capture script:
+**Steps:**
+1. Rooted Android emulator with Frida server running
+2. Install the Peacock APK
+3. Run: `frida -U -f com.peacocktv.peacockandroid -l extract_cert.js`
+4. Pull the files:
+   ```bash
+   adb pull /data/user/0/com.peacocktv.peacockandroid/files/extracted_client.key extracted_client.key
+   adb pull /data/user/0/com.peacocktv.peacockandroid/files/extracted_client.pem extracted_client.pem
+   ```
 
-```powershell
-frida -U -f com.peacocktv.peacockandroid -l license_capture.js
+The extracted files are raw DER-encoded binary.
+
+### 3. Convert DER to PEM and use the cert
+
+The raw DER files need to be wrapped in PEM headers. This was done with a small Go program:
+
+```go
+keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+os.WriteFile("client.key", keyPEM, 0644)
+os.WriteFile("client.pem", certPEM, 0644)
 ```
 
-### Step 3: Trigger the request
-Use the app and start playing a video. The app will make the Widevine license request. You will see the following in your Frida terminal:
+### 4. Make the request with the client cert
 
+```bash
+curl --cert client.pem --key client.key "https://tv.clients.peacocktv.com/cvsdk/android/18.0.4/bundle.sdk-ext-peacock.js"
 ```
-[*] Captured: https://play.clients.peacocktv.com/drm/widevine/acquirelicense?bt=...
-[*] Saved to: /storage/emulated/0/Android/data/com.peacocktv.peacockandroid/files/license_request.txt
-```
-
-### Step 4: Retrieve the file
-Pull the raw HTTP request file from the device:
-
-```powershell
-adb pull /sdcard/Android/data/com.peacocktv.peacockandroid/files/license_request.txt
-```
-
-The `license_request.txt` file will contain the raw HTTP request, including the
-binary protobuf body at the end, which can be used for replay attacks or
-further analysis in tools like Go, Python, or Burp Suite.
