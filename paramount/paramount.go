@@ -1,3 +1,9 @@
+// - what is `androidphone` MPD? 2160p
+// - what is `xboxone` MPD? 1080p
+// - what is the L3 cookie max? 576p
+// - what is the L3 no cookie max? 576p
+// - what is the SL2000 cookie max? 2160p
+// - what is the SL2000 no cookie max? 1080p
 package paramount
 
 import (
