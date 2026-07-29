@@ -1,3 +1,4 @@
+// 2.go
 package main
 
 import (
@@ -52,12 +53,17 @@ const bodyData = `
 `
 
 func main() {
-   pemData, err := os.ReadFile("play.clients.peacocktv.com.pem")
+   certPEM, err := os.ReadFile("../play.clients.peacocktv.com.crt.pem")
    if err != nil {
       panic(err)
    }
 
-   cert, err := tls.X509KeyPair(pemData, pemData)
+   keyPEM, err := os.ReadFile("../play.clients.peacocktv.com.key.pem")
+   if err != nil {
+      panic(err)
+   }
+
+   cert, err := tls.X509KeyPair(certPEM, keyPEM)
    if err != nil {
       panic(err)
    }

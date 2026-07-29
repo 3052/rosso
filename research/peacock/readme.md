@@ -91,21 +91,34 @@ Java.perform(function() {
 
 The extracted files are raw DER-encoded binary.
 
-## 3. Convert DER to combined PEM
+## 3. Convert DER to PEM
 
-The raw DER files need to be converted to a combined PEM file (cert + private
-key concatenated) for use with mitmproxy and curl. Use the `der2pem` Go program
-(see `der2pem.go`):
+The raw DER files need to be converted to PEM format for use with mitmproxy
+and curl. Use the `der2pem` Go program (see `der2pem.go`):
 
 ```powershell
-go build -o der2pem.exe der2pem.go
-
-.\der2pem.exe -cert extracted_client.pem -key extracted_client.key -host play.clients.peacocktv.com
-.\der2pem.exe -cert extracted_client.pem -key extracted_client.key -host tv.clients.peacocktv.com
+der2pem -cert extracted_client.pem -key extracted_client.key -host play.clients.peacocktv.com
+der2pem -cert extracted_client.pem -key extracted_client.key -host tv.clients.peacocktv.com
 ```
 
-This writes a combined `<hostname>.pem` file (cert + key) to the current
-directory for each host. The file looks like:
+This writes two files per host to the current directory:
+
+- `<hostname>.crt.pem` — the certificate
+- `<hostname>.key.pem` — the private key
+
+> **Note:** mitmproxy expects a **single combined PEM file** (cert + key
+> concatenated) named `<hostname>.pem`. Use the following PowerShell to
+> combine the two files for each host:
+
+```powershell
+# Combine into a single PEM (cert first, then key)
+Get-Content play.clients.peacocktv.com.crt.pem, play.clients.peacocktv.com.key.pem | `
+    Set-Content play.clients.peacocktv.com.pem
+Get-Content tv.clients.peacocktv.com.crt.pem, tv.clients.peacocktv.com.key.pem | `
+    Set-Content tv.clients.peacocktv.com.pem
+```
+
+The combined file looks like:
 
 ```
 -----BEGIN CERTIFICATE-----
@@ -120,19 +133,25 @@ directory for each host. The file looks like:
 
 ### With mitmproxy
 
+mitmproxy requires the combined `<hostname>.pem` file generated in
+Section 3:
+
 ```powershell
 mitmproxy --set client_certs=.
 ```
 
+> mitmproxy matches each outgoing connection's target hostname to a
+> `<hostname>.pem` file in the `client_certs` directory.
+
 ### With curl
 
-curl's `--cert` flag natively supports a combined PEM file containing both
-the certificate and the private key — no `--key` flag needed:
+curl accepts the separate cert and key files directly via `--cert` and
+`--key`, so no combining step is needed:
 
 ```powershell
-curl --cert tv.clients.peacocktv.com.pem `
+curl --cert tv.clients.peacocktv.com.crt.pem --key tv.clients.peacocktv.com.key.pem `
     "https://tv.clients.peacocktv.com/cvsdk/android/18.0.4/bundle.sdk-ext-peacock.js"
 
-curl --cert play.clients.peacocktv.com.pem `
+curl --cert play.clients.peacocktv.com.crt.pem --key play.clients.peacocktv.com.key.pem `
     "https://play.clients.peacocktv.com/..."
 ```

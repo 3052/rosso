@@ -113,16 +113,19 @@ func main() {
    }
    fmt.Printf("Private key loaded and converted to PEM.\n\n")
 
-   // --- Write combined PEM to current directory ---
-   outPath := filepath.Join(".", *host+".pem")
-   combined := append(certPEM, keyPEM...)
+   // --- Write separate cert and key PEM files to current directory ---
+   certOutPath := filepath.Join(".", *host+".crt.pem")
+   keyOutPath := filepath.Join(".", *host+".key.pem")
 
-   if err := os.WriteFile(outPath, combined, 0600); err != nil {
-      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", outPath, err)
+   if err := os.WriteFile(certOutPath, certPEM, 0644); err != nil {
+      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", certOutPath, err)
       os.Exit(1)
    }
-   fmt.Printf("✓ Wrote %s\n", outPath)
+   fmt.Printf("✓ Wrote %s\n", certOutPath)
 
-   fmt.Println("\nDone! Now launch mitmproxy:")
-   fmt.Printf("  mitmproxy --set client_certs=.\n")
+   if err := os.WriteFile(keyOutPath, keyPEM, 0600); err != nil {
+      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", keyOutPath, err)
+      os.Exit(1)
+   }
+   fmt.Printf("✓ Wrote %s\n", keyOutPath)
 }

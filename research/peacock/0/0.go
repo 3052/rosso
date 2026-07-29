@@ -1,3 +1,4 @@
+// 0.go
 package main
 
 import (
@@ -10,15 +11,37 @@ import (
    "os"
 )
 
-const bodyData = `{"auth":{"authScheme":"OAUTH","authIssuer":"NOWTV","provider":"NBCU","providerTerritory":"US","proposition":"NBCUOTT","authToken":"a2cb8bf281cbfb426ebe48e56662a41371d12200f044c11ac0657f242fb21ce3"},"device":{"type":"TV","platform":"ANDROIDTV","id":"d81aabd73e994093","drmDeviceId":"UNKNOWN"}}`
+const bodyData = `
+{
+  "auth": {
+    "authScheme": "OAUTH",
+    "authIssuer": "NOWTV",
+    "provider": "NBCU",
+    "providerTerritory": "US",
+    "proposition": "NBCUOTT",
+    "authToken": "a2cb8bf281cbfb426ebe48e56662a41371d12200f044c11ac0657f242fb21ce3"
+  },
+  "device": {
+    "type": "TV",
+    "platform": "ANDROIDTV",
+    "id": "d81aabd73e994093",
+    "drmDeviceId": "UNKNOWN"
+  }
+}
+`
 
 func main() {
-   pemData, err := os.ReadFile("play.clients.peacocktv.com.pem")
+   certPEM, err := os.ReadFile("../play.clients.peacocktv.com.crt.pem")
    if err != nil {
       panic(err)
    }
 
-   cert, err := tls.X509KeyPair(pemData, pemData)
+   keyPEM, err := os.ReadFile("../play.clients.peacocktv.com.key.pem")
+   if err != nil {
+      panic(err)
+   }
+
+   cert, err := tls.X509KeyPair(certPEM, keyPEM)
    if err != nil {
       panic(err)
    }

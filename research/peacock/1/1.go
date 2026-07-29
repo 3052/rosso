@@ -1,3 +1,4 @@
+// 1.go
 package main
 
 import (
@@ -13,12 +14,17 @@ import (
 const bodyData = `{"auth":{"personaId":"3c0ce3d6-75bd-48c6-b3a9-fabce4c2ff83"},"device":{"id":"d81aabd73e994093"}}`
 
 func main() {
-   pemData, err := os.ReadFile("play.clients.peacocktv.com.pem")
+   certPEM, err := os.ReadFile("../play.clients.peacocktv.com.crt.pem")
    if err != nil {
       panic(err)
    }
 
-   cert, err := tls.X509KeyPair(pemData, pemData)
+   keyPEM, err := os.ReadFile("../play.clients.peacocktv.com.key.pem")
+   if err != nil {
+      panic(err)
+   }
+
+   cert, err := tls.X509KeyPair(certPEM, keyPEM)
    if err != nil {
       panic(err)
    }
