@@ -6,13 +6,14 @@ import (
    "crypto/rsa"
    "crypto/x509"
    "encoding/pem"
+   "flag"
    "fmt"
    "os"
    "path/filepath"
 )
 
 // derKeyToPEM attempts to parse a DER private key in multiple formats
-// (PKCS1 RSA, PKCS8, EC) and returns the PEM-encoded version.
+// (PKCS1 RSA, PKCS8, EC SEC1) and returns the PEM-encoded version.
 func derKeyToPEM(der []byte) ([]byte, error) {
    // Try PKCS1 RSA first
    if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
@@ -60,23 +61,22 @@ func derKeyToPEM(der []byte) ([]byte, error) {
 }
 
 func main() {
-   if len(os.Args) < 4 {
-      fmt.Fprintf(os.Stderr, "Usage: %s <cert.der> <key.der> <output-dir> [hostname...]\n", os.Args[0])
-      fmt.Fprintf(os.Stderr, "Example: %s cert.der key.der ~/.mitmproxy/client-certs play.clients.peacocktv.com tv.clients.peacocktv.com\n", os.Args[0])
+   certPath := flag.String("cert", "", "Path to DER-encoded certificate file")
+   keyPath := flag.String("key", "", "Path to DER-encoded private key file")
+   host := flag.String("host", "", "Hostname")
+   flag.Parse()
+
+   if *certPath == "" || *keyPath == "" || *host == "" {
+      fmt.Fprintf(os.Stderr, "Usage: %s -cert <cert.der> -key <key.der> -host <hostname>\n", os.Args[0])
+      fmt.Fprintf(os.Stderr, "\nFlags:\n")
+      flag.PrintDefaults()
+      fmt.Fprintf(os.Stderr, "\nExample:\n")
+      fmt.Fprintf(os.Stderr, "  %s -cert extracted_client.pem -key extracted_client.key -host play.clients.peacocktv.com\n", os.Args[0])
       os.Exit(1)
    }
 
-   certDERPath := os.Args[1]
-   keyDERPath := os.Args[2]
-   outputDir := os.Args[3]
-   hosts := os.Args[4:]
-
-   if len(hosts) == 0 {
-      hosts = []string{"play.clients.peacocktv.com", "tv.clients.peacocktv.com"}
-   }
-
    // --- Read & parse the DER certificate ---
-   certDER, err := os.ReadFile(certDERPath)
+   certDER, err := os.ReadFile(*certPath)
    if err != nil {
       fmt.Fprintf(os.Stderr, "Error reading cert DER: %v\n", err)
       os.Exit(1)
@@ -100,7 +100,7 @@ func main() {
    fmt.Println()
 
    // --- Read & parse the DER private key ---
-   keyDER, err := os.ReadFile(keyDERPath)
+   keyDER, err := os.ReadFile(*keyPath)
    if err != nil {
       fmt.Fprintf(os.Stderr, "Error reading key DER: %v\n", err)
       os.Exit(1)
@@ -113,24 +113,16 @@ func main() {
    }
    fmt.Printf("Private key loaded and converted to PEM.\n\n")
 
-   // --- Create the output directory ---
-   if err := os.MkdirAll(outputDir, 0755); err != nil {
-      fmt.Fprintf(os.Stderr, "Error creating output directory: %v\n", err)
+   // --- Write combined PEM to current directory ---
+   outPath := filepath.Join(".", *host+".pem")
+   combined := append(certPEM, keyPEM...)
+
+   if err := os.WriteFile(outPath, combined, 0600); err != nil {
+      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", outPath, err)
       os.Exit(1)
    }
-
-   // --- Write combined PEM per hostname ---
-   for _, host := range hosts {
-      outPath := filepath.Join(outputDir, host+".pem")
-      combined := append(certPEM, keyPEM...)
-
-      if err := os.WriteFile(outPath, combined, 0600); err != nil {
-         fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", outPath, err)
-         os.Exit(1)
-      }
-      fmt.Printf("✓ Wrote %s\n", outPath)
-   }
+   fmt.Printf("✓ Wrote %s\n", outPath)
 
    fmt.Println("\nDone! Now launch mitmproxy:")
-   fmt.Printf("  mitmproxy --set client_certs=%s/\n", outputDir)
+   fmt.Printf("  mitmproxy --set client_certs=.\n")
 }
