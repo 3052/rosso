@@ -1,4 +1,3 @@
 *.json
 *.key
-*.pem
 __pycache__
