@@ -1,3 +1,4 @@
+// client.go
 package peacock
 
 import (
@@ -30,6 +31,12 @@ type Client struct {
    HTTP     *http.Client
    DeviceID string
    Token    string // OAuth2 bearer token; populated after successful login
+
+   // CertPEM and KeyPEM hold the mTLS client certificate and private key
+   // required by the play.clients.peacocktv.com token endpoint.
+   // Set these via LoadCertFiles or directly before calling ExchangeToken.
+   CertPEM []byte
+   KeyPEM  []byte
 }
 
 // NewClient returns a new Client. If deviceID is empty, a random one is generated.

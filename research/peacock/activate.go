@@ -1,3 +1,4 @@
+// activate.go
 package peacock
 
 import (
