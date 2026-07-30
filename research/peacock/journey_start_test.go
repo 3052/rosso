@@ -48,7 +48,6 @@ func TestStartJourneyLive(t *testing.T) {
 3. Complete the login within %d seconds
 ====================================`, resp.OneTimePassword, resp.RemainingOTPTTLSecs)
 
-   // Write journey state to a file for subsequent tests
    state := journeyState{
       DeviceID:            client.DeviceID,
       JourneyID:           resp.JourneyID,

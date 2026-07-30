@@ -18,25 +18,17 @@ type RefreshTokenResponse struct {
    RecommendedTokenReacquireTime string `json:"recommendedTokenReacquireTime"`
 }
 
-type refreshTokenAuth struct {
-   PersonaID string `json:"personaId"`
-}
-
 type refreshTokenDevice struct {
    ID string `json:"id"`
 }
 
 type refreshTokenRequest struct {
-   Auth   refreshTokenAuth   `json:"auth"`
    Device refreshTokenDevice `json:"device"`
 }
 
 // RefreshToken refreshes an existing user token using the mTLS certificate
-// at the given paths. The personaID and current userToken are required.
-func (c *Client) RefreshToken(personaID, userToken, certPath, keyPath string) (*RefreshTokenResponse, error) {
-   if personaID == "" {
-      return nil, fmt.Errorf("refresh token: empty personaID")
-   }
+// at the given paths. The current userToken is required.
+func (c *Client) RefreshToken(userToken, certPath, keyPath string) (*RefreshTokenResponse, error) {
    if userToken == "" {
       return nil, fmt.Errorf("refresh token: empty userToken")
    }
@@ -45,9 +37,6 @@ func (c *Client) RefreshToken(personaID, userToken, certPath, keyPath string) (*
    }
 
    body := refreshTokenRequest{
-      Auth: refreshTokenAuth{
-         PersonaID: personaID,
-      },
       Device: refreshTokenDevice{
          ID: c.DeviceID,
       },
