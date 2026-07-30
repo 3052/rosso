@@ -8,6 +8,7 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
+   "net/url"
 )
 
 // PlayoutVodParams holds the parameters for a VOD playout request.
@@ -30,6 +31,20 @@ type PlayoutVodResponse struct {
    Protection struct {
       LicenceAcquisitionUrl string `json:"licenceAcquisitionUrl"`
    } `json:"protection"`
+}
+
+// Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
+func (r *PlayoutVodResponse) Fastly() (*url.URL, error) {
+   for _, endpoint := range r.Asset.Endpoints {
+      if endpoint.Cdn == "FASTLY" {
+         parsed, err := url.Parse(endpoint.Url)
+         if err != nil {
+            return nil, fmt.Errorf("fastly: parse url: %w", err)
+         }
+         return parsed, nil
+      }
+   }
+   return nil, fmt.Errorf("fastly cdn endpoint not found")
 }
 
 type playoutCapability struct {
