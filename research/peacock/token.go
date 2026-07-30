@@ -4,7 +4,6 @@ package peacock
 import (
    "bytes"
    "crypto/md5"
-   "crypto/tls"
    "encoding/hex"
    "encoding/json"
    "fmt"
@@ -44,15 +43,17 @@ type tokenRequest struct {
 }
 
 // ExchangeToken trades the OAuth2 activation token for a long-lived user token
-// using the mTLS certificate at the given paths. The activation token is sent
+// using the embedded mTLS certificate. The activation token is sent
 // in the request body as authToken, not as a bearer header.
 // The returned user token can be used as a bearer credential for playback.
-func (c *Client) ExchangeToken(authToken, certPath, keyPath string) (*TokenResponse, error) {
+func (c *Client) ExchangeToken(authToken string) (*TokenResponse, error) {
    if authToken == "" {
       return nil, fmt.Errorf("exchange token: empty authToken")
    }
-   if certPath == "" || keyPath == "" {
-      return nil, fmt.Errorf("exchange token: certPath and keyPath must be set")
+
+   client, err := mtlsClient(c.HTTP.Timeout)
+   if err != nil {
+      return nil, fmt.Errorf("exchange token: %w", err)
    }
 
    body := tokenRequest{
@@ -77,26 +78,8 @@ func (c *Client) ExchangeToken(authToken, certPath, keyPath string) (*TokenRespo
       return nil, fmt.Errorf("exchange token: marshal: %w", err)
    }
 
-   // Compute Content-MD5 of the request body.
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
-
-   // Load the mTLS client certificate directly from file paths.
-   cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-   if err != nil {
-      return nil, fmt.Errorf("exchange token: load key pair: %w", err)
-   }
-
-   mtlsClient := &http.Client{
-      Timeout: c.HTTP.Timeout,
-      Transport: &http.Transport{
-         Proxy: http.ProxyFromEnvironment,
-         TLSClientConfig: &tls.Config{
-            Certificates: []tls.Certificate{cert},
-            MinVersion:   tls.VersionTLS12,
-         },
-      },
-   }
 
    req, err := http.NewRequest(http.MethodPost, playBase+"/auth/throttled/tokens", bytes.NewReader(raw))
    if err != nil {
@@ -118,7 +101,7 @@ func (c *Client) ExchangeToken(authToken, certPath, keyPath string) (*TokenRespo
    req.Header.Set("Content-MD5", contentMD5)
    req.Header.Set("Origin", "https://tv.clients.peacocktv.com")
 
-   resp, err := mtlsClient.Do(req)
+   resp, err := client.Do(req)
    if err != nil {
       return nil, fmt.Errorf("exchange token: %w", err)
    }

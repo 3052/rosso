@@ -77,4 +77,6 @@ type journeyState struct {
    HouseholdID         string `json:"householdId,omitempty"`
    Token               string `json:"token,omitempty"`
    UserToken           string `json:"userToken,omitempty"`
+   ContentID           string `json:"contentId,omitempty"`
+   ProviderVariantID   string `json:"providerVariantId,omitempty"`
 }

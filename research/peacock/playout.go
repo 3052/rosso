@@ -4,7 +4,6 @@ package peacock
 import (
    "bytes"
    "crypto/md5"
-   "crypto/tls"
    "encoding/hex"
    "encoding/json"
    "fmt"
@@ -16,8 +15,6 @@ type PlayoutVodParams struct {
    UserToken                    string
    ContentID                    string
    ProviderVariantID            string
-   CertPath                     string
-   KeyPath                      string
    ParentalControlPin           string
    PersonaParentalControlRating string
 }
@@ -52,8 +49,9 @@ type playoutRequest struct {
    PersonaParentalControlRating string        `json:"personaParentalControlRating"`
 }
 
-// PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using mTLS.
-// The response is returned as raw JSON since the structure may vary.
+// PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
+// embedded mTLS certificate. The response is returned as raw JSON since the
+// structure may vary.
 func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
    if params.UserToken == "" {
       return nil, fmt.Errorf("playout vod: empty userToken")
@@ -64,12 +62,14 @@ func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
    if params.ProviderVariantID == "" {
       return nil, fmt.Errorf("playout vod: empty providerVariantID")
    }
-   if params.CertPath == "" || params.KeyPath == "" {
-      return nil, fmt.Errorf("playout vod: certPath and keyPath must be set")
-   }
 
    if params.ParentalControlPin == "" && params.PersonaParentalControlRating == "" {
       params.PersonaParentalControlRating = "9"
+   }
+
+   client, err := mtlsClient(c.HTTP.Timeout)
+   if err != nil {
+      return nil, fmt.Errorf("playout vod: %w", err)
    }
 
    body := playoutRequest{
@@ -101,22 +101,6 @@ func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
 
-   cert, err := tls.LoadX509KeyPair(params.CertPath, params.KeyPath)
-   if err != nil {
-      return nil, fmt.Errorf("playout vod: load key pair: %w", err)
-   }
-
-   mtlsClient := &http.Client{
-      Timeout: c.HTTP.Timeout,
-      Transport: &http.Transport{
-         Proxy: http.ProxyFromEnvironment,
-         TLSClientConfig: &tls.Config{
-            Certificates: []tls.Certificate{cert},
-            MinVersion:   tls.VersionTLS12,
-         },
-      },
-   }
-
    req, err := http.NewRequest(http.MethodPost, playBase+"/video/playouts/vod", bytes.NewReader(raw))
    if err != nil {
       return nil, fmt.Errorf("playout vod: create request: %w", err)
@@ -141,7 +125,7 @@ func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
    req.Header.Set("x-skyott-territory", "US")
    req.Header.Set("x-skyott-usertoken", params.UserToken)
 
-   resp, err := mtlsClient.Do(req)
+   resp, err := client.Do(req)
    if err != nil {
       return nil, fmt.Errorf("playout vod: %w", err)
    }

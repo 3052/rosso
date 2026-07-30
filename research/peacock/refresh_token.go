@@ -4,7 +4,6 @@ package peacock
 import (
    "bytes"
    "crypto/md5"
-   "crypto/tls"
    "encoding/hex"
    "encoding/json"
    "fmt"
@@ -26,14 +25,15 @@ type refreshTokenRequest struct {
    Device refreshTokenDevice `json:"device"`
 }
 
-// RefreshToken refreshes an existing user token using the mTLS certificate
-// at the given paths. The current userToken is required.
-func (c *Client) RefreshToken(userToken, certPath, keyPath string) (*RefreshTokenResponse, error) {
+// RefreshToken refreshes an existing user token using the embedded mTLS certificate.
+func (c *Client) RefreshToken(userToken string) (*RefreshTokenResponse, error) {
    if userToken == "" {
       return nil, fmt.Errorf("refresh token: empty userToken")
    }
-   if certPath == "" || keyPath == "" {
-      return nil, fmt.Errorf("refresh token: certPath and keyPath must be set")
+
+   client, err := mtlsClient(c.HTTP.Timeout)
+   if err != nil {
+      return nil, fmt.Errorf("refresh token: %w", err)
    }
 
    body := refreshTokenRequest{
@@ -49,22 +49,6 @@ func (c *Client) RefreshToken(userToken, certPath, keyPath string) (*RefreshToke
 
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
-
-   cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-   if err != nil {
-      return nil, fmt.Errorf("refresh token: load key pair: %w", err)
-   }
-
-   mtlsClient := &http.Client{
-      Timeout: c.HTTP.Timeout,
-      Transport: &http.Transport{
-         Proxy: http.ProxyFromEnvironment,
-         TLSClientConfig: &tls.Config{
-            Certificates: []tls.Certificate{cert},
-            MinVersion:   tls.VersionTLS12,
-         },
-      },
-   }
 
    req, err := http.NewRequest(http.MethodPatch, playBase+"/auth/tokens", bytes.NewReader(raw))
    if err != nil {
@@ -86,7 +70,7 @@ func (c *Client) RefreshToken(userToken, certPath, keyPath string) (*RefreshToke
    req.Header.Set("x-skyott-territory", "US")
    req.Header.Set("x-skyott-usertoken", userToken)
 
-   resp, err := mtlsClient.Do(req)
+   resp, err := client.Do(req)
    if err != nil {
       return nil, fmt.Errorf("refresh token: %w", err)
    }

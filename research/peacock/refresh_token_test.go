@@ -9,8 +9,7 @@ import (
 
 // TestRefreshTokenLive makes a real request to the Peacock API to refresh
 // an existing user token using mTLS.
-// It relies on journey_state.json being generated and updated by the previous tests,
-// as well as the presence of cert.pem and key.pem files for mTLS.
+// It relies on journey_state.json being generated and updated by the previous tests.
 func TestRefreshTokenLive(t *testing.T) {
    data, err := os.ReadFile("journey_state.json")
    if err != nil {
@@ -30,11 +29,7 @@ func TestRefreshTokenLive(t *testing.T) {
 
    t.Logf("Refreshing token for DeviceID: %s", client.DeviceID)
 
-   resp, err := client.RefreshToken(
-      state.UserToken,
-      "cert.pem",
-      "key.pem",
-   )
+   resp, err := client.RefreshToken(state.UserToken)
    if err != nil {
       t.Fatalf("RefreshToken failed: %v", err)
    }

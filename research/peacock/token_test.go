@@ -9,8 +9,7 @@ import (
 
 // TestExchangeTokenLive makes a real request to the Peacock API to exchange
 // the activation token for a long-lived user token using mTLS.
-// It relies on journey_state.json being generated and updated by the previous tests,
-// as well as the presence of cert.pem and key.pem files for mTLS.
+// It relies on journey_state.json being generated and updated by the previous tests.
 func TestExchangeTokenLive(t *testing.T) {
    data, err := os.ReadFile("journey_state.json")
    if err != nil {
@@ -30,11 +29,7 @@ func TestExchangeTokenLive(t *testing.T) {
 
    t.Logf("Exchanging token for DeviceID: %s", client.DeviceID)
 
-   resp, err := client.ExchangeToken(
-      state.Token,
-      "cert.pem",
-      "key.pem",
-   )
+   resp, err := client.ExchangeToken(state.Token)
    if err != nil {
       t.Fatalf("ExchangeToken failed: %v", err)
    }
