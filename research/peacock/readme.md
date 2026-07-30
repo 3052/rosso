@@ -54,12 +54,12 @@ Java.perform(function() {
             var context = ActivityThread.currentApplication().getApplicationContext();
             var filesDir = context.getFilesDir().getAbsolutePath();
 
-            var fKey = new File(filesDir + "/extracted_client.key", "wb");
+            var fKey = new File(filesDir + "/key.der", "wb");
             fKey.write(keyBuffer);
             fKey.flush();
             fKey.close();
 
-            var fCert = new File(filesDir + "/extracted_client.pem", "wb");
+            var fCert = new File(filesDir + "/cert.der", "wb");
             fCert.write(certBuffer);
             fCert.flush();
             fCert.close();
@@ -85,8 +85,8 @@ Java.perform(function() {
 4. Pull the files:
 
    ```powershell
-   adb pull /data/user/0/com.peacocktv.peacockandroid/files/extracted_client.key extracted_client.key
-   adb pull /data/user/0/com.peacocktv.peacockandroid/files/extracted_client.pem extracted_client.pem
+   adb pull /data/user/0/com.peacocktv.peacockandroid/files/key.der
+   adb pull /data/user/0/com.peacocktv.peacockandroid/files/cert.der
    ```
 
 The extracted files are raw DER-encoded binary.
@@ -97,14 +97,14 @@ The raw DER files need to be converted to PEM format for use with mitmproxy
 and curl. Use the `der2pem` Go program (see `der2pem.go`):
 
 ```powershell
-der2pem -cert extracted_client.pem -key extracted_client.key -host play.clients.peacocktv.com
-der2pem -cert extracted_client.pem -key extracted_client.key -host tv.clients.peacocktv.com
+der2pem -cert cert.der -key key.der -out play.clients.peacocktv.com
+der2pem -cert cert.der -key key.der -out tv.clients.peacocktv.com
 ```
 
-This writes two files per host to the current directory:
+This writes two files to the specified output directory:
 
-- `<hostname>.crt.pem` — the certificate
-- `<hostname>.key.pem` — the private key
+- `cert.pem` — the certificate
+- `key.pem` — the private key
 
 > **Note:** mitmproxy expects a **single combined PEM file** (cert + key
 > concatenated) named `<hostname>.pem`. Use the following PowerShell to
@@ -112,9 +112,9 @@ This writes two files per host to the current directory:
 
 ```powershell
 # Combine into a single PEM (cert first, then key)
-Get-Content play.clients.peacocktv.com.crt.pem, play.clients.peacocktv.com.key.pem | `
+Get-Content play.clients.peacocktv.com/cert.pem, play.clients.peacocktv.com/key.pem | `
     Set-Content play.clients.peacocktv.com.pem
-Get-Content tv.clients.peacocktv.com.crt.pem, tv.clients.peacocktv.com.key.pem | `
+Get-Content tv.clients.peacocktv.com/cert.pem, tv.clients.peacocktv.com/key.pem | `
     Set-Content tv.clients.peacocktv.com.pem
 ```
 
@@ -145,13 +145,10 @@ mitmproxy --set client_certs=.
 
 ### With curl
 
-curl accepts the separate cert and key files directly via `--cert` and
-`--key`, so no combining step is needed:
+curl accepts the separate cert and key files directly via `--cert` and `--key`,
+so no combining step is needed:
 
 ```powershell
-curl --cert tv.clients.peacocktv.com.crt.pem --key tv.clients.peacocktv.com.key.pem `
+curl --cert cert.pem --key key.pem `
     "https://tv.clients.peacocktv.com/cvsdk/android/18.0.4/bundle.sdk-ext-peacock.js"
-
-curl --cert play.clients.peacocktv.com.crt.pem --key play.clients.peacocktv.com.key.pem `
-    "https://play.clients.peacocktv.com/..."
 ```

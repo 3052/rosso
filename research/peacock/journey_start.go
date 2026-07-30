@@ -21,10 +21,20 @@ type JourneyStartResponse struct {
 func (c *Client) StartJourney() (*JourneyStartResponse, error) {
    body, _ := json.Marshal(map[string]string{"deviceId": c.DeviceID})
 
-   req, err := c.newRequest(http.MethodPost, sasBase+"/companion-service/journeys/sign-in", bytes.NewReader(body))
+   req, err := http.NewRequest(http.MethodPost, sasBase+"/companion-service/journeys/sign-in", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
+   req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
+   req.Header.Set("x-skyott-platform", "ANDROIDTV")
+   req.Header.Set("x-skyott-proposition", "NBCUOTT")
+   req.Header.Set("x-skyott-provider", "NBCU")
+   req.Header.Set("x-skyott-territory", "US")
+   req.Header.Set("x-skyott-activeterritory", "US")
+   req.Header.Set("x-skyott-language", "en-US")
+   req.Header.Set("x-skyott-device", "TV")
+   req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
+   req.Header.Set("x-skyint-requestid", randomUUID())
    req.Header.Set("Content-Type", "application/vnd.companionservice.v1+json")
    req.Header.Set("Accept", "application/vnd.companionservice.v1+json")
 

@@ -9,7 +9,6 @@ import (
    "encoding/json"
    "fmt"
    "net/http"
-   "os"
    "time"
 )
 
@@ -45,14 +44,15 @@ type tokenRequest struct {
 }
 
 // ExchangeToken trades the OAuth2 activation token for a long-lived user token
-// using the mTLS certificate configured on the Client.
+// using the mTLS certificate at the given paths. The activation token is sent
+// in the request body as authToken, not as a bearer header.
 // The returned user token can be used as a bearer credential for playback.
-func (c *Client) ExchangeToken() (*TokenResponse, error) {
-   if c.Token == "" {
-      return nil, fmt.Errorf("exchange token: no activation token; call Activate first")
+func (c *Client) ExchangeToken(authToken, certPath, keyPath string) (*TokenResponse, error) {
+   if authToken == "" {
+      return nil, fmt.Errorf("exchange token: empty authToken")
    }
-   if len(c.CertPEM) == 0 || len(c.KeyPEM) == 0 {
-      return nil, fmt.Errorf("exchange token: mTLS certificate not configured; set CertPEM and KeyPEM on Client")
+   if certPath == "" || keyPath == "" {
+      return nil, fmt.Errorf("exchange token: certPath and keyPath must be set")
    }
 
    body := tokenRequest{
@@ -62,7 +62,7 @@ func (c *Client) ExchangeToken() (*TokenResponse, error) {
          Provider:          "NBCU",
          ProviderTerritory: "US",
          Proposition:       "NBCUOTT",
-         AuthToken:         c.Token,
+         AuthToken:         authToken,
       },
       Device: tokenDevice{
          Type:        "TV",
@@ -81,8 +81,8 @@ func (c *Client) ExchangeToken() (*TokenResponse, error) {
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
 
-   // Build an mTLS HTTP client using the loaded certificate.
-   cert, err := tls.X509KeyPair(c.CertPEM, c.KeyPEM)
+   // Load the mTLS client certificate directly from file paths.
+   cert, err := tls.LoadX509KeyPair(certPath, keyPath)
    if err != nil {
       return nil, fmt.Errorf("exchange token: load key pair: %w", err)
    }
@@ -90,6 +90,7 @@ func (c *Client) ExchangeToken() (*TokenResponse, error) {
    mtlsClient := &http.Client{
       Timeout: c.HTTP.Timeout,
       Transport: &http.Transport{
+         Proxy: http.ProxyFromEnvironment,
          TLSClientConfig: &tls.Config{
             Certificates: []tls.Certificate{cert},
             MinVersion:   tls.VersionTLS12,
@@ -97,10 +98,21 @@ func (c *Client) ExchangeToken() (*TokenResponse, error) {
       },
    }
 
-   req, err := c.newRequest(http.MethodPost, playBase+"/auth/throttled/tokens", bytes.NewReader(raw))
+   req, err := http.NewRequest(http.MethodPost, playBase+"/auth/throttled/tokens", bytes.NewReader(raw))
    if err != nil {
-      return nil, err
+      return nil, fmt.Errorf("exchange token: create request: %w", err)
    }
+
+   req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
+   req.Header.Set("x-skyott-platform", "ANDROIDTV")
+   req.Header.Set("x-skyott-proposition", "NBCUOTT")
+   req.Header.Set("x-skyott-provider", "NBCU")
+   req.Header.Set("x-skyott-territory", "US")
+   req.Header.Set("x-skyott-activeterritory", "US")
+   req.Header.Set("x-skyott-language", "en-US")
+   req.Header.Set("x-skyott-device", "TV")
+   req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
+   req.Header.Set("x-skyint-requestid", randomUUID())
    req.Header.Set("Content-Type", "application/vnd.tokens.v1+json")
    req.Header.Set("Accept", "application/vnd.tokens.v1+json")
    req.Header.Set("Content-MD5", contentMD5)
@@ -121,20 +133,4 @@ func (c *Client) ExchangeToken() (*TokenResponse, error) {
       return nil, fmt.Errorf("exchange token: decode: %w", err)
    }
    return &out, nil
-}
-
-// LoadCertFiles reads the mTLS certificate and key from the given file paths
-// and stores them on the Client for use by ExchangeToken.
-func (c *Client) LoadCertFiles(certPath, keyPath string) error {
-   certPEM, err := os.ReadFile(certPath)
-   if err != nil {
-      return fmt.Errorf("read cert file: %w", err)
-   }
-   keyPEM, err := os.ReadFile(keyPath)
-   if err != nil {
-      return fmt.Errorf("read key file: %w", err)
-   }
-   c.CertPEM = certPEM
-   c.KeyPEM = keyPEM
-   return nil
 }

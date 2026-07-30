@@ -63,15 +63,15 @@ func derKeyToPEM(der []byte) ([]byte, error) {
 func main() {
    certPath := flag.String("cert", "", "Path to DER-encoded certificate file")
    keyPath := flag.String("key", "", "Path to DER-encoded private key file")
-   host := flag.String("host", "", "Hostname")
+   outDir := flag.String("out", ".", "Output directory for cert.pem and key.pem")
    flag.Parse()
 
-   if *certPath == "" || *keyPath == "" || *host == "" {
-      fmt.Fprintf(os.Stderr, "Usage: %s -cert <cert.der> -key <key.der> -host <hostname>\n", os.Args[0])
+   if *certPath == "" || *keyPath == "" {
+      fmt.Fprintf(os.Stderr, "Usage: %s -cert <cert.der> -key <key.der> [-out <directory>]\n", os.Args[0])
       fmt.Fprintf(os.Stderr, "\nFlags:\n")
       flag.PrintDefaults()
       fmt.Fprintf(os.Stderr, "\nExample:\n")
-      fmt.Fprintf(os.Stderr, "  %s -cert extracted_client.pem -key extracted_client.key -host play.clients.peacocktv.com\n", os.Args[0])
+      fmt.Fprintf(os.Stderr, "  %s -cert cert.der -key key.der -out play.clients.peacocktv.com\n", os.Args[0])
       os.Exit(1)
    }
 
@@ -113,9 +113,15 @@ func main() {
    }
    fmt.Printf("Private key loaded and converted to PEM.\n\n")
 
-   // --- Write separate cert and key PEM files to current directory ---
-   certOutPath := filepath.Join(".", *host+".crt.pem")
-   keyOutPath := filepath.Join(".", *host+".key.pem")
+   // --- Create output directory if it doesn't exist ---
+   if err := os.MkdirAll(*outDir, 0755); err != nil {
+      fmt.Fprintf(os.Stderr, "Error creating output directory %s: %v\n", *outDir, err)
+      os.Exit(1)
+   }
+
+   // --- Write cert.pem and key.pem to the output directory ---
+   certOutPath := filepath.Join(*outDir, "cert.pem")
+   keyOutPath := filepath.Join(*outDir, "key.pem")
 
    if err := os.WriteFile(certOutPath, certPEM, 0644); err != nil {
       fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", certOutPath, err)
