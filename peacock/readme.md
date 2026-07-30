@@ -31,10 +31,6 @@
 25. by checking the box, you agree to pay (again)
 26. subscribe (again)
 
-## how to get SkyOTT key?
-
-use sky.js
-
 ## web
 
 you can get `x-skyott-usertoken` with web client via `/auth/tokens`, but it

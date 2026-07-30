@@ -1,6 +1,19 @@
-# Peacock TV mTLS Extraction & mitmproxy Setup
+# Peacock TV
 
-## 1. Background
+## Sign-In Methods
+
+The `peacock` Go package supports two sign-in methods:
+
+- **Companion Device Activation** — Start a journey on the TV, get a 6-digit
+  code, visit `peacocktv.com/activate` on another device, and enter the code
+  to link your account. The TV never sees your email or password. Implemented
+  via `StartJourney` + `Activate`.
+
+- **Email OTP** — Enter your email on the device, receive a 6-digit code by
+  email, and enter it to authenticate. Implemented via `InitiateOTP` +
+  `VerifyOTP`.
+
+## Background
 
 The endpoints `play.clients.peacocktv.com` and `tv.clients.peacocktv.com`
 enforce **mutual TLS (mTLS)** at the CDN edge layer. The Peacock Android TV
@@ -12,13 +25,13 @@ regardless of HTTP headers.
 The client certificate is **not stored as a file** in the APK. It is loaded at
 runtime from a native library (`libwebview.so`).
 
-## 2. Extract the cert at runtime with Frida
+## Extract the cert at runtime with Frida
 
 Since the cert is generated/retrieved inside native code, use **Frida** to hook
 the Java method (`com.sky.core.webview.TVWebView.load()`) and dump the objects
 after the native call returns.
 
-### `extract_cert.js`
+**`extract_cert.js`**
 
 ```javascript
 Java.perform(function() {
@@ -72,8 +85,6 @@ Java.perform(function() {
 });
 ```
 
-### Steps
-
 1. Rooted Android emulator with Frida server running
 2. Install the Peacock APK
 3. Run:
@@ -91,7 +102,7 @@ Java.perform(function() {
 
 The extracted files are raw DER-encoded binary.
 
-## 3. Convert DER to PEM
+## Convert DER to PEM
 
 The raw DER files need to be converted to PEM format for use with mitmproxy
 and curl. Use the `der2pem` Go program (see `der2pem.go`):
@@ -126,12 +137,12 @@ The combined file looks like:
 -----END RSA PRIVATE KEY-----
 ```
 
-## 4. Make the request with the client cert
+## Make the request with the client cert
 
-### With mitmproxy
+**With mitmproxy**
 
 mitmproxy requires the combined `<hostname>.pem` files generated in
-Section 3:
+the previous section:
 
 ```powershell
 mitmproxy --set client_certs=.
@@ -140,7 +151,7 @@ mitmproxy --set client_certs=.
 > mitmproxy matches each outgoing connection's target hostname to a
 > `<hostname>.pem` file in the `client_certs` directory.
 
-### With curl
+**With curl**
 
 curl accepts the separate cert and key files directly via `--cert` and `--key`, so no combining step is needed:
 

@@ -19,6 +19,19 @@ type PlayoutVodParams struct {
    PersonaParentalControlRating string
 }
 
+// PlayoutVodResponse is the response from POST /video/playouts/vod.
+type PlayoutVodResponse struct {
+   Asset struct {
+      Endpoints []struct {
+         Cdn string `json:"cdn"`
+         Url string `json:"url"`
+      } `json:"endpoints"`
+   } `json:"asset"`
+   Protection struct {
+      LicenceAcquisitionUrl string `json:"licenceAcquisitionUrl"`
+   } `json:"protection"`
+}
+
 type playoutCapability struct {
    Acodec     string `json:"acodec"`
    Container  string `json:"container"`
@@ -50,9 +63,8 @@ type playoutRequest struct {
 }
 
 // PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
-// embedded mTLS certificate. The response is returned as raw JSON since the
-// structure may vary.
-func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
+// embedded mTLS certificate.
+func (c *Client) PlayoutVod(params PlayoutVodParams) (*PlayoutVodResponse, error) {
    if params.UserToken == "" {
       return nil, fmt.Errorf("playout vod: empty userToken")
    }
@@ -135,9 +147,9 @@ func (c *Client) PlayoutVod(params PlayoutVodParams) (json.RawMessage, error) {
       return nil, fmt.Errorf("playout vod: bad status %d", resp.StatusCode)
    }
 
-   var out json.RawMessage
+   var out PlayoutVodResponse
    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
       return nil, fmt.Errorf("playout vod: decode: %w", err)
    }
-   return out, nil
+   return &out, nil
 }

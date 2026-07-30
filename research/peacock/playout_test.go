@@ -24,12 +24,6 @@ func TestPlayoutVodLive(t *testing.T) {
    if state.UserToken == "" {
       t.Fatal("journey_state.json is missing UserToken; run TestExchangeTokenLive first")
    }
-   if state.ContentID == "" {
-      t.Fatal("journey_state.json is missing ContentID")
-   }
-   if state.ProviderVariantID == "" {
-      t.Fatal("journey_state.json is missing ProviderVariantID")
-   }
 
    client := NewClient(state.DeviceID)
 
@@ -37,16 +31,19 @@ func TestPlayoutVodLive(t *testing.T) {
 
    resp, err := client.PlayoutVod(PlayoutVodParams{
       UserToken:         state.UserToken,
-      ContentID:         state.ContentID,
-      ProviderVariantID: state.ProviderVariantID,
+      ContentID:         "GMO_00000000158234_02_HDSDR",
+      ProviderVariantID: "1cba422b-3533-33a4-84af-d57cb97bbfa1",
    })
    if err != nil {
       t.Fatalf("PlayoutVod failed: %v", err)
    }
 
-   if len(resp) == 0 {
-      t.Error("expected non-empty response body")
+   if len(resp.Asset.Endpoints) == 0 {
+      t.Error("expected non-empty Asset.Endpoints")
    }
 
-   t.Logf("Response: %s", string(resp))
+   t.Logf("LicenceAcquisitionUrl: %s", resp.Protection.LicenceAcquisitionUrl)
+   for i, endpoint := range resp.Asset.Endpoints {
+      t.Logf("Endpoint[%d]: Cdn=%s Url=%s", i, endpoint.Cdn, endpoint.Url)
+   }
 }

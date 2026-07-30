@@ -92,6 +92,7 @@ func (c *client) do_address() error {
    }
    return c.cache.Encode(manifest, playout)
 }
+
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
