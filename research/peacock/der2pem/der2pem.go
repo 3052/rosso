@@ -9,7 +9,6 @@ import (
    "flag"
    "fmt"
    "os"
-   "path/filepath"
 )
 
 // derKeyToPEM attempts to parse a DER private key in multiple formats
@@ -63,15 +62,14 @@ func derKeyToPEM(der []byte) ([]byte, error) {
 func main() {
    certPath := flag.String("cert", "", "Path to DER-encoded certificate file")
    keyPath := flag.String("key", "", "Path to DER-encoded private key file")
-   outDir := flag.String("out", ".", "Output directory for cert.pem and key.pem")
    flag.Parse()
 
    if *certPath == "" || *keyPath == "" {
-      fmt.Fprintf(os.Stderr, "Usage: %s -cert <cert.der> -key <key.der> [-out <directory>]\n", os.Args[0])
+      fmt.Fprintf(os.Stderr, "Usage: %s -cert <cert.der> -key <key.der>\n", os.Args[0])
       fmt.Fprintf(os.Stderr, "\nFlags:\n")
       flag.PrintDefaults()
       fmt.Fprintf(os.Stderr, "\nExample:\n")
-      fmt.Fprintf(os.Stderr, "  %s -cert cert.der -key key.der -out play.clients.peacocktv.com\n", os.Args[0])
+      fmt.Fprintf(os.Stderr, "  %s -cert cert.der -key key.der\n", os.Args[0])
       os.Exit(1)
    }
 
@@ -113,25 +111,16 @@ func main() {
    }
    fmt.Printf("Private key loaded and converted to PEM.\n\n")
 
-   // --- Create output directory if it doesn't exist ---
-   if err := os.MkdirAll(*outDir, 0755); err != nil {
-      fmt.Fprintf(os.Stderr, "Error creating output directory %s: %v\n", *outDir, err)
+   // --- Write cert.pem and key.pem to the current directory ---
+   if err := os.WriteFile("cert.pem", certPEM, 0644); err != nil {
+      fmt.Fprintf(os.Stderr, "Error writing cert.pem: %v\n", err)
       os.Exit(1)
    }
+   fmt.Printf("✓ Wrote cert.pem\n")
 
-   // --- Write cert.pem and key.pem to the output directory ---
-   certOutPath := filepath.Join(*outDir, "cert.pem")
-   keyOutPath := filepath.Join(*outDir, "key.pem")
-
-   if err := os.WriteFile(certOutPath, certPEM, 0644); err != nil {
-      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", certOutPath, err)
+   if err := os.WriteFile("key.pem", keyPEM, 0600); err != nil {
+      fmt.Fprintf(os.Stderr, "Error writing key.pem: %v\n", err)
       os.Exit(1)
    }
-   fmt.Printf("✓ Wrote %s\n", certOutPath)
-
-   if err := os.WriteFile(keyOutPath, keyPEM, 0600); err != nil {
-      fmt.Fprintf(os.Stderr, "Error writing %s: %v\n", keyOutPath, err)
-      os.Exit(1)
-   }
-   fmt.Printf("✓ Wrote %s\n", keyOutPath)
+   fmt.Printf("✓ Wrote key.pem\n")
 }

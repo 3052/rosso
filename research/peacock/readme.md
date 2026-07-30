@@ -97,25 +97,22 @@ The raw DER files need to be converted to PEM format for use with mitmproxy
 and curl. Use the `der2pem` Go program (see `der2pem.go`):
 
 ```powershell
-der2pem -cert cert.der -key key.der -out play.clients.peacocktv.com
-der2pem -cert cert.der -key key.der -out tv.clients.peacocktv.com
+der2pem -cert cert.der -key key.der
 ```
 
-This writes two files to the specified output directory:
+This writes two files to the current directory:
 
 - `cert.pem` — the certificate
 - `key.pem` — the private key
 
 > **Note:** mitmproxy expects a **single combined PEM file** (cert + key
-> concatenated) named `<hostname>.pem`. Use the following PowerShell to
+> concatenated) named `<hostname>.pem` per target host. The same cert
+> is used for all Peacock endpoints. Use the following PowerShell to
 > combine the two files for each host:
 
 ```powershell
-# Combine into a single PEM (cert first, then key)
-Get-Content play.clients.peacocktv.com/cert.pem, play.clients.peacocktv.com/key.pem | `
-    Set-Content play.clients.peacocktv.com.pem
-Get-Content tv.clients.peacocktv.com/cert.pem, tv.clients.peacocktv.com/key.pem | `
-    Set-Content tv.clients.peacocktv.com.pem
+Get-Content cert.pem, key.pem | Set-Content tv.clients.peacocktv.com.pem
+Get-Content cert.pem, key.pem | Set-Content play.clients.peacocktv.com.pem
 ```
 
 The combined file looks like:
@@ -133,7 +130,7 @@ The combined file looks like:
 
 ### With mitmproxy
 
-mitmproxy requires the combined `<hostname>.pem` file generated in
+mitmproxy requires the combined `<hostname>.pem` files generated in
 Section 3:
 
 ```powershell
@@ -145,10 +142,12 @@ mitmproxy --set client_certs=.
 
 ### With curl
 
-curl accepts the separate cert and key files directly via `--cert` and `--key`,
-so no combining step is needed:
+curl accepts the separate cert and key files directly via `--cert` and `--key`, so no combining step is needed:
 
 ```powershell
 curl --cert cert.pem --key key.pem `
     "https://tv.clients.peacocktv.com/cvsdk/android/18.0.4/bundle.sdk-ext-peacock.js"
+
+curl --cert cert.pem --key key.pem `
+    "https://play.clients.peacocktv.com/..."
 ```
