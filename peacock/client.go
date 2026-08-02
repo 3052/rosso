@@ -3,6 +3,8 @@ package peacock
 
 import (
    "crypto/rand"
+   "crypto/tls"
+   _ "embed"
    "encoding/hex"
    "fmt"
    "net/http"
@@ -10,6 +12,32 @@ import (
 )
 
 const sasBase = "https://sas.peacocktv.com"
+
+//go:embed cert.pem
+var certPEM []byte
+
+//go:embed key.pem
+var keyPEM []byte
+
+// mtlsClient returns an *http.Client configured with the embedded mTLS
+// certificate, ProxyFromEnvironment, and the given timeout.
+func mtlsClient(timeout time.Duration) (*http.Client, error) {
+   cert, err := tls.X509KeyPair(certPEM, keyPEM)
+   if err != nil {
+      return nil, err
+   }
+
+   return &http.Client{
+      Timeout: timeout,
+      Transport: &http.Transport{
+         Proxy: http.ProxyFromEnvironment,
+         TLSClientConfig: &tls.Config{
+            Certificates: []tls.Certificate{cert},
+            MinVersion:   tls.VersionTLS12,
+         },
+      },
+   }, nil
+}
 
 func randomDeviceID() string {
    b := make([]byte, 8)
