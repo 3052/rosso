@@ -20,14 +20,16 @@ type OAuthAuthorizeResponse struct {
 }
 
 // OAuthAuthorize follows the OAuth authorize redirect to obtain the access token.
-// It requires the session cookies set by SignIn, so the Client's HTTP transport
-// must have a cookie jar configured.
+// It requires the idsession cookie set by SignIn.
 func (c *Client) OAuthAuthorize() (string, error) {
+   if c.idsession == "" {
+      return "", fmt.Errorf("oauth authorize: no idsession, call SignIn first")
+   }
+
    params := url.Values{}
    params.Set("client_id", "nbcu_tvclient")
    params.Set("redirect_uri", "nbcu://auth")
    params.Set("response_type", "token")
-
    oauthUrl := idBase + "/oauth/authorize/service/international?" + params.Encode()
 
    req, err := http.NewRequest(http.MethodGet, oauthUrl, nil)
@@ -53,6 +55,7 @@ func (c *Client) OAuthAuthorize() (string, error) {
    req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
    req.Header.Set("x-deviceid", c.DeviceID)
    req.Header.Set("x-skyint-requestid", randomUUID())
+   req.AddCookie(&http.Cookie{Name: "idsession", Value: c.idsession})
 
    resp, err := c.HTTP.Do(req)
    if err != nil {

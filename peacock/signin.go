@@ -33,6 +33,7 @@ type SignInResponse struct {
 }
 
 // SignIn authenticates with email and password via POST /signin/service/international.
+// The idsession cookie from the response is stored on the Client for use by OAuthAuthorize.
 func (c *Client) SignIn(params SignInParams) (*SignInResponse, error) {
    if params.UserIdentifier == "" {
       return nil, fmt.Errorf("sign in: empty userIdentifier")
@@ -41,17 +42,21 @@ func (c *Client) SignIn(params SignInParams) (*SignInResponse, error) {
       return nil, fmt.Errorf("sign in: empty password")
    }
 
+   continuationParams := url.Values{}
+   continuationParams.Set("response_type", "token")
+   continuationParams.Set("client_id", "nbcu_tvclient")
+   continuationParams.Set("redirect_uri", "nbcu://auth")
+   continuationParams.Set("api_id", "oauth")
+   continuationUrl := idBase + "/oauth/authorize/service/international?" + continuationParams.Encode()
+
+   signInParams := url.Values{}
+   signInParams.Set("continuationUrl", continuationUrl)
+   signInUrl := idBase + "/signin/service/international?" + signInParams.Encode()
+
    form := url.Values{}
    form.Set("password", params.Password)
    form.Set("rememberMe", fmt.Sprintf("%t", params.RememberMe))
    form.Set("userIdentifier", params.UserIdentifier)
-
-   continuationUrl := idBase +
-      "/oauth/authorize/service/international?response_type=token&client_id=nbcu_tvclient&redirect_uri=" +
-      url.QueryEscape("nbcu://auth") + "&api_id=oauth"
-
-   signInUrl := idBase + "/signin/service/international?continuationUrl=" +
-      url.QueryEscape(continuationUrl)
 
    req, err := http.NewRequest(http.MethodPost, signInUrl, strings.NewReader(form.Encode()))
    if err != nil {
@@ -87,6 +92,16 @@ func (c *Client) SignIn(params SignInParams) (*SignInResponse, error) {
    if resp.StatusCode != http.StatusCreated {
       body, _ := io.ReadAll(resp.Body)
       return nil, fmt.Errorf("sign in: bad status %d: %s", resp.StatusCode, body)
+   }
+
+   for _, cookie := range resp.Cookies() {
+      if cookie.Name == "idsession" {
+         c.idsession = cookie.Value
+         break
+      }
+   }
+   if c.idsession == "" {
+      return nil, fmt.Errorf("sign in: idsession cookie not found in response")
    }
 
    var out SignInResponse
