@@ -7,6 +7,7 @@ import (
    "encoding/hex"
    "fmt"
    "net/http"
+   "net/http/cookiejar"
    "time"
 )
 
@@ -59,12 +60,18 @@ type Client struct {
 }
 
 // NewClient returns a new Client. If deviceID is empty, a random one is generated.
+// The HTTP client is configured with a cookie jar so session cookies persist
+// across requests (e.g. from SignIn to OAuthAuthorize).
 func NewClient(deviceID string) *Client {
    if deviceID == "" {
       deviceID = randomDeviceID()
    }
+   jar, _ := cookiejar.New(nil)
    return &Client{
-      HTTP:     &http.Client{Timeout: 30 * time.Second},
+      HTTP: &http.Client{
+         Timeout: 30 * time.Second,
+         Jar:     jar,
+      },
       DeviceID: deviceID,
    }
 }
