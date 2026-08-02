@@ -103,7 +103,7 @@ func (c *Client) ExchangeToken(authToken *OAuthAuthorizeResponse) (*TokenRespons
    req.Header.Set("Content-MD5", contentMD5)
    req.Header.Set("Origin", "https://tv.clients.peacocktv.com")
 
-   resp, err := client.Do(req)
+   resp, err := doRequest(client, req)
    if err != nil {
       return nil, fmt.Errorf("exchange token: %w", err)
    }

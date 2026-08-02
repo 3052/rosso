@@ -33,8 +33,7 @@ type SignInResponse struct {
 }
 
 // SignIn authenticates with email and password via POST /signin/service/international.
-// The idsession cookie from the response is stored on the Client for use by
-// OAuthAuthorize
+// The skyCEsidmesso01 cookie from the response is stored on the Client for use by OAuthAuthorize.
 func (c *Client) SignIn(params *SignInParams) (*SignInResponse, error) {
    if params.UserIdentifier == "" {
       return nil, fmt.Errorf("sign in: empty userIdentifier")
@@ -84,7 +83,7 @@ func (c *Client) SignIn(params *SignInParams) (*SignInResponse, error) {
    req.Header.Set("x-deviceid", c.DeviceID)
    req.Header.Set("x-skyint-requestid", randomUUID())
 
-   resp, err := c.HTTP.Do(req)
+   resp, err := doRequest(c.HTTP, req)
    if err != nil {
       return nil, fmt.Errorf("sign in: %w", err)
    }
@@ -96,13 +95,13 @@ func (c *Client) SignIn(params *SignInParams) (*SignInResponse, error) {
    }
 
    for _, cookie := range resp.Cookies() {
-      if cookie.Name == "idsession" {
-         c.idsession = cookie.Value
+      if cookie.Name == "skyCEsidmesso01" {
+         c.skyCEsidmesso01 = cookie.Value
          break
       }
    }
-   if c.idsession == "" {
-      return nil, fmt.Errorf("sign in: idsession cookie not found in response")
+   if c.skyCEsidmesso01 == "" {
+      return nil, fmt.Errorf("sign in: skyCEsidmesso01 cookie not found in response")
    }
 
    var out SignInResponse

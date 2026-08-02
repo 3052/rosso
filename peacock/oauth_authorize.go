@@ -24,10 +24,10 @@ func (*OAuthAuthorizeResponse) CachePath() string {
 }
 
 // OAuthAuthorize follows the OAuth authorize redirect to obtain the access token.
-// It requires the idsession cookie set by SignIn.
+// It requires the skyCEsidmesso01 cookie set by SignIn.
 func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
-   if c.idsession == "" {
-      return nil, fmt.Errorf("oauth authorize: no idsession, call SignIn first")
+   if c.skyCEsidmesso01 == "" {
+      return nil, fmt.Errorf("oauth authorize: no skyCEsidmesso01, call SignIn first")
    }
 
    params := url.Values{}
@@ -59,9 +59,9 @@ func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
    req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
    req.Header.Set("x-deviceid", c.DeviceID)
    req.Header.Set("x-skyint-requestid", randomUUID())
-   req.AddCookie(&http.Cookie{Name: "idsession", Value: c.idsession})
+   req.AddCookie(&http.Cookie{Name: "skyCEsidmesso01", Value: c.skyCEsidmesso01})
 
-   resp, err := c.HTTP.Do(req)
+   resp, err := doRequest(c.HTTP, req)
    if err != nil {
       return nil, fmt.Errorf("oauth authorize: %w", err)
    }

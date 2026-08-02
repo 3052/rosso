@@ -155,7 +155,7 @@ func (c *Client) PlayoutVod(params *PlayoutVodParams) (*PlayoutVodResponse, erro
    req.Header.Set("x-skyott-territory", "US")
    req.Header.Set("x-skyott-usertoken", params.UserToken)
 
-   resp, err := client.Do(req)
+   resp, err := doRequest(client, req)
    if err != nil {
       return nil, fmt.Errorf("playout vod: %w", err)
    }

@@ -6,15 +6,25 @@ import (
    _ "embed"
    "encoding/hex"
    "fmt"
+   "log"
    "net/http"
    "time"
 )
+
+const sasBase = "https://sas.peacocktv.com"
 
 //go:embed cert.pem
 var certPEM []byte
 
 //go:embed key.pem
 var keyPEM []byte
+
+// doRequest logs the request method and URL, then sends the request
+// using the provided http.Client.
+func doRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return client.Do(req)
+}
 
 // mtlsClient returns an *http.Client configured with the embedded mTLS
 // certificate, ProxyFromEnvironment, and the given timeout.
@@ -52,9 +62,9 @@ func randomUUID() string {
 
 // Client is the Peacock HTTP client.
 type Client struct {
-   HTTP      *http.Client
-   DeviceID  string
-   idsession string
+   HTTP            *http.Client
+   DeviceID        string
+   skyCEsidmesso01 string
 }
 
 // NewClient returns a new Client. If deviceID is empty, a random one is generated.
