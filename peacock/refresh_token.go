@@ -1,4 +1,3 @@
-// refresh_token.go
 package peacock
 
 import (
@@ -86,3 +85,5 @@ func (c *Client) RefreshToken(userToken string) (*RefreshTokenResponse, error) {
    }
    return &out, nil
 }
+
+// refresh_token.go

@@ -1,4 +1,3 @@
-// journey_start.go
 package peacock
 
 import (
@@ -54,3 +53,5 @@ func (c *Client) StartJourney() (*JourneyStartResponse, error) {
    }
    return &out, nil
 }
+
+// journey_start.go

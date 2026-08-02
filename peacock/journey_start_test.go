@@ -1,4 +1,3 @@
-// journey_start_test.go
 package peacock
 
 import (
@@ -78,3 +77,5 @@ type journeyState struct {
    Token               string `json:"token,omitempty"`
    UserToken           string `json:"userToken,omitempty"`
 }
+
+// journey_start_test.go

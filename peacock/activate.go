@@ -1,4 +1,3 @@
-// activate.go
 package peacock
 
 import (
@@ -54,3 +53,5 @@ func (c *Client) Activate(journeyID string) (string, error) {
 
    return token, nil
 }
+
+// activate.go

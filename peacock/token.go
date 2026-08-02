@@ -1,4 +1,3 @@
-// token.go
 package peacock
 
 import (
@@ -117,3 +116,5 @@ func (c *Client) ExchangeToken(authToken string) (*TokenResponse, error) {
    }
    return &out, nil
 }
+
+// token.go

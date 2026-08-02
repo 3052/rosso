@@ -1,4 +1,3 @@
-// token_test.go
 package peacock
 
 import (
@@ -53,3 +52,5 @@ func TestExchangeTokenLive(t *testing.T) {
       t.Fatalf("failed to write updated journey_state.json: %v", err)
    }
 }
+
+// token_test.go

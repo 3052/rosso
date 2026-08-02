@@ -1,4 +1,3 @@
-// license.go
 package peacock
 
 import (
@@ -49,3 +48,5 @@ func (c *Client) AcquireLicense(licenceAcquisitionUrl string, challenge []byte) 
 
    return license, nil
 }
+
+// license.go

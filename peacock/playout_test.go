@@ -1,4 +1,3 @@
-// playout_test.go
 package peacock
 
 import (
@@ -47,3 +46,5 @@ func TestPlayoutVodLive(t *testing.T) {
       t.Logf("Endpoint[%d]: Cdn=%s Url=%s", i, endpoint.Cdn, endpoint.Url)
    }
 }
+
+// playout_test.go

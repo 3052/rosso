@@ -1,4 +1,3 @@
-// playout.go
 package peacock
 
 import (
@@ -168,3 +167,5 @@ func (c *Client) PlayoutVod(params PlayoutVodParams) (*PlayoutVodResponse, error
    }
    return &out, nil
 }
+
+// playout.go

@@ -1,4 +1,3 @@
-// client.go
 package peacock
 
 import (
@@ -69,3 +68,5 @@ func NewClient(deviceID string) *Client {
       DeviceID: deviceID,
    }
 }
+
+// client.go
