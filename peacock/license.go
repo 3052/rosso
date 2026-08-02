@@ -17,21 +17,11 @@ func (c *Client) AcquireLicense(licenceAcquisitionUrl string, challenge []byte) 
    if len(challenge) == 0 {
       return nil, fmt.Errorf("acquire license: empty challenge")
    }
-
-   client, err := mtlsClient(c.HTTP.Timeout)
-   if err != nil {
-      return nil, fmt.Errorf("acquire license: %w", err)
-   }
-
    req, err := http.NewRequest(http.MethodPost, licenceAcquisitionUrl, bytes.NewReader(challenge))
    if err != nil {
       return nil, fmt.Errorf("acquire license: create request: %w", err)
    }
-
-   req.Header.Set("Content-Type", "application/octet-stream")
-   req.Header.Set("User-Agent", "Media3Player/7.6.100 (Linux;Android 12) AndroidXMedia3-Sky-CVSDK/1.8.0 [emulator64_x86_64_arm64, sdk_gphone64_x86_64, Google, 31]")
-
-   resp, err := doRequest(client, req)
+   resp, err := doRequest(http.DefaultClient, req)
    if err != nil {
       return nil, fmt.Errorf("acquire license: %w", err)
    }

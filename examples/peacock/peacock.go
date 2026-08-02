@@ -22,6 +22,7 @@ type client struct {
    dash     maya.FlagString
    email    maya.FlagString
    password maya.FlagString
+   token    maya.FlagBool
 
    cache maya.Cache
 }
@@ -41,6 +42,7 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "email", Value: &c.email},
       {Name: "password", Value: &c.password},
+      {Name: "token", Value: &c.token},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
    }
@@ -53,6 +55,9 @@ func (c *client) do() error {
    if c.email != "" {
       return c.do_email()
    }
+   if flags.IsSet(&c.token) {
+      return c.do_token()
+   }
    if c.address != "" {
       return c.do_address()
    }
@@ -63,16 +68,12 @@ func (c *client) do() error {
 }
 
 func (c *client) do_address() error {
-   var authResp peacock.OAuthAuthorizeResponse
-   err := c.cache.Decode(&authResp)
+   var token peacock.TokenResponse
+   err := c.cache.Decode(&token)
    if err != nil {
       return err
    }
    peacockClient := peacock.NewClient("")
-   token, err := peacockClient.ExchangeToken(&authResp)
-   if err != nil {
-      return err
-   }
    contentID := path.Base(string(c.address))
    playout, err := peacockClient.PlayoutVod(&peacock.PlayoutVodParams{
       UserToken:         token.UserToken,
@@ -127,6 +128,20 @@ func (c *client) do_email() error {
       return err
    }
    return c.cache.Encode(authResp)
+}
+
+func (c *client) do_token() error {
+   var authResp peacock.OAuthAuthorizeResponse
+   err := c.cache.Decode(&authResp)
+   if err != nil {
+      return err
+   }
+   peacockClient := peacock.NewClient("")
+   token, err := peacockClient.ExchangeToken(&authResp)
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(token)
 }
 
 // examples/peacock/peacock.go

@@ -92,69 +92,39 @@ func (c *Client) PlayoutVod(params *PlayoutVodParams) (*PlayoutVodResponse, erro
    if params.ProviderVariantID == "" {
       return nil, fmt.Errorf("playout vod: empty providerVariantID")
    }
-
-   if params.ParentalControlPin == "" && params.PersonaParentalControlRating == "" {
-      params.PersonaParentalControlRating = "9"
-   }
-
    client, err := mtlsClient(c.HTTP.Timeout)
    if err != nil {
       return nil, fmt.Errorf("playout vod: %w", err)
    }
-
    body := playoutRequest{
       Device: playoutDevice{
          Capabilities: []playoutCapability{
-            {Acodec: "AAC", Container: "ISOBMFF", Protection: "WIDEVINE", Transport: "DASH", Vcodec: "H264"},
-            {Acodec: "AAC", Container: "ISOBMFF", Protection: "NONE", Transport: "DASH", Vcodec: "H264"},
+            {
+               Acodec:     "AAC",
+               Container:  "ISOBMFF",
+               Protection: "WIDEVINE",
+               Transport:  "DASH",
+               Vcodec:     "H264",
+            },
          },
-         MaxVideoFormat:        "HD",
-         SupportedColourSpaces: []string{"SDR"},
-         Model:                 "ANDROIDTV",
-         HdcpEnabled:           false,
+         MaxVideoFormat: "HD",
       },
-      Client: playoutClient{
-         ThirdParties:   []string{"FREEWHEEL", "MEDIATAILOR", "CONVIVA"},
-         VariantCapable: true,
-      },
-      ContentID:                    params.ContentID,
       ProviderVariantID:            params.ProviderVariantID,
-      ParentalControlPin:           params.ParentalControlPin,
-      PersonaParentalControlRating: params.PersonaParentalControlRating,
+      PersonaParentalControlRating: "9",
    }
-
    raw, err := json.Marshal(body)
    if err != nil {
       return nil, fmt.Errorf("playout vod: marshal: %w", err)
    }
-
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
-
    req, err := http.NewRequest(http.MethodPost, playBase+"/video/playouts/vod", bytes.NewReader(raw))
    if err != nil {
       return nil, fmt.Errorf("playout vod: create request: %w", err)
    }
-
-   req.Header.Set("Accept", "application/vnd.playvod.v1+json")
+   req.Header.Set("x-skyott-usertoken", params.UserToken)
    req.Header.Set("Content-Type", "application/vnd.playvod.v1+json")
    req.Header.Set("Content-MD5", contentMD5)
-   req.Header.Set("Origin", "https://tv.clients.peacocktv.com")
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
-   req.Header.Set("x-skyott-ab-atom", "BrandIcons:variant_brand_icons;VisionDeCampoTileImagery:variation__new_tile_image_;pzEntitlementOrder:pzeoFree1")
-   req.Header.Set("x-skyott-ab-suggest", "olympicsSportsBoost:control")
-   req.Header.Set("x-skyott-activeterritory", "US")
-   req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
-   req.Header.Set("x-skyott-coppa", "false")
-   req.Header.Set("x-skyott-device", "TV")
-   req.Header.Set("x-skyott-language", "en-US")
-   req.Header.Set("x-skyott-pinoverride", "false")
-   req.Header.Set("x-skyott-platform", "ANDROIDTV")
-   req.Header.Set("x-skyott-proposition", "NBCUOTT")
-   req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("x-skyott-territory", "US")
-   req.Header.Set("x-skyott-usertoken", params.UserToken)
-
    resp, err := doRequest(client, req)
    if err != nil {
       return nil, fmt.Errorf("playout vod: %w", err)

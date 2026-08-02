@@ -29,38 +29,17 @@ func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
    if c.skyCEsidmesso01 == "" {
       return nil, fmt.Errorf("oauth authorize: no skyCEsidmesso01, call SignIn first")
    }
-
    params := url.Values{}
    params.Set("client_id", "nbcu_tvclient")
-   params.Set("redirect_uri", "nbcu://auth")
    params.Set("response_type", "token")
    oauthUrl := idBase + "/oauth/authorize/service/international?" + params.Encode()
-
    req, err := http.NewRequest(http.MethodGet, oauthUrl, nil)
    if err != nil {
       return nil, fmt.Errorf("oauth authorize: create request: %w", err)
    }
-   req.Header.Set("Accept", "*/*")
-   req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-   req.Header.Set("Origin", "https://tv.clients.peacocktv.com")
-   req.Header.Set("Referer", "https://tv.clients.peacocktv.com/")
-   req.Header.Set("X-Requested-With", "com.peacocktv.peacockandroid")
-   req.Header.Set("Sec-Fetch-Site", "same-site")
-   req.Header.Set("Sec-Fetch-Mode", "cors")
-   req.Header.Set("Sec-Fetch-Dest", "empty")
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
-   req.Header.Set("x-skyott-platform", "ANDROIDTV")
-   req.Header.Set("x-skyott-proposition", "NBCUOTT")
-   req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("x-skyott-territory", "US")
-   req.Header.Set("x-skyott-activeterritory", "US")
-   req.Header.Set("x-skyott-language", "en-US")
-   req.Header.Set("x-skyott-device", "TV")
-   req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
-   req.Header.Set("x-deviceid", c.DeviceID)
-   req.Header.Set("x-skyint-requestid", randomUUID())
    req.AddCookie(&http.Cookie{Name: "skyCEsidmesso01", Value: c.skyCEsidmesso01})
-
+   req.Header.Set("x-skyott-territory", "US")
+   req.Header.Set("x-skyott-provider", "NBCU")
    resp, err := doRequest(c.HTTP, req)
    if err != nil {
       return nil, fmt.Errorf("oauth authorize: %w", err)

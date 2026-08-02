@@ -13,10 +13,32 @@ import (
 const playBase = "https://play.clients.peacocktv.com"
 
 // TokenResponse is the response from POST /auth/throttled/tokens.
+// On a non-2xx response the server populates ErrorCode/Description
+// instead of the token fields, in which case TokenResponse doubles
+// as the returned error.
 type TokenResponse struct {
    UserToken                     string    `json:"userToken"`
    TokenExpiryTime               time.Time `json:"tokenExpiryTime"`
    RecommendedTokenReacquireTime time.Time `json:"recommendedTokenReacquireTime"`
+   ErrorCode                     string    `json:"errorCode"`
+   Description                   string    `json:"description"`
+}
+
+func (*TokenResponse) CachePath() string {
+   return "rosso/peacock/TokenResponse"
+}
+
+// Error implements the error interface. It returns a non-empty
+// string only when the server reported an errorCode, allowing
+// *TokenResponse to be returned directly as the error value.
+func (t *TokenResponse) Error() string {
+   if t == nil || t.ErrorCode == "" {
+      return ""
+   }
+   if t.Description == "" {
+      return fmt.Sprintf("peacock: %s", t.ErrorCode)
+   }
+   return fmt.Sprintf("peacock: %s: %s", t.ErrorCode, t.Description)
 }
 
 type tokenAuth struct {
@@ -52,71 +74,54 @@ func (c *Client) ExchangeToken(authToken *OAuthAuthorizeResponse) (*TokenRespons
    if authToken.Properties.AccessToken == "" {
       return nil, fmt.Errorf("exchange token: empty access token")
    }
-
    client, err := mtlsClient(c.HTTP.Timeout)
    if err != nil {
       return nil, fmt.Errorf("exchange token: %w", err)
    }
-
    body := tokenRequest{
       Auth: tokenAuth{
          AuthScheme:        "OAUTH",
-         AuthIssuer:        "NOWTV",
          Provider:          "NBCU",
          ProviderTerritory: "US",
          Proposition:       "NBCUOTT",
          AuthToken:         authToken.Properties.AccessToken,
       },
       Device: tokenDevice{
-         Type:        "TV",
-         Platform:    "ANDROIDTV",
-         ID:          c.DeviceID,
-         DrmDeviceID: "UNKNOWN",
+         Type:     "TV",
+         Platform: "ANDROIDTV",
       },
    }
-
    raw, err := json.Marshal(body)
    if err != nil {
       return nil, fmt.Errorf("exchange token: marshal: %w", err)
    }
-
    hash := md5.Sum(raw)
    contentMD5 := hex.EncodeToString(hash[:])
-
    req, err := http.NewRequest(http.MethodPost, playBase+"/auth/throttled/tokens", bytes.NewReader(raw))
    if err != nil {
       return nil, fmt.Errorf("exchange token: create request: %w", err)
    }
-
-   req.Header.Set("User-Agent", "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36")
-   req.Header.Set("x-skyott-platform", "ANDROIDTV")
-   req.Header.Set("x-skyott-proposition", "NBCUOTT")
-   req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("x-skyott-territory", "US")
-   req.Header.Set("x-skyott-activeterritory", "US")
-   req.Header.Set("x-skyott-language", "en-US")
-   req.Header.Set("x-skyott-device", "TV")
-   req.Header.Set("x-skyott-broadcastregions", "INPATTERN_US_CENTRAL")
-   req.Header.Set("x-skyint-requestid", randomUUID())
    req.Header.Set("Content-Type", "application/vnd.tokens.v1+json")
-   req.Header.Set("Accept", "application/vnd.tokens.v1+json")
    req.Header.Set("Content-MD5", contentMD5)
-   req.Header.Set("Origin", "https://tv.clients.peacocktv.com")
-
    resp, err := doRequest(client, req)
    if err != nil {
       return nil, fmt.Errorf("exchange token: %w", err)
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("exchange token: bad status %d", resp.StatusCode)
+   if resp.StatusCode == http.StatusUnsupportedMediaType {
+      return nil, fmt.Errorf("exchange token: %s", resp.Status)
    }
 
    var out TokenResponse
    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
       return nil, fmt.Errorf("exchange token: decode: %w", err)
    }
+
+   if out.ErrorCode != "" {
+      return nil, &out
+   }
+
    return &out, nil
 }
 
