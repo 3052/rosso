@@ -1,4 +1,3 @@
-// examples/peacock/peacock.go
 package main
 
 import (
@@ -22,7 +21,7 @@ type client struct {
    address  maya.FlagString
    dash     maya.FlagString
    email    maya.FlagString
-   otp      maya.FlagString
+   password maya.FlagString
 
    cache maya.Cache
 }
@@ -41,7 +40,7 @@ func (c *client) do() error {
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "email", Value: &c.email},
-      {Name: "otp", Value: &c.otp},
+      {Name: "password", Value: &c.password},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
    }
@@ -54,9 +53,6 @@ func (c *client) do() error {
    if c.email != "" {
       return c.do_email()
    }
-   if c.otp != "" {
-      return c.do_otp()
-   }
    if c.address != "" {
       return c.do_address()
    }
@@ -67,22 +63,26 @@ func (c *client) do() error {
 }
 
 func (c *client) do_address() error {
-   id_session := &peacock.IdSession{}
-   err := c.cache.Decode(id_session)
+   var authResp peacock.OAuthAuthorizeResponse
+   err := c.cache.Decode(&authResp)
    if err != nil {
       return err
    }
-   token, err := peacock.FetchToken(id_session)
+   peacockClient := peacock.NewClient("")
+   token, err := peacockClient.ExchangeToken(&authResp)
    if err != nil {
       return err
    }
-   playout, err := token.FetchPlayout(
-      path.Base(string(c.address)),
-   )
+   contentID := path.Base(string(c.address))
+   playout, err := peacockClient.PlayoutVod(&peacock.PlayoutVodParams{
+      UserToken:         token.UserToken,
+      ContentID:         contentID,
+      ProviderVariantID: contentID,
+   })
    if err != nil {
       return err
    }
-   endpoint, err := playout.GetFastly()
+   endpoint, err := playout.Fastly()
    if err != nil {
       return err
    }
@@ -96,36 +96,37 @@ func (c *client) do_address() error {
 func (c *client) do_dash() error {
    var (
       manifest maya.Manifest
-      playout  peacock.Playout
+      playout  peacock.PlayoutVodResponse
    )
    err := c.cache.Decode(&manifest, &playout)
    if err != nil {
       return err
    }
+   peacockClient := peacock.NewClient("")
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: playout.FetchWidevine,
+      Device: string(c.Widevine),
+      Drm:    maya.DrmWidevine,
+      License: func(challenge []byte) ([]byte, error) {
+         return peacockClient.AcquireLicense(playout.Protection.LicenceAcquisitionUrl, challenge)
+      },
    })
 }
 
 func (c *client) do_email() error {
-   otp_initiate, err := peacock.RequestInitiateOTP(string(c.email))
+   peacockClient := peacock.NewClient("")
+   _, err := peacockClient.SignIn(&peacock.SignInParams{
+      UserIdentifier: string(c.email),
+      Password:       string(c.password),
+      RememberMe:     true,
+   })
    if err != nil {
       return err
    }
-   return c.cache.Encode(otp_initiate)
+   authResp, err := peacockClient.OAuthAuthorize()
+   if err != nil {
+      return err
+   }
+   return c.cache.Encode(authResp)
 }
 
-func (c *client) do_otp() error {
-   var otp_initiate peacock.OtpInitiate
-   err := c.cache.Decode(&otp_initiate)
-   if err != nil {
-      return err
-   }
-   session, err := peacock.VerifyOTP(otp_initiate.Properties.Data.Token, string(c.otp))
-   if err != nil {
-      return err
-   }
-   return c.cache.Encode(session)
-}
+// examples/peacock/peacock.go

@@ -33,8 +33,9 @@ type SignInResponse struct {
 }
 
 // SignIn authenticates with email and password via POST /signin/service/international.
-// The idsession cookie from the response is stored on the Client for use by OAuthAuthorize.
-func (c *Client) SignIn(params SignInParams) (*SignInResponse, error) {
+// The idsession cookie from the response is stored on the Client for use by
+// OAuthAuthorize
+func (c *Client) SignIn(params *SignInParams) (*SignInResponse, error) {
    if params.UserIdentifier == "" {
       return nil, fmt.Errorf("sign in: empty userIdentifier")
    }

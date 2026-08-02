@@ -10,8 +10,6 @@ import (
    "time"
 )
 
-const sasBase = "https://sas.peacocktv.com"
-
 //go:embed cert.pem
 var certPEM []byte
 

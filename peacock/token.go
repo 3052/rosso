@@ -45,9 +45,12 @@ type tokenRequest struct {
 // using the embedded mTLS certificate. The activation token is sent
 // in the request body as authToken, not as a bearer header.
 // The returned user token can be used as a bearer credential for playback.
-func (c *Client) ExchangeToken(authToken string) (*TokenResponse, error) {
-   if authToken == "" {
-      return nil, fmt.Errorf("exchange token: empty authToken")
+func (c *Client) ExchangeToken(authToken *OAuthAuthorizeResponse) (*TokenResponse, error) {
+   if authToken == nil {
+      return nil, fmt.Errorf("exchange token: nil authToken")
+   }
+   if authToken.Properties.AccessToken == "" {
+      return nil, fmt.Errorf("exchange token: empty access token")
    }
 
    client, err := mtlsClient(c.HTTP.Timeout)
@@ -62,7 +65,7 @@ func (c *Client) ExchangeToken(authToken string) (*TokenResponse, error) {
          Provider:          "NBCU",
          ProviderTerritory: "US",
          Proposition:       "NBCUOTT",
-         AuthToken:         authToken,
+         AuthToken:         authToken.Properties.AccessToken,
       },
       Device: tokenDevice{
          Type:        "TV",

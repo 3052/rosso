@@ -32,6 +32,10 @@ type PlayoutVodResponse struct {
    } `json:"protection"`
 }
 
+func (*PlayoutVodResponse) CachePath() string {
+   return "rosso/peacock/PlayoutVodResponse"
+}
+
 // Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
 func (r *PlayoutVodResponse) Fastly() (*url.URL, error) {
    for _, endpoint := range r.Asset.Endpoints {
@@ -78,7 +82,7 @@ type playoutRequest struct {
 
 // PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
 // embedded mTLS certificate.
-func (c *Client) PlayoutVod(params PlayoutVodParams) (*PlayoutVodResponse, error) {
+func (c *Client) PlayoutVod(params *PlayoutVodParams) (*PlayoutVodResponse, error) {
    if params.UserToken == "" {
       return nil, fmt.Errorf("playout vod: empty userToken")
    }

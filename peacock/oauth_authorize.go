@@ -19,11 +19,15 @@ type OAuthAuthorizeResponse struct {
    } `json:"properties"`
 }
 
+func (*OAuthAuthorizeResponse) CachePath() string {
+   return "peacock/oauth_authorize"
+}
+
 // OAuthAuthorize follows the OAuth authorize redirect to obtain the access token.
 // It requires the idsession cookie set by SignIn.
-func (c *Client) OAuthAuthorize() (string, error) {
+func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
    if c.idsession == "" {
-      return "", fmt.Errorf("oauth authorize: no idsession, call SignIn first")
+      return nil, fmt.Errorf("oauth authorize: no idsession, call SignIn first")
    }
 
    params := url.Values{}
@@ -34,7 +38,7 @@ func (c *Client) OAuthAuthorize() (string, error) {
 
    req, err := http.NewRequest(http.MethodGet, oauthUrl, nil)
    if err != nil {
-      return "", fmt.Errorf("oauth authorize: create request: %w", err)
+      return nil, fmt.Errorf("oauth authorize: create request: %w", err)
    }
    req.Header.Set("Accept", "*/*")
    req.Header.Set("Accept-Language", "en-US,en;q=0.9")
@@ -59,25 +63,25 @@ func (c *Client) OAuthAuthorize() (string, error) {
 
    resp, err := c.HTTP.Do(req)
    if err != nil {
-      return "", fmt.Errorf("oauth authorize: %w", err)
+      return nil, fmt.Errorf("oauth authorize: %w", err)
    }
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
       body, _ := io.ReadAll(resp.Body)
-      return "", fmt.Errorf("oauth authorize: bad status %d: %s", resp.StatusCode, body)
+      return nil, fmt.Errorf("oauth authorize: bad status %d: %s", resp.StatusCode, body)
    }
 
    var out OAuthAuthorizeResponse
    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-      return "", fmt.Errorf("oauth authorize: decode: %w", err)
+      return nil, fmt.Errorf("oauth authorize: decode: %w", err)
    }
 
    if out.Properties.AccessToken == "" {
-      return "", fmt.Errorf("oauth authorize: access_token not found in response")
+      return nil, fmt.Errorf("oauth authorize: access_token not found in response")
    }
 
-   return out.Properties.AccessToken, nil
+   return &out, nil
 }
 
 // oauth_authorize.go
