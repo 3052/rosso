@@ -80,11 +80,7 @@ func (c *client) do_address() error {
       return err
    }
    contentID := path.Base(string(c.address))
-   vcodec := string(c.vcodec)
-   if vcodec == "" {
-      vcodec = "H264"
-   }
-   playout, err := peacock.PlayoutVod(&token, contentID, vcodec)
+   playout, err := peacock.PlayoutVod(&token, contentID, string(c.vcodec))
    if err != nil {
       return err
    }
