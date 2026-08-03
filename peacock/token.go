@@ -3,14 +3,49 @@ package peacock
 import (
    "bytes"
    "crypto/md5"
+   "crypto/tls"
+   _ "embed"
    "encoding/hex"
    "encoding/json"
    "fmt"
+   "log"
    "net/http"
    "time"
 )
 
+// client.go
 const playBase = "https://play.clients.peacocktv.com"
+
+//go:embed cert.pem
+var certPEM []byte
+
+//go:embed key.pem
+var keyPEM []byte
+
+// doRequest logs the request method and URL, then sends the request
+// using the provided http.Client.
+func doRequest(client *http.Client, req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return client.Do(req)
+}
+
+// mtlsClient returns an *http.Client configured with the embedded mTLS
+// certificate, ProxyFromEnvironment, and the given timeout.
+func mtlsClient() (*http.Client, error) {
+   cert, err := tls.X509KeyPair(certPEM, keyPEM)
+   if err != nil {
+      return nil, err
+   }
+
+   return &http.Client{
+      Transport: &http.Transport{
+         Proxy: http.ProxyFromEnvironment,
+         TLSClientConfig: &tls.Config{
+            Certificates: []tls.Certificate{cert},
+         },
+      },
+   }, nil
+}
 
 // TokenResponse is the response from POST /auth/throttled/tokens.
 // On a non-2xx response the server populates ErrorCode/Description
