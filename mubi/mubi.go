@@ -1,11 +1,13 @@
 package mubi
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/base64"
    "encoding/json"
    "errors"
    "fmt"
+   "log"
+   "net/http"
    "net/url"
    "strings"
 )
@@ -17,23 +19,24 @@ const client = "web"
 
 var ClientCountry = "US"
 
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type Film struct {
    Title string
    Id    int
 }
 
 func FetchEpisodes(slug string, season int) ([]*Film, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season),
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
+   req, err := http.NewRequest("GET", "https://api.mubi.com"+fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -49,15 +52,13 @@ func FetchEpisodes(slug string, season int) ([]*Film, error) {
 }
 
 func FetchFilm(slug string) (*Film, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https", Host: "api.mubi.com", Path: "/v3/films/" + slug,
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
+   req, err := http.NewRequest("GET", "https://api.mubi.com"+"/v3/films/"+slug, nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -85,13 +86,13 @@ type LinkCode struct {
 }
 
 func FetchLinkCode() (*LinkCode, error) {
-   resp, err := maya.Get(
-      &url.URL{Scheme: "https", Host: "api.mubi.com", Path: "/v3/link_code"},
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-   )
+   req, err := http.NewRequest("GET", "https://api.mubi.com"+"/v3/link_code", nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -113,19 +114,14 @@ func (l *LinkCode) FetchSession() (*Session, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   "/v3/authenticate",
-      },
-      map[string]string{
-         "client":         client,
-         "client-country": ClientCountry,
-         "content-type":   "application/json",
-      },
-      body,
-   )
+   req, err := http.NewRequest("POST", "https://api.mubi.com"+"/v3/authenticate", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("content-type", "application/json")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -153,18 +149,21 @@ type SecureUrl struct {
       Id  string
       Url string
    } `json:"text_track_urls"`
-   Url         *Url   // MPD
+   Url         string // MPD
    UserMessage string `json:"user_message"`
 }
 
-func (s *SecureUrl) GetManifest() *url.URL {
-   manifest := s.Url.Url
+func (s *SecureUrl) GetManifest() (*url.URL, error) {
+   manifest, err := url.Parse(s.Url)
+   if err != nil {
+      return nil, err
+   }
    manifest.Path = strings.NewReplacer(
       ".AVC1", "",
       ".ex-eac3", "",
       ".ex-vtt", "",
    ).Replace(manifest.Path)
-   return &manifest
+   return manifest, nil
 }
 
 type Session struct {
@@ -179,19 +178,15 @@ func (*Session) CachePath() string {
 }
 
 func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing/secure_url", id),
-      },
-      map[string]string{
-         "authorization":  "Bearer " + s.Token,
-         "client":         client,
-         "client-country": ClientCountry,
-         "user-agent":     "Firefox",
-      },
-   )
+   req, err := http.NewRequest("GET", "https://api.mubi.com"+fmt.Sprintf("/v3/films/%v/viewing/secure_url", id), nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   req.Header.Set("user-agent", "Firefox")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -210,19 +205,14 @@ func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
 func (s *Session) FetchViewing(id int) error {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "api.mubi.com",
-         Path:   fmt.Sprintf("/v3/films/%v/viewing", id),
-      },
-      map[string]string{
-         "authorization":  "Bearer " + s.Token,
-         "client":         client,
-         "client-country": ClientCountry,
-      },
-      nil,
-   )
+   req, err := http.NewRequest("POST", "https://api.mubi.com"+fmt.Sprintf("/v3/films/%v/viewing", id), nil)
+   if err != nil {
+      return err
+   }
+   req.Header.Set("authorization", "Bearer "+s.Token)
+   req.Header.Set("client", client)
+   req.Header.Set("client-country", ClientCountry)
+   resp, err := do(req)
    if err != nil {
       return err
    }
@@ -249,22 +239,17 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "lic.drmtoday.com",
-         Path:   "/license-proxy-widevine/cenc/", // final slash is needed
-      },
-      map[string]string{
-         "dt-custom-data": base64.StdEncoding.EncodeToString(data),
-      },
-      body,
-   )
+   req, err := http.NewRequest("POST", "https://lic.drmtoday.com"+"/license-proxy-widevine/cenc/", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("dt-custom-data", base64.StdEncoding.EncodeToString(data))
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    var result struct {
@@ -277,14 +262,4 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    return result.License, nil
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
+// mubi.go

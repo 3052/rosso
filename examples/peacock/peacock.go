@@ -17,12 +17,13 @@ func main() {
 }
 
 type client struct {
-   Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-   token    maya.FlagBool
+   Widevine    maya.FlagString
+   address     maya.FlagString
+   dash        maya.FlagString
+   email       maya.FlagString
+   password    maya.FlagString
+   token       maya.FlagBool
+   min_bitrate maya.FlagInt
 
    cache maya.Cache
 }
@@ -45,6 +46,7 @@ func (c *client) do() error {
       {Name: "token", Value: &c.token},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
+      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -74,11 +76,7 @@ func (c *client) do_address() error {
       return err
    }
    contentID := path.Base(string(c.address))
-   playout, err := peacock.PlayoutVod(&peacock.PlayoutVodParams{
-      UserToken:         token.UserToken,
-      ContentID:         contentID,
-      ProviderVariantID: contentID,
-   })
+   playout, err := peacock.PlayoutVod(&token, contentID)
    if err != nil {
       return err
    }
@@ -103,11 +101,10 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device: string(c.Widevine),
-      Drm:    maya.DrmWidevine,
-      License: func(challenge []byte) ([]byte, error) {
-         return peacock.AcquireLicense(&playout, challenge)
-      },
+      Device:     string(c.Widevine),
+      Drm:        maya.DrmWidevine,
+      License:    playout.AcquireLicense,
+      MinBitrate: int(c.min_bitrate),
    })
 }
 
