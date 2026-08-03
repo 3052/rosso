@@ -10,14 +10,17 @@ import (
 // AcquireLicense sends a Widevine license acquisition request to the licence acquisition URL
 // and returns the raw license bytes. The licenceAcquisitionUrl is the full URL returned in
 // the PlayoutVod response.
-func (c *Client) AcquireLicense(licenceAcquisitionUrl string, challenge []byte) ([]byte, error) {
-   if licenceAcquisitionUrl == "" {
+func AcquireLicense(playout *PlayoutVodResponse, challenge []byte) ([]byte, error) {
+   if playout == nil {
+      return nil, fmt.Errorf("acquire license: nil playout")
+   }
+   if playout.Protection.LicenceAcquisitionUrl == "" {
       return nil, fmt.Errorf("acquire license: empty licenceAcquisitionUrl")
    }
    if len(challenge) == 0 {
       return nil, fmt.Errorf("acquire license: empty challenge")
    }
-   req, err := http.NewRequest(http.MethodPost, licenceAcquisitionUrl, bytes.NewReader(challenge))
+   req, err := http.NewRequest(http.MethodPost, playout.Protection.LicenceAcquisitionUrl, bytes.NewReader(challenge))
    if err != nil {
       return nil, fmt.Errorf("acquire license: create request: %w", err)
    }

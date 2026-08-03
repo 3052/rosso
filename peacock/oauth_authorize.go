@@ -19,15 +19,14 @@ type OAuthAuthorizeResponse struct {
    } `json:"properties"`
 }
 
-func (*OAuthAuthorizeResponse) CachePath() string {
-   return "peacock/oauth_authorize"
-}
-
 // OAuthAuthorize follows the OAuth authorize redirect to obtain the access token.
 // It requires the skyCEsidmesso01 cookie set by SignIn.
-func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
-   if c.skyCEsidmesso01 == "" {
-      return nil, fmt.Errorf("oauth authorize: no skyCEsidmesso01, call SignIn first")
+func OAuthAuthorize(cookie *http.Cookie) (*OAuthAuthorizeResponse, error) {
+   if cookie == nil {
+      return nil, fmt.Errorf("oauth authorize: nil cookie")
+   }
+   if cookie.Value == "" {
+      return nil, fmt.Errorf("oauth authorize: empty cookie value")
    }
    params := url.Values{}
    params.Set("client_id", "nbcu_tvclient")
@@ -37,10 +36,10 @@ func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
    if err != nil {
       return nil, fmt.Errorf("oauth authorize: create request: %w", err)
    }
-   req.AddCookie(&http.Cookie{Name: "skyCEsidmesso01", Value: c.skyCEsidmesso01})
+   req.AddCookie(cookie)
    req.Header.Set("x-skyott-territory", "US")
    req.Header.Set("x-skyott-provider", "NBCU")
-   resp, err := doRequest(c.HTTP, req)
+   resp, err := doRequest(http.DefaultClient, req)
    if err != nil {
       return nil, fmt.Errorf("oauth authorize: %w", err)
    }
@@ -61,6 +60,10 @@ func (c *Client) OAuthAuthorize() (*OAuthAuthorizeResponse, error) {
    }
 
    return &out, nil
+}
+
+func (*OAuthAuthorizeResponse) CachePath() string {
+   return "peacock/oauth_authorize"
 }
 
 // oauth_authorize.go

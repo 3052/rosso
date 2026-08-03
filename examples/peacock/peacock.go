@@ -73,7 +73,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   peacockClient := peacock.NewClient("")
+   var peacockClient peacock.Client
    contentID := path.Base(string(c.address))
    playout, err := peacockClient.PlayoutVod(&peacock.PlayoutVodParams{
       UserToken:         token.UserToken,
@@ -103,7 +103,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   peacockClient := peacock.NewClient("")
+   var peacockClient peacock.Client
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
       Device: string(c.Widevine),
       Drm:    maya.DrmWidevine,
@@ -114,7 +114,7 @@ func (c *client) do_dash() error {
 }
 
 func (c *client) do_email() error {
-   peacockClient := peacock.NewClient("")
+   var peacockClient peacock.Client
    _, err := peacockClient.SignIn(&peacock.SignInParams{
       UserIdentifier: string(c.email),
       Password:       string(c.password),
@@ -136,7 +136,7 @@ func (c *client) do_token() error {
    if err != nil {
       return err
    }
-   peacockClient := peacock.NewClient("")
+   var peacockClient peacock.Client
    token, err := peacockClient.ExchangeToken(&authResp)
    if err != nil {
       return err

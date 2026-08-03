@@ -30,10 +30,78 @@ type PlayoutVodResponse struct {
    Protection struct {
       LicenceAcquisitionUrl string `json:"licenceAcquisitionUrl"`
    } `json:"protection"`
+   ErrorCode   string `json:"errorCode"`
+   Description string `json:"description"`
+}
+
+// PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
+// embedded mTLS certificate.
+func PlayoutVod(params *PlayoutVodParams) (*PlayoutVodResponse, error) {
+   if params.UserToken == "" {
+      return nil, fmt.Errorf("playout vod: empty userToken")
+   }
+   if params.ContentID == "" {
+      return nil, fmt.Errorf("playout vod: empty contentID")
+   }
+   if params.ProviderVariantID == "" {
+      return nil, fmt.Errorf("playout vod: empty providerVariantID")
+   }
+   client, err := mtlsClient()
+   if err != nil {
+      return nil, fmt.Errorf("playout vod: %w", err)
+   }
+   body := playoutRequest{
+      Device: playoutDevice{
+         Capabilities: []playoutCapability{
+            {
+               Acodec:     "AAC",
+               Container:  "ISOBMFF",
+               Protection: "WIDEVINE",
+               Transport:  "DASH",
+               Vcodec:     "H264",
+            },
+         },
+         MaxVideoFormat: "HD",
+      },
+      ProviderVariantID:            params.ProviderVariantID,
+      PersonaParentalControlRating: "9",
+   }
+   raw, err := json.Marshal(body)
+   if err != nil {
+      return nil, fmt.Errorf("playout vod: marshal: %w", err)
+   }
+   hash := md5.Sum(raw)
+   contentMD5 := hex.EncodeToString(hash[:])
+   req, err := http.NewRequest(http.MethodPost, playBase+"/video/playouts/vod", bytes.NewReader(raw))
+   if err != nil {
+      return nil, fmt.Errorf("playout vod: create request: %w", err)
+   }
+   req.Header.Set("x-skyott-usertoken", params.UserToken)
+   req.Header.Set("Content-Type", "application/vnd.playvod.v1+json")
+   req.Header.Set("Content-MD5", contentMD5)
+   resp, err := doRequest(client, req)
+   if err != nil {
+      return nil, fmt.Errorf("playout vod: %w", err)
+   }
+   defer resp.Body.Close()
+
+   var out PlayoutVodResponse
+   if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+      return nil, fmt.Errorf("playout vod: decode: %w", err)
+   }
+   if out.ErrorCode != "" {
+      return nil, &out
+   }
+   return &out, nil
 }
 
 func (*PlayoutVodResponse) CachePath() string {
    return "rosso/peacock/PlayoutVodResponse"
+}
+
+// Error implements the error interface.
+func (r *PlayoutVodResponse) Error() string {
+   return r.ErrorCode + ": " + r.Description
 }
 
 // Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
@@ -78,68 +146,6 @@ type playoutRequest struct {
    ProviderVariantID            string        `json:"providerVariantId"`
    ParentalControlPin           string        `json:"parentalControlPin"`
    PersonaParentalControlRating string        `json:"personaParentalControlRating"`
-}
-
-// PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
-// embedded mTLS certificate.
-func (c *Client) PlayoutVod(params *PlayoutVodParams) (*PlayoutVodResponse, error) {
-   if params.UserToken == "" {
-      return nil, fmt.Errorf("playout vod: empty userToken")
-   }
-   if params.ContentID == "" {
-      return nil, fmt.Errorf("playout vod: empty contentID")
-   }
-   if params.ProviderVariantID == "" {
-      return nil, fmt.Errorf("playout vod: empty providerVariantID")
-   }
-   client, err := mtlsClient(c.HTTP.Timeout)
-   if err != nil {
-      return nil, fmt.Errorf("playout vod: %w", err)
-   }
-   body := playoutRequest{
-      Device: playoutDevice{
-         Capabilities: []playoutCapability{
-            {
-               Acodec:     "AAC",
-               Container:  "ISOBMFF",
-               Protection: "WIDEVINE",
-               Transport:  "DASH",
-               Vcodec:     "H264",
-            },
-         },
-         MaxVideoFormat: "HD",
-      },
-      ProviderVariantID:            params.ProviderVariantID,
-      PersonaParentalControlRating: "9",
-   }
-   raw, err := json.Marshal(body)
-   if err != nil {
-      return nil, fmt.Errorf("playout vod: marshal: %w", err)
-   }
-   hash := md5.Sum(raw)
-   contentMD5 := hex.EncodeToString(hash[:])
-   req, err := http.NewRequest(http.MethodPost, playBase+"/video/playouts/vod", bytes.NewReader(raw))
-   if err != nil {
-      return nil, fmt.Errorf("playout vod: create request: %w", err)
-   }
-   req.Header.Set("x-skyott-usertoken", params.UserToken)
-   req.Header.Set("Content-Type", "application/vnd.playvod.v1+json")
-   req.Header.Set("Content-MD5", contentMD5)
-   resp, err := doRequest(client, req)
-   if err != nil {
-      return nil, fmt.Errorf("playout vod: %w", err)
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("playout vod: bad status %d", resp.StatusCode)
-   }
-
-   var out PlayoutVodResponse
-   if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-      return nil, fmt.Errorf("playout vod: decode: %w", err)
-   }
-   return &out, nil
 }
 
 // playout.go
