@@ -86,4 +86,8 @@ func SignIn(params *SignInParams) (*SignInResponse, error) {
    return &out, nil
 }
 
+func (*SignInResponse) CachePath() string {
+   return "rosso/peacock/SignInResponse"
+}
+
 // signin.go

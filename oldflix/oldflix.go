@@ -1,21 +1,29 @@
 package oldflix
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
 )
 
 const azure = "oldflix-api.azurewebsites.net"
 
+// do sends the request, logs the method and URL, and returns the response.
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type Browse struct {
    Id    string
-   Movie struct {
+   Movie *struct {
       Id     string
-      Tracks []Track
+      Tracks []*Track
    }
 }
 
@@ -25,23 +33,26 @@ func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {
       "m":  {b.Movie.Id},
       "tk": {trackId}, // tk is the audio/language track id
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest(
+      "POST",
+      (&url.URL{
          Scheme: "https",
          Host:   azure,
          Path:   "/api/watch/play",
-      },
-      map[string]string{
-         "authorization": "Bearer " + token,
-         "content-type":  "application/x-www-form-urlencoded",
-      },
-      []byte(body),
+      }).String(),
+      bytes.NewReader([]byte(body)),
    )
    if err != nil {
       return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+token)
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    var result Watch
@@ -57,7 +68,7 @@ func (b *Browse) FetchWatch(trackId, token string) (*Watch, error) {
 func (b *Browse) GetOriginal() (*Track, error) {
    for _, track_data := range b.Movie.Tracks {
       if track_data.Lang == "Original" {
-         return &track_data, nil
+         return track_data, nil
       }
    }
    return nil, errors.New("track with language 'Original' not found")
@@ -73,15 +84,20 @@ func FetchLogin(username, password string) (*Login, error) {
       "password": {password},
       "username": {username},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest(
+      "POST",
+      (&url.URL{
          Scheme: "https",
          Host:   azure,
          Path:   "/api/token",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
+      }).String(),
+      bytes.NewReader([]byte(body)),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -90,7 +106,7 @@ func FetchLogin(username, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(string(data))
    }
    result := &Login{}
@@ -108,23 +124,26 @@ func (*Login) CachePath() string {
 // https://oldflix.com.br/browse/play/5d5d54a4d55dc050f8468513
 func (l *Login) FetchBrowse(id string) (*Browse, error) {
    body := url.Values{"id": {id}}.Encode()
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest(
+      "POST",
+      (&url.URL{
          Scheme: "https",
          Host:   azure,
          Path:   "/api/browse/play",
-      },
-      map[string]string{
-         "authorization": "Bearer " + l.Token,
-         "content-type":  "application/x-www-form-urlencoded",
-      },
-      []byte(body),
+      }).String(),
+      bytes.NewReader([]byte(body)),
    )
    if err != nil {
       return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+l.Token)
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    result := &Browse{}
@@ -141,21 +160,11 @@ type Track struct {
    Lnk  string
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 type Watch struct {
    Message  string
-   Playlist []struct {
-      File *Url
+   Playlist []*struct {
+      File string
    }
 }
+
+// oldflix.go

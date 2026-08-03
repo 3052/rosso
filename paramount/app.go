@@ -99,7 +99,7 @@ func (a *App) FetchStreamingUrl(contentId string, cbsCom *Cookie) (*Session, err
    if err != nil {
       return nil, err
    }
-   if result.StreamingUrl == nil {
+   if result.StreamingUrl == "" {
       return nil, errors.New("streamingUrl (MPD) is missing")
    }
    return result, nil
@@ -164,15 +164,13 @@ func (c *Cookie) String() string {
 type Session struct {
    LsSession    string `json:"ls_session"`
    Message      string
-   StreamingUrl *string // MPD
-   Url          *string // License Server
+   StreamingUrl string // MPD
+   Url          string // License Server
 }
 
 func (s *Session) Fetch(body []byte) ([]byte, error) {
    req, err := newPostRequest(
-      *s.Url,
-      map[string]string{"authorization": "Bearer " + s.LsSession},
-      body,
+      s.Url, map[string]string{"authorization": "Bearer " + s.LsSession}, body,
    )
    if err != nil {
       return nil, err

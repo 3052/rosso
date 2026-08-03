@@ -73,9 +73,8 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   var peacockClient peacock.Client
    contentID := path.Base(string(c.address))
-   playout, err := peacockClient.PlayoutVod(&peacock.PlayoutVodParams{
+   playout, err := peacock.PlayoutVod(&peacock.PlayoutVodParams{
       UserToken:         token.UserToken,
       ContentID:         contentID,
       ProviderVariantID: contentID,
@@ -103,19 +102,17 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   var peacockClient peacock.Client
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
       Device: string(c.Widevine),
       Drm:    maya.DrmWidevine,
       License: func(challenge []byte) ([]byte, error) {
-         return peacockClient.AcquireLicense(playout.Protection.LicenceAcquisitionUrl, challenge)
+         return peacock.AcquireLicense(&playout, challenge)
       },
    })
 }
 
 func (c *client) do_email() error {
-   var peacockClient peacock.Client
-   _, err := peacockClient.SignIn(&peacock.SignInParams{
+   signIn, err := peacock.SignIn(&peacock.SignInParams{
       UserIdentifier: string(c.email),
       Password:       string(c.password),
       RememberMe:     true,
@@ -123,21 +120,23 @@ func (c *client) do_email() error {
    if err != nil {
       return err
    }
-   authResp, err := peacockClient.OAuthAuthorize()
+   authResp, err := peacock.OAuthAuthorize(signIn.Cookie)
    if err != nil {
       return err
    }
-   return c.cache.Encode(authResp)
+   return c.cache.Encode(authResp, signIn)
 }
 
 func (c *client) do_token() error {
-   var authResp peacock.OAuthAuthorizeResponse
-   err := c.cache.Decode(&authResp)
+   var (
+      authResp peacock.OAuthAuthorizeResponse
+      signIn   peacock.SignInResponse
+   )
+   err := c.cache.Decode(&authResp, &signIn)
    if err != nil {
       return err
    }
-   var peacockClient peacock.Client
-   token, err := peacockClient.ExchangeToken(&authResp)
+   token, err := peacock.ExchangeToken(&authResp, &signIn)
    if err != nil {
       return err
    }

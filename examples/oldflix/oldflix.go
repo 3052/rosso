@@ -4,6 +4,7 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/oldflix"
    "log"
+   "net/url"
    "os"
 )
 
@@ -69,7 +70,11 @@ func (c *client) do_browse() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListHls(&watch.Playlist[0].File.Url)
+   address, err := url.Parse(watch.Playlist[0].File)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListHls(address)
    if err != nil {
       return err
    }

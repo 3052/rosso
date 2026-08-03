@@ -1,7 +1,7 @@
 package nbc
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "crypto/hmac"
    "crypto/sha256"
    _ "embed"
@@ -10,6 +10,8 @@ import (
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -22,16 +24,21 @@ const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
 var query_page string
 
 func FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest(
+      "POST",
+      (&url.URL{
          Scheme:   "https",
          Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
          Path:     "/drm-proxy/license/widevine",
          RawQuery: build_query("widevine"),
-      },
-      map[string]string{"content-type": "application/octet-stream"},
-      body,
+      }).String(),
+      bytes.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/octet-stream")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -60,6 +67,12 @@ func build_query(drmType string) string {
       "hash":   {hash},
       "time":   {timestamp},
    }.Encode()
+}
+
+// do sends the request, logs the method and URL, and returns the response.
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 func playReady() *url.URL {
@@ -91,29 +104,34 @@ func FetchMetadata(name string) (*Metadata, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
+   req, err := http.NewRequest(
+      "POST",
+      (&url.URL{
          Scheme: "https",
          Host:   "friendship.nbc.com",
          Path:   "/v3/graphql",
-      },
-      map[string]string{"content-type": "application/json"},
-      body,
+      }).String(),
+      bytes.NewReader(body),
    )
    if err != nil {
       return nil, err
    }
+   req.Header.Set("content-type", "application/json")
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    var result struct {
-      Data struct {
-         Page struct {
-            Metadata Metadata
+      Data *struct {
+         Page *struct {
+            Metadata *Metadata
          }
       }
-      Errors []struct {
+      Errors []*struct {
          Message string
       }
    }
@@ -124,12 +142,13 @@ func FetchMetadata(name string) (*Metadata, error) {
    if len(result.Errors) >= 1 {
       return nil, errors.New(result.Errors[0].Message)
    }
-   return &result.Data.Page.Metadata, nil
+   return result.Data.Page.Metadata, nil
 }
 
 func (m *Metadata) FetchStream() (*Stream, error) {
-   resp, err := maya.Get(
-      &url.URL{
+   req, err := http.NewRequest(
+      "GET",
+      (&url.URL{
          Scheme: "https",
          Host:   "lemonade.nbc.com",
          Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
@@ -137,14 +156,18 @@ func (m *Metadata) FetchStream() (*Stream, error) {
             "platform":        {"web"},
             "programmingType": {m.ProgrammingType},
          }.Encode(),
-      },
+      }).String(),
       nil,
    )
    if err != nil {
       return nil, err
    }
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
    defer resp.Body.Close()
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    result := &Stream{}
@@ -156,23 +179,16 @@ func (m *Metadata) FetchStream() (*Stream, error) {
 }
 
 type Stream struct {
-   PlaybackUrl *Url // MPD
+   PlaybackUrl string // MPD
 }
 
-func (s Stream) GetManifest() *url.URL {
-   manifest := s.PlaybackUrl.Url
+func (s *Stream) GetManifest() (*url.URL, error) {
+   manifest, err := url.Parse(s.PlaybackUrl)
+   if err != nil {
+      return nil, err
+   }
    manifest.Path = strings.Replace(manifest.Path, "_2sec", "", 1)
-   return &manifest
+   return manifest, nil
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
+// nbc.go
