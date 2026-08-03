@@ -143,7 +143,11 @@ func (c *client) do_mubi() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(secure_url.GetManifest())
+   address, err := secure_url.GetManifest()
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }

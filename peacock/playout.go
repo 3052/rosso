@@ -28,8 +28,9 @@ type PlayoutVodResponse struct {
 
 // PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
 // embedded mTLS certificate. token supplies the userToken; providerVariantID
-// identifies the asset to play.
-func PlayoutVod(token *TokenResponse, providerVariantID string) (*PlayoutVodResponse, error) {
+// identifies the asset to play. vcodec selects the requested video codec
+// (e.g. "H264" or "H265").
+func PlayoutVod(token *TokenResponse, providerVariantID, vcodec string) (*PlayoutVodResponse, error) {
    if token == nil {
       return nil, fmt.Errorf("playout vod: nil token")
    }
@@ -39,6 +40,9 @@ func PlayoutVod(token *TokenResponse, providerVariantID string) (*PlayoutVodResp
    if providerVariantID == "" {
       return nil, fmt.Errorf("playout vod: empty providerVariantID")
    }
+   if vcodec == "" {
+      return nil, fmt.Errorf("playout vod: empty vcodec")
+   }
    body := playoutRequest{
       Device: playoutDevice{
          Capabilities: []playoutCapability{
@@ -47,10 +51,10 @@ func PlayoutVod(token *TokenResponse, providerVariantID string) (*PlayoutVodResp
                Container:  "ISOBMFF",
                Protection: "WIDEVINE",
                Transport:  "DASH",
-               Vcodec:     "H264",
+               Vcodec:     vcodec,
             },
          },
-         MaxVideoFormat: "HD",
+         MaxVideoFormat: "UHD",
       },
       ProviderVariantID:            providerVariantID,
       PersonaParentalControlRating: "9",
