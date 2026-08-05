@@ -29,8 +29,9 @@ type PlayoutVodResponse struct {
 // PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
 // embedded mTLS certificate. token supplies the userToken; providerVariantID
 // identifies the asset to play. vcodec selects the requested video codec
-// (e.g. "H264" or "H265").
-func PlayoutVod(token *TokenResponse, providerVariantID, vcodec string) (*PlayoutVodResponse, error) {
+// (e.g. "H264" or "H265"). protection selects the DRM system ("WIDEVINE" or
+// "PLAYREADY").
+func PlayoutVod(token *TokenResponse, providerVariantID, vcodec, protection string) (*PlayoutVodResponse, error) {
    if token == nil {
       return nil, fmt.Errorf("playout vod: nil token")
    }
@@ -43,13 +44,16 @@ func PlayoutVod(token *TokenResponse, providerVariantID, vcodec string) (*Playou
    if vcodec == "" {
       return nil, fmt.Errorf("playout vod: empty vcodec")
    }
+   if protection == "" {
+      return nil, fmt.Errorf("playout vod: empty protection")
+   }
    body := playoutRequest{
       Device: playoutDevice{
          Capabilities: []playoutCapability{
             {
                Acodec:     "AAC",
                Container:  "ISOBMFF",
-               Protection: "WIDEVINE",
+               Protection: protection,
                Transport:  "DASH",
                Vcodec:     vcodec,
             },
