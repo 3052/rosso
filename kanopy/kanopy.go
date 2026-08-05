@@ -1,10 +1,12 @@
 package kanopy
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "path"
    "strconv"
@@ -12,24 +14,29 @@ import (
 )
 
 func CreateLicense(loginData *Login, manifestData *Manifest, challenge []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
-      },
-      map[string]string{
-         "authorization": "Bearer " + loginData.Jwt,
-         "x-version":     "web/undefined/undefined/undefined",
-      },
-      challenge,
-   )
+   endpoint := &url.URL{
+      Scheme: "https",
+      Host:   "www.kanopy.com",
+      Path:   "/kapi/licenses/widevine/" + manifestData.DrmLicenseId,
+   }
+   req, err := http.NewRequest("POST", endpoint.String(), bytes.NewReader(challenge))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+loginData.Jwt)
+   req.Header.Set("x-version", "web/undefined/undefined/undefined")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
    return io.ReadAll(resp.Body)
+}
+
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 type Caption struct {
@@ -64,15 +71,12 @@ func LoginUser(email string, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/login",
-      },
-      map[string]string{"content-type": "application/json"},
-      body,
-   )
+   req, err := http.NewRequest("POST", "https://www.kanopy.com/kapi/login", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/json")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -91,7 +95,7 @@ func (*Login) CachePath() string {
 }
 
 type Manifest struct {
-   Url            *Url
+   Url            string
    ManifestType   string `json:"manifestType"`
    DrmType        string `json:"drmType"`
    StorageService string `json:"storageService"`
@@ -126,12 +130,14 @@ func GetMemberships(loginData *Login) ([]Membership, error) {
    query.Set("userId", strconv.Itoa(loginData.UserId))
    endpoint.RawQuery = query.Encode()
 
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
-      "x-version":     "web/undefined/undefined/undefined",
+   req, err := http.NewRequest("GET", endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+loginData.Jwt)
+   req.Header.Set("x-version", "web/undefined/undefined/undefined")
 
-   resp, err := maya.Get(endpoint, headers)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -166,19 +172,15 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.kanopy.com",
-         Path:   "/kapi/plays",
-      },
-      map[string]string{
-         "authorization": "Bearer " + loginData.Jwt,
-         "content-type":  "application/json",
-         "x-version":     "web/undefined/undefined/undefined",
-      },
-      body,
-   )
+   req, err := http.NewRequest("POST", "https://www.kanopy.com/kapi/plays", bytes.NewReader(body))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+loginData.Jwt)
+   req.Header.Set("content-type", "application/json")
+   req.Header.Set("x-version", "web/undefined/undefined/undefined")
+
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -201,18 +203,6 @@ func (p *PlayResponse) GetDash() (*Manifest, error) {
    return nil, errors.New("dash manifest not found")
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
-
 type Video struct {
    VideoId         int    `json:"videoId"`
    Title           string `json:"title"`
@@ -228,11 +218,13 @@ func GetVideo(loginData *Login, alias string) (*Video, error) {
       Path:   "/kapi/videos/alias/" + alias,
    }
 
-   headers := map[string]string{
-      "authorization": "Bearer " + loginData.Jwt,
+   req, err := http.NewRequest("GET", endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+loginData.Jwt)
 
-   resp, err := maya.Get(endpoint, headers)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }

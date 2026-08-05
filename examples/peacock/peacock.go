@@ -17,7 +17,7 @@ func main() {
 }
 
 type client struct {
-   PlayReady   maya.FlagString
+   Widevine    maya.FlagString
    address     maya.FlagString
    dash        maya.FlagString
    email       maya.FlagString
@@ -41,7 +41,7 @@ func (c *client) do() error {
       return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
-      {Name: "playReady-folder", Value: &c.PlayReady},
+      {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "email", Value: &c.email},
       {Name: "password", Value: &c.password},
       {Name: "token", Value: &c.token},
@@ -53,7 +53,7 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if flags.IsSet(&c.PlayReady) {
+   if flags.IsSet(&c.Widevine) {
       return c.cache.Encode(c)
    }
    if c.email != "" {
@@ -80,7 +80,7 @@ func (c *client) do_address() error {
       return err
    }
    contentID := path.Base(string(c.address))
-   playout, err := peacock.PlayoutVod(&token, contentID, string(c.vcodec), "PLAYREADY")
+   playout, err := peacock.PlayoutVod(&token, contentID, string(c.vcodec), "WIDEVINE")
    if err != nil {
       return err
    }
@@ -105,8 +105,8 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.PlayReady),
-      Drm:        maya.DrmPlayReady,
+      Device:     string(c.Widevine),
+      Drm:        maya.DrmWidevine,
       License:    playout.AcquireLicense,
       MinBitrate: int(c.min_bitrate),
    })

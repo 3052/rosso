@@ -4,7 +4,6 @@ import (
    _ "embed"
    "encoding/json"
    "fmt"
-   "io"
    "log"
    "net/http"
    "net/url"
@@ -18,6 +17,61 @@ const idBase = "https://rango.id.peacocktv.com"
 func doRequest(client *http.Client, req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)
    return client.Do(req)
+}
+
+// CategoryError is a Siren category-level error.
+type CategoryError struct {
+   Target  string `json:"target"`
+   Message string `json:"message"`
+   Code    string `json:"code"`
+}
+
+// Errors holds the field and category errors from a Siren response.
+// It implements the error interface when it contains at least one
+// error with a non-empty message.
+type Errors struct {
+   FieldErrors    []FieldError    `json:"fieldErrors"`
+   CategoryErrors []CategoryError `json:"categoryErrors"`
+}
+
+// Error implements the error interface. It returns all field and
+// category errors with non-empty messages, joined by "; ".
+func (e *Errors) Error() string {
+   var errs []string
+   for _, fe := range e.FieldErrors {
+      if fe.Message != "" {
+         errs = append(errs, fe.Code+": "+fe.Message)
+      }
+   }
+   for _, ce := range e.CategoryErrors {
+      if ce.Message != "" {
+         errs = append(errs, ce.Code+": "+ce.Message)
+      }
+   }
+   return strings.Join(errs, "; ")
+}
+
+// HasErrors returns true if the Errors value contains at least one
+// field or category error with a non-empty message.
+func (e *Errors) HasErrors() bool {
+   for _, fe := range e.FieldErrors {
+      if fe.Message != "" {
+         return true
+      }
+   }
+   for _, ce := range e.CategoryErrors {
+      if ce.Message != "" {
+         return true
+      }
+   }
+   return false
+}
+
+// FieldError is a Siren field-level validation error.
+type FieldError struct {
+   Target  string `json:"target"`
+   Message string `json:"message"`
+   Code    string `json:"code"`
 }
 
 // SignInParams holds the credentials for the sign-in request.
@@ -41,6 +95,7 @@ type SignInResponse struct {
       Data      struct {
          DeviceID string `json:"deviceid"`
       } `json:"data"`
+      Errors Errors `json:"errors"`
    } `json:"properties"`
 }
 
@@ -73,12 +128,15 @@ func SignIn(params *SignInParams) (*SignInResponse, error) {
    }
    defer resp.Body.Close()
 
-   if resp.StatusCode != http.StatusCreated {
-      body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("sign in: bad status %d: %s", resp.StatusCode, body)
+   var out SignInResponse
+   if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+      return nil, fmt.Errorf("sign in: decode: %w", err)
    }
 
-   var out SignInResponse
+   if out.Properties.Errors.HasErrors() {
+      return nil, fmt.Errorf("sign in: %w", &out.Properties.Errors)
+   }
+
    for _, cookie := range resp.Cookies() {
       if cookie.Name == "skyCEsidmesso01" {
          out.Cookie = cookie
@@ -89,8 +147,5 @@ func SignIn(params *SignInParams) (*SignInResponse, error) {
       return nil, fmt.Errorf("sign in: skyCEsidmesso01 cookie not found in response")
    }
 
-   if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-      return nil, fmt.Errorf("sign in: decode: %w", err)
-   }
    return &out, nil
 }
