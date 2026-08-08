@@ -4,12 +4,14 @@ import (
    "bytes"
    "encoding/json"
    "errors"
+   "log"
    "net/http"
    "net/url"
    "path"
 )
 
-var Do = func(req *http.Request) (*http.Response, error) {
+func Do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
    return http.DefaultClient.Do(req)
 }
 
