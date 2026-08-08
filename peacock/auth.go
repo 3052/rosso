@@ -6,7 +6,6 @@ import (
    "encoding/json"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
    "strings"
@@ -21,13 +20,6 @@ var certPEM []byte
 
 //go:embed key.pem
 var keyPEM []byte
-
-// doRequest logs the request method and URL, then sends the request
-// using the provided http.Client.
-func doRequest(client *http.Client, req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return client.Do(req)
-}
 
 // mtlsClient returns an *http.Client configured with the embedded mTLS
 // certificate, ProxyFromEnvironment, and the given timeout.

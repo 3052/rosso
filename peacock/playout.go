@@ -11,21 +11,6 @@ import (
    "time"
 )
 
-// PlayoutVodResponse is the response from POST /video/playouts/vod.
-type PlayoutVodResponse struct {
-   Asset struct {
-      Endpoints []struct {
-         Cdn string `json:"cdn"`
-         Url string `json:"url"`
-      } `json:"endpoints"`
-   } `json:"asset"`
-   Protection struct {
-      LicenceAcquisitionUrl string `json:"licenceAcquisitionUrl"`
-   } `json:"protection"`
-   ErrorCode   string `json:"errorCode"`
-   Description string `json:"description"`
-}
-
 // PlayoutVod requests a VOD playout URL from POST /video/playouts/vod using the
 // embedded mTLS certificate. token supplies the userToken; providerVariantID
 // identifies the asset to play. vcodec selects the requested video codec
@@ -94,29 +79,6 @@ func PlayoutVod(token *TokenResponse, providerVariantID, vcodec, protection stri
       return nil, &out
    }
    return &out, nil
-}
-
-func (*PlayoutVodResponse) CachePath() string {
-   return "rosso/peacock/PlayoutVodResponse"
-}
-
-// Error implements the error interface.
-func (r *PlayoutVodResponse) Error() string {
-   return r.ErrorCode + ": " + r.Description
-}
-
-// Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
-func (r *PlayoutVodResponse) Fastly() (*url.URL, error) {
-   for _, endpoint := range r.Asset.Endpoints {
-      if endpoint.Cdn == "FASTLY" {
-         parsed, err := url.Parse(endpoint.Url)
-         if err != nil {
-            return nil, fmt.Errorf("fastly: parse url: %w", err)
-         }
-         return parsed, nil
-      }
-   }
-   return nil, fmt.Errorf("fastly cdn endpoint not found")
 }
 
 // TokenResponse is the response from POST /auth/throttled/tokens.
@@ -266,6 +228,29 @@ type tokenDevice struct {
 type tokenRequest struct {
    Auth   tokenAuth   `json:"auth"`
    Device tokenDevice `json:"device"`
+}
+
+func (*PlayoutVodResponse) CachePath() string {
+   return "rosso/peacock/PlayoutVodResponse"
+}
+
+// Error implements the error interface.
+func (r *PlayoutVodResponse) Error() string {
+   return r.ErrorCode + ": " + r.Description
+}
+
+// Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
+func (r *PlayoutVodResponse) Fastly() (*url.URL, error) {
+   for _, endpoint := range r.Asset.Endpoints {
+      if endpoint.Cdn == "FASTLY" {
+         parsed, err := url.Parse(endpoint.Url)
+         if err != nil {
+            return nil, fmt.Errorf("fastly: parse url: %w", err)
+         }
+         return parsed, nil
+      }
+   }
+   return nil, fmt.Errorf("fastly cdn endpoint not found")
 }
 
 // playout.go

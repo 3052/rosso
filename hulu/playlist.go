@@ -1,0 +1,205 @@
+package hulu
+
+import (
+   "encoding/json"
+   "errors"
+   "io"
+   "net/http"
+)
+
+var deejay = []struct {
+   resolution  string
+   device_id   int
+   key_version int
+}{
+   {
+      resolution:  "2160p",
+      device_id:   210,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   208,
+      key_version: 1,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   204,
+      key_version: 4,
+   },
+   {
+      resolution:  "2160p",
+      device_id:   188,
+      key_version: 17,
+   },
+   {
+      resolution:  "720p",
+      device_id:   214,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   191,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   190,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   142,
+      key_version: 1,
+   },
+   {
+      resolution:  "720p",
+      device_id:   109,
+      key_version: 1,
+   },
+}
+
+type Playlist struct {
+   DashPrServer string `json:"dash_pr_server"`
+   StreamUrl    string `json:"stream_url"`
+   WvServer     string `json:"wv_server"`
+}
+
+func (*Playlist) CachePath() string {
+   return "rosso/hulu/Playlist"
+}
+
+func (p *Playlist) FetchPlayReady(body []byte) ([]byte, error) {
+   resp, err := doPost(p.DashPrServer, nil, body)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   body, err = io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, err
+   }
+   if resp.StatusCode != http.StatusOK {
+      var result struct {
+         Message string
+      }
+      err = json.Unmarshal(body, &result)
+      if err != nil {
+         return nil, err
+      }
+      return nil, errors.New(result.Message)
+   }
+   return body, nil
+}
+
+func (p *Playlist) FetchWidevine(body []byte) ([]byte, error) {
+   resp, err := doPost(
+      p.WvServer,
+      map[string]string{"content-type": "application/x-protobuf"}, body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// L3 max 1080p
+// SL2000 max 1080p
+// SL3000 max 2160p
+func (d *Device) Playlist(eabId string) (*Playlist, error) {
+   body, err := json.Marshal(map[string]any{
+      "deejay_device_id": deejay[0].device_id,
+      "content_eab_id":   eabId,
+      "unencrypted":      true,
+      "version":          deejay[0].key_version,
+      "playback": map[string]any{
+         "audio": map[string]any{
+            "codecs": map[string]any{
+               "selection_mode": "ALL",
+               "values": []any{
+                  map[string]string{"type": "AAC"},
+                  map[string]string{"type": "EC3"},
+               },
+            },
+         },
+         "drm": map[string]any{
+            "multi_key":      true, // NEED THIS FOR 4K UHD
+            "selection_mode": "ALL",
+            "values": []any{
+               map[string]string{
+                  "security_level": "L3",
+                  "type":           "WIDEVINE",
+                  "version":        "MODULAR",
+               },
+               map[string]string{
+                  "security_level": "SL2000",
+                  "type":           "PLAYREADY",
+                  "version":        "V2",
+               },
+            },
+         },
+         "version": 2, // needs to be exactly 2 for 1080p
+         "manifest": map[string]string{
+            "type": "DASH",
+         },
+         "segments": map[string]any{
+            "selection_mode": "ALL",
+            "values": []any{
+               map[string]any{
+                  "type": "FMP4",
+                  "encryption": map[string]string{
+                     "mode": "CENC",
+                     "type": "CENC",
+                  },
+               },
+            },
+         },
+         "video": map[string]any{
+            "codecs": map[string]any{
+               "selection_mode": "ALL",
+               "values": []any{
+                  map[string]any{
+                     "height":  9999,
+                     "level":   "9",
+                     "profile": "HIGH",
+                     "type":    "H264",
+                     "width":   9999,
+                  },
+                  map[string]any{
+                     "height":  9999,
+                     "level":   "9",
+                     "profile": "MAIN_10",
+                     "tier":    "MAIN",
+                     "type":    "H265",
+                     "width":   9999,
+                  },
+               },
+            },
+         },
+      },
+   })
+   if err != nil {
+      return nil, err
+   }
+   resp, err := doPost(
+      "https://play.hulu.com/v6/playlist",
+      map[string]string{
+         "authorization": "Bearer " + d.UserToken,
+         "content-type":  "application/json",
+      },
+      body,
+   )
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result Playlist
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result, nil
+}
+
+// playlist.go
