@@ -10,6 +10,7 @@ import (
 //go:embed playback.json
 var playback_json []byte
 
+// ContentNode represents the recursive Server-Driven UI tree used by AMC
 type ContentNode struct {
    Type             string        `json:"type"`
    Properties       *Properties   `json:"properties,omitempty"`
@@ -34,6 +35,7 @@ func SeasonEpisodes(authToken string, id int) (*ContentNode, error) {
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("season episodes failed with status: %d", resp.StatusCode)
    }
+   // Internal envelope to strip the first layer
    var envelope struct {
       Success bool        `json:"success"`
       Status  int         `json:"status"`
@@ -62,6 +64,7 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("series detail failed with status: %d", resp.StatusCode)
    }
+   // Internal envelope to strip the first layer
    var envelope struct {
       Success bool        `json:"success"`
       Status  int         `json:"status"`
@@ -73,6 +76,8 @@ func SeriesDetail(authToken string, id int) (*ContentNode, error) {
    return &envelope.Data, nil
 }
 
+// EpisodesMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for playable episodes.
 func (c *ContentNode) EpisodesMetadata() []*Metadata {
    var metadata []*Metadata
    var walk func(node ContentNode)
@@ -91,6 +96,8 @@ func (c *ContentNode) EpisodesMetadata() []*Metadata {
    return metadata
 }
 
+// SeasonsMetadata recursively traverses the Server-Driven UI tree
+// and extracts only the Metadata for seasons.
 func (c *ContentNode) SeasonsMetadata() []*Metadata {
    var metadata []*Metadata
    var walk func(node ContentNode)

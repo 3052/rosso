@@ -1,7 +1,6 @@
 package canal
 
 import (
-   "41.neocities.org/maya"
    "crypto/hmac"
    "crypto/sha256"
    "encoding/base64"
@@ -9,7 +8,7 @@ import (
    "errors"
    "fmt"
    "io"
-   "net/url"
+   "net/http"
    "strconv"
    "strings"
    "time"
@@ -25,7 +24,7 @@ const device_serial = "!!!!"
 
 const user_agent = "Mozilla/5.0 Windows"
 
-func get_client(url_data *url.URL, body []byte) (string, error) {
+func get_client(target string, body []byte) (string, error) {
    encoding := base64.RawURLEncoding
    // 1. base64 raw URL decode secret key
    decoded_key, err := encoding.DecodeString(secret_key)
@@ -39,7 +38,7 @@ func get_client(url_data *url.URL, body []byte) (string, error) {
    // 2. hmac.New(sha256.New, secret key)
    hash := hmac.New(sha256.New, decoded_key)
    // 3, 4, 5. Write components to the hasher
-   io.WriteString(hash, url_data.String())
+   io.WriteString(hash, target)
    io.WriteString(hash, encoded_body_hash)
    io.WriteString(hash, timestamp)
    // 6. base64 raw URL encode the hmac sum
@@ -106,12 +105,12 @@ type Login struct {
 
 type Player struct {
    Drm struct {
-      LicenseUrl *Url
+      LicenseUrl string
    }
    Subtitles []struct {
-      Url *Url
+      Url string
    }
-   Url *Url // MPD
+   Url string // MPD
 }
 
 func (*Player) CachePath() string {
@@ -119,149 +118,12 @@ func (*Player) CachePath() string {
 }
 
 func (p *Player) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(&p.Drm.LicenseUrl.Url, nil, body)
+   resp, err := doPost(p.Drm.LicenseUrl, nil, body)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
    return io.ReadAll(resp.Body)
-}
-
-type Session struct {
-   SsoToken string
-   Token    string // this last one hour
-}
-
-func FetchSession(ssoToken string) (*Session, error) {
-   body, err := json.Marshal(map[string]string{
-      "brand":        "m7cp",
-      "deviceSerial": device_serial,
-      "deviceType":   "PC",
-      "ssoToken":     ssoToken,
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https", Host: "tvapi-hlm2.solocoo.tv", Path: "/v1/session",
-      },
-      nil,
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Session
-   if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (*Session) CachePath() string {
-   return "rosso/canal/Session"
-}
-
-func (s *Session) Episodes(tracking string, season int) ([]Episode, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   "/v1/assets",
-         RawQuery: url.Values{
-            "limit": {"99"},
-            "query": {fmt.Sprintf("episodes,%v,season,%v", tracking, season)},
-         }.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result struct {
-      Assets []Episode
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return result.Assets, nil
-}
-
-func (s *Session) Player(tracking string) (*Player, error) {
-   body, err := json.Marshal(map[string]any{
-      "player": map[string]any{
-         "capabilities": map[string]any{
-            "drmSystems": []string{"Widevine"},
-            "mediaTypes": []string{"DASH"},
-         },
-      },
-   })
-   if err != nil {
-      return nil, err
-   }
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "tvapi-hlm2.solocoo.tv",
-         Path:   fmt.Sprintf("/v1/assets/%v/play", tracking),
-      },
-      map[string]string{
-         "authorization": "Bearer " + s.Token,
-         "content-type":  "application/json",
-      },
-      body,
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   var result Player
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result, nil
-}
-
-func (s *Session) Search(query string) ([]Asset, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "tvapi-hlm2.solocoo.tv",
-         Path:     "/v1/search",
-         RawQuery: url.Values{"query": {query}}.Encode(),
-      },
-      map[string]string{"authorization": "Bearer " + s.Token},
-   )
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Collection []struct {
-         Assets []Asset
-         Label  string
-      }
-      Message string // 2026-05-30
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   if result.Message != "" {
-      return nil, errors.New(result.Message)
-   }
-   for _, collection := range result.Collection {
-      if collection.Label == "sg.ui.search.vod" {
-         return collection.Assets, nil
-      }
-   }
-   return nil, errors.New("no vod found")
 }
 
 type Ticket struct {
@@ -282,14 +144,12 @@ func FetchTicket() (*Ticket, error) {
    if err != nil {
       return nil, err
    }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
+   target := "https://m7cp.login.solocoo.tv/login"
    client, err := get_client(target, body)
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
+   resp, err := doPost(
       target,
       map[string]string{
          "authorization": client,
@@ -320,14 +180,12 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   target := &url.URL{
-      Scheme: "https", Host: "m7cp.login.solocoo.tv", Path: "/login",
-   }
+   target := "https://m7cp.login.solocoo.tv/login"
    client, err := get_client(target, body)
    if err != nil {
       return nil, err
    }
-   resp, err := maya.Post(
+   resp, err := doPost(
       target,
       map[string]string{
          "authorization": client,
@@ -344,20 +202,10 @@ func (t *Ticket) Login(username, password string) (*Login, error) {
    if err != nil {
       return nil, err
    }
-   if resp.StatusCode != 200 {
+   if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
    return &result, nil
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
+// login.go

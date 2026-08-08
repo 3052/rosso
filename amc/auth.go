@@ -48,6 +48,7 @@ func doPost(rawUrl string, headers map[string]string, body []byte) (*http.Respon
    return Do(req)
 }
 
+// AuthData represents the inner payload of authentication responses.
 type AuthData struct {
    AccessToken  string `json:"access_token"`
    RefreshToken string `json:"refresh_token"`
@@ -55,7 +56,10 @@ type AuthData struct {
    ExpiresIn    int    `json:"expires_in"`
 }
 
+// Login authenticates the user. It requires the guest token (access_token)
+// retrieved from calling the Unauth() function.
 func Login(guestToken, email, password string) (*AuthData, error) {
+   // Body
    body, err := json.Marshal(map[string]string{
       "email":    email,
       "password": password,
@@ -87,6 +91,7 @@ func Login(guestToken, email, password string) (*AuthData, error) {
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("login failed with status: %d", resp.StatusCode)
    }
+   // Internal envelope to strip the first layer
    var envelope struct {
       Success bool     `json:"success"`
       Status  int      `json:"status"`
@@ -117,6 +122,7 @@ func Unauth() (*AuthData, error) {
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("unauth failed with status: %d", resp.StatusCode)
    }
+   // Internal envelope to strip the first layer
    var envelope struct {
       Success bool     `json:"success"`
       Status  int      `json:"status"`
@@ -199,6 +205,7 @@ type Metadata struct {
    ComponentName            string `json:"componentName,omitempty"`
 }
 
+// String implements the fmt.Stringer interface for easy printing.
 func (m *Metadata) String() string {
    hasShow := m.ShowName != "" && m.ShowName != "none"
    if m.SeasonNumber > 0 && m.EpisodeNumber > 0 {
@@ -239,6 +246,8 @@ type Navigation struct {
    ScreenDesignType string `json:"screenDesignType,omitempty"`
 }
 
+// Properties holds all possible strongly-typed properties found in the UI
+// nodes
 type Properties struct {
    ID           string    `json:"id,omitempty"`
    PageType     string    `json:"pageType,omitempty"`
