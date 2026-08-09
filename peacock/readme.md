@@ -1,5 +1,10 @@
 # Peacock TV
 
+> When you find someone who had the same problem as you
+>
+> Joel Haver
+> https://youtube.com/watch?v=hnUpTyKSjag
+
 - https://apkmirror.com/apk/peacock-tv-llc/peacock-tv-android-tv
 - https://play.google.com/store/apps/details?id=com.peacocktv.peacockandroid
 
