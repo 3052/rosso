@@ -11,6 +11,11 @@ import (
    "strings"
 )
 
+//fail?
+//const user_agent = "user-agent (Android; Build/user-agent)"
+
+const user_agent = "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36"
+
 const idBase = "https://rango.id.peacocktv.com"
 
 const playBase = "https://play.clients.peacocktv.com"
@@ -199,7 +204,7 @@ func SignIn(params *SignInParams) (*SignInResponse, error) {
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
    req.Header.Set("x-skyott-territory", "US")
    req.Header.Set("x-skyott-provider", "NBCU")
-   req.Header.Set("user-agent", "user-agent (Android; Build/user-agent)")
+   req.Header.Set("user-agent", user_agent)
    resp, err := doRequest(http.DefaultClient, req)
    if err != nil {
       return nil, fmt.Errorf("sign in: %w", err)
