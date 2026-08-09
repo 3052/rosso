@@ -24,7 +24,6 @@ type client struct {
    password    maya.FlagString
    token       maya.FlagBool
    min_bitrate maya.FlagInt
-   vcodec      maya.FlagString
 
    cache maya.Cache
 }
@@ -45,8 +44,7 @@ func (c *client) do() error {
       {Name: "email", Value: &c.email},
       {Name: "password", Value: &c.password},
       {Name: "token", Value: &c.token},
-      {Name: "address", Value: &c.address, Needs: "vcodec"},
-      {Name: "vcodec", Value: &c.vcodec, Needs: "address", Usage: "H264 H265"},
+      {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
       {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
@@ -63,9 +61,7 @@ func (c *client) do() error {
       return c.do_token()
    }
    if c.address != "" {
-      if c.vcodec != "" {
-         return c.do_address()
-      }
+      return c.do_address()
    }
    if c.dash != "" {
       return c.do_dash()
@@ -80,7 +76,7 @@ func (c *client) do_address() error {
       return err
    }
    contentID := path.Base(string(c.address))
-   playout, err := peacock.PlayoutVod(&token, contentID, string(c.vcodec), "WIDEVINE")
+   playout, err := peacock.PlayoutVod(&token, contentID, "H264", "WIDEVINE")
    if err != nil {
       return err
    }

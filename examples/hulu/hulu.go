@@ -4,6 +4,7 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/hulu"
    "log"
+   "net/url"
    "os"
 )
 
@@ -83,7 +84,11 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(&playlist.StreamUrl.Url)
+   address, err := url.Parse(playlist.StreamUrl)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }

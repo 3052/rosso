@@ -48,7 +48,7 @@ func (p *PlayoutVodResponse) AcquireLicense(challenge []byte) ([]byte, error) {
    if err != nil {
       return nil, fmt.Errorf("acquire license: create request: %w", err)
    }
-   
+
    resp, err := doRequest(http.DefaultClient, req)
    if err != nil {
       return nil, fmt.Errorf("acquire license: %w", err)

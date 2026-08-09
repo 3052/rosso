@@ -5,20 +5,16 @@ import (
    _ "embed"
    "encoding/json"
    "fmt"
-   "io"
    "net/http"
    "net/url"
    "strings"
 )
 
-//fail?
-//const user_agent = "user-agent (Android; Build/user-agent)"
-
-const user_agent = "Mozilla/5.0 (Linux; Android 12; sdk_gphone64_x86_64 Build/SE1A.220826.008; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/91.0.4472.114 Mobile Safari/537.36"
-
 const idBase = "https://rango.id.peacocktv.com"
 
 const playBase = "https://play.clients.peacocktv.com"
+
+const user_agent = "user-agent (Android; Build/user-agent)"
 
 //go:embed cert.pem
 var certPEM []byte
@@ -137,8 +133,7 @@ func OAuthAuthorize(cookie *http.Cookie) (*OAuthAuthorizeResponse, error) {
    defer resp.Body.Close()
 
    if resp.StatusCode != http.StatusOK {
-      body, _ := io.ReadAll(resp.Body)
-      return nil, fmt.Errorf("oauth authorize: bad status %d: %s", resp.StatusCode, body)
+      return nil, fmt.Errorf("oauth authorize: bad status %d", resp.StatusCode)
    }
 
    var out OAuthAuthorizeResponse

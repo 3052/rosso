@@ -1,11 +1,12 @@
 package cineMember
 
 import (
-   "41.neocities.org/maya"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
    "strconv"
    "strings"
@@ -13,11 +14,11 @@ import (
 
 // extracts the numeric ID and converts it to an integer
 func FetchId(address string) (int, error) {
-   parse, err := url.Parse(address)
+   req, err := http.NewRequest("GET", address, nil)
    if err != nil {
       return 0, err
    }
-   resp, err := maya.Get(parse, nil)
+   resp, err := do(req)
    if err != nil {
       return 0, err
    }
@@ -46,18 +47,17 @@ func FetchLogin(phpSessId *Cookie, email, password string) error {
       "emaillogin": {email},
       "password":   {password},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "www.cinemember.nl",
-         Path:   "/elements/overlays/account/login.php",
-      },
-      map[string]string{
-         "content-type": "application/x-www-form-urlencoded",
-         "cookie":       phpSessId.String(),
-      },
-      []byte(body),
+   req, err := http.NewRequest(
+      "POST",
+      "https://www.cinemember.nl/elements/overlays/account/login.php",
+      strings.NewReader(body),
    )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   req.Header.Set("cookie", phpSessId.String())
+   resp, err := do(req)
    if err != nil {
       return err
    }
@@ -66,17 +66,24 @@ func FetchLogin(phpSessId *Cookie, email, password string) error {
    return err
 }
 
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type Cookie struct {
    Name  string
    Value string
 }
 
 func GetPhpSessId() (*Cookie, error) {
-   resp, err := maya.Head(
-      &url.URL{Scheme: "https", Host: "www.cinemember.nl", Path: "/nl"},
-      // THIS IS NEEDED OTHERWISE SUBTITLES ARE MISSING, GOD IS DEAD
-      map[string]string{"user-agent": "Windows"},
-   )
+   req, err := http.NewRequest("HEAD", "https://www.cinemember.nl/nl", nil)
+   if err != nil {
+      return nil, err
+   }
+   // THIS IS NEEDED OTHERWISE SUBTITLES ARE MISSING, GOD IS DEAD
+   req.Header.Set("user-agent", "Windows")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -108,15 +115,17 @@ type Stream struct {
 
 // must run login first
 func FetchStream(phpSessId *Cookie, id int) (*Stream, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "www.cinemember.nl",
-         Path:     "/elements/films/stream.php",
-         RawQuery: fmt.Sprint("id=", id),
-      },
-      map[string]string{"cookie": phpSessId.String()},
+   req, err := http.NewRequest(
+      "GET",
+      "https://www.cinemember.nl/elements/films/stream.php",
+      nil,
    )
+   if err != nil {
+      return nil, err
+   }
+   req.URL.RawQuery = fmt.Sprint("id=", id)
+   req.Header.Set("cookie", phpSessId.String())
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -143,3 +152,5 @@ func (s *Stream) GetDash() (*url.URL, error) {
    }
    return nil, errors.New("DASH link not found")
 }
+
+// cineMember.go

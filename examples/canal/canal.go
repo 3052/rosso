@@ -5,18 +5,19 @@ import (
    "41.neocities.org/rosso/canal"
    "fmt"
    "log"
+   "net/http"
    "net/url"
    "os"
    "path"
 )
 
-func get(address *url.URL) error {
-   resp, err := maya.Get(address, nil)
+func get(address string) error {
+   resp, err := http.Get(address)
    if err != nil {
       return err
    }
    defer resp.Body.Close()
-   file, err := os.Create(path.Base(address.Path))
+   file, err := os.Create(path.Base(address))
    if err != nil {
       return err
    }
@@ -175,7 +176,7 @@ func (c *client) do_subtitles() error {
       return err
    }
    for _, subtitles := range player.Subtitles {
-      err := get(&subtitles.Url.Url)
+      err := get(subtitles.Url)
       if err != nil {
          return err
       }
@@ -193,7 +194,11 @@ func (c *client) do_tracking() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(&player.Url.Url)
+   address, err := url.Parse(player.Url)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }

@@ -1,28 +1,32 @@
 package criterion
 
 import (
-   "41.neocities.org/maya"
+   "bytes"
    "encoding/json"
    "errors"
    "fmt"
    "io"
+   "log"
+   "net/http"
    "net/url"
+   "strings"
 )
 
 const client_id = "9a87f110f79cd25250f6c7f3a6ec8b9851063ca156dae493bf362a7faf146c78"
 
-func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
-   resp, err := maya.Get(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "api.vhx.com",
-         Path:     fmt.Sprintf("/collections/%v/items", slug),
-         RawQuery: "site_id=59054",
-      },
-      map[string]string{"authorization": "Bearer " + accessToken},
+func FetchFilesHref(accessToken, slug string) (string, error) {
+   req, err := http.NewRequest(
+      "GET",
+      fmt.Sprintf("https://api.vhx.com/collections/%v/items?site_id=59054", slug),
+      nil,
    )
    if err != nil {
-      return nil, err
+      return "", err
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := do(req)
+   if err != nil {
+      return "", err
    }
    defer resp.Body.Close()
    var result struct {
@@ -30,7 +34,7 @@ func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
          Items []struct {
             Links struct {
                Files struct {
-                  Href Url // https://api.vhx.tv/videos/3460957/files
+                  Href string // https://api.vhx.tv/videos/3460957/files
                }
             } `json:"_links"`
          }
@@ -38,25 +42,33 @@ func FetchFilesHref(accessToken, slug string) (*url.URL, error) {
    }
    err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
-      return nil, err
+      return "", err
    }
-   return &result.Embedded.Items[0].Links.Files.Href.Url, nil
+   return result.Embedded.Items[0].Links.Files.Href, nil
+}
+
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
 }
 
 type File struct {
    DrmAuthorizationToken string `json:"drm_authorization_token"`
    Links                 struct {
       Source struct {
-         Href *Url // MPD
+         Href string // MPD
       }
    } `json:"_links"`
    Method string
 }
 
-func FetchFiles(accessToken string, files *url.URL) ([]File, error) {
-   resp, err := maya.Get(
-      files, map[string]string{"authorization": "Bearer " + accessToken},
-   )
+func FetchFiles(accessToken string, files string) ([]File, error) {
+   req, err := http.NewRequest("GET", files, nil)
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("authorization", "Bearer "+accessToken)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -86,16 +98,16 @@ func (*File) CachePath() string {
 }
 
 func (f *File) FetchWidevine(body []byte) ([]byte, error) {
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme:   "https",
-         Host:     "drm.vhx.com",
-         Path:     "/v2/widevine",
-         RawQuery: url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
-      },
-      nil,
-      body,
+   req, err := http.NewRequest(
+      "POST",
+      "https://drm.vhx.com/v2/widevine?"+
+         url.Values{"token": {f.DrmAuthorizationToken}}.Encode(),
+      bytes.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -115,15 +127,16 @@ func FetchToken(username, password string) (*Token, error) {
       "password":   {password},
       "username":   {username},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.vhx.com",
-         Path:   "/v1/oauth/token",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
+   req, err := http.NewRequest(
+      "POST",
+      "https://auth.vhx.com/v1/oauth/token",
+      strings.NewReader(body),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -146,15 +159,16 @@ func (t *Token) Refresh() error {
       "grant_type":    {"refresh_token"},
       "refresh_token": {t.RefreshToken},
    }.Encode()
-   resp, err := maya.Post(
-      &url.URL{
-         Scheme: "https",
-         Host:   "auth.vhx.com",
-         Path:   "/v1/oauth/token",
-      },
-      map[string]string{"content-type": "application/x-www-form-urlencoded"},
-      []byte(body),
+   req, err := http.NewRequest(
+      "POST",
+      "https://auth.vhx.com/v1/oauth/token",
+      strings.NewReader(body),
    )
+   if err != nil {
+      return err
+   }
+   req.Header.Set("content-type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return err
    }
@@ -162,14 +176,4 @@ func (t *Token) Refresh() error {
    return json.NewDecoder(resp.Body).Decode(t)
 }
 
-type Url struct {
-   Url url.URL
-}
-
-func (u *Url) MarshalText() ([]byte, error) {
-   return u.Url.MarshalBinary()
-}
-
-func (u *Url) UnmarshalText(text []byte) error {
-   return u.Url.UnmarshalBinary(text)
-}
+// criterion.go
