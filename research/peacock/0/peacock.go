@@ -85,7 +85,7 @@ func doHTTP(method, rawURL string, body []byte, headers map[string]string, cooki
 	if err != nil {
 		return 0, nil, err
 	}
-	req.Header.Set("User-Agent", userAgent)
+   
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -270,7 +270,7 @@ func getTokens(cookies string) (string, error) {
 		fmt.Println("[+] personaId:", pid)
 	}
 
-	body, _ := json.Marshal(map[string]any{ // json.Marshal is compact; body MD5 is in the signature
+	body, err := json.Marshal(map[string]any{ // json.Marshal is compact; body MD5 is in the signature
 		"auth": auth,
 		"device": map[string]any{
 			"type":        prof.Device,
@@ -279,6 +279,9 @@ func getTokens(cookies string) (string, error) {
 			"drmDeviceId": clientDrmDeviceID,
 		},
 	})
+	if err != nil {
+		return "", err
+	}
 
 	status, raw, err := doHTTP("POST", endpointTokens, body, merge(skyH, map[string]string{
 		"Accept":           "application/vnd.tokens.v1+json",
@@ -316,14 +319,14 @@ func getPlayout(contentID, variantID, userToken, vcodec, colourSpace string) (da
 		"X-SkyOTT-UserToken":   userToken,
 	}
 
-	body, _ := json.Marshal(map[string]any{
+	body, err := json.Marshal(map[string]any{
 		"device": map[string]any{
 			"capabilities": []map[string]any{{
-				"protection": "PLAYREADY",
-				"container":  "ISOBMFF",
-				"transport":  "DASH",
-				"acodec":     "AAC",
-				"vcodec":     vcodec,
+            "acodec":     "AAC",
+            "container":  "ISOBMFF",
+            "protection": "PLAYREADY",
+            "transport":  "DASH",
+            "vcodec":     vcodec,
 			}},
 			"maxVideoFormat":        map[bool]string{true: "UHD", false: "HD"}[vcodec == "H265"],
 			"supportedColourSpaces": []string{colourSpace},
@@ -336,7 +339,10 @@ func getPlayout(contentID, variantID, userToken, vcodec, colourSpace string) (da
 		"parentalControlPin":             "null",
 		"personaParentalControlRating":   9,
 	})
-
+	if err != nil {
+		return "", "", err
+	}
+   
 	status, raw, err := doHTTP("POST", endpointVOD, body, merge(skyH, map[string]string{
 		"Accept":          "application/vnd.playvod.v1+json",
 		"Content-Type":    "application/vnd.playvod.v1+json",
@@ -431,14 +437,16 @@ func getPlayReadyKID(mpdURL string) ([]byte, error) {
 // ---------------------------------------------------------------------------
 
 func getPlayReadyLicense(licenseURL string, challenge []byte) ([]byte, error) {
-	u, err := url.Parse(licenseURL)
+   address, err := url.Parse(licenseURL)
 	if err != nil {
 		return nil, err
 	}
-	status, raw, err := doHTTP("POST", licenseURL, challenge, map[string]string{
-		"Content-Type":    "text/xml; charset=utf-8",
-		"X-Sky-Signature": sign("POST", u.Path, map[string]string{}, challenge),
-	}, "")
+   
+   address.Host = "play.clients.peacocktv.com"
+   
+   status, raw, err := doHTTP(
+      "POST", address.String(), challenge, map[string]string{}, "",
+   )
 	if err != nil {
 		return nil, err
 	}
