@@ -4,6 +4,7 @@ import (
    "41.neocities.org/maya"
    "41.neocities.org/rosso/criterion"
    "log"
+   "net/url"
    "os"
    "path"
 )
@@ -88,7 +89,11 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(&file.Links.Source.Href.Url)
+   address, err := url.Parse(file.Links.Source.Href)
+   if err != nil {
+      return err
+   }
+   manifest, err := maya.ListDash(address)
    if err != nil {
       return err
    }
