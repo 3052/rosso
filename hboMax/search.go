@@ -1,9 +1,77 @@
 package hboMax
 
 import (
-   "fmt"
+   "encoding/json"
+   "log"
+   "net/http"
    "net/url"
+   "strings"
 )
+
+const device_info = "hboMax/hboMax (hboMax/hboMax; hboMax/hboMax; hboMax/hboMax)"
+
+const disco_client = "hboMax:hboMax:hboMax:hboMax"
+
+const disco_params = "hboMax=hboMax"
+
+// doReq handles executing the HTTP request and logging the method/URL
+func doReq(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
+// APIError represents a single error object from the Max API
+type APIError struct {
+   Code   string `json:"code"`
+   Detail string `json:"detail"`
+}
+
+// APIErrors represents a collection of API errors and implements the error interface
+type APIErrors []APIError
+
+func (e APIErrors) Error() string {
+   var b strings.Builder
+   for i, err := range e {
+      if i > 0 {
+         b.WriteString(", ")
+      }
+      b.WriteString(err.Code)
+      b.WriteString(": ")
+      b.WriteString(err.Detail)
+   }
+   return b.String()
+}
+
+// Entity represents a single unified node in the Max API response
+type Entity struct {
+   Attributes struct {
+      Name          string
+      Alias         string
+      ShowType      string
+      VideoType     string
+      MaterialType  string
+      Description   string
+      SeasonNumber  int
+      EpisodeNumber int
+      AirDate       string
+   }
+   Id            string
+   Relationships struct {
+      Edit struct {
+         Data Resource
+      }
+      Items struct {
+         Data []Resource
+      }
+      Show struct {
+         Data Resource
+      }
+      Video struct {
+         Data Resource
+      }
+   }
+   Type string
+}
 
 func SearchRequest(token, query string) ([]*Entity, error) {
    values := url.Values{}
@@ -15,49 +83,49 @@ func SearchRequest(token, query string) ([]*Entity, error) {
    return entity_request(token, parsedUrl)
 }
 
-func SearchResults(entities []*Entity) ([]*Entity, error) {
-   // Pre-allocate map capacity for better performance
-   entitiesMap := make(map[string]*Entity, len(entities))
-   var searchResultsCollection *Entity
+func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
+   // Scheme
+   endpoint.Scheme = "https"
+   // Host
+   endpoint.Host = "default.prd.api.hbomax.com"
+   // RawQuery
+   query := endpoint.Query()
+   query.Set("include", "default")
+   endpoint.RawQuery = query.Encode()
 
-   // Combine map building and target collection searching into a single loop
-   for _, each := range entities {
-      entitiesMap[each.Id] = each
-
-      if searchResultsCollection == nil && each.Type == "collection" && each.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = each
-      }
+   req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+   if err != nil {
+      return nil, err
    }
+   req.Header.Set("authorization", "Bearer "+token)
+   req.Header.Set("x-disco-params", disco_params)
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-device-info", device_info)
 
-   if searchResultsCollection == nil {
-      return nil, fmt.Errorf("could not find the search results collection in the response payload")
+   resp, err := doReq(req)
+   if err != nil {
+      return nil, err
    }
+   defer resp.Body.Close()
 
-   var results []*Entity
-   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
-      colItem, exists := entitiesMap[itemRes.Id]
-      if !exists {
-         continue
-      }
-
-      targetId := colItem.Relationships.Show.Data.Id
-      if targetId == "" {
-         targetId = colItem.Relationships.Video.Data.Id
-      }
-
-      if targetId == "" {
-         continue
-      }
-
-      mediaEntity, exists := entitiesMap[targetId]
-      if !exists {
-         continue
-      }
-
-      // Append the actual show/movie entity
-      results = append(results, mediaEntity)
+   var result struct {
+      Errors   APIErrors `json:"errors"`
+      Included []*Entity `json:"included"`
    }
-   return results, nil
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   if len(result.Errors) > 0 {
+      return nil, result.Errors
+   }
+   return result.Included, nil
+}
+
+// Resource represents a relationship pointer in the JSON:API graph
+type Resource struct {
+   Id   string
+   Type string
 }
 
 // search.go
