@@ -22,8 +22,9 @@ func doReq(req *http.Request) (*http.Response, error) {
 
 // APIError represents a single error object from the Max API
 type APIError struct {
-   Code   string `json:"code"`
-   Detail string `json:"detail"`
+   Code    string `json:"code"`    // 2026-08-11
+   Status  string `json:"status"`  // 2026-08-11
+   Message string `json:"message"` // 2026-08-11
 }
 
 // APIErrors represents a collection of API errors and implements the error interface
@@ -35,9 +36,12 @@ func (e APIErrors) Error() string {
       if i > 0 {
          b.WriteString(", ")
       }
+      b.WriteString("code: ")
       b.WriteString(err.Code)
-      b.WriteString(": ")
-      b.WriteString(err.Detail)
+      b.WriteString(", status: ")
+      b.WriteString(err.Status)
+      b.WriteString(", message: ")
+      b.WriteString(err.Message)
    }
    return b.String()
 }
@@ -127,5 +131,3 @@ type Resource struct {
    Id   string
    Type string
 }
-
-// search.go
