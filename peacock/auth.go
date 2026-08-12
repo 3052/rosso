@@ -149,7 +149,7 @@ func OAuthAuthorize(cookie *http.Cookie) (*OAuthAuthorizeResponse, error) {
 }
 
 func (*OAuthAuthorizeResponse) CachePath() string {
-   return "peacock/oauth_authorize"
+   return "rosso/peacock/oauth_authorize"
 }
 
 // SignInParams holds the credentials for the sign-in request.

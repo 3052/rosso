@@ -13,14 +13,6 @@ import (
    "strings"
 )
 
-const Markets = "amer apac emea latam"
-
-const device_info = "hboMax/hboMax (hboMax/hboMax; hboMax/hboMax; hboMax/hboMax)"
-
-const disco_client = "hboMax:hboMax:hboMax:hboMax"
-
-const disco_params = "hboMax=hboMax"
-
 func StRequest() (*Cookie, error) {
    req, err := http.NewRequest(
       http.MethodGet,
@@ -32,7 +24,6 @@ func StRequest() (*Cookie, error) {
    }
    req.Header.Set("x-device-info", device_info)
    req.Header.Set("x-disco-client", disco_client)
-
    req.Header.Set("x-disco-params", disco_params)
 
    resp, err := doReq(req)
@@ -49,35 +40,77 @@ func StRequest() (*Cookie, error) {
    return nil, errors.New("named cookie not present")
 }
 
-// Entity represents a single unified node in the Max API response
-type Entity struct {
-   Attributes struct {
-      Name          string
-      Alias         string
-      ShowType      string
-      VideoType     string
-      MaterialType  string
-      Description   string
-      SeasonNumber  int
-      EpisodeNumber int
-      AirDate       string
+// you must
+// /authentication/linkDevice/initiate
+// first or this will always fail
+func LoginRequest(st *Cookie) (*Login, error) {
+   req, err := http.NewRequest(http.MethodPost, "https://default.prd.api.hbomax.com/authentication/linkDevice/login", nil)
+   if err != nil {
+      return nil, err
    }
-   Id            string
-   Relationships struct {
-      Edit struct {
-         Data Resource
-      }
-      Items struct {
-         Data []Resource
-      }
-      Show struct {
-         Data Resource
-      }
-      Video struct {
-         Data Resource
+
+   req.Header.Set("cookie", st.String())
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-disco-params", disco_params)
+
+   resp, err := doReq(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   var result struct {
+      Errors APIErrors `json:"errors"`
+      Data   struct {
+         Attributes Login `json:"attributes"`
+      } `json:"data"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if len(result.Errors) > 0 {
+      return nil, result.Errors
+   }
+   return &result.Data.Attributes, nil
+}
+
+func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
+   address := url.URL{
+      Scheme: "https",
+      Host:   fmt.Sprintf("default.any-%v.prd.api.discomax.com", market),
+      Path:   "/authentication/linkDevice/initiate",
+   }
+   req, err := http.NewRequest(http.MethodPost, address.String(), nil)
+   if err != nil {
+      return nil, err
+   }
+
+   req.Header.Set("cookie", st.String())
+   req.Header.Set("x-device-info", device_info)
+   req.Header.Set("x-disco-client", disco_client)
+   req.Header.Set("x-disco-params", disco_params)
+
+   resp, err := doReq(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, errors.New(resp.Status)
+   }
+
+   var result struct {
+      Data struct {
+         Attributes Initiate
       }
    }
-   Type string
+   err = json.NewDecoder(resp.Body).Decode(&result)
+   if err != nil {
+      return nil, err
+   }
+   return &result.Data.Attributes, nil
 }
 
 func MovieRequest(token, movieId string) ([]*Entity, error) {
@@ -99,61 +132,6 @@ func MovieResults(entities []*Entity) []*Entity {
       }
    }
    return movies
-}
-
-func SearchRequest(token, query string) ([]*Entity, error) {
-   values := url.Values{}
-   values.Set("contentFilter[query]", query)
-   parsedUrl := &url.URL{
-      Path:     "/cms/routes/search/result",
-      RawQuery: values.Encode(),
-   }
-   return entity_request(token, parsedUrl)
-}
-
-func SearchResults(entities []*Entity) ([]*Entity, error) {
-   // Pre-allocate map capacity for better performance
-   entitiesMap := make(map[string]*Entity, len(entities))
-   var searchResultsCollection *Entity
-
-   // Combine map building and target collection searching into a single loop
-   for _, each := range entities {
-      entitiesMap[each.Id] = each
-
-      if searchResultsCollection == nil && each.Type == "collection" && each.Attributes.Alias == "search-page-rail-results" {
-         searchResultsCollection = each
-      }
-   }
-
-   if searchResultsCollection == nil {
-      return nil, fmt.Errorf("could not find the search results collection in the response payload")
-   }
-
-   var results []*Entity
-   for _, itemRes := range searchResultsCollection.Relationships.Items.Data {
-      colItem, exists := entitiesMap[itemRes.Id]
-      if !exists {
-         continue
-      }
-
-      targetId := colItem.Relationships.Show.Data.Id
-      if targetId == "" {
-         targetId = colItem.Relationships.Video.Data.Id
-      }
-
-      if targetId == "" {
-         continue
-      }
-
-      mediaEntity, exists := entitiesMap[targetId]
-      if !exists {
-         continue
-      }
-
-      // Append the actual show/movie entity
-      results = append(results, mediaEntity)
-   }
-   return results, nil
 }
 
 func SeasonRequest(token, showId string, seasonNumber int) ([]*Entity, error) {
@@ -218,97 +196,6 @@ func entity_request(token string, endpoint *url.URL) ([]*Entity, error) {
       return nil, result.Errors
    }
    return result.Included, nil
-}
-
-// String implements the fmt.Stringer interface to provide a clean visual
-// output for the Entity
-func (e *Entity) String() string {
-   data := &strings.Builder{}
-   if e.Attributes.MaterialType == "EPISODE" {
-      fmt.Fprintf(data, "Episode: %d\n", e.Attributes.EpisodeNumber)
-   }
-   if e.Attributes.ShowType != "" {
-      fmt.Fprintf(data, "Show Type: %s\n", e.Attributes.ShowType)
-   } else if e.Attributes.VideoType != "" {
-      fmt.Fprintf(data, "Video Type: %s\n", e.Attributes.VideoType)
-   }
-   fmt.Fprintf(data, "Name: %s\n", e.Attributes.Name)
-   if e.Type == "video" {
-      fmt.Fprintf(data, "Edit ID: %s\n", e.Relationships.Edit.Data.Id)
-   } else {
-      fmt.Fprintf(data, "ID: %s\n", e.Id)
-   }
-   return strings.TrimSpace(data.String())
-}
-
-type Initiate struct {
-   LinkingCode string
-   TargetUrl   string
-}
-
-func InitiateRequest(st *Cookie, market string) (*Initiate, error) {
-   address := url.URL{
-      Scheme: "https",
-      Host:   fmt.Sprintf("default.any-%v.prd.api.discomax.com", market),
-      Path:   "/authentication/linkDevice/initiate",
-   }
-   req, err := http.NewRequest(http.MethodPost, address.String(), nil)
-   if err != nil {
-      return nil, err
-   }
-
-   req.Header.Set("cookie", st.String())
-   req.Header.Set("x-device-info", device_info)
-   req.Header.Set("x-disco-client", disco_client)
-   req.Header.Set("x-disco-params", disco_params)
-
-   resp, err := doReq(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, errors.New(resp.Status)
-   }
-
-   var result struct {
-      Data struct {
-         Attributes Initiate
-      }
-   }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
-      return nil, err
-   }
-   return &result.Data.Attributes, nil
-}
-
-func (i *Initiate) String() string {
-   var data strings.Builder
-   data.WriteString("target URL: ")
-   data.WriteString(i.TargetUrl)
-   data.WriteString("\nlinking code: ")
-   data.WriteString(i.LinkingCode)
-   return data.String()
-}
-
-type Playback struct {
-   Drm struct {
-      Schemes struct {
-         PlayReady *Scheme
-         Widevine  *Scheme
-      }
-   }
-   Errors   APIErrors `json:"errors"`
-   Fallback struct {
-      Manifest struct {
-         Url string // _fallback.mpd:1080p, .mpd:4K
-      }
-   }
-   Manifest struct {
-      Url string // 1080p
-   }
 }
 
 func PlayReadyRequest(token, editId string) (*Playback, error) {
@@ -448,20 +335,4 @@ func (p *Playback) WidevineRequest(body []byte) ([]byte, error) {
    return io.ReadAll(resp.Body)
 }
 
-// Resource represents a relationship pointer in the JSON:API graph
-type Resource struct {
-   Id   string
-   Type string
-}
-
-type Scheme struct {
-   LicenseUrl string
-}
-
-func (*Cookie) CachePath() string {
-   return "rosso/hboMax/Cookie"
-}
-
-func (*Login) CachePath() string {
-   return "rosso/hboMax/Login"
-}
+// requests.go
