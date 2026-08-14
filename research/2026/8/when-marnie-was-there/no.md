@@ -1,5 +1,14 @@
 # no
 
+## https://play.hbomax.com/show/30ea4cf0-0cb5-406b-be39-1afaae758cb0
+
+country: US
+name: United States
+monetization: FLATRATE
+
+Video: MPEG4 Video (H264) 1280x692 23.976fps 2352kbps [V: h264 high L3.1,
+yuv420p, 1280x692, 2352 kb/s]
+
 ## https://www.netflix.com/title/80036398
 
 country: AE

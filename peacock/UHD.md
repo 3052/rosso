@@ -6,84 +6,72 @@ I've been trying to get Peacock H.265 working. It seems that H.265 only works
 with UHD content, and I couldn't find any public Peacock scripts that support
 UHD.
 
-## Microsoft Edge
-
-MS Edge 125+ (Windows only — PlayReady is not available in Edge on Mac).
-
-*Note: Edited the Edge client to trigger a PlayReady request, but the server rejected it.*
-
-## Xbox One
-
-*Note: Retail mode can't run Fiddler; dev mode App Store returns no search
-results, so retail apps (including Peacock) won't work. Sideloading the Peacock
-app directly fails — it's an encrypted `.eappxbundle` that can't be installed
-in dev mode.*
-
 ## LG webOS — Primary Target
 
 | Year | Model | webOS | Price |
 |---|---|---|---|
-| 2018 | LG OLED B8 | 4.0 | $400 |
 | 2019 | LG UM7300 | 4.5 | $598.33 |
-| 2019 | LG SM8600 | 4.5 | $799.99 |
-| 2018 | LG UK6300 | 4.0 | $850 |
+| 2019 | LG SM8600 | 4.5 | $678.30 |
+| 2018 | LG UK6300 | 4.0 | $849 |
 | 2018 | LG OLED C8 | 4.0 | $1449 |
+| 2018 | LG OLED B8 | 4.0 | $3014 |
 | 2017 | LG OLED B7 | 3.5 | Out of stock online |
 | 2019 | LG OLED B9 | 4.5 | Out of stock online |
 | 2017 | LG OLED C7 | 3.5 | Out of stock online |
 | 2019 | LG OLED C9 | 4.5 | Out of stock online |
-| 2017 | LG SJ8000 * | 3.5 | Out of stock online |
+| 2017 | LG SJ8000 | 3.5 | Out of stock online |
 | 2017 | LG UJ6300 | 3.5 | Out of stock online |
-| 2017 | LG UJ6540 * | 3.5 | Out of stock online |
+| 2017 | LG UJ6540 | 3.5 | Out of stock online |
 | 2017 | LG UJ7700 | 3.5 | Out of stock online |
 | 2018 | LG UK6500 | 4.0 | Out of stock online |
-| 2018 | LG UK7700 * | 4.0 | Out of stock online |
-| 2019 | LG UM7400 * | 4.5 | Out of stock online |
-| 2017 | LG OLED E7 | 3.5 | |
-| 2017 | LG OLED G7 | 3.5 | |
-| 2017 | LG OLED W7 | 3.5 | |
-| 2017 | LG SJ8500 | 3.5 | |
-| 2017 | LG SJ9500 | 3.5 | |
-| 2017 | LG UJ6500 | 3.5 | |
-| 2018 | LG OLED E8 | 4.0 | |
-| 2018 | LG OLED G8 | 4.0 | |
-| 2018 | LG OLED W8 | 4.0 | |
-| 2018 | LG SK8000 | 4.0 | |
-| 2018 | LG SK8500 | 4.0 | |
-| 2018 | LG SK9000 | 4.0 | |
-| 2018 | LG SK9500 | 4.0 | |
-| 2018 | LG UK6090 | 4.0 | |
-| 2018 | LG UK6190 | 4.0 | |
-| 2018 | LG UK6200 | 4.0 | |
-| 2018 | LG UK6570 | 4.0 | |
-| 2018 | LG UK6750 | 4.0 | |
-| 2019 | LG OLED E9 | 4.5 | |
-| 2019 | LG OLED W9 | 4.5 | |
-| 2019 | LG OLED Z9 | 4.5 | |
-| 2019 | LG SM8100 | 4.5 | |
-| 2019 | LG SM9000 | 4.5 | |
-| 2019 | LG SM9500 | 4.5 | |
-| 2019 | LG SM9800 | 4.5 | |
-| 2019 | LG UM6900 | 4.5 | |
-| 2019 | LG UM6910 | 4.5 | |
-| 2019 | LG UM6950 | 4.5 | |
-| 2019 | LG UM6970 | 4.5 | |
-| 2019 | LG UM7100 | 4.5 | |
-| 2019 | LG UM7570 | 4.5 | |
-| 2019 | LG UM7600 | 4.5 | |
-| 2019 | LG UM7650 | 4.5 | |
-| 2019 | LG UM8070 | 4.5 | |
+| 2018 | LG UK7700 | 4.0 | Out of stock online |
+| 2019 | LG UM7400 | 4.5 | Out of stock online |
+| 2017 | LG OLED E7 | 3.5 | Out of stock online |
+| 2017 | LG OLED G7 | 3.5 | Out of stock online |
+| 2017 | LG OLED W7 | 3.5 | Out of stock online |
+| 2017 | LG SJ8500 | 3.5 | Out of stock online |
+| 2017 | LG SJ9500 | 3.5 | Out of stock online |
+| 2017 | LG UJ6500 | 3.5 | Out of stock online |
+| 2018 | LG OLED E8 | 4.0 | Out of stock online |
+| 2018 | LG OLED G8 | 4.0 | Out of stock online |
+| 2018 | LG OLED W8 | 4.0 | Out of stock online |
+| 2018 | LG SK8000 | 4.0 | Out of stock online |
+| 2018 | LG SK8500 | 4.0 | Out of stock online |
+| 2018 | LG SK9000 | 4.0 | Out of stock online |
+| 2018 | LG SK9500 | 4.0 | Out of stock online |
+| 2018 | LG UK6090 | 4.0 | Out of stock online |
+| 2018 | LG UK6190 | 4.0 | Out of stock online |
+| 2018 | LG UK6200 | 4.0 | Out of stock online |
+| 2018 | LG UK6570 | 4.0 | Out of stock online |
+| 2018 | LG UK6750 | 4.0 | Out of stock online |
+| 2019 | LG OLED E9 | 4.5 | Out of stock online |
+| 2019 | LG OLED W9 | 4.5 | Out of stock online |
+| 2019 | LG OLED Z9 | 4.5 | Out of stock online |
+| 2019 | LG SM8100 | 4.5 | Out of stock online |
+| 2019 | LG SM9000 | 4.5 | Out of stock online |
+| 2019 | LG SM9500 | 4.5 | Out of stock online |
+| 2019 | LG SM9800 | 4.5 | Out of stock online |
+| 2019 | LG UM6900 | 4.5 | Out of stock online |
+| 2019 | LG UM6910 | 4.5 | Out of stock online |
+| 2019 | LG UM6950 | 4.5 | Out of stock online |
+| 2019 | LG UM6970 | 4.5 | Out of stock online |
+| 2019 | LG UM7100 | 4.5 | Out of stock online |
+| 2019 | LG UM7570 | 4.5 | Out of stock online |
+| 2019 | LG UM7600 | 4.5 | Out of stock online |
+| 2019 | LG UM7650 | 4.5 | Out of stock online |
+| 2019 | LG UM8070 | 4.5 | Out of stock online |
 
-## Samsung Smart TV — Second Choice
+## VIZIO SmartCast TV
 
-Models from 2017 or later. Rootable via SamyGO, but it's a per-model/per-firmware slog with forum-era tooling and no pre-purchase compatibility checker. Requires blocking updates.
+Skip the VIZIO — it almost certainly lacks PlayReady (Widevine-only) and its
+auto-updating firmware can silently kill the root, whereas an LG webOS
+2017–2019 set is the only option that reliably gives you root + PlayReady +
+Peacock.
 
-## VIZIO SmartCast TV — Third Choice
+## Samsung Smart TV
 
-SmartCast TV (2016 and newer). Rootable via ViziOwn (clean pre-auth remote
-root) on unpatched firmware, but the app is a cloud-driven thin client — little
-to inspect on-device. Target older SmartCast-branded models (~2016–2021:
-D/V/M/P-Series) bought used and kept offline during setup.
+Samsung: No public root exists for any 2017+ Tizen set (the only options are
+ancient pre-2015 models or paywalled 2016 firmware), so it's a dead end.
 
 ## Hisense VIDAA
 
@@ -103,4 +91,19 @@ D/V/M/P-Series) bought used and kept offline during setup.
 
 ## PlayStation
 
-*Removed: rootable only on old firmware (PS4 ≤ 12.02, PS5 ≤ 5.50), but Peacock requires PSN access on current firmware, so a jailbroken console can't actually run the app.*
+Removed: rootable only on old firmware (PS4 ≤ 12.02, PS5 ≤ 5.50), but Peacock
+requires PSN access on current firmware, so a jailbroken console can't actually
+run the app.
+
+## Microsoft Edge
+
+MS Edge 125+ (Windows only — PlayReady is not available in Edge on Mac).
+
+*Note: Edited the Edge client to trigger a PlayReady request, but the server rejected it.*
+
+## Xbox One
+
+*Note: Retail mode can't run Fiddler; dev mode App Store returns no search
+results, so retail apps (including Peacock) won't work. Sideloading the Peacock
+app directly fails — it's an encrypted `.eappxbundle` that can't be installed
+in dev mode.*
