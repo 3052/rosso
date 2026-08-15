@@ -41,8 +41,8 @@ func (c *client) do() error {
    }
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
-      {Name: "email", Value: &c.email},
-      {Name: "password", Value: &c.password},
+      {Name: "email", Value: &c.email, Needs: "password"},
+      {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "token", Value: &c.token},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
