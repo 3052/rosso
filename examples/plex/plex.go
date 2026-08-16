@@ -7,8 +7,12 @@ import (
    "os"
 )
 
-func (*client) CachePath() string {
-   return "rosso/examples/plex/client"
+func main() {
+   log.SetFlags(log.Ltime)
+   err := new(client).do()
+   if err != nil {
+      log.Fatal(err)
+   }
 }
 
 type client struct {
@@ -17,6 +21,10 @@ type client struct {
    dash     maya.FlagString
 
    cache maya.Cache
+}
+
+func (*client) CachePath() string {
+   return "rosso/examples/plex/client"
 }
 
 func (c *client) do() error {
@@ -91,12 +99,4 @@ func (c *client) do_dash() error {
       Drm:     maya.DrmWidevine,
       License: license,
    })
-}
-
-func main() {
-   log.SetFlags(log.Ltime)
-   err := new(client).do()
-   if err != nil {
-      log.Fatal(err)
-   }
 }
