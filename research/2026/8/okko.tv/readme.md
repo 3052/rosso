@@ -4,8 +4,7 @@ country: RU
 name: Russia
 monetization: FLATRATE
 
-https://justwatch.com/ru/провайдер/okko?tomatoMeter=50
-1740 titles
+https://justwatch.com/ru/провайдер/okko
 
 1. US location
 2. subscribe
@@ -43,3 +42,15 @@ with uBlock Origin disabled - and US or RU location:
     }
 }
 ~~~
+
+## https://sharesub.com
+
+fail
+
+## g2g.com
+
+fail
+
+## z2u.com
+
+fail
