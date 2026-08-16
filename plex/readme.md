@@ -1,5 +1,10 @@
 # plex
 
+> You owe it to yourself, gotta believe in something else
+>
+> Chanel Beads
+> https://chanelbeads.bandcamp.com/track/police-scanner-2
+
 ## android
 
 https://play.google.com/store/apps/details?id=com.plexapp.android
