@@ -2,6 +2,7 @@
 
 | Date | Country | Provider | Count |
 |---|---|---|---|
+| 2026-08-16 | US | Plex Player | 8 |
 | 2026-07-19 | JP | U-NEXT | 7 |
 | 2026-06-28 | US | Amazon Prime Video | 6 |
 | 2026-06-28 | US | Tubi TV | 5 |

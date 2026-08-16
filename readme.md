@@ -11,33 +11,35 @@ streaming API authentication, metadata, and DRM playback
 
 | Titles | Country | Provider |
 |---|---|---|
-| 7263 | US | [Tubi TV] |
-| 6457 | US | [Kanopy] |
-| 5201 | UK | [Rakuten TV] |
-| 4386 | US | [Amazon Prime Video] |
-| 4352 | US | [The Roku Channel] |
-| 3184 | JP | [U-NEXT] |
+| 7246 | US | [Tubi TV] |
+| 6472 | US | [Kanopy] |
+| 5199 | UK | [Rakuten TV] |
+| 4409 | US | [The Roku Channel] |
+| 4403 | US | [Amazon Prime Video] |
+| 4131 | US | [Plex Player] |
+| 3232 | JP | [U-NEXT] |
 | 1967 | CA | [Crave] |
-| 1820 | US | [Pluto TV] |
-| 1319 | FR | [Molotov TV] |
-| 1294 | US | [HBO Max] |
-| 1114 | US | [Criterion Channel] |
-| 971 | US | [Hulu] |
-| 835 | US | [AMC+] |
-| 798 | NL | [CineMember] |
-| 583 | US | [Disney Plus] |
-| 582 | US | [Paramount Plus Premium] |
-| 425 | US | [Peacock Premium] |
+| 1818 | US | [Pluto TV] |
+| 1301 | FR | [Molotov TV] |
+| 1295 | US | [HBO Max] |
+| 1113 | US | [Criterion Channel] |
+| 963 | US | [Hulu] |
+| 826 | US | [AMC+] |
+| 800 | NL | [CineMember] |
+| 591 | US | [Disney Plus] |
+| 580 | US | [Paramount Plus Premium] |
+| 418 | US | [Peacock Premium] |
 | 390 | BR | [Oldflix] |
-| 382 | CZ | [Canal+] |
-| 374 | UK | [ITVX] |
-| 329 | US | [MUBI] |
-| 294 | BE | [RTBF Auvio] |
+| 388 | CZ | [Canal+] |
+| 378 | UK | [ITVX] |
+| 324 | US | [MUBI] |
+| 295 | BE | [RTBF Auvio] |
 | 9 | US | [NBC] |
 
+[Plex Player]:https://justwatch.com/us/provider/plex-player?tomatoMeter=50
 [U-NEXT]:https://justwatch.com/jp/動画配信サービス/u-next?tomatoMeter=50
-[Tubi TV]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=50
 [Amazon Prime Video]:https://justwatch.com/us/provider/amazon-prime-video?tomatoMeter=50
+[Tubi TV]:https://justwatch.com/us/provider/tubi-tv?tomatoMeter=50
 [Oldflix]:https://justwatch.com/br/provedor/oldflix?tomatoMeter=50
 [Crave]:https://justwatch.com/ca/provider/crave?tomatoMeter=50
 [Peacock Premium]:https://justwatch.com/us/provider/peacock?tomatoMeter=50
