@@ -25,7 +25,7 @@ type client struct {
    play_mode    maya.FlagString
    dash_id      maya.FlagString
    refresh      maya.FlagBool
-   threads      maya.FlagInt
+   min_bitrate  maya.FlagInt
 
    cache maya.Cache
 }
@@ -47,10 +47,10 @@ func (c *client) do() error {
       {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "refresh", Value: &c.refresh},
       {Name: "title-code", Value: &c.title_code},
-      {Name: "episode-code", Value: &c.episode_code},
+      {Name: "episode-code", Value: &c.episode_code, Needs: "play-mode"},
       {Name: "play-mode", Value: &c.play_mode, Needs: "episode-code", Usage: "caption dub"},
       {Name: "dash-id", Value: &c.dash_id},
-      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
+      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -97,10 +97,10 @@ func (c *client) do_dash_id() error {
       return unext.Step6GetLicense(licenseURL, playlist.PlayToken, challenge)
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-      Threads: int(c.threads),
+      Device:     string(c.Widevine),
+      Drm:        maya.DrmWidevine,
+      License:    license,
+      MinBitrate: int(c.min_bitrate),
    })
 }
 
