@@ -88,16 +88,12 @@ func (c *client) do() error {
 }
 
 func (c *client) do_address() error {
-   entity_id, err := disney.GetEntityId(string(c.address))
-   if err != nil {
-      return err
-   }
-   entity, err := disney.GetEntityId(entity_id)
-   if err != nil {
-      return err
-   }
    var token disney.Token
    if err = c.cache.Decode(&token); err != nil {
+      return err
+   }
+   entity_id, err := disney.GetEntityId(string(c.address))
+   if err != nil {
       return err
    }
    page, err := token.FetchPage(entity)

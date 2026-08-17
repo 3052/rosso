@@ -1,13 +1,21 @@
-// search.go
 package molotov
 
 import (
    "encoding/json"
    "fmt"
+   "log"
    "net/http"
    "net/url"
-   "strings"
 )
+
+const x_forwarded_for = "178.132.106.134"
+
+// doRequest logs the method and URL, then performs the HTTP request.
+func doRequest(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   client := &http.Client{}
+   return client.Do(req)
+}
 
 type SearchComponent struct {
    Endpoint struct {
@@ -30,10 +38,10 @@ func Search(query string, signinResp *SigninResponse) ([]SearchComponent, error)
    if err != nil {
       return nil, err
    }
-   req.Header.Set("x-forwarded-for", x_forwarded_for)
-   req.Header.Set("Authorization", "Bearer "+signinResp.AccessToken)
+   req.Header.Set("authorization", "Bearer "+signinResp.AccessToken)
    req.Header.Set("x-application-id", "molotov")
    req.Header.Set("x-device-app", "web")
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    resp, err := doRequest(req)
    if err != nil {
       return nil, err
@@ -51,7 +59,8 @@ func Search(query string, signinResp *SigninResponse) ([]SearchComponent, error)
             Components []struct {
                Body struct {
                   Actions struct {
-                     OnPlay []SearchComponent `json:"on_play"`
+                     // OnPlay []SearchComponent `json:"on_play"`
+                     OnClick []SearchComponent `json:"on_click"`
                   } `json:"actions"`
                } `json:"body"`
             } `json:"components"`
@@ -74,12 +83,15 @@ func Search(query string, signinResp *SigninResponse) ([]SearchComponent, error)
 
    // Extract and flatten the slice of SearchComponent items
    var results []SearchComponent
-   for _, comp := range envelope.Content.Sections[0].Components {
-      for _, action := range comp.Body.Actions.OnPlay {
-         // Only append the item if it actually contains the Movie tracking data
-         // This filters out the blank "navigation" objects
-         if action.Endpoint.Payload.Payload.UiElement != "" && action.Endpoint.Payload.Payload.AssetId != "" {
-            results = append(results, action)
+
+   for _, section := range envelope.Content.Sections {
+      for _, comp := range section.Components {
+         for _, action := range comp.Body.Actions.OnClick {
+            // Only append the item if it actually contains the Movie tracking data
+            // This filters out the blank "navigation" objects
+            if action.Endpoint.Payload.Payload.UiElement != "" && action.Endpoint.Payload.Payload.AssetId != "" {
+               results = append(results, action)
+            }
          }
       }
    }
@@ -87,11 +99,9 @@ func Search(query string, signinResp *SigninResponse) ([]SearchComponent, error)
    return results, nil
 }
 
-func (s *SearchComponent) String() string {
-   var data strings.Builder
-   data.WriteString("ui.element: ")
-   data.WriteString(s.Endpoint.Payload.Payload.UiElement)
-   data.WriteString("\nasset.asset_id: ")
-   data.WriteString(s.Endpoint.Payload.Payload.AssetId)
-   return data.String()
+type SigninResponse struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
 }
+
+// search.go

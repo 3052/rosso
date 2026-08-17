@@ -6,15 +6,6 @@
 >
 > [NakeyJakey](//youtube.com/watch?v=Cr0UYNKmrUs) (2018)
 
-https://justwatch.com/fr/plateforme/molotov-tv
-
-## subscribe
-
-1. FRANCE VPN
-2. molotov.tv
-3. e-mail
-   - mail.tm
-
 ## android
 
 - https://play.google.com/store/apps/details?id=tv.molotov.app

@@ -18,14 +18,15 @@ func main() {
 }
 
 type client struct {
-   Widevine maya.FlagString
-   asset_id maya.FlagString
-   dash_id  maya.FlagString
-   username maya.FlagString
-   password maya.FlagString
-   search   maya.FlagString
-   refresh  maya.FlagBool
-   threads  maya.FlagInt
+   Widevine    maya.FlagString
+   asset_id    maya.FlagString
+   dash_id     maya.FlagString
+   username    maya.FlagString
+   password    maya.FlagString
+   search      maya.FlagString
+   refresh     maya.FlagBool
+   min_bitrate maya.FlagInt
+   threads     maya.FlagInt
 
    cache maya.Cache
 }
@@ -49,6 +50,7 @@ func (c *client) do() error {
       {Name: "search", Value: &c.search},
       {Name: "asset-id", Value: &c.asset_id},
       {Name: "dash-id", Value: &c.dash_id},
+      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
       {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -108,10 +110,11 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: asset.GetLicense,
-      Threads: int(c.threads),
+      Device:     string(c.Widevine),
+      Drm:        maya.DrmWidevine,
+      License:    asset.GetLicense,
+      MinBitrate: int(c.min_bitrate),
+      Threads:    int(c.threads),
    })
 }
 

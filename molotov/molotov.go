@@ -5,21 +5,48 @@ import (
    "encoding/json"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
+   "strings"
 )
 
 // DeviceID is the centralized value used for the x-device-id header across all requests.
 const DeviceID = "x-device-id"
 
-const x_forwarded_for = "178.132.106.134"
+// too many calls gets 429
+func Signin(username, password string) (*SigninResponse, error) {
+   url := "https://api-eu.fubo.tv/v2/signin"
+   reqBody, err := json.Marshal(SigninRequest{
+      Username: username,
+      Password: password,
+   })
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("x-device-id", DeviceID)
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
 
-// doRequest logs the method and URL, then performs the HTTP request.
-func doRequest(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   client := &http.Client{}
-   return client.Do(req)
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("signin failed with status: %d", resp.StatusCode)
+   }
+
+   // Unwrap the "payload" envelope layer
+   var envelope struct {
+      Payload SigninResponse `json:"payload"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+      return nil, err
+   }
+
+   return &envelope.Payload, nil
 }
 
 type AssetResponse struct {
@@ -106,45 +133,13 @@ type SigninRequest struct {
    Password string `json:"password"`
 }
 
-type SigninResponse struct {
-   AccessToken  string `json:"access_token"`
-   RefreshToken string `json:"refresh_token"`
-}
-
-// too many calls gets 429
-func Signin(username, password string) (*SigninResponse, error) {
-   url := "https://api-eu.fubo.tv/v2/signin"
-   reqBody, err := json.Marshal(SigninRequest{
-      Username: username,
-      Password: password,
-   })
-   if err != nil {
-      return nil, err
-   }
-   req, err := http.NewRequest("PUT", url, bytes.NewBuffer(reqBody))
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-device-id", DeviceID)
-   resp, err := doRequest(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, fmt.Errorf("signin failed with status: %d", resp.StatusCode)
-   }
-
-   // Unwrap the "payload" envelope layer
-   var envelope struct {
-      Payload SigninResponse `json:"payload"`
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-      return nil, err
-   }
-
-   return &envelope.Payload, nil
+func (s *SearchComponent) String() string {
+   var data strings.Builder
+   data.WriteString("ui.element: ")
+   data.WriteString(s.Endpoint.Payload.Payload.UiElement)
+   data.WriteString("\nasset.asset_id: ")
+   data.WriteString(s.Endpoint.Payload.Payload.AssetId)
+   return data.String()
 }
 
 func (*SigninResponse) CachePath() string {
