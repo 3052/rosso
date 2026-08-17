@@ -41,7 +41,7 @@ type Page struct {
    }
    Visuals struct {
       Restriction struct {
-         Message string
+         Message string // 2026-08-16
       }
    }
 }
@@ -109,6 +109,9 @@ func (t *Token) FetchPage(entity string) (*Page, error) {
    if len(result.Data.Errors) >= 1 {
       return nil, &result.Data.Errors[0]
    }
+   if restriction := result.Data.Page.Visuals.Restriction.Message; restriction != "" {
+      return nil, errors.New(restriction)
+   }
    return &result.Data.Page, nil
 }
 
@@ -118,3 +121,5 @@ func (t *Token) assert(expected string) error {
    }
    return nil
 }
+
+// page.go

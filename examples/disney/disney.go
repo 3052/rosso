@@ -17,16 +17,17 @@ func main() {
 }
 
 type client struct {
-   Email     maya.FlagString
-   PlayReady maya.FlagString
-   address   maya.FlagString
-   hls       maya.FlagString
-   media     maya.FlagString
-   passcode  maya.FlagString
-   profile   maya.FlagString
-   refresh   maya.FlagBool
-   season    maya.FlagString
-   threads   maya.FlagInt
+   Email       maya.FlagString
+   PlayReady   maya.FlagString
+   address     maya.FlagString
+   hls         maya.FlagString
+   media       maya.FlagString
+   passcode    maya.FlagString
+   profile     maya.FlagString
+   refresh     maya.FlagBool
+   season      maya.FlagString
+   min_bitrate maya.FlagInt
+   threads     maya.FlagInt
 
    cache maya.Cache
 }
@@ -52,6 +53,7 @@ func (c *client) do() error {
       {Name: "season-id", Value: &c.season},
       {Name: "media-id", Value: &c.media},
       {Name: "hls-id", Value: &c.hls},
+      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "hls-id"},
       {Name: "threads", Value: &c.threads, Needs: "hls-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -89,14 +91,14 @@ func (c *client) do() error {
 
 func (c *client) do_address() error {
    var token disney.Token
-   if err = c.cache.Decode(&token); err != nil {
+   if err := c.cache.Decode(&token); err != nil {
       return err
    }
    entity_id, err := disney.GetEntityId(string(c.address))
    if err != nil {
       return err
    }
-   page, err := token.FetchPage(entity)
+   page, err := token.FetchPage(entity_id)
    if err != nil {
       return err
    }
@@ -127,10 +129,11 @@ func (c *client) do_hls() error {
       return err
    }
    return maya.DownloadHls(string(c.hls), &manifest, &maya.Options{
-      Device:  string(c.PlayReady),
-      Drm:     maya.DrmPlayReady,
-      License: token.FetchPlayReady,
-      Threads: int(c.threads),
+      Device:     string(c.PlayReady),
+      Drm:        maya.DrmPlayReady,
+      License:    token.FetchPlayReady,
+      MinBitrate: int(c.min_bitrate),
+      Threads:    int(c.threads),
    })
 }
 
