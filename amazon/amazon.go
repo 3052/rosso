@@ -5,9 +5,11 @@ import (
    "encoding/json"
    "errors"
    "fmt"
+   "io"
    "net/http"
    "net/url"
    "strings"
+   "time"
 )
 
 const HostAmazonAPI = "https://api.amazon.com"
@@ -43,6 +45,99 @@ var Devices = []Device{
       SecurityLevel: 3000,
       DeviceTypeID:  "A3NM0WFSU3DLT5",
    },
+}
+
+// GetPlayReadyLicense fetches the PlayReady DRM license for the given title.
+func GetPlayReadyLicense(actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+   return fetchDRMLicense("/playback/drm-vod/GetPlayReadyLicense", actorToken, metadata, licenseChallenge, deviceTypeID)
+}
+
+// GetWidevineLicense requests a Widevine DRM license from the Amazon endpoint.
+func GetWidevineLicense(actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+   return fetchDRMLicense("/playback/drm-vod/GetWidevineLicense", actorToken, metadata, licenseChallenge, deviceTypeID)
+}
+
+// fetchDRMLicense is the shared base function for making DRM requests
+func fetchDRMLicense(path string, actorToken *ActorToken, metadata *PlaybackExperienceMetadata, licenseChallenge []byte, deviceTypeID string) ([]byte, error) {
+   payload := map[string]any{
+      "playbackEnvelope": metadata.PlaybackEnvelope,
+      "licenseChallenge": licenseChallenge,
+   }
+
+   body, err := marshal(payload)
+   if err != nil {
+      return nil, fmt.Errorf("failed to marshal payload: %w", err)
+   }
+
+   req, err := http.NewRequest(http.MethodPost, HostATVPS+path, bytes.NewReader(body))
+   if err != nil {
+      return nil, fmt.Errorf("failed to create request: %w", err)
+   }
+
+   query := url.Values{}
+   query.Set("deviceTypeID", deviceTypeID)
+   query.Set("deviceID", DeviceID)
+
+   req.URL.RawQuery = query.Encode()
+   req.Header.Set("Authorization", "Bearer "+actorToken.Token)
+
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, fmt.Errorf("request failed: %w", err)
+   }
+   defer resp.Body.Close()
+
+   // Read the body once so we can attempt multiple unmarshals
+   respBytes, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("failed to read response: %w", err)
+   }
+
+   // 1. Try the standard response format (contains licenses or a nested error object)
+   var standardResp struct {
+      WidevineLicense *struct {
+         License []byte `json:"license"`
+      } `json:"widevineLicense"`
+      PlayReadyLicense *struct {
+         License []byte `json:"license"`
+      } `json:"playReadyLicense"`
+      Message *struct {
+         Body *struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"body"`
+      } `json:"message"`
+   }
+
+   if err := json.Unmarshal(respBytes, &standardResp); err == nil {
+      if standardResp.Message != nil && standardResp.Message.Body != nil {
+         return nil, fmt.Errorf("API error [%s]: %s", standardResp.Message.Body.Code, standardResp.Message.Body.Message)
+      }
+      if standardResp.WidevineLicense != nil && len(standardResp.WidevineLicense.License) > 0 {
+         return standardResp.WidevineLicense.License, nil
+      }
+      if standardResp.PlayReadyLicense != nil && len(standardResp.PlayReadyLicense.License) > 0 {
+         return standardResp.PlayReadyLicense.License, nil
+      }
+   }
+
+   // 2. If the first unmarshal fails (e.g., "message" is a string causing a type error), try the flat error format
+   var flatErrorResp struct {
+      Code    string `json:"code"`
+      ID      string `json:"id"`
+      Message string `json:"message"`
+   }
+
+   if err := json.Unmarshal(respBytes, &flatErrorResp); err == nil && flatErrorResp.Message != "" {
+      return nil, fmt.Errorf("code: %s, message: %s, id: %s", flatErrorResp.Code, flatErrorResp.Message, flatErrorResp.ID)
+   }
+
+   // 3. Check for standard HTTP errors if no JSON error message was extracted
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+
+   return nil, fmt.Errorf("license not found in response")
 }
 
 func marshal(value any) ([]byte, error) {
@@ -241,23 +336,75 @@ func GetPrimaryProfile(tokens *TokenPair, deviceTypeID string) (*Profile, error)
    return nil, fmt.Errorf("default profile not found")
 }
 
-// GetPlaybackExperienceMetadata searches the Actions array and returns the first valid PlaybackExperienceMetadata.
-func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata, error) {
-   for _, action := range r.Actions {
-      pem := action.Metadata.PlaybackExperienceMetadata
-      if pem.PlaybackEnvelope != "" {
-         return &pem, nil
-      }
+// TokenPair represents the access and refresh tokens returned upon successful
+// registration
+type TokenPair struct {
+   AccessToken  string `json:"access_token"`
+   RefreshToken string `json:"refresh_token"`
+}
+
+// PollRegister attempts to register the device. This should typically be called in a loop
+// until it returns success (after the user links the device on the web).
+func PollRegister(codes *CodePair, deviceTypeID string) (*TokenPair, error) {
+   payload := map[string]any{
+      "auth_data": map[string]any{
+         "code_pair": map[string]string{
+            "public_code":  codes.PublicCode,
+            "private_code": codes.PrivateCode,
+         },
+      },
+      "registration_data": map[string]string{
+         "app_name":      "AIV",
+         "app_version":   "9",
+         "device_model":  "device_model",
+         "device_serial": DeviceID,
+         "device_type":   deviceTypeID,
+         "os_version":    "Android",
+         // if you change deviceID this is required
+         "device_name": fmt.Sprint(time.Now().Unix()),
+      },
+      "requested_token_type": []string{"bearer"},
    }
-   return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
-}
+   body, err := json.Marshal(payload)
+   if err != nil {
+      return nil, err
+   }
+   req, err := http.NewRequest(
+      "POST", HostAmazonAPI+"/auth/register", bytes.NewBuffer(body),
+   )
+   if err != nil {
+      return nil, err
+   }
 
-func (*ActorToken) CachePath() string {
-   return "rosso/amazon/ActorToken"
-}
-
-func (*PlaybackExperienceMetadata) CachePath() string {
-   return "rosso/amazon/PlaybackExperienceMetadata"
+   resp, err := doRequest(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   var result struct {
+      Response struct {
+         Success struct {
+            Tokens struct {
+               Bearer TokenPair `json:"bearer"`
+            } `json:"tokens"`
+         } `json:"success"`
+         Error struct {
+            Code    string `json:"code"`
+            Message string `json:"message"`
+         } `json:"error"`
+      } `json:"response"`
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   if result.Response.Error.Code != "" {
+      return nil, fmt.Errorf("amazon API error: %s - %s", result.Response.Error.Code, result.Response.Error.Message)
+   }
+   if resp.StatusCode != http.StatusOK {
+      return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+   }
+   bearer := result.Response.Success.Tokens.Bearer
+   return &bearer, nil
 }
 
 func (*TokenPair) CachePath() string {
@@ -320,4 +467,23 @@ func (t *TokenPair) Refresh() error {
    t.AccessToken = result.AccessToken
 
    return nil
+}
+
+// GetPlaybackExperienceMetadata searches the Actions array and returns the first valid PlaybackExperienceMetadata.
+func (r *Resource) GetPlaybackExperienceMetadata() (*PlaybackExperienceMetadata, error) {
+   for _, action := range r.Actions {
+      pem := action.Metadata.PlaybackExperienceMetadata
+      if pem.PlaybackEnvelope != "" {
+         return &pem, nil
+      }
+   }
+   return nil, fmt.Errorf("playbackExperienceMetadata not found in actions")
+}
+
+func (*ActorToken) CachePath() string {
+   return "rosso/amazon/ActorToken"
+}
+
+func (*PlaybackExperienceMetadata) CachePath() string {
+   return "rosso/amazon/PlaybackExperienceMetadata"
 }

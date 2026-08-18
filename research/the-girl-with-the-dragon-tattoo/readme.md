@@ -74,75 +74,13 @@ monetization: FLATRATE
 
 --------------------------------------------------------
 
-## https://crave.ca/en/movie/the-girl-with-the-dragon-tattoo-2011-43239
-
-country: CA
-name: Canada
-monetization: FLATRATE
-
-## https://app.primevideo.com/detail?gti=amzn1.dv.gti.c6a9f792-1ba0-5818-6e89-54f8350da6fb
-
-country: AU
-name: Australia
-monetization: FLATRATE
-
-country: BE
-name: Belgium
-monetization: FLATRATE
-
-country: BR
-name: Brazil
-monetization: FLATRATE
-
-country: CA
-name: Canada
-monetization: FLATRATE
-
-country: CO
-name: Colombia
-monetization: FLATRATE
-
-country: ES
-name: Spain
-monetization: FLATRATE
-
-country: FI
-name: Finland
-monetization: FLATRATE
-
-country: FR
-name: France
-monetization: FLATRATE
-
-country: IN
-name: India
-monetization: FLATRATE
-
-country: IT
-name: Italy
-monetization: FLATRATE
-
-country: MX
-name: Mexico
-monetization: FLATRATE
-
-country: NL
-name: Netherlands
-monetization: FLATRATE
-
-country: NZ
-name: New Zealand
-monetization: FLATRATE
-
-country: PL
-name: Poland
-monetization: FLATRATE
-
-country: SE
-name: Sweden
-monetization: FLATRATE
-
 ## https://app.primevideo.com/detail?gti=amzn1.dv.gti.af7c8b6a-1595-4fd6-b627-be6d13851f8e
+
+country: CA
+name: Canada
+monetization: FLATRATE
+
+## https://crave.ca/en/movie/the-girl-with-the-dragon-tattoo-2011-43239
 
 country: CA
 name: Canada
@@ -214,5 +152,67 @@ monetization: FLATRATE
 
 country: VE
 name: Venezuela
+monetization: FLATRATE
+
+## https://app.primevideo.com/detail?gti=amzn1.dv.gti.c6a9f792-1ba0-5818-6e89-54f8350da6fb
+
+country: AU
+name: Australia
+monetization: FLATRATE
+
+country: BE
+name: Belgium
+monetization: FLATRATE
+
+country: BR
+name: Brazil
+monetization: FLATRATE
+
+country: CA
+name: Canada
+monetization: FLATRATE
+
+country: CO
+name: Colombia
+monetization: FLATRATE
+
+country: ES
+name: Spain
+monetization: FLATRATE
+
+country: FI
+name: Finland
+monetization: FLATRATE
+
+country: FR
+name: France
+monetization: FLATRATE
+
+country: IN
+name: India
+monetization: FLATRATE
+
+country: IT
+name: Italy
+monetization: FLATRATE
+
+country: MX
+name: Mexico
+monetization: FLATRATE
+
+country: NL
+name: Netherlands
+monetization: FLATRATE
+
+country: NZ
+name: New Zealand
+monetization: FLATRATE
+
+country: PL
+name: Poland
+monetization: FLATRATE
+
+country: SE
+name: Sweden
 monetization: FLATRATE
 
