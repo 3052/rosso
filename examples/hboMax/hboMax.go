@@ -27,6 +27,7 @@ type client struct {
    season      maya.FlagInt
    show        maya.FlagString
    min_bitrate maya.FlagInt
+   threads     maya.FlagInt
 
    cache maya.Cache
 }
@@ -53,6 +54,7 @@ func (c *client) do() error {
       {Name: "edit-id", Value: &c.edit},
       {Name: "dash-id", Value: &c.dash},
       {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -100,6 +102,7 @@ func (c *client) do_dash() error {
       Drm:        maya.DrmPlayReady,
       License:    playback.PlayReadyRequest,
       MinBitrate: int(c.min_bitrate),
+      Threads:    int(c.threads),
    })
 }
 

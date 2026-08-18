@@ -175,3 +175,5 @@ func (p *PlayResponse) GetDash() (*Manifest, error) {
    }
    return nil, errors.New("dash manifest not found")
 }
+
+// kanopy.go

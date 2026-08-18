@@ -3,6 +3,7 @@ package kanopy
 import (
    "bytes"
    "encoding/json"
+   "fmt"
    "log"
    "net/http"
 )
@@ -64,6 +65,9 @@ type PlayResponse struct {
    Captions  []Caption
    Manifests []Manifest
    PlayId    string
+
+   HttpCode     int    `json:"httpCode"`       // 2026-08-17: error status code from API
+   ErrorMsgLong string `json:"error_msg_long"` // 2026-08-17: error description from API
 }
 
 func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) (*PlayResponse, error) {
@@ -94,7 +98,17 @@ func CreatePlay(loginData *Login, membershipData *Membership, videoData *Video) 
       return nil, err
    }
 
+   // 2026-08-17: check error response from API
+   if play.HttpCode != 0 {
+      return nil, &play
+   }
+
    return &play, nil
+}
+
+func (p *PlayResponse) Error() string {
+   return fmt.Sprintf("kanopy: plays request failed: %d: %s",
+      p.HttpCode, p.ErrorMsgLong)
 }
 
 type Video struct {
@@ -104,3 +118,5 @@ type Video struct {
    DurationSeconds int    `json:"durationSeconds"`
    Alias           string `json:"alias"`
 }
+
+// plays.go

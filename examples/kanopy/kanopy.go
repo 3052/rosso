@@ -18,12 +18,12 @@ func main() {
 }
 
 type client struct {
-   Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
-   email    maya.FlagString
-   password maya.FlagString
-   threads  maya.FlagInt
+   Widevine    maya.FlagString
+   address     maya.FlagString
+   dash        maya.FlagString
+   email       maya.FlagString
+   password    maya.FlagString
+   min_bitrate maya.FlagInt
 
    cache maya.Cache
 }
@@ -45,7 +45,7 @@ func (c *client) do() error {
       {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
+      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -125,10 +125,10 @@ func (c *client) do_dash() error {
       return kanopy.CreateLicense(&login, &manifest, body)
    }
    return maya.DownloadDash(string(c.dash), &maya_manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: license,
-      Threads: int(c.threads),
+      Device:     string(c.Widevine),
+      Drm:        maya.DrmWidevine,
+      License:    license,
+      MinBitrate: int(c.min_bitrate),
    })
 }
 
