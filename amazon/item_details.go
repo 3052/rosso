@@ -139,3 +139,5 @@ func (r *Resource) String() string {
 
    return data.String()
 }
+
+// item_details.go
