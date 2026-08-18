@@ -77,7 +77,7 @@ func GetItemDetails(token *ActorToken, titleId, deviceTypeID string) (*Resource,
       query.Set("roles", "playback-envelope-supported")
       // you can get the envelope without this, but it will be trailer:
       // resource.secondaryActions[0].presentation.label = "Watch trailer"
-      req.Header.Set("Authorization", "Bearer "+token.Token)
+      req.Header.Set("authorization", "Bearer "+token.Token)
    } else {
       query.Add("firmware", "")
       query.Add("roles", "prime-offer-supported,svod-supported,tvod-supported")
