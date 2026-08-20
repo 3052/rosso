@@ -26,6 +26,13 @@ type ActorToken struct {
    Token string `json:"token"`
 }
 
+// EntitlementMessaging holds the "entitlementMessaging" object from the resource.
+type EntitlementMessaging struct {
+   EntitlementMessageSlotDetail struct {
+      Message string `json:"message"`
+   } `json:"ENTITLEMENT_MESSAGE_SLOT_DETAIL"`
+}
+
 // PlaybackExperienceMetadata contains the envelope and related data needed for playback requests.
 type PlaybackExperienceMetadata struct {
    PlaybackEnvelope string `json:"playbackEnvelope"`
@@ -51,6 +58,7 @@ type Resource struct {
          }
       }
    }
+   EntitlementMessaging EntitlementMessaging `json:"entitlementMessaging"`
 }
 
 // GetItemDetails uses the actor access token to get metadata for a specific title.
@@ -135,6 +143,12 @@ func (r *Resource) String() string {
             data.WriteString(td.Text)
          }
       }
+   }
+
+   if r.EntitlementMessaging.EntitlementMessageSlotDetail.Message != "" {
+      data.WriteByte('\n')
+      data.WriteString("entitlement message: ")
+      data.WriteString(r.EntitlementMessaging.EntitlementMessageSlotDetail.Message)
    }
 
    return data.String()
