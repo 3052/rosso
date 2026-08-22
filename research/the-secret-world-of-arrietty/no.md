@@ -1,5 +1,11 @@
 # no
 
+## https://okko.tv/movie/kari-gurashi-no-arietti
+
+country: RU
+name: Russia
+monetization: FLATRATE
+
 ## https://watch.amazon.com/detail?gti=amzn1.dv.gti.eeb747cb-0e95-4ec0-b2bc-73501a7ae97c
 
 country: US

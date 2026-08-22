@@ -1,14 +1,5 @@
 # the-secret-world-of-arrietty
 
-## https://okko.tv/movie/kari-gurashi-no-arietti
-
-country: RU
-name: Russia
-monetization: FLATRATE
-
-https://justwatch.com/ru/провайдер/okko?tomatoMeter=50
-1741
-
 ## https://tvplus.com.tr/film-izle/asiricilar--204922332
 
 country: TR
