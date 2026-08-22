@@ -1,5 +1,27 @@
 # no
 
+## https://watch.amazon.com/detail?gti=amzn1.dv.gti.eeb747cb-0e95-4ec0-b2bc-73501a7ae97c
+
+country: US
+name: United States
+monetization: FLATRATE
+
+HDR: false
+UHD: false
+offer card: HBO Max 7-day free trial then $10.99/month
+offer card: Rent movie from $3.99
+offer card: Buy movie from $11.99
+entitlement message: Free trial of HBO Max, rent, or buy
+
+## https://play.hbomax.com/show/4c3cc9c5-86e1-454c-a43e-1e884c05fe5c
+
+country: US
+name: United States
+monetization: FLATRATE
+
+Video: MPEG4 Video (H264) 1280x692 23.976fps 2231kbps [V: h264 high L3.1,
+yuv420p, 1280x692, 2231 kb/s]
+
 ## https://www.netflix.com/title/70216227
 
 country: AE
