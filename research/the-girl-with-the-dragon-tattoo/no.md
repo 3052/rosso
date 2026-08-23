@@ -1,5 +1,17 @@
 # no
 
+## https://more.tv/devushka-s-tatuirovkoy-drakona
+
+country: RU
+name: Russia
+monetization: ADS
+
+## https://play.movistar.com.ec/details/movie/4994505
+
+country: EC
+name: Ecuador
+monetization: FLATRATE
+
 ## https://play.movistar.com.ar/details/movie/4994505
 
 country: AR

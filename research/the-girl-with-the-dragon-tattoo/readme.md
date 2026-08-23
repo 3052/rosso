@@ -1,23 +1,5 @@
 # the-girl-with-the-dragon-tattoo
 
-## https://play.movistar.com.ec/details/movie/4994505
-
-country: EC
-name: Ecuador
-monetization: FLATRATE
-
-https://justwatch.com/ec/proveedor/movistartv?tomatoMeter=50
-2040 titles
-
-## https://more.tv/devushka-s-tatuirovkoy-drakona
-
-country: RU
-name: Russia
-monetization: ADS
-
-https://justwatch.com/ru/провайдер/more-tv?tomatoMeter=50
-1661 titles
-
 ## https://strim.no/film/1004341:vod/the-girl-with-the-dragon-tattoo
 
 country: NO
