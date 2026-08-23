@@ -63,15 +63,6 @@ monetization: FLATRATE
 https://justwatch.com/au/provider/stan?tomatoMeter=50
 1166 titles
 
-## https://tvplus.com.tr/film-izle/ejderha-dovmeli-kiz--216733028
-
-country: TR
-name: Turkey
-monetization: FLATRATE
-
-https://justwatch.com/tr/saglayici/tv-plus?tomatoMeter=50
-1031 titles
-
 ## https://catchplay.com/tw/video/0e339b11-5ae4-4f98-9876-04fc7c2c3f5b
 
 country: TW

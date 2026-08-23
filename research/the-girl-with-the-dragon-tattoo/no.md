@@ -1,5 +1,11 @@
 # no
 
+## https://tvplus.com.tr/film-izle/ejderha-dovmeli-kiz--216733028
+
+country: TR
+name: Turkey
+monetization: FLATRATE
+
 ## https://hbomax.com/tr/en/movies/girl-with-the-dragon-tattoo/e51c8366-7aed-4af9-bc7e-f7e8188ac7da
 
 country: TR
