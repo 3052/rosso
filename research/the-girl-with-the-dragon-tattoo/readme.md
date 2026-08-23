@@ -1,32 +1,5 @@
 # the-girl-with-the-dragon-tattoo
 
-## https://movistarplay.cl/details/movie/17646022
-
-country: CL
-name: Chile
-monetization: FLATRATE
-
-https://justwatch.com/cl/proveedor/movistartv?tomatoMeter=50
-2978 titles
-
-## https://movistarplay.co/details/movie/4994505
-
-country: CO
-name: Colombia
-monetization: FLATRATE
-
-https://justwatch.com/co/proveedor/movistartv?tomatoMeter=50
-2874 titles
-
-## https://play.movistar.com.ar/details/movie/4994505
-
-country: AR
-name: Argentina
-monetization: FLATRATE
-
-https://justwatch.com/ar/proveedor/movistartv?tomatoMeter=50
-2192 titles
-
 ## https://play.movistar.com.ec/details/movie/4994505
 
 country: EC

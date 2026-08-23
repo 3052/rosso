@@ -1,5 +1,23 @@
 # no
 
+## https://play.movistar.com.ar/details/movie/4994505
+
+country: AR
+name: Argentina
+monetization: FLATRATE
+
+## https://movistarplay.co/details/movie/4994505
+
+country: CO
+name: Colombia
+monetization: FLATRATE
+
+## https://movistarplay.cl/details/movie/17646022
+
+country: CL
+name: Chile
+monetization: FLATRATE
+
 ## https://tvplus.com.tr/film-izle/ejderha-dovmeli-kiz--216733028
 
 country: TR
