@@ -1,5 +1,11 @@
 # no
 
+## https://strim.no/film/1004341:vod/the-girl-with-the-dragon-tattoo
+
+country: NO
+name: Norway
+monetization: FLATRATE
+
 ## https://more.tv/devushka-s-tatuirovkoy-drakona
 
 country: RU

@@ -1,4 +1,12 @@
-# TV+ Signup from US — Detailed Attempt Log
+# TV+ (Turkey)
+
+## Platform
+- URL: `tvplus.com.tr/giris`
+- Requires Turkish mobile number (+90) whose local part starts with 5
+- Registration is SMS-verified
+- No email, Apple, or Google signup available on the website
+
+## Full Attempt Log
 
 **The core constraint:** TV+ (`tvplus.com.tr/giris`) requires a Turkish mobile
 number (+90) whose local part starts with 5 (that's the "must start with 5"
@@ -6,34 +14,34 @@ error). Registration is SMS-verified. There is no email, Apple, or Google
 signup on the website. So the entire effort was about obtaining a Turkish +90
 number that could actually *receive* an SMS while you're in the US.
 
----
+### Phase 1 — Finding a platform that even has Turkey
 
-## Phase 1 — Finding a platform that even has Turkey
+**1. VirtualSIM (virtualsim.net)** — your preferred service, you'd used it
+before for Russia. I checked their live ordering page and availability API.
+They carry no Turkey on any of their six plans (EXTENDED24 $20/mo, AUTOMATIC
+$30/mo, DEDICATED $36+/yr, ORDINAL $6+/yr, BUSINESS $3/mo, ONETIME $2). Their
+country sets are Eastern Europe / CIS / Western Europe specialists (AT, CZ, DE,
+DK, EE, FI, GE, IE, KG, LV, MA, MT, NL, PL, RU, UA, UK, USA). Their service
+list had a few Turkish brands (papara.com, Paycell, BiP.com, Ozan.com) but no
+Turkcell/TV+ entry, and no Turkish numbers to back them. **Verdict: no
+Turkey.** No money spent.
 
-**1. VirtualSIM (virtualsim.net)** — your preferred service, you'd used it before for Russia.
-I checked their live ordering page and availability API. They carry no Turkey
-on any of their six plans (EXTENDED24 $20/mo, AUTOMATIC $30/mo, DEDICATED
-$36+/yr, ORDINAL $6+/yr, BUSINESS $3/mo, ONETIME $2). Their country sets are
-Eastern Europe / CIS / Western Europe specialists (AT, CZ, DE, DK, EE, FI, GE,
-IE, KG, LV, MA, MT, NL, PL, RU, UA, UK, USA). Their service list had a few
-Turkish brands (papara.com, Paycell, BiP.com, Ozan.com) but no Turkcell/TV+
-entry, and no Turkish numbers to back them. **Verdict: no Turkey.** No money
-spent.
+**2. SMS-Activate (sms-activate.org)** — usually the top pick for this kind of
+task. Checked before recommending: the platform shut down in December 2025; all
+`sms-activate.*` domains went dark. **Verdict: defunct.** No money spent.
 
-**2. SMS-Activate (sms-activate.org)** — usually the top pick for this kind of task.
-Checked before recommending: the platform shut down in December 2025; all `sms-activate.*` domains went dark. **Verdict: defunct.** No money spent.
-
-**3. SMSPool (smspool.net)** — my first recommendation.
-Verified: Turkey was in their country picker, they advertise real non-VoIP SIM
-numbers, accept credit/debit cards, and only charge when a code actually
-arrives (failed attempts free). You created an account and deposited **$5 by
-card**. On the Order page, both pool options failed:
+**3. SMSPool (smspool.net)** — my first recommendation. Verified: Turkey was in
+   their country picker, they advertise real non-VoIP SIM numbers, accept
+   credit/debit cards, and only charge when a code actually arrives (failed
+   attempts free). You created an account and deposited **$5 by card**. On the
+   Order page, both pool options failed:
 - `pool mike` → "no numbers available at the moment please try again later"
 - `pool charlie` → "your current selection is out of stock - please try again later"
 **Verdict: Turkey out of stock.** $5 deposited, unused, refundable within 14 days.
 
-**4. SMS-Man (sms-man.com)** — second recommendation, chosen because independent testing flagged it as good for Turkey and it takes cards.
-You signed up and tried to request a Turkey number. Their response: *"You are
+**4. SMS-Man (sms-man.com)** — second recommendation, chosen because
+independent testing flagged it as good for Turkey and it takes cards. You
+signed up and tried to request a Turkey number. Their response: *"You are
 requesting a very rare and popular number... According to statistics, the
 number to such services is given with 5–6 attempts... we have added this
 feature to telegram bot! Your API KEY: 9ypTwDBaQfh0e6LifS2xQItIUaEtogBC."* I
@@ -42,16 +50,16 @@ manual-retry route (expect 5–6 attempts) vs. their Telegram bot. Your second
 try returned: **"no numbers try again later."** **Verdict: stock depleted.**
 Small balance unused, refundable.
 
-**5. GrizzlySMS (grizzlysms.com)** — third recommendation.
-Verified they had a dedicated Turkey section and a Turkcell service page,
-accept cards, auto-refund if no code in 20 min. Their page showed "few" numbers
-for Turkcell+Turkey (their FAQ says "few" = 0–2 in stock, fluctuates, may need
-to press GET 5–15 times). When you tried on the website, both **Turkcell** and
-**AnyOther** said **"available only by API."** So we pivoted to their API,
-driven from your browser address bar (sms-activate-compatible). This became the
-longest attempt — see Phase 2.
+**5. GrizzlySMS (grizzlysms.com)** — third recommendation. Verified they had a
+dedicated Turkey section and a Turkcell service page, accept cards, auto-refund
+if no code in 20 min. Their page showed "few" numbers for Turkcell+Turkey
+(their FAQ says "few" = 0–2 in stock, fluctuates, may need to press GET 5–15
+times). When you tried on the website, both **Turkcell** and **AnyOther** said
+**"available only by API."** So we pivoted to their API, driven from your
+browser address bar (sms-activate-compatible). This became the longest attempt
+— see Phase 2.
 
-## Phase 2 — GrizzlySMS API deep-dive
+### Phase 2 — GrizzlySMS API deep-dive
 
 You got an API key from your account settings. We tested it with `getBalance` (free) — it returned `ACCESS_BALANCE` and worked.
 
@@ -69,9 +77,10 @@ You got an API key from your account settings. We tested it with `getBalance` (f
   `service=gr_tk`; still `NO_NUMBERS`. Tried the V2 endpoint with `maxPrice=3`;
   still `NO_NUMBERS`. Tried with a **Turkish VPN server** active; still
   `NO_NUMBERS`.
+
 **Verdict:** the displayed stock counters were stale estimates, not live inventory — the live pool was empty on every attempt. **Balance $7.96, nothing spent, refundable.**
 
-## Phase 3 — Eliminating the rest of the market
+### Phase 3 — Eliminating the rest of the market
 
 **6. Quackr** — their FAQ lists 24 supported countries; Turkey isn't among them. **Verdict: no Turkey.** No money spent.
 
@@ -123,7 +132,7 @@ foreigners (passport scan + live video verification via their app), but the
 packages **only activate when you arrive in Turkey/Europe** — won't work
 roaming in the US. **Verdict: not viable from the US.** No money spent.
 
-## Phase 4 — The two platforms that got closest
+### Phase 4 — The two platforms that got closest
 
 **15. SMSPin (smspin.io)** — a dedicated Turkey page, crypto payment
 (Cryptomus: USDT/BTC/ETH), auto-refund if no code in ~20 min. Their live
@@ -159,12 +168,13 @@ refundable.
 - After 5 min + a Resend + another minute, **no code arrived.** You suspected
   1001SMS was blocking it because you'd bought under "Discord," not TV+. I
   suggested looking for an "All messages" filter; you found none.
+
 **Verdict:** charlie's pool issued numbers but no TV+ code arrived — likely
-   service filtering (dashboard only shows codes for the purchased service) or a
-   dead number at the 39% success rate. **$10.15 crypto unused, refundable via
-   support.** (Note: "mike"/"charlie" are the same pool names SMSPool showed on
-   day one — these platforms share backend providers, which is why Turkey was
-   empty everywhere at once.)
+service filtering (dashboard only shows codes for the purchased service) or a
+dead number at the 39% success rate. **$10.15 crypto unused, refundable via
+support.** (Note: "mike"/"charlie" are the same pool names SMSPool showed on
+day one — these platforms share backend providers, which is why Turkey was
+empty everywhere at once.)
 
 **17. HotTelecom (hottelecom.biz)** — verified a dedicated +90 Turkey SMS
 number: **$50 setup + $60/month**, crypto accepted, connected within 24 hours,
@@ -176,15 +186,7 @@ total). **Verdict: real but too costly.** No money spent.
 numbers and rentals, different operator pool. You confirmed **we'd already
 tried this one** earlier. **Verdict: already attempted.**
 
-## Phase 5 — Non-platform routes considered and declined
-
-- **Pay a person in Turkey (~$5–10)** to receive your one code (post a task on
-  r/slavelabour, PayPal goods & services). You checked: searching "Turkey" on
-  r/slavelabour gave only 3 hits in the last year, so you judged it
-  unpromising.
-- **eBay pre-activated Turkcell SIM (~$30–60, ships 1–2 weeks)** — I found one being sold, but the seller's own guide stated it was **data-only, no phone number, no SMS**. Dead.
-- **Fiverr gigs** — no verified gig exists for receiving a TV+/Turkcell code on a Turkish number.
-- **TV+ mobile app** — the app listing says "open to all operators... download
-  and subscribe" with in-app purchases priced per country; I flagged it as one
-  untested free check (whether the *app's* signup differs from the website),
-  but you declined to pursue it.
+## Alternative Access Attempts
+- ShareSub: fail
+- G2G: fail
+- Z2U: fail
