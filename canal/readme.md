@@ -1,6 +1,15 @@
 # canal
 
-https://wikipedia.org/wiki/Shuhari
+> 𝘎𝘐𝘎𝘐 𝘔𝘈𝘚𝘐𝘕: @gigi_masin spent decades as one of ambient music’s great
+> nearly-lost figures, the kind of artist people discovered through blurry
+> cassette dubs, late-night radio and obsessive recommendations from friends who
+> swore this one obscure Italian record might change your life. Born in Venice
+> and shaped by Italy’s experimental music underground and free-radio culture in
+> the late 1970s and early ’80s, Masin developed a sound that pulled from jazz,
+> Mediterranean melody and early electronic experimentation without fully
+> belonging to any of them.
+> 
+> https://youtube.com/watch?v=S_JAwSpWr3w
 
 1. canalplus.cz/en
 2. subscribe now
