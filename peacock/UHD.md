@@ -6,6 +6,23 @@ I've been trying to get Peacock H.265 working. It seems that H.265 only works
 with UHD content, and I couldn't find any public Peacock scripts that support
 UHD.
 
+## Amazon
+
+- https://ericpardee.github.io/fire-hd-ownership
+- https://news.ycombinator.com/item?id=49409073
+
+| Tablet Model | Generation | Fire OS | PlayReady | Widevine |
+|---|---|---|---|---|
+| Fire HD 8 (2024) | 12th Gen | Fire OS 8 | cSDKv3.3 | L1 |
+| Fire HD 10 (2023) | 13th Gen | Fire OS 8 | cSDKv3.3 | L1 |
+| Fire HD 8 (2022) | 12th Gen | Fire OS 8 | cSDKv3.3 | L1 |
+| Fire 7 (2022) | 12th Gen | Fire OS 8 | cSDKv3.3 | L1 |
+| Fire HD 10 (2021) | 11th Gen | Fire OS 7 | cSDKv3.3 | L1 |
+| Fire HD 8 (2020) | 10th Gen | Fire OS 7 | cSDKv3.3 | L1 |
+| Fire HD 10 (2019) | 9th Gen | Fire OS 7 | cSDKv3.3 | L1 |
+| Fire 7 (2019) | 9th Gen | Fire OS 6→7 | cSDKv3.3 | L3 |
+| Fire HD 8 (2018) | 8th Gen | Fire OS 6→7 | cSDKv3.3 | L1 |
+
 ## LG webOS — Primary Target
 
 | Year | Model | webOS | Price |
@@ -60,40 +77,6 @@ UHD.
 | 2019 | LG UM7600 | 4.5 | Out of stock online |
 | 2019 | LG UM7650 | 4.5 | Out of stock online |
 | 2019 | LG UM8070 | 4.5 | Out of stock online |
-
-## VIZIO SmartCast TV
-
-Skip the VIZIO — it almost certainly lacks PlayReady (Widevine-only) and its
-auto-updating firmware can silently kill the root, whereas an LG webOS
-2017–2019 set is the only option that reliably gives you root + PlayReady +
-Peacock.
-
-## Samsung Smart TV
-
-Samsung: No public root exists for any 2017+ Tizen set (the only options are
-ancient pre-2015 models or paywalled 2016 firmware), so it's a dead end.
-
-## Hisense VIDAA
-
-*Removed: no known root path.*
-
-## Roku
-
-*Removed: locked bootloader, no public root.*
-
-## Xbox Series X/S
-
-*Removed: no exploit exists.*
-
-## Xumo / Spectrum Xumo Stream Box
-
-*Removed: no known root; Comcast-leased hardware.*
-
-## PlayStation
-
-Removed: rootable only on old firmware (PS4 ≤ 12.02, PS5 ≤ 5.50), but Peacock
-requires PSN access on current firmware, so a jailbroken console can't actually
-run the app.
 
 ## Microsoft Edge
 
