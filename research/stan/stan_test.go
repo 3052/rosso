@@ -7,6 +7,13 @@ import (
    "time"
 )
 
+var program_ids = []int64{
+   // play.stan.com.au/programs/1540676
+   1540676,
+   // play.stan.com.au/programs/1768588
+   1768588,
+}
+
 // play.stan.com.au/programs/1768588
 
 func TestStream(t *testing.T) {
@@ -19,14 +26,6 @@ func TestStream(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   token.Unmarshal()
-}
-
-var program_ids = []int64{
-   // play.stan.com.au/programs/1540676
-   1540676,
-   // play.stan.com.au/programs/1768588
-   1768588,
 }
 
 func TestProgram(t *testing.T) {
@@ -46,7 +45,6 @@ func TestCode(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   code.Unmarshal()
    fmt.Println(code)
    os.WriteFile("code.json", code.Data, 0666)
 }
@@ -61,10 +59,9 @@ func TestToken(t *testing.T) {
    if err != nil {
       t.Fatal(err)
    }
-   code.Unmarshal()
    token, err := code.Token()
    if err != nil {
       t.Fatal(err)
    }
-   os.WriteFile(home + "/stan.json", token.Data, 0666)
+   os.WriteFile(home+"/stan.json", token.Data, 0666)
 }
