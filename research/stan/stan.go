@@ -21,6 +21,8 @@ type ActivationCode struct {
    Url  string
 }
 
+///
+
 func FetchActivationCode() (*ActivationCode, error) {
    resp, err := http.PostForm(
       "https://api.stan.com.au/login/v1/activation-codes/", url.Values{
@@ -71,7 +73,7 @@ type AppSession struct {
    JwToken string
 }
 
-func (a *AppSession) Stream(id int64) (*ProgramStream, error) {
+func (a *AppSession) FetchMedia(id int64) (*Media, error) {
    req, err := http.NewRequest(
       "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
    )
@@ -80,7 +82,7 @@ func (a *AppSession) Stream(id int64) (*ProgramStream, error) {
    }
    req.Header.Set("x-forwarded-for", "1.128.0.0")
    req.URL.RawQuery = url.Values{
-      "drm":       {"widevine"}, // need for .Media.DRM
+      "drm":       {"widevine"}, // need for .Media.Drm
       "format":    {"dash"},     // 404 otherwise
       "jwToken":   {a.JwToken},
       "programId": {strconv.FormatInt(id, 10)},
@@ -91,49 +93,26 @@ func (a *AppSession) Stream(id int64) (*ProgramStream, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   result := &ProgramStream{}
-   err = json.NewDecoder(resp.Body).Decode(result)
+   var result struct {
+      Media Media
+   }
+   err = json.NewDecoder(resp.Body).Decode(&result)
    if err != nil {
       return nil, err
    }
-   return result, nil
+   return &result.Media, nil
 }
 
-type LegacyProgram struct {
-   ReleaseYear           int
-   SeriesTitle           string
-   Title                 string
-   TvSeasonEpisodeNumber int
-   TvSeasonNumber        int
-}
-
-func (p *LegacyProgram) New(id int64) error {
-   address := func() string {
-      b := []byte("https://api.stan.com.au/programs/v1/legacy/programs/")
-      b = strconv.AppendInt(b, id, 10)
-      b = append(b, ".json"...)
-      return string(b)
-   }()
-   resp, err := http.Get(address)
-   if err != nil {
-      return err
+type Media struct {
+   Drm *struct {
+      CustomData string
+      KeyId      string
    }
-   defer resp.Body.Close()
-   return json.NewDecoder(resp.Body).Decode(p)
+   VideoUrl string
 }
 
-type ProgramStream struct {
-   Media struct {
-      DRM *struct {
-         CustomData string
-         KeyId      string
-      }
-      VideoUrl string
-   }
-}
-
-func (p ProgramStream) BaseUrl(host string) (*url.URL, error) {
-   video, err := url.Parse(p.Media.VideoUrl)
+func (m *Media) BaseUrl(host string) (*url.URL, error) {
+   video, err := url.Parse(m.VideoUrl)
    if err != nil {
       return nil, err
    }
@@ -141,7 +120,7 @@ func (p ProgramStream) BaseUrl(host string) (*url.URL, error) {
    return video, nil
 }
 
-func (p *ProgramStream) License(data []byte) ([]byte, error) {
+func (m *Media) License(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       // final slash is needed
       "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
@@ -150,7 +129,7 @@ func (p *ProgramStream) License(data []byte) ([]byte, error) {
    if err != nil {
       return nil, err
    }
-   req.Header.Set("dt-custom-data", p.Media.DRM.CustomData)
+   req.Header.Set("dt-custom-data", m.Drm.CustomData)
    resp, err := http.DefaultClient.Do(req)
    if err != nil {
       return nil, err
@@ -192,5 +171,3 @@ func (w *WebToken) Session() (*AppSession, error) {
    }
    return result, nil
 }
-
-// stan.go
