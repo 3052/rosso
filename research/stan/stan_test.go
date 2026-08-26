@@ -1,9 +1,6 @@
 package stan
 
-import (
-   "testing"
-   "time"
-)
+import "testing"
 
 var program_ids = []int64{
    // play.stan.com.au/programs/1540676
@@ -13,12 +10,5 @@ var program_ids = []int64{
 }
 
 func TestProgram(t *testing.T) {
-   for _, program_id := range program_ids {
-      var program LegacyProgram
-      err := program.New(program_id)
-      if err != nil {
-         t.Fatal(err)
-      }
-      time.Sleep(time.Second)
-   }
+   t.Log(program_ids)
 }

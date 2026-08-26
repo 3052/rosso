@@ -3,6 +3,7 @@ package stan
 import (
    "bytes"
    "encoding/json"
+   "log"
    "net/http"
    "net/url"
    "strconv"
@@ -16,19 +17,28 @@ var BaseUrl = []string{
    "gec.stan.video",
 }
 
+func do(req *http.Request) (*http.Response, error) {
+   log.Println(req.Method, req.URL)
+   return http.DefaultClient.Do(req)
+}
+
 type ActivationCode struct {
    Code string
    Url  string
 }
 
-///
-
 func FetchActivationCode() (*ActivationCode, error) {
-   resp, err := http.PostForm(
-      "https://api.stan.com.au/login/v1/activation-codes/", url.Values{
+   req, err := http.NewRequest(
+      "POST", "https://api.stan.com.au/login/v1/activation-codes/",
+      strings.NewReader(url.Values{
          "generate": {"true"},
-      },
+      }.Encode()),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -56,7 +66,11 @@ func (a *ActivationCode) String() string {
 }
 
 func (a *ActivationCode) Token() (*WebToken, error) {
-   resp, err := http.Get(a.Url)
+   req, err := http.NewRequest("GET", a.Url, nil)
+   if err != nil {
+      return nil, err
+   }
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -73,7 +87,7 @@ type AppSession struct {
    JwToken string
 }
 
-func (a *AppSession) FetchMedia(id int64) (*Media, error) {
+func (a *AppSession) FetchMedia(id int) (*Media, error) {
    req, err := http.NewRequest(
       "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
    )
@@ -85,10 +99,10 @@ func (a *AppSession) FetchMedia(id int64) (*Media, error) {
       "drm":       {"widevine"}, // need for .Media.Drm
       "format":    {"dash"},     // 404 otherwise
       "jwToken":   {a.JwToken},
-      "programId": {strconv.FormatInt(id, 10)},
+      "programId": {strconv.Itoa(id)},
       "quality":   {"auto"}, // note `high` or `ultra` should work too
    }.Encode()
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -120,6 +134,10 @@ func (m *Media) BaseUrl(host string) (*url.URL, error) {
    return video, nil
 }
 
+func (*Media) CachePath() string {
+   return "rosso/stan/Media"
+}
+
 func (m *Media) License(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       // final slash is needed
@@ -130,7 +148,7 @@ func (m *Media) License(data []byte) ([]byte, error) {
       return nil, err
    }
    req.Header.Set("dt-custom-data", m.Drm.CustomData)
-   resp, err := http.DefaultClient.Do(req)
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -154,12 +172,18 @@ func (*WebToken) CachePath() string {
    return "rosso/stan/WebToken"
 }
 
-func (w *WebToken) Session() (*AppSession, error) {
-   resp, err := http.PostForm(
-      "https://api.stan.com.au/login/v1/sessions/mobile/app", url.Values{
+func (w *WebToken) FetchSession() (*AppSession, error) {
+   req, err := http.NewRequest(
+      "POST", "https://api.stan.com.au/login/v1/sessions/mobile/app",
+      strings.NewReader(url.Values{
          "jwToken": {w.JwToken},
-      },
+      }.Encode()),
    )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+   resp, err := do(req)
    if err != nil {
       return nil, err
    }
@@ -171,3 +195,5 @@ func (w *WebToken) Session() (*AppSession, error) {
    }
    return result, nil
 }
+
+// stan.go
