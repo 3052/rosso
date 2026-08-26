@@ -1,8 +1,6 @@
 package stan
 
 import (
-   "fmt"
-   "os"
    "testing"
    "time"
 )
@@ -14,20 +12,6 @@ var program_ids = []int64{
    1768588,
 }
 
-// play.stan.com.au/programs/1768588
-
-func TestStream(t *testing.T) {
-   home, err := os.UserHomeDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   var token WebToken
-   token.Data, err = os.ReadFile(home + "/stan.json")
-   if err != nil {
-      t.Fatal(err)
-   }
-}
-
 func TestProgram(t *testing.T) {
    for _, program_id := range program_ids {
       var program LegacyProgram
@@ -37,31 +21,4 @@ func TestProgram(t *testing.T) {
       }
       time.Sleep(time.Second)
    }
-}
-
-func TestCode(t *testing.T) {
-   var code ActivationCode
-   err := code.New()
-   if err != nil {
-      t.Fatal(err)
-   }
-   fmt.Println(code)
-   os.WriteFile("code.json", code.Data, 0666)
-}
-
-func TestToken(t *testing.T) {
-   home, err := os.UserHomeDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   var code ActivationCode
-   code.Data, err = os.ReadFile("code.json")
-   if err != nil {
-      t.Fatal(err)
-   }
-   token, err := code.Token()
-   if err != nil {
-      t.Fatal(err)
-   }
-   os.WriteFile(home+"/stan.json", token.Data, 0666)
 }

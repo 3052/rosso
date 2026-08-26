@@ -3,8 +3,6 @@ package stan
 import (
    "bytes"
    "encoding/json"
-   "errors"
-   "io"
    "net/http"
    "net/url"
    "strconv"
@@ -19,57 +17,50 @@ var BaseUrl = []string{
 }
 
 type ActivationCode struct {
-   Data []byte
-   V    struct {
-      Code string
-      URL  string
-   }
+   Code string
+   Url  string
 }
 
-func (*ActivationCode) CachePath() string {
-   return "rosso/stan/ActivationCode"
-}
-
-func (a *ActivationCode) New() error {
+func FetchActivationCode() (*ActivationCode, error) {
    resp, err := http.PostForm(
       "https://api.stan.com.au/login/v1/activation-codes/", url.Values{
          "generate": {"true"},
       },
    )
    if err != nil {
-      return err
+      return nil, err
    }
    defer resp.Body.Close()
-   a.Data, err = io.ReadAll(resp.Body)
+   var code ActivationCode
+   err = json.NewDecoder(resp.Body).Decode(&code)
    if err != nil {
-      return err
+      return nil, err
    }
-   return nil
+   return &code, nil
 }
 
-func (a ActivationCode) String() string {
-   var b strings.Builder
-   b.WriteString("Stan.\n")
-   b.WriteString("Log in with code\n")
-   b.WriteString("1. Visit stan.com.au/activate\n")
-   b.WriteString("2. Enter the code:\n")
-   b.WriteString(a.V.Code)
-   return b.String()
+func (*ActivationCode) CachePath() string {
+   return "rosso/stan/ActivationCode"
 }
 
-func (a ActivationCode) Token() (*WebToken, error) {
-   resp, err := http.Get(a.V.URL)
+func (a *ActivationCode) String() string {
+   var data strings.Builder
+   data.WriteString("Stan.\n")
+   data.WriteString("Log in with code\n")
+   data.WriteString("1. Visit stan.com.au/activate\n")
+   data.WriteString("2. Enter the code:\n")
+   data.WriteString(a.Code)
+   return data.String()
+}
+
+func (a *ActivationCode) Token() (*WebToken, error) {
+   resp, err := http.Get(a.Url)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      var b strings.Builder
-      resp.Write(&b)
-      return nil, errors.New(b.String())
-   }
    var web WebToken
-   web.Data, err = io.ReadAll(resp.Body)
+   err = json.NewDecoder(resp.Body).Decode(&web)
    if err != nil {
       return nil, err
    }
@@ -80,7 +71,7 @@ type AppSession struct {
    JwToken string
 }
 
-func (a AppSession) Stream(id int64) (*ProgramStream, error) {
+func (a *AppSession) Stream(id int64) (*ProgramStream, error) {
    req, err := http.NewRequest(
       "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
    )
@@ -100,17 +91,12 @@ func (a AppSession) Stream(id int64) (*ProgramStream, error) {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      var b strings.Builder
-      resp.Write(&b)
-      return nil, errors.New(b.String())
-   }
-   stream := new(ProgramStream)
-   err = json.NewDecoder(resp.Body).Decode(stream)
+   result := &ProgramStream{}
+   err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
    }
-   return stream, nil
+   return result, nil
 }
 
 type LegacyProgram struct {
@@ -181,36 +167,30 @@ func (p *ProgramStream) License(data []byte) ([]byte, error) {
 }
 
 type WebToken struct {
-   Data []byte
-   V    struct {
-      JwToken   string
-      ProfileId string
-   }
+   JwToken   string
+   ProfileId string
 }
 
 func (*WebToken) CachePath() string {
    return "rosso/stan/WebToken"
 }
 
-func (w WebToken) Session() (*AppSession, error) {
+func (w *WebToken) Session() (*AppSession, error) {
    resp, err := http.PostForm(
       "https://api.stan.com.au/login/v1/sessions/mobile/app", url.Values{
-         "jwToken": {w.V.JwToken},
+         "jwToken": {w.JwToken},
       },
    )
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
-   if resp.StatusCode != http.StatusOK {
-      var b strings.Builder
-      resp.Write(&b)
-      return nil, errors.New(b.String())
-   }
-   session := new(AppSession)
-   err = json.NewDecoder(resp.Body).Decode(session)
+   result := &AppSession{}
+   err = json.NewDecoder(resp.Body).Decode(result)
    if err != nil {
       return nil, err
    }
-   return session, nil
+   return result, nil
 }
+
+// stan.go

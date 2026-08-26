@@ -25,7 +25,6 @@ type client struct {
    mubi_id   maya.FlagInt
    season    maya.FlagInt
    session   maya.FlagBool
-   threads   maya.FlagInt
 
    cache maya.Cache
 }
@@ -49,7 +48,6 @@ func (c *client) do() error {
       {Name: "season", Value: &c.season, Needs: "address"},
       {Name: "mubi-id", Value: &c.mubi_id},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -116,7 +114,6 @@ func (c *client) do_dash() error {
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: session.FetchWidevine,
-      Threads: int(c.threads),
    })
 }
 
