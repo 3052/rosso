@@ -163,3 +163,5 @@ func (c *client) do_session() error {
    }
    return c.cache.Encode(session)
 }
+
+// examples/mubi/mubi.go
