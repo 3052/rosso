@@ -153,11 +153,11 @@ func (a *AppSession) FetchMedia(id int) (*Media, error) {
    }
    req.Header.Set("x-forwarded-for", "1.128.0.0")
    req.URL.RawQuery = url.Values{
-      "capabilities.drm": {"widevine"},
-      "format":           {"hls,dash"},
+      "capabilities.drm": {"widevine"}, // need for media.drm
+      "format":           {"hls,dash"}, // 404 otherwise
       "jwToken":          {a.JwToken},
       "programId":        {strconv.Itoa(id)},
-      "quality":          {"sd"}, // auto
+      "quality":          {"sd"}, // auto, high, ultra
    }.Encode()
    resp, err := do(req)
    if err != nil {
