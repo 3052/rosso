@@ -111,7 +111,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   return c.cache.Encode(manifest)
+   return c.cache.Encode(manifest, media)
 }
 
 func (c *client) do_token() error {

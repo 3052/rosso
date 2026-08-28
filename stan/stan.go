@@ -17,10 +17,11 @@ const (
 )
 
 var BaseUrl = []string{
-   "023-stan.akamaized.net",
-   "666-stan.akamaized.net", // geo block
    "aws.stan.video",
    "gec.stan.video",
+   // these are geo block
+   "023-stan.akamaized.net",
+   "666-stan.akamaized.net",
 }
 
 // deviceData returns the device payload that must be sent with the
