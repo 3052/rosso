@@ -154,7 +154,7 @@ func (a *AppSession) FetchMedia(id int) (*Media, error) {
    req.Header.Set("x-forwarded-for", "1.128.0.0")
    req.URL.RawQuery = url.Values{
       "capabilities.drm": {"widevine"}, // need for media.drm
-      "format":           {"hls,dash"}, // 404 otherwise
+      "format":           {"dash"},     // hls
       "jwToken":          {a.JwToken},
       "programId":        {strconv.Itoa(id)},
       "quality":          {"sd"}, // auto, high, ultra
