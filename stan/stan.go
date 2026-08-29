@@ -70,15 +70,12 @@ type ActivationCode struct {
 func FetchActivationCode() (*ActivationCode, error) {
    // FIX: send generate=true as query param, not form body (matches Python device_code())
    req, err := http.NewRequest(
-      "POST", "https://api.stan.com.au/login/v1/activation-codes/",
-      strings.NewReader(""),
+      "POST", "https://api.stan.com.au/login/v1/activation-codes/", nil,
    )
    if err != nil {
       return nil, err
    }
-   req.URL.RawQuery = url.Values{
-      "generate": {"true"},
-   }.Encode()
+   req.URL.RawQuery = url.Values{"generate": {"true"}}.Encode()
    resp, err := do(req)
    if err != nil {
       return nil, err
@@ -158,7 +155,22 @@ func (a *AppSession) FetchMedia(id int) (*Media, error) {
       "format":           {"dash"},     // hls
       "jwToken":          {a.JwToken},
       "programId":        {strconv.Itoa(id)},
-      "quality":          {"sd"}, // auto, high, ultra
+      
+      //dragon high PASS
+      //beast high FAIL
+      
+      //ultra
+      //stan.com.au/watch/beast-2026
+      //play.stan.com.au/programs/6299871
+      
+      // high
+      //play.stan.com.au/programs/331144
+      
+      //"quality":          {"sd"}, // 540p
+      "quality":          {"high"}, // 1080p
+      //"quality":          {"ultra"}, // 2160p
+      //"quality":          {"auto"}, // 2160p
+      
    }.Encode()
    resp, err := do(req)
    if err != nil {
