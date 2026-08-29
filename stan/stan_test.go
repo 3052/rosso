@@ -2,13 +2,23 @@ package stan
 
 import "testing"
 
-var program_ids = []int64{
-   // play.stan.com.au/programs/1540676
-   1540676,
-   // play.stan.com.au/programs/1768588
-   1768588,
+var programs = []struct {
+   quality string
+   url     []string
+}{
+   {
+      quality: "high",
+      url:     []string{"https://play.stan.com.au/programs/331144"},
+   },
+   {
+      quality: "ultra",
+      url: []string{
+         "https://play.stan.com.au/programs/6299871",
+         "https://stan.com.au/watch/beast-2026",
+      },
+   },
 }
 
 func TestProgram(t *testing.T) {
-   t.Log(program_ids)
+   t.Log(programs)
 }

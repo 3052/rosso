@@ -19,10 +19,12 @@ func main() {
 type client struct {
    Widevine   maya.FlagString
    activation maya.FlagBool
-   cache      maya.Cache
-   dash_id    maya.FlagString
-   program_id maya.FlagInt
    token      maya.FlagBool
+   program_id maya.FlagInt
+   quality    maya.FlagString
+   dash_id    maya.FlagString
+
+   cache maya.Cache
 }
 
 func (*client) CachePath() string {
@@ -40,7 +42,14 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "activation", Value: &c.activation},
       {Name: "token", Value: &c.token},
-      {Name: "program-id", Value: &c.program_id},
+
+      {Name: "program-id", Value: &c.program_id, Needs: "quality"},
+      {
+         Name:  "quality",
+         Value: &c.quality,
+         Needs: "program-id",
+         Usage: "high ultra",
+      },
       {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -56,7 +65,9 @@ func (c *client) do() error {
       return c.do_token()
    }
    if c.program_id >= 1 {
-      return c.do_program_id()
+      if c.quality != "" {
+         return c.do_program_id()
+      }
    }
    if c.dash_id != "" {
       return c.do_dash_id()
@@ -99,7 +110,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   media, err := session.FetchMedia(int(c.program_id))
+   media, err := session.FetchMedia(int(c.program_id), string(c.quality))
    if err != nil {
       return err
    }

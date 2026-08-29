@@ -11,6 +11,11 @@ import (
    "strings"
 )
 
+const (
+   LicenseWidevine  = "https://lic.drmtoday.com/license-proxy-widevine/cenc/"
+   LicensePlayReady = "https://lic.staging.drmtoday.com/license-proxy-headerauth/drmtoday/RightsManager.asmx"
+)
+
 func do(req *http.Request) (*http.Response, error) {
    log.Println(req.Method, req.URL)
    return http.DefaultClient.Do(req)
@@ -41,7 +46,9 @@ type AppSession struct {
    Errors  APIErrors
 }
 
-func (a *AppSession) FetchMedia(id int) (*Media, error) {
+// DRM options: "widevine" or "playready".
+// Quality options: "sd" (540p), "high" (1080p), "ultra" (2160p), "auto".
+func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
    req, err := http.NewRequest(
       "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
    )
@@ -50,27 +57,11 @@ func (a *AppSession) FetchMedia(id int) (*Media, error) {
    }
    req.Header.Set("x-forwarded-for", "1.128.0.0")
    req.URL.RawQuery = url.Values{
-      "capabilities.drm": {"widevine"}, // need for media.drm
-      "format":           {"dash"},     // hls
+      "capabilities.drm": {drm},
+      "format":           {"dash"}, // hls
       "jwToken":          {a.JwToken},
       "programId":        {strconv.Itoa(id)},
-
-      //dragon high PASS
-      //beast high PASS
-      // beast ultra
-
-      // high
-      //play.stan.com.au/programs/331144
-
-      //ultra
-      //stan.com.au/watch/beast-2026
-      //play.stan.com.au/programs/6299871
-
-      //"quality":          {"sd"}, // 540p
-      //"quality":          {"high"}, // 1080p
-      "quality": {"ultra"}, // 2160p
-      //"quality":          {"auto"}, // 2160p
-
+      "quality":          {quality},
    }.Encode()
    resp, err := do(req)
    if err != nil {
@@ -93,6 +84,16 @@ func (a *AppSession) FetchMedia(id int) (*Media, error) {
    return &result.Media, nil
 }
 
+// DTError is an error returned by the DRM Today license server.
+type DTError struct {
+   RespCode string // x-dt-resp-code header, e.g. "20101"
+   Message  string // x-dt-error-message header, e.g. "not_granted"
+}
+
+func (e *DTError) Error() string {
+   return fmt.Sprintf("drmtoday: %s (resp-code %s)", e.Message, e.RespCode)
+}
+
 type Media struct {
    Drm *struct {
       CustomData string
@@ -101,10 +102,10 @@ type Media struct {
    VideoUrl string
 }
 
-func (m *Media) License(data []byte) ([]byte, error) {
+func (m *Media) License(url string, data []byte) ([]byte, error) {
    req, err := http.NewRequest(
       // final slash is needed
-      "POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/",
+      "POST", url,
       bytes.NewReader(data),
    )
    if err != nil {
@@ -116,14 +117,29 @@ func (m *Media) License(data []byte) ([]byte, error) {
       return nil, err
    }
    defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, &DTError{
+         RespCode: resp.Header.Get("x-dt-resp-code"),
+         Message:  resp.Header.Get("x-dt-error-message"),
+      }
+   }
+
    var result struct {
       License []byte
    }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
    return result.License, nil
+}
+
+func (m *Media) LicensePlayReady(data []byte) ([]byte, error) {
+   return m.License(LicensePlayReady, data)
+}
+
+func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
+   return m.License(LicenseWidevine, data)
 }
 
 // Profile represents a Stan user profile.
@@ -132,3 +148,5 @@ type Profile struct {
    Name          string
    IsKidsProfile bool
 }
+
+// quality.go

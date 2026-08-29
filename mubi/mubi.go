@@ -30,7 +30,7 @@ type Film struct {
 }
 
 func FetchEpisodes(slug string, season int) ([]*Film, error) {
-   req, err := http.NewRequest("GET", "https://api.mubi.com"+fmt.Sprintf("/v4/series/%v/seasons/season-%v/episodes", slug, season), nil)
+   req, err := http.NewRequest("GET", fmt.Sprintf("https://api.mubi.com/v4/series/%v/seasons/season-%v/episodes", slug, season), nil)
    if err != nil {
       return nil, err
    }
@@ -52,7 +52,7 @@ func FetchEpisodes(slug string, season int) ([]*Film, error) {
 }
 
 func FetchFilm(slug string) (*Film, error) {
-   req, err := http.NewRequest("GET", "https://api.mubi.com"+"/v3/films/"+slug, nil)
+   req, err := http.NewRequest("GET", "https://api.mubi.com/v3/films/"+slug, nil)
    if err != nil {
       return nil, err
    }
@@ -86,7 +86,7 @@ type LinkCode struct {
 }
 
 func FetchLinkCode() (*LinkCode, error) {
-   req, err := http.NewRequest("GET", "https://api.mubi.com"+"/v3/link_code", nil)
+   req, err := http.NewRequest("GET", "https://api.mubi.com/v3/link_code", nil)
    if err != nil {
       return nil, err
    }
@@ -114,7 +114,7 @@ func (l *LinkCode) FetchSession() (*Session, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest("POST", "https://api.mubi.com"+"/v3/authenticate", bytes.NewReader(body))
+   req, err := http.NewRequest("POST", "https://api.mubi.com/v3/authenticate", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -178,7 +178,7 @@ func (*Session) CachePath() string {
 }
 
 func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
-   req, err := http.NewRequest("GET", "https://api.mubi.com"+fmt.Sprintf("/v3/films/%v/viewing/secure_url", id), nil)
+   req, err := http.NewRequest("GET", fmt.Sprintf("https://api.mubi.com/v3/films/%v/viewing/secure_url", id), nil)
    if err != nil {
       return nil, err
    }
@@ -205,7 +205,7 @@ func (s *Session) FetchSecureUrl(id int) (*SecureUrl, error) {
 // to get the MPD you have to call this or view video on the website. request
 // is hard geo blocked only the first time
 func (s *Session) FetchViewing(id int) error {
-   req, err := http.NewRequest("POST", "https://api.mubi.com"+fmt.Sprintf("/v3/films/%v/viewing", id), nil)
+   req, err := http.NewRequest("POST", fmt.Sprintf("https://api.mubi.com/v3/films/%v/viewing", id), nil)
    if err != nil {
       return err
    }
@@ -239,7 +239,7 @@ func (s *Session) FetchWidevine(body []byte) ([]byte, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest("POST", "https://lic.drmtoday.com"+"/license-proxy-widevine/cenc/", bytes.NewReader(body))
+   req, err := http.NewRequest("POST", "https://lic.drmtoday.com/license-proxy-widevine/cenc/", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
