@@ -4,16 +4,12 @@ import (
    "bytes"
    "encoding/json"
    "fmt"
+   "io"
    "log"
    "net/http"
    "net/url"
    "strconv"
    "strings"
-)
-
-const (
-   LicenseWidevine  = "https://lic.drmtoday.com/license-proxy-widevine/cenc/"
-   LicensePlayReady = "https://lic.staging.drmtoday.com/license-proxy-headerauth/drmtoday/RightsManager.asmx"
 )
 
 func do(req *http.Request) (*http.Response, error) {
@@ -96,17 +92,34 @@ func (e *DTError) Error() string {
 
 type Media struct {
    Drm *struct {
-      CustomData string
-      KeyId      string
+      CustomData       string
+      KeyId            string
+      LicenseServerUrl string
    }
    VideoUrl string
 }
 
-func (m *Media) License(url string, data []byte) ([]byte, error) {
+// LicensePlayReady requests a PlayReady license. The response is raw XML.
+func (m *Media) LicensePlayReady(data []byte) ([]byte, error) {
    req, err := http.NewRequest(
-      // final slash is needed
-      "POST", url,
-      bytes.NewReader(data),
+      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("dt-custom-data", m.Drm.CustomData)
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// LicenseWidevine requests a Widevine license. The response is JSON-wrapped.
+func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
    )
    if err != nil {
       return nil, err
@@ -132,14 +145,6 @@ func (m *Media) License(url string, data []byte) ([]byte, error) {
       return nil, err
    }
    return result.License, nil
-}
-
-func (m *Media) LicensePlayReady(data []byte) ([]byte, error) {
-   return m.License(LicensePlayReady, data)
-}
-
-func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
-   return m.License(LicenseWidevine, data)
 }
 
 // Profile represents a Stan user profile.

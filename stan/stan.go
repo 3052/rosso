@@ -34,7 +34,7 @@ func deviceData() url.Values {
       "os":           {"Android-9"},
       "videoCodecs":  {"h264,decode,dovi,h263,h265,hevc,mjpeg,mpeg2v,mp4,mpeg4,vc1,vp8,vp9"},
       "audioCodecs":  {"aac"},
-      "drm":          {"widevine"},
+      "drm":          {"playready,widevine"},
       "hdcpVersion":  {"2.2"},
       "colorSpace":   {"hdr10"},
    }

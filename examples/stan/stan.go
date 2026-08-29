@@ -17,7 +17,7 @@ func main() {
 }
 
 type client struct {
-   Widevine   maya.FlagString
+   PlayReady  maya.FlagString
    activation maya.FlagBool
    token      maya.FlagBool
    program_id maya.FlagInt
@@ -39,7 +39,7 @@ func (c *client) do() error {
       return c.cache.Encode(c)
    }
    flags := maya.FlagSet{
-      {Name: "widevine-folder", Value: &c.Widevine},
+      {Name: "playReady-folder", Value: &c.PlayReady},
       {Name: "activation", Value: &c.activation},
       {Name: "token", Value: &c.token},
 
@@ -55,7 +55,7 @@ func (c *client) do() error {
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
    }
-   if flags.IsSet(&c.Widevine) {
+   if flags.IsSet(&c.PlayReady) {
       return c.cache.Encode(c)
    }
    if c.activation {
@@ -94,9 +94,9 @@ func (c *client) do_dash_id() error {
       return err
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:  string(c.Widevine),
-      Drm:     maya.DrmWidevine,
-      License: media.LicenseWidevine,
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: media.LicensePlayReady,
    })
 }
 
@@ -110,7 +110,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   media, err := session.FetchMedia(int(c.program_id), string(c.quality), "widevine")
+   media, err := session.FetchMedia(int(c.program_id), string(c.quality), "playready")
    if err != nil {
       return err
    }
