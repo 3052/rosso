@@ -1,16 +1,16 @@
 # fix
 
 ~~~
-1 func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error)
+1 func (w *WebToken) FetchSession() (*AppSession, error)
 
-2 func (w *WebToken) FetchSession() (*AppSession, error)
-3 func (a *ActivationCode) Token() (*WebToken, error)
-4 func FetchActivationCode() (*ActivationCode, error)
+2 func (a *ActivationCode) Token() (*WebToken, error)
+3 func FetchActivationCode() (*ActivationCode, error)
 ~~~
 
 ## done
 
 ~~~
+func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error)
 func (m *Media) BaseUrl(host string) (*url.URL, error)
 func (*ActivationCode) CachePath() string
 func (*AppSession) CachePath() string
