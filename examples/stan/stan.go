@@ -23,6 +23,7 @@ type client struct {
    program_id maya.FlagInt
    quality    maya.FlagString
    dash_id    maya.FlagString
+   hdr        maya.FlagBool
 
    cache maya.Cache
 }
@@ -42,7 +43,6 @@ func (c *client) do() error {
       {Name: "playReady-folder", Value: &c.PlayReady},
       {Name: "activation", Value: &c.activation},
       {Name: "token", Value: &c.token},
-
       {Name: "program-id", Value: &c.program_id, Needs: "quality"},
       {
          Name:  "quality",
@@ -50,6 +50,7 @@ func (c *client) do() error {
          Needs: "program-id",
          Usage: "high ultra",
       },
+      {Name: "hdr", Value: &c.hdr, Needs: "program-id"},
       {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -106,7 +107,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   session, err := token.FetchSession(true)
+   session, err := token.FetchSession(bool(c.hdr))
    if err != nil {
       return err
    }

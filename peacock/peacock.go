@@ -2,12 +2,11 @@ package peacock
 
 import (
    "bytes"
-   "crypto/tls"
-   _ "embed"
+   "crypto/md5"
+   "encoding/hex"
    "encoding/json"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
    "strings"
@@ -15,40 +14,76 @@ import (
 
 const idBase = "https://rango.id.peacocktv.com"
 
-const playBase = "https://play.clients.peacocktv.com"
-
 const user_agent = "user-agent (Android; Build/user-agent)"
 
-//go:embed cert.pem
-var certPEM []byte
-
-//go:embed key.pem
-var keyPEM []byte
-
-// auth.go
-// doRequest logs the request method and URL, then sends the request
-// using the provided http.Client.
-func doRequest(client *http.Client, req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return client.Do(req)
-}
-
-// mtlsClient returns an *http.Client configured with the embedded mTLS
-// certificate, ProxyFromEnvironment, and the given timeout.
-func mtlsClient() (*http.Client, error) {
-   cert, err := tls.X509KeyPair(certPEM, keyPEM)
+// ExchangeToken trades the OAuth2 activation token for a long-lived user token
+// using the embedded mTLS certificate. The activation token is sent
+// in the request body as authToken, not as a bearer header.
+// The returned user token can be used as a bearer credential for playback.
+func ExchangeToken(authToken *OAuthAuthorizeResponse, signIn *SignInResponse) (*TokenResponse, error) {
+   if authToken == nil {
+      return nil, fmt.Errorf("exchange token: nil authToken")
+   }
+   if authToken.Properties.AccessToken == "" {
+      return nil, fmt.Errorf("exchange token: empty access token")
+   }
+   if signIn == nil {
+      return nil, fmt.Errorf("exchange token: nil signIn")
+   }
+   if signIn.Properties.Data.DeviceID == "" {
+      return nil, fmt.Errorf("exchange token: empty deviceID")
+   }
+   client, err := mtlsClient()
    if err != nil {
-      return nil, err
+      return nil, fmt.Errorf("exchange token: %w", err)
+   }
+   body := tokenRequest{
+      Auth: tokenAuth{
+         AuthScheme:        "OAUTH",
+         Provider:          "NBCU",
+         ProviderTerritory: "US",
+         Proposition:       "NBCUOTT",
+         AuthToken:         authToken.Properties.AccessToken,
+      },
+      Device: tokenDevice{
+         Type:        "TV",
+         Platform:    "ANDROIDTV",
+         ID:          signIn.Properties.Data.DeviceID,
+         DrmDeviceID: "UNKNOWN",
+      },
+   }
+   raw, err := json.Marshal(body)
+   if err != nil {
+      return nil, fmt.Errorf("exchange token: marshal: %w", err)
+   }
+   hash := md5.Sum(raw)
+   contentMD5 := hex.EncodeToString(hash[:])
+   req, err := http.NewRequest(http.MethodPost, playBase+"/auth/throttled/tokens", bytes.NewReader(raw))
+   if err != nil {
+      return nil, fmt.Errorf("exchange token: create request: %w", err)
+   }
+   req.Header.Set("Content-Type", "application/vnd.tokens.v1+json")
+   req.Header.Set("Content-MD5", contentMD5)
+   resp, err := doRequest(client, req)
+   if err != nil {
+      return nil, fmt.Errorf("exchange token: %w", err)
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode == http.StatusUnsupportedMediaType {
+      return nil, fmt.Errorf("exchange token: %s", resp.Status)
    }
 
-   return &http.Client{
-      Transport: &http.Transport{
-         Proxy: http.ProxyFromEnvironment,
-         TLSClientConfig: &tls.Config{
-            Certificates: []tls.Certificate{cert},
-         },
-      },
-   }, nil
+   var out TokenResponse
+   if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+      return nil, fmt.Errorf("exchange token: decode: %w", err)
+   }
+
+   if out.ErrorCode != "" {
+      return nil, &out
+   }
+
+   return &out, nil
 }
 
 // CategoryError is a Siren category-level error.
@@ -163,60 +198,6 @@ func (*OAuthAuthorizeResponse) CachePath() string {
    return "rosso/peacock/oauth_authorize"
 }
 
-// PlayoutVodResponse is the response from POST /video/playouts/vod.
-type PlayoutVodResponse struct {
-   Asset struct {
-      Endpoints []struct {
-         Cdn string `json:"cdn"`
-         Url string `json:"url"`
-      } `json:"endpoints"`
-   } `json:"asset"`
-   Protection struct {
-      LicenceAcquisitionUrl string `json:"licenceAcquisitionUrl"`
-   } `json:"protection"`
-   ErrorCode   string `json:"errorCode"`
-   Description string `json:"description"`
-}
-
-// AcquireLicense sends a Widevine license acquisition request to the licence acquisition URL
-// and returns the raw license bytes. The licenceAcquisitionUrl is the full URL returned in
-// the PlayoutVod response.
-func (p *PlayoutVodResponse) AcquireLicense(challenge []byte) ([]byte, error) {
-   if p == nil {
-      return nil, fmt.Errorf("acquire license: nil playout")
-   }
-   if p.Protection.LicenceAcquisitionUrl == "" {
-      return nil, fmt.Errorf("acquire license: empty licenceAcquisitionUrl")
-   }
-   if len(challenge) == 0 {
-      return nil, fmt.Errorf("acquire license: empty challenge")
-   }
-   req, err := http.NewRequest(http.MethodPost, p.Protection.LicenceAcquisitionUrl, bytes.NewReader(challenge))
-   if err != nil {
-      return nil, fmt.Errorf("acquire license: create request: %w", err)
-   }
-
-   resp, err := doRequest(http.DefaultClient, req)
-   if err != nil {
-      return nil, fmt.Errorf("acquire license: %w", err)
-   }
-   defer resp.Body.Close()
-
-   license, err := io.ReadAll(resp.Body)
-   if err != nil {
-      return nil, fmt.Errorf("acquire license: read body: %w", err)
-   }
-
-   // The endpoint returns a JSON error body instead of a non-200 status
-   // when the request is rejected (e.g. "Unsupported browser/client").
-   var lr licenseErrorResponse
-   if err := json.Unmarshal(license, &lr); err == nil && lr.ErrorCode != "" {
-      return nil, fmt.Errorf("acquire license: %s: %s", lr.ErrorCode, lr.Description)
-   }
-
-   return license, nil
-}
-
 // SignInParams holds the credentials for the sign-in request.
 type SignInParams struct {
    UserIdentifier string
@@ -302,6 +283,102 @@ func (*SignInResponse) CachePath() string {
 type licenseErrorResponse struct {
    ErrorCode   string `json:"errorCode"`
    Description string `json:"description"`
+}
+
+type tokenAuth struct {
+   AuthScheme        string `json:"authScheme"`
+   AuthIssuer        string `json:"authIssuer"`
+   Provider          string `json:"provider"`
+   ProviderTerritory string `json:"providerTerritory"`
+   Proposition       string `json:"proposition"`
+   AuthToken         string `json:"authToken"`
+}
+
+type tokenDevice struct {
+   Type        string `json:"type"`
+   Platform    string `json:"platform"`
+   ID          string `json:"id"`
+   DrmDeviceID string `json:"drmDeviceId"`
+}
+
+// tokenRequest is the body sent to POST /auth/throttled/tokens.
+type tokenRequest struct {
+   Auth   tokenAuth   `json:"auth"`
+   Device tokenDevice `json:"device"`
+}
+
+func (*TokenResponse) CachePath() string {
+   return "rosso/peacock/TokenResponse"
+}
+
+// Error implements the error interface. It returns a non-empty
+// string only when the server reported an errorCode, allowing
+// *TokenResponse to be returned directly as the error value.
+func (t *TokenResponse) Error() string {
+   if t == nil || t.ErrorCode == "" {
+      return ""
+   }
+   if t.Description == "" {
+      return fmt.Sprintf("peacock: %s", t.ErrorCode)
+   }
+   return fmt.Sprintf("peacock: %s: %s", t.ErrorCode, t.Description)
+}
+
+func (*PlayoutVodResponse) CachePath() string {
+   return "rosso/peacock/PlayoutVodResponse"
+}
+
+// Fastly returns the parsed URL of the FASTLY CDN endpoint from the playout response.
+func (r *PlayoutVodResponse) Fastly() (*url.URL, error) {
+   for _, endpoint := range r.Asset.Endpoints {
+      if endpoint.Cdn == "FASTLY" {
+         parsed, err := url.Parse(endpoint.Url)
+         if err != nil {
+            return nil, fmt.Errorf("fastly: parse url: %w", err)
+         }
+         return parsed, nil
+      }
+   }
+   return nil, fmt.Errorf("fastly cdn endpoint not found")
+}
+
+// AcquireLicense sends a Widevine license acquisition request to the licence acquisition URL
+// and returns the raw license bytes. The licenceAcquisitionUrl is the full URL returned in
+// the PlayoutVod response.
+func (p *PlayoutVodResponse) AcquireLicense(challenge []byte) ([]byte, error) {
+   if p == nil {
+      return nil, fmt.Errorf("acquire license: nil playout")
+   }
+   if p.Protection.LicenceAcquisitionUrl == "" {
+      return nil, fmt.Errorf("acquire license: empty licenceAcquisitionUrl")
+   }
+   if len(challenge) == 0 {
+      return nil, fmt.Errorf("acquire license: empty challenge")
+   }
+   req, err := http.NewRequest(http.MethodPost, p.Protection.LicenceAcquisitionUrl, bytes.NewReader(challenge))
+   if err != nil {
+      return nil, fmt.Errorf("acquire license: create request: %w", err)
+   }
+
+   resp, err := doRequest(http.DefaultClient, req)
+   if err != nil {
+      return nil, fmt.Errorf("acquire license: %w", err)
+   }
+   defer resp.Body.Close()
+
+   license, err := io.ReadAll(resp.Body)
+   if err != nil {
+      return nil, fmt.Errorf("acquire license: read body: %w", err)
+   }
+
+   // The endpoint returns a JSON error body instead of a non-200 status
+   // when the request is rejected (e.g. "Unsupported browser/client").
+   var lr licenseErrorResponse
+   if err := json.Unmarshal(license, &lr); err == nil && lr.ErrorCode != "" {
+      return nil, fmt.Errorf("acquire license: %s: %s", lr.ErrorCode, lr.Description)
+   }
+
+   return license, nil
 }
 
 // license.go

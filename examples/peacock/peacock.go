@@ -18,11 +18,12 @@ func main() {
 
 type client struct {
    Widevine maya.FlagString
-   address  maya.FlagString
-   dash     maya.FlagString
    email    maya.FlagString
    password maya.FlagString
    token    maya.FlagBool
+   address  maya.FlagString
+   dash_id  maya.FlagString
+   vcodec   maya.FlagString
 
    cache maya.Cache
 }
@@ -43,8 +44,9 @@ func (c *client) do() error {
       {Name: "email", Value: &c.email, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "token", Value: &c.token},
-      {Name: "address", Value: &c.address},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "address", Value: &c.address, Needs: "vcodec"},
+      {Name: "vcodec", Value: &c.vcodec, Needs: "address", Usage: "H264 H265"},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -59,10 +61,12 @@ func (c *client) do() error {
       return c.do_token()
    }
    if c.address != "" {
-      return c.do_address()
+      if c.vcodec != "" {
+         return c.do_address()
+      }
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "peacock")
 }
@@ -74,7 +78,7 @@ func (c *client) do_address() error {
       return err
    }
    contentID := path.Base(string(c.address))
-   playout, err := peacock.PlayoutVod(&token, contentID, "H264", "WIDEVINE")
+   playout, err := peacock.PlayoutVod(&token, contentID, string(c.vcodec), "WIDEVINE")
    if err != nil {
       return err
    }
@@ -89,7 +93,7 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, playout)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playout  peacock.PlayoutVodResponse
@@ -98,7 +102,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: playout.AcquireLicense,
