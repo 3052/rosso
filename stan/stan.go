@@ -1,14 +1,16 @@
 package stan
 
 import (
+   "bytes"
    "encoding/json"
    "fmt"
+   "io"
    "net/http"
    "net/url"
-   "strconv"
    "strings"
 )
 
+// license.go
 // quality.go
 const (
    StanName    = "Stan-AndroidTV"
@@ -21,20 +23,6 @@ var BaseUrl = []string{
    // these are geo block
    "023-stan.akamaized.net",
    "666-stan.akamaized.net",
-}
-
-type APIError struct {
-   Code string
-}
-
-type APIErrors []APIError
-
-func (e APIErrors) Error() string {
-   codes := make([]string, len(e))
-   for i, err := range e {
-      codes[i] = err.Code
-   }
-   return fmt.Sprintf("stan: %s", strings.Join(codes, ", "))
 }
 
 type ActivationCode struct {
@@ -102,66 +90,14 @@ func (a *ActivationCode) Token() (*WebToken, error) {
    return &web, nil
 }
 
-// AppSession is the full session response from /login/v1/sessions/app.
-// FIX: expanded to match Python _oauth() response fields.
-type AppSession struct {
-   JwToken string
-   Renew   int64
-   Now     int64
-   UserId  string
-   Profile Profile
-   Errors  APIErrors
+// DTError is an error returned by the DRM Today license server.
+type DTError struct {
+   RespCode string // x-dt-resp-code header, e.g. "20101"
+   Message  string // x-dt-error-message header, e.g. "not_granted"
 }
 
-func (*AppSession) CachePath() string {
-   return "rosso/stan/AppSession"
-}
-
-// DRM options: "widevine" or "playready".
-// Quality options: "sd" (540p), "high" (1080p), "ultra" (2160p), "auto".
-func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
-   req, err := http.NewRequest(
-      "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-forwarded-for", "1.128.0.0")
-   req.URL.RawQuery = url.Values{
-      "programId": {strconv.Itoa(id)},
-      "format":    {"dash"}, // hls
-      "jwToken":   {a.JwToken},
-      "quality":   {quality},
-      ///////////////////////////////////////////////////////////////////////////////
-      "capabilities.drm": {drm},
-      ///////////////////////////////////////////////////////////////////////////////
-   }.Encode()
-   resp, err := do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Media  Media
-      Errors APIErrors
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-
-   if len(result.Errors) > 0 {
-      return nil, result.Errors
-   }
-
-   return &result.Media, nil
-}
-
-// Profile represents a Stan user profile.
-type Profile struct {
-   Id            string
-   Name          string
-   IsKidsProfile bool
+func (e *DTError) Error() string {
+   return fmt.Sprintf("drmtoday: %s (resp-code %s)", e.Message, e.RespCode)
 }
 
 // WebToken is the intermediate token returned from the activation URL.
@@ -226,6 +162,58 @@ func (w *WebToken) FetchSession() (*AppSession, error) {
    }
 
    return result, nil
+}
+
+// LicensePlayReady requests a PlayReady license. The response is raw XML.
+func (m *Media) LicensePlayReady(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("dt-custom-data", m.Drm.CustomData)
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+   return io.ReadAll(resp.Body)
+}
+
+// LicenseWidevine requests a Widevine license. The response is JSON-wrapped.
+func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
+   req, err := http.NewRequest(
+      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
+   )
+   if err != nil {
+      return nil, err
+   }
+   req.Header.Set("dt-custom-data", m.Drm.CustomData)
+   resp, err := do(req)
+   if err != nil {
+      return nil, err
+   }
+   defer resp.Body.Close()
+
+   if resp.StatusCode != http.StatusOK {
+      return nil, &DTError{
+         RespCode: resp.Header.Get("x-dt-resp-code"),
+         Message:  resp.Header.Get("x-dt-error-message"),
+      }
+   }
+
+   var result struct {
+      License []byte
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+      return nil, err
+   }
+   return result.License, nil
+}
+
+func (*AppSession) CachePath() string {
+   return "rosso/stan/AppSession"
 }
 
 func (m *Media) BaseUrl(host string) (*url.URL, error) {
