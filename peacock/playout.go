@@ -65,8 +65,11 @@ type PlayoutVodResponse struct {
 // embedded mTLS certificate. token supplies the userToken; providerVariantID
 // identifies the asset to play. vcodec selects the requested video codec
 // (e.g. "H264" or "H265"). protection selects the DRM system ("WIDEVINE" or
-// "PLAYREADY").
-func PlayoutVod(token *TokenResponse, providerVariantID, vcodec, protection string) (*PlayoutVodResponse, error) {
+// "PLAYREADY"). colourSpace selects the requested transfer range ("SDR",
+// "HDR10" or "DolbyVision").
+func PlayoutVod(
+   token *TokenResponse, providerVariantID, vcodec, protection, colourSpace string,
+) (*PlayoutVodResponse, error) {
    if token == nil {
       return nil, fmt.Errorf("playout vod: nil token")
    }
@@ -93,7 +96,8 @@ func PlayoutVod(token *TokenResponse, providerVariantID, vcodec, protection stri
                Vcodec:     vcodec,
             },
          },
-         MaxVideoFormat: "UHD",
+         MaxVideoFormat:        "UHD",
+         SupportedColourSpaces: []string{colourSpace},
       },
       ProviderVariantID:            providerVariantID,
       PersonaParentalControlRating: "9",
