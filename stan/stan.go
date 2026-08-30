@@ -1,11 +1,8 @@
 package stan
 
 import (
-   "bytes"
    "encoding/json"
    "fmt"
-   "io"
-   "log"
    "net/http"
    "net/url"
    "strconv"
@@ -24,30 +21,6 @@ var BaseUrl = []string{
    // these are geo block
    "023-stan.akamaized.net",
    "666-stan.akamaized.net",
-}
-
-// deviceData returns the device payload that must be sent with the
-// session request (matches Python _device_data()).
-func deviceData() url.Values {
-   return url.Values{
-      "type":         {"console"},
-      "screenSize":   {"3840x2160"},
-      "stanName":     {StanName},
-      "stanVersion":  {StanVersion},
-      "manufacturer": {"NVIDIA"},
-      "model":        {"SHIELD Android TV"},
-      "os":           {"Android-9"},
-      "videoCodecs":  {"h264,decode,dovi,h263,h265,hevc,mjpeg,mpeg2v,mp4,mpeg4,vc1,vp8,vp9"},
-      "audioCodecs":  {"aac"},
-      "drm":          {"playready,widevine"},
-      "hdcpVersion":  {"2.2"},
-      "colorSpace":   {"hdr10"},
-   }
-}
-
-func do(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return http.DefaultClient.Do(req)
 }
 
 type APIError struct {
@@ -155,11 +128,13 @@ func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
    }
    req.Header.Set("x-forwarded-for", "1.128.0.0")
    req.URL.RawQuery = url.Values{
+      "programId": {strconv.Itoa(id)},
+      "format":    {"dash"}, // hls
+      "jwToken":   {a.JwToken},
+      "quality":   {quality},
+      ///////////////////////////////////////////////////////////////////////////////
       "capabilities.drm": {drm},
-      "format":           {"dash"}, // hls
-      "jwToken":          {a.JwToken},
-      "programId":        {strconv.Itoa(id)},
-      "quality":          {quality},
+      ///////////////////////////////////////////////////////////////////////////////
    }.Encode()
    resp, err := do(req)
    if err != nil {
@@ -180,86 +155,6 @@ func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
    }
 
    return &result.Media, nil
-}
-
-// DTError is an error returned by the DRM Today license server.
-type DTError struct {
-   RespCode string // x-dt-resp-code header, e.g. "20101"
-   Message  string // x-dt-error-message header, e.g. "not_granted"
-}
-
-func (e *DTError) Error() string {
-   return fmt.Sprintf("drmtoday: %s (resp-code %s)", e.Message, e.RespCode)
-}
-
-type Media struct {
-   Drm *struct {
-      CustomData       string
-      KeyId            string
-      LicenseServerUrl string
-   }
-   VideoUrl string
-}
-
-func (m *Media) BaseUrl(host string) (*url.URL, error) {
-   video, err := url.Parse(m.VideoUrl)
-   if err != nil {
-      return nil, err
-   }
-   video.Host = host
-   return video, nil
-}
-
-func (*Media) CachePath() string {
-   return "rosso/stan/Media"
-}
-
-// LicensePlayReady requests a PlayReady license. The response is raw XML.
-func (m *Media) LicensePlayReady(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("dt-custom-data", m.Drm.CustomData)
-   resp, err := do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-   return io.ReadAll(resp.Body)
-}
-
-// LicenseWidevine requests a Widevine license. The response is JSON-wrapped.
-func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST", m.Drm.LicenseServerUrl, bytes.NewReader(data),
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("dt-custom-data", m.Drm.CustomData)
-   resp, err := do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   if resp.StatusCode != http.StatusOK {
-      return nil, &DTError{
-         RespCode: resp.Header.Get("x-dt-resp-code"),
-         Message:  resp.Header.Get("x-dt-error-message"),
-      }
-   }
-
-   var result struct {
-      License []byte
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-   return result.License, nil
 }
 
 // Profile represents a Stan user profile.
@@ -285,13 +180,25 @@ func (*WebToken) CachePath() string {
 //   includes device data in the payload,
 //   and handles error responses.
 func (w *WebToken) FetchSession() (*AppSession, error) {
-   // Build the form payload: jwToken + device data (matches Python _oauth())
-   payload := deviceData()
-   payload.Set("jwToken", w.JwToken)
+   payload := url.Values{
+      "audioCodecs":  {"aac"},
+      "colorSpace":   {"hdr10"},
+      "drm":          {"playready,widevine"},
+      "hdcpVersion":  {"2.2"},
+      "jwToken":      {w.JwToken},
+      "manufacturer": {"NVIDIA"},
+      "model":        {"SHIELD Android TV"},
+      "os":           {"Android-9"},
+      "screenSize":   {"3840x2160"},
+      "stanName":     {StanName},
+      "stanVersion":  {StanVersion},
+      "type":         {"console"},
+      "videoCodecs":  {"h264,decode,dovi,h263,h265,hevc,mjpeg,mpeg2v,mp4,mpeg4,vc1,vp8,vp9"},
+   }.Encode()
 
    req, err := http.NewRequest(
       "POST", "https://api.stan.com.au/login/v1/sessions/app",
-      strings.NewReader(payload.Encode()),
+      strings.NewReader(payload),
    )
    if err != nil {
       return nil, err
@@ -319,6 +226,19 @@ func (w *WebToken) FetchSession() (*AppSession, error) {
    }
 
    return result, nil
+}
+
+func (m *Media) BaseUrl(host string) (*url.URL, error) {
+   video, err := url.Parse(m.VideoUrl)
+   if err != nil {
+      return nil, err
+   }
+   video.Host = host
+   return video, nil
+}
+
+func (*Media) CachePath() string {
+   return "rosso/stan/Media"
 }
 
 // stan.go
