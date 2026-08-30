@@ -25,20 +25,6 @@ func do(req *http.Request) (*http.Response, error) {
    return http.DefaultClient.Do(req)
 }
 
-type APIError struct {
-   Code string
-}
-
-type APIErrors []APIError
-
-func (e APIErrors) Error() string {
-   codes := make([]string, len(e))
-   for i, err := range e {
-      codes[i] = err.Code
-   }
-   return fmt.Sprintf("stan: %s", strings.Join(codes, ", "))
-}
-
 type ActivationCode struct {
    Code string
    Url  string
@@ -46,13 +32,11 @@ type ActivationCode struct {
 
 func FetchActivationCode() (*ActivationCode, error) {
    req, err := http.NewRequest(
-      "POST", "https://api.stan.com.au/login/v1/activation-codes/", nil,
+      "POST", "https://api.stan.com.au/login/v1/activation-codes?generate=true", nil,
    )
    if err != nil {
       return nil, err
    }
-
-   req.URL.RawQuery = url.Values{"generate": {"true"}}.Encode()
 
    resp, err := do(req)
    if err != nil {
@@ -111,7 +95,7 @@ type AppSession struct {
    Now     int64
    UserId  string
    Profile Profile
-   Errors  APIErrors
+   Errors  ApiErrors
 }
 
 func (*AppSession) CachePath() string {
@@ -143,7 +127,7 @@ func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
 
    var result struct {
       Media  Media
-      Errors APIErrors
+      Errors ApiErrors
    }
    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
