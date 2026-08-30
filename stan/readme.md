@@ -1,12 +1,5 @@
 # stan
 
-## android
-
-- https://apkmirror.com/apk/stan-entertainment-pty-ltd/stan
-- https://play.google.com/store/apps/details?id=au.com.stan.and
-
-Create Android 6 device. Install user certificate
-
 ## bankofamerica.com
 
 postcode 2000
@@ -28,3 +21,22 @@ works
 3. stop paying with paypal
 4. stop paying with paypal (again)
 5. stop paying with paypal (again, again)
+
+## android
+
+- https://play.google.com/store/apps/details?id=au.com.stan.and
+- https://apkmirror.com/apk/stan-entertainment-pty-ltd/stan
+- https://apkmirror.com/apk/stan-entertainment-pty-ltd/stan-android-tv
+
+~~~
+adb install-multiple (Get-ChildItem *.apk)
+~~~
+
+Pixel 6
+
+Android 14
+
+~~~
+emulator -avd Pixel_6 -no-snapshot-load -http-proxy http://127.0.0.1:8080
+adb shell pm clear au.com.stan.and
+~~~
