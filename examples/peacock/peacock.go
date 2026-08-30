@@ -17,13 +17,12 @@ func main() {
 }
 
 type client struct {
-   Widevine    maya.FlagString
-   address     maya.FlagString
-   dash        maya.FlagString
-   email       maya.FlagString
-   password    maya.FlagString
-   token       maya.FlagBool
-   min_bitrate maya.FlagInt
+   Widevine maya.FlagString
+   address  maya.FlagString
+   dash     maya.FlagString
+   email    maya.FlagString
+   password maya.FlagString
+   token    maya.FlagBool
 
    cache maya.Cache
 }
@@ -46,7 +45,6 @@ func (c *client) do() error {
       {Name: "token", Value: &c.token},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -101,10 +99,9 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.Widevine),
-      Drm:        maya.DrmWidevine,
-      License:    playout.AcquireLicense,
-      MinBitrate: int(c.min_bitrate),
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: playout.AcquireLicense,
    })
 }
 
@@ -139,5 +136,3 @@ func (c *client) do_token() error {
    }
    return c.cache.Encode(token)
 }
-
-// examples/peacock/peacock.go

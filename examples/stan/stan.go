@@ -106,7 +106,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   session, err := token.FetchSession()
+   session, err := token.FetchSession(true)
    if err != nil {
       return err
    }
@@ -131,7 +131,7 @@ func (c *client) do_token() error {
    if err != nil {
       return err
    }
-   token, err := code.Token()
+   token, err := code.FetchToken()
    if err != nil {
       return err
    }

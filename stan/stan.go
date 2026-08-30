@@ -12,12 +12,6 @@ import (
    "strings"
 )
 
-// media.go
-const (
-   StanName    = "Stan-AndroidTV"
-   StanVersion = "4.32.1"
-)
-
 var BaseUrl = []string{
    "aws.stan.video",
    "gec.stan.video",
@@ -51,14 +45,15 @@ type ActivationCode struct {
 }
 
 func FetchActivationCode() (*ActivationCode, error) {
-   // FIX: send generate=true as query param, not form body (matches Python device_code())
    req, err := http.NewRequest(
       "POST", "https://api.stan.com.au/login/v1/activation-codes/", nil,
    )
    if err != nil {
       return nil, err
    }
+
    req.URL.RawQuery = url.Values{"generate": {"true"}}.Encode()
+
    resp, err := do(req)
    if err != nil {
       return nil, err
@@ -76,17 +71,7 @@ func (*ActivationCode) CachePath() string {
    return "rosso/stan/ActivationCode"
 }
 
-func (a *ActivationCode) String() string {
-   var data strings.Builder
-   data.WriteString("Stan.\n")
-   data.WriteString("Log in with code\n")
-   data.WriteString("1. Visit stan.com.au/activate\n")
-   data.WriteString("2. Enter the code:\n")
-   data.WriteString(a.Code)
-   return data.String()
-}
-
-func (a *ActivationCode) Token() (*WebToken, error) {
+func (a *ActivationCode) FetchToken() (*WebToken, error) {
    req, err := http.NewRequest("GET", a.Url, nil)
    if err != nil {
       return nil, err
@@ -97,7 +82,6 @@ func (a *ActivationCode) Token() (*WebToken, error) {
    }
    defer resp.Body.Close()
 
-   // FIX: check HTTP status code (matches Python device_login())
    if resp.StatusCode != http.StatusOK {
       return nil, fmt.Errorf("stan: activation code not yet authorized (HTTP %d)", resp.StatusCode)
    }
@@ -110,8 +94,17 @@ func (a *ActivationCode) Token() (*WebToken, error) {
    return &web, nil
 }
 
+func (a *ActivationCode) String() string {
+   var data strings.Builder
+   data.WriteString("Stan.\n")
+   data.WriteString("Log in with code\n")
+   data.WriteString("1. Visit stan.com.au/activate\n")
+   data.WriteString("2. Enter the code:\n")
+   data.WriteString(a.Code)
+   return data.String()
+}
+
 // AppSession is the full session response from /login/v1/sessions/app.
-// FIX: expanded to match Python _oauth() response fields.
 type AppSession struct {
    JwToken string
    Renew   int64
@@ -266,38 +259,32 @@ func (*WebToken) CachePath() string {
 }
 
 // FetchSession exchanges the WebToken for a full AppSession.
-// FIX: uses /login/v1/sessions/app (not /sessions/mobile/app),
 //
 //   includes device data in the payload,
 //   and handles error responses.
-func (w *WebToken) FetchSession() (*AppSession, error) {
-   payload := url.Values{
-      "audioCodecs":  {"aac"},
-      "colorSpace":   {"hdr10"},
-      "drm":          {"playready,widevine"},
-      "hdcpVersion":  {"2.2"},
+func (w *WebToken) FetchSession(hdr bool) (*AppSession, error) {
+
+   params := url.Values{
+      "hdcpVersion":  {"2.3"}, // need for UHD
       "jwToken":      {w.JwToken},
-      "manufacturer": {"NVIDIA"},
-      "model":        {"SHIELD Android TV"},
-      "os":           {"Android-9"},
-      "screenSize":   {"3840x2160"},
-      "stanName":     {StanName},
-      "stanVersion":  {StanVersion},
-      "type":         {"console"},
-      "videoCodecs":  {"h264,decode,dovi,h263,h265,hevc,mjpeg,mpeg2v,mp4,mpeg4,vc1,vp8,vp9"},
-   }.Encode()
+      "manufacturer": {"NVIDIA"},            // need for UHD
+      "model":        {"SHIELD Android TV"}, // need for UHD
+      "screenSize":   {"9999x9999"},         // need for UHD
+      "stanName":     {"Stan-AndroidTV"},
+      "stanVersion":  {"9"}, // need for UHD
+   }
+   if hdr {
+      params.Set("colorSpace", "hdr10")
+   }
 
    req, err := http.NewRequest(
       "POST", "https://api.stan.com.au/login/v1/sessions/app",
-      strings.NewReader(payload),
+      strings.NewReader(params.Encode()),
    )
    if err != nil {
       return nil, err
    }
    req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-   // FIX: match Python _oauth() headers
-   req.Header.Del("Accept")
-   req.Header.Del("Connection")
 
    resp, err := do(req)
    if err != nil {
@@ -311,7 +298,6 @@ func (w *WebToken) FetchSession() (*AppSession, error) {
       return nil, err
    }
 
-   // FIX: handle error responses (matches Python _oauth() error handling)
    if len(result.Errors) > 0 {
       return nil, result.Errors
    }
