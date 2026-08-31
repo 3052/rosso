@@ -24,6 +24,7 @@ type client struct {
    uhd        maya.FlagBool
    hdr        maya.FlagBool
    dash_id    maya.FlagString
+   threads    maya.FlagInt
 
    cache maya.Cache
 }
@@ -47,6 +48,7 @@ func (c *client) do() error {
       {Name: "uhd", Value: &c.uhd, Needs: "program-id"},
       {Name: "hdr", Value: &c.hdr, Needs: "program-id"},
       {Name: "dash-id", Value: &c.dash_id},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -91,6 +93,7 @@ func (c *client) do_dash_id() error {
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: media.LicensePlayReady,
+      Threads: int(c.threads),
    })
 }
 
@@ -100,13 +103,15 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
+
    var quality stan.Quality
-   if c.uhd {
+   switch {
+   case bool(c.uhd):
       quality = stan.QualityUhd
-   }
-   if c.hdr {
+   case bool(c.hdr):
       quality = stan.QualityUhdHdr
    }
+
    session, err := token.FetchSession(quality)
    if err != nil {
       return err
