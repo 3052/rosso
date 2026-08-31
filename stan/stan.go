@@ -5,7 +5,6 @@ import (
    "encoding/json"
    "fmt"
    "io"
-   "log"
    "net/http"
    "net/url"
    "strconv"
@@ -18,11 +17,6 @@ var BaseUrl = []string{
    // these are geo block
    "023-stan.akamaized.net",
    "666-stan.akamaized.net",
-}
-
-func do(req *http.Request) (*http.Response, error) {
-   log.Println(req.Method, req.URL)
-   return http.DefaultClient.Do(req)
 }
 
 type ActivationCode struct {
@@ -86,63 +80,6 @@ func (a *ActivationCode) String() string {
    data.WriteString("2. Enter the code:\n")
    data.WriteString(a.Code)
    return data.String()
-}
-
-// AppSession is the full session response from /login/v1/sessions/app.
-type AppSession struct {
-   JwToken string
-   Renew   int64
-   Now     int64
-   UserId  string
-   Profile Profile
-   Errors  ApiErrors
-}
-
-func (*AppSession) CachePath() string {
-   return "rosso/stan/AppSession"
-}
-
-// DRM options: "widevine" or "playready".
-// Quality options: "sd" (540p), "high" (1080p), "ultra" (2160p), "auto".
-func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
-   req, err := http.NewRequest(
-      "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
-   )
-   if err != nil {
-      return nil, err
-   }
-   req.Header.Set("x-forwarded-for", "1.128.0.0")
-   req.URL.RawQuery = url.Values{
-      "capabilities.drm": {drm},
-      "format":           {"dash"}, // hls
-      "jwToken":          {a.JwToken},
-      "programId":        {strconv.Itoa(id)},
-      "quality":          {quality},
-   }.Encode()
-   resp, err := do(req)
-   if err != nil {
-      return nil, err
-   }
-   defer resp.Body.Close()
-
-   var result struct {
-      Media  Media
-      Errors ApiErrors
-   }
-   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-      return nil, err
-   }
-
-   if len(result.Errors) > 0 {
-      return nil, result.Errors
-   }
-
-   // Fail if the stream response didn't include DRM info
-   if result.Media.Drm == nil {
-      return nil, fmt.Errorf("stan: no DRM data in stream response")
-   }
-
-   return &result.Media, nil
 }
 
 // DTError is an error returned by the DRM Today license server.
@@ -225,60 +162,38 @@ func (m *Media) LicenseWidevine(data []byte) ([]byte, error) {
    return result.License, nil
 }
 
-// Profile represents a Stan user profile.
-type Profile struct {
-   Id            string
-   Name          string
-   IsKidsProfile bool
+func (*AppSession) CachePath() string {
+   return "rosso/stan/AppSession"
 }
 
-// WebToken is the intermediate token returned from the activation URL.
-// It is used as the payload for the session request.
-type WebToken struct {
-   JwToken string
-}
-
-func (*WebToken) CachePath() string {
-   return "rosso/stan/WebToken"
-}
-
-// FetchSession exchanges the WebToken for a full AppSession.
-//
-//   includes device data in the payload,
-//   and handles error responses.
-func (w *WebToken) FetchSession(hdr bool) (*AppSession, error) {
-
-   params := url.Values{
-      "hdcpVersion":  {"2.3"}, // need for UHD
-      "jwToken":      {w.JwToken},
-      "manufacturer": {"NVIDIA"},            // need for UHD
-      "model":        {"SHIELD Android TV"}, // need for UHD
-      "screenSize":   {"9999x9999"},         // need for UHD
-      "stanName":     {"Stan-AndroidTV"},
-      "stanVersion":  {"9"}, // need for UHD
-   }
-   if hdr {
-      params.Set("colorSpace", "hdr10")
-   }
-
+// DRM options: "widevine" or "playready".
+// Quality options: "sd" (540p), "high" (1080p), "ultra" (2160p), "auto".
+func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
    req, err := http.NewRequest(
-      "POST", "https://api.stan.com.au/login/v1/sessions/app",
-      strings.NewReader(params.Encode()),
+      "GET", "https://api.stan.com.au/concurrency/v1/streams", nil,
    )
    if err != nil {
       return nil, err
    }
-   req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
+   req.Header.Set("x-forwarded-for", "1.128.0.0")
+   req.URL.RawQuery = url.Values{
+      "capabilities.drm": {drm},
+      "format":           {"dash"}, // hls
+      "jwToken":          {a.JwToken},
+      "programId":        {strconv.Itoa(id)},
+      "quality":          {quality},
+   }.Encode()
    resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
 
-   result := &AppSession{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
+   var result struct {
+      Media  Media
+      Errors ApiErrors
+   }
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
 
@@ -286,7 +201,16 @@ func (w *WebToken) FetchSession(hdr bool) (*AppSession, error) {
       return nil, result.Errors
    }
 
-   return result, nil
+   // Fail if the stream response didn't include DRM info
+   if result.Media.Drm == nil {
+      return nil, fmt.Errorf("stan: no DRM data in stream response")
+   }
+
+   return &result.Media, nil
+}
+
+func (*WebToken) CachePath() string {
+   return "rosso/stan/WebToken"
 }
 
 // stan.go
