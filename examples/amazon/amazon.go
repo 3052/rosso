@@ -27,7 +27,6 @@ type client struct {
    initiate_login     maya.FlagBool
    playback           maya.FlagBool
    video_codec        maya.FlagString
-   min_bitrate        maya.FlagInt
 
    cache maya.Cache
 }
@@ -74,7 +73,6 @@ func (c *client) do() error {
          Needs: "playback",
       },
       {Name: "dash-id", Value: &c.dash_id},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -135,7 +133,6 @@ func (c *client) do_dash_id() error {
       Device:     string(c.PlayReady),
       Drm:        maya.DrmPlayReady,
       License:    license,
-      MinBitrate: int(c.min_bitrate),
    })
 }
 
@@ -147,8 +144,6 @@ func (c *client) do_initiate_login() error {
    fmt.Println(codes)
    return c.cache.Encode(codes)
 }
-
-///
 
 func (c *client) do_playback() error {
    var token_pair amazon.TokenPair
