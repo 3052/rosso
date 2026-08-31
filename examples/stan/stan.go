@@ -21,9 +21,9 @@ type client struct {
    activation maya.FlagBool
    token      maya.FlagBool
    program_id maya.FlagInt
-   quality    maya.FlagString
-   dash_id    maya.FlagString
+   uhd        maya.FlagBool
    hdr        maya.FlagBool
+   dash_id    maya.FlagString
 
    cache maya.Cache
 }
@@ -43,13 +43,8 @@ func (c *client) do() error {
       {Name: "playReady-folder", Value: &c.PlayReady},
       {Name: "activation", Value: &c.activation},
       {Name: "token", Value: &c.token},
-      {Name: "program-id", Value: &c.program_id, Needs: "quality"},
-      {
-         Name:  "quality",
-         Value: &c.quality,
-         Needs: "program-id",
-         Usage: "high ultra",
-      },
+      {Name: "program-id", Value: &c.program_id},
+      {Name: "uhd", Value: &c.uhd, Needs: "program-id"},
       {Name: "hdr", Value: &c.hdr, Needs: "program-id"},
       {Name: "dash-id", Value: &c.dash_id},
    }
@@ -66,9 +61,7 @@ func (c *client) do() error {
       return c.do_token()
    }
    if c.program_id >= 1 {
-      if c.quality != "" {
-         return c.do_program_id()
-      }
+      return c.do_program_id()
    }
    if c.dash_id != "" {
       return c.do_dash_id()
@@ -107,11 +100,18 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   session, err := token.FetchSession(bool(c.hdr))
+   var quality stan.Quality
+   if c.uhd {
+      quality = stan.QualityUhd
+   }
+   if c.hdr {
+      quality = stan.QualityUhdHdr
+   }
+   session, err := token.FetchSession(quality)
    if err != nil {
       return err
    }
-   media, err := session.FetchMedia(int(c.program_id), string(c.quality), "playready")
+   media, err := session.FetchMedia(int(c.program_id), quality.String(), "playready")
    if err != nil {
       return err
    }

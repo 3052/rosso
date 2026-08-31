@@ -1,11 +1,5 @@
 # the-girl-with-the-dragon-tattoo
 
-## https://play.stan.com.au/programs/331144
-
-country: AU
-name: Australia
-monetization: FLATRATE
-
 ## https://canalplus.at/stream/film/verblendung/
 
 country: AT
@@ -36,8 +30,8 @@ country: PL
 name: Poland
 monetization: FLATRATE
 
-## https://peacocktv.com/watch/asset/movies/the-girl-with-the-dragon-tattoo/b0fe0335-38fa-3be9-91df-8604c89c7d8c
+## https://play.stan.com.au/programs/331144
 
-country: US
-name: United States
+country: AU
+name: Australia
 monetization: FLATRATE

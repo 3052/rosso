@@ -1,5 +1,29 @@
 # no
 
+## https://peacocktv.com/watch/asset/movies/the-girl-with-the-dragon-tattoo/b0fe0335-38fa-3be9-91df-8604c89c7d8c
+
+country: US
+name: United States
+monetization: FLATRATE
+
+bandwidth: 3927684
+width: 1920
+height: 1080
+codecs: avc1.640028
+mimeType: video/mp4
+period duration: PT2H38M12.775S
+id: video/1080_7830k
+4655926296 bytes
+
+bandwidth: 2393534
+width: 1280
+height: 720
+codecs: avc1.64001F
+mimeType: video/mp4
+period duration: PT2H38M12.775S
+id: video/720_4830k
+2389 kbps
+
 ## https://crave.ca/en/movie/the-girl-with-the-dragon-tattoo-2011-43239
 
 country: CA
