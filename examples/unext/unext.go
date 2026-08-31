@@ -1,4 +1,3 @@
-// examples/unext/unext.go
 package main
 
 import (
@@ -20,12 +19,12 @@ type client struct {
    Widevine     maya.FlagString
    email        maya.FlagString
    password     maya.FlagString
+   refresh      maya.FlagBool
    title_code   maya.FlagString
    episode_code maya.FlagString
    play_mode    maya.FlagString
    dash_id      maya.FlagString
-   refresh      maya.FlagBool
-   min_bitrate  maya.FlagInt
+   threads      maya.FlagInt
 
    cache maya.Cache
 }
@@ -50,7 +49,7 @@ func (c *client) do() error {
       {Name: "episode-code", Value: &c.episode_code, Needs: "play-mode"},
       {Name: "play-mode", Value: &c.play_mode, Needs: "episode-code", Usage: "caption dub"},
       {Name: "dash-id", Value: &c.dash_id},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
+      {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -97,10 +96,10 @@ func (c *client) do_dash_id() error {
       return unext.Step6GetLicense(licenseURL, playlist.PlayToken, challenge)
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:     string(c.Widevine),
-      Drm:        maya.DrmWidevine,
-      License:    license,
-      MinBitrate: int(c.min_bitrate),
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
+      Threads: int(c.threads),
    })
 }
 
