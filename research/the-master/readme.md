@@ -1,20 +1,18 @@
 # the-master
 
-## https://tubitv.com/movies/495938
+## https://tv.sfr.fr/vod/info-programmes/the-master/Product::NEUF_CINE_PLUS_OCS_CPO_A46B0907E2CCFCA6
 
-country: CA
-name: Canada
-monetization: ADS
+country: FR
+name: France
+monetization: FLATRATE
 
-country: US
-name: United States
-monetization: ADS
+## https://molotov.tv/fr_fr/p/1426375/the-master
 
-## https://filmoteket.no/film/169640
+country: FR
+name: France
+monetization: FLATRATE
 
-country: NO
-name: Norway
-monetization: FREE
+Due now 12,99€
 
 ## https://tving.com/contents/M000299737
 
@@ -44,35 +42,11 @@ country: FI
 name: Finland
 monetization: FREE
 
-## https://crave.ca/en/movie/the-master-58621
-
-country: CA
-name: Canada
-monetization: FREE
-
 ## https://maoriplus.co.nz/mi/movie/the-master
 
 country: NZ
 name: New Zealand
 monetization: FREE
-
-## https://molotov.tv/fr_fr/p/1426375/the-master
-
-country: FR
-name: France
-monetization: FLATRATE
-
-## https://kanopy.com/product/justwatch-12936750
-
-country: US
-name: United States
-monetization: FREE
-
-## https://watch.plex.tv/embed/movie/the-master-2012
-
-country: US
-name: United States
-monetization: ADS
 
 ## https://cineasterna.com/sv/library/71/title/10
 
@@ -122,11 +96,7 @@ country: US
 name: United States
 monetization: ADS
 
-## https://therokuchannel.roku.com/details/48a068d610a752a5bad570d4286a2202/the-master
-
-country: US
-name: United States
-monetization: ADS
+--------------------------------------------
 
 ## https://watch.amazon.com/detail?gti=amzn1.dv.gti.b9f4d41b-a7fa-4e94-a642-34568a9de4c6
 
@@ -174,10 +144,4 @@ monetization: FLATRATE
 
 country: IT
 name: Italy
-monetization: FLATRATE
-
-## https://tv.sfr.fr/vod/info-programmes/the-master/Product::NEUF_CINE_PLUS_OCS_CPO_A46B0907E2CCFCA6
-
-country: FR
-name: France
 monetization: FLATRATE

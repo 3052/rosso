@@ -24,7 +24,6 @@ type client struct {
    dash               maya.FlagString
    roku_id            maya.FlagString
    use_account        maya.FlagBool
-   min_bitrate        maya.FlagInt
 
    cache maya.Cache
 }
@@ -47,7 +46,6 @@ func (c *client) do() error {
       {Name: "roku-id", Value: &c.roku_id},
       {Name: "use-account", Value: &c.use_account, Needs: "roku-id"},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -112,7 +110,6 @@ func (c *client) do_dash() error {
       Device:     string(c.Widevine),
       Drm:        maya.DrmWidevine,
       License:    playback.LicenseWidevine,
-      MinBitrate: int(c.min_bitrate),
    })
 }
 
