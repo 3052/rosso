@@ -1,93 +1,33 @@
 # the-girl-with-the-dragon-tattoo
 
-## https://video.unext.jp/title/SID0023543
-
-country: JP
-name: Japan
-monetization: FLATRATE
-
 ## https://play.stan.com.au/programs/331144
 
 country: AU
 name: Australia
 monetization: FLATRATE
 
-## https://more.tv/devushka-s-tatuirovkoy-drakona
-
-country: RU
-name: Russia
-monetization: ADS
-
-## https://www.movistarplay.co/details/movie/4994505
-
-country: CO
-name: Colombia
-monetization: FLATRATE
-
-## https://www.canalplus.at/stream/film/verblendung/
+## https://canalplus.at/stream/film/verblendung/
 
 country: AT
 name: Austria
 monetization: FLATRATE
 
-## https://play.movistar.com.ec/details/movie/4994505
-
-country: EC
-name: Ecuador
-monetization: FLATRATE
-
-## https://www.movistarplay.cl/details/movie/17646022
-
-country: CL
-name: Chile
-monetization: FLATRATE
-
-## https://www.play.movistar.com.ar/details/movie/4994505
-
-country: AR
-name: Argentina
-monetization: FLATRATE
-
-## https://www.tivify.tv/ficha?id=6a852a80f669b6aa889a5dfd
+## https://tivify.tv/ficha?id=6a852a80f669b6aa889a5dfd
 
 country: ES
 name: Spain
 monetization: FLATRATE
 
-## https://tvplus.com.tr/film-izle/ejderha-dovmeli-kiz--216733028
-
-country: TR
-name: Turkey
-monetization: FLATRATE
-
-## https://www.filmbox.com/sk/movies/the-girl-with-the-dragon-tattoo-3
+## https://filmbox.com/sk/movies/the-girl-with-the-dragon-tattoo-3
 
 country: SK
 name: Slovakia
 monetization: FLATRATE
 
-## https://www.strim.no/film/1004341:vod/the-girl-with-the-dragon-tattoo
-
-country: NO
-name: Norway
-monetization: FLATRATE
-
-## https://www.catchplay.com/tw/video/0e339b11-5ae4-4f98-9876-04fc7c2c3f5b
+## https://catchplay.com/tw/video/0e339b11-5ae4-4f98-9876-04fc7c2c3f5b
 
 country: TW
 name: Taiwan
-monetization: FLATRATE
-
-## https://www.crave.ca/en/movie/the-girl-with-the-dragon-tattoo-2011-43239
-
-country: CA
-name: Canada
-monetization: FLATRATE
-
-## https://app.primevideo.com/detail?gti=amzn1.dv.gti.af7c8b6a-1595-4fd6-b627-be6d13851f8e
-
-country: CA
-name: Canada
 monetization: FLATRATE
 
 ## https://polsatboxgo.pl/wideo/film/dziewczyna-z-tatuazem/dfddd163fc01fac098fd27652c6e8607
@@ -96,13 +36,7 @@ country: PL
 name: Poland
 monetization: FLATRATE
 
-## https://www.hbomax.com/tr/en/movies/girl-with-the-dragon-tattoo/e51c8366-7aed-4af9-bc7e-f7e8188ac7da
-
-country: TR
-name: Turkey
-monetization: FLATRATE
-
-## https://www.peacocktv.com/watch/asset/movies/the-girl-with-the-dragon-tattoo/b0fe0335-38fa-3be9-91df-8604c89c7d8c
+## https://peacocktv.com/watch/asset/movies/the-girl-with-the-dragon-tattoo/b0fe0335-38fa-3be9-91df-8604c89c7d8c
 
 country: US
 name: United States

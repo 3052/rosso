@@ -1,5 +1,109 @@
 # no
 
+## https://crave.ca/en/movie/the-girl-with-the-dragon-tattoo-2011-43239
+
+country: CA
+name: Canada
+monetization: FLATRATE
+
+bandwidth: 128000
+codecs: mp4a.40.2
+mimeType: audio/mp4
+label: French
+role: audio-french-primary
+period duration: PT9488.145S
+id: aac-ffa6v1-french-primary-128000
+
+## https://tvplus.com.tr/film-izle/ejderha-dovmeli-kiz--216733028
+
+country: TR
+name: Turkey
+monetization: FLATRATE
+
+## https://movistarplay.cl/details/movie/17646022
+
+country: CL
+name: Chile
+monetization: FLATRATE
+
+## https://play.movistar.com.ar/details/movie/4994505
+
+country: AR
+name: Argentina
+monetization: FLATRATE
+
+## https://play.movistar.com.ec/details/movie/4994505
+
+country: EC
+name: Ecuador
+monetization: FLATRATE
+
+## https://strim.no/film/1004341:vod/the-girl-with-the-dragon-tattoo
+
+country: NO
+name: Norway
+monetization: FLATRATE
+
+## https://movistarplay.co/details/movie/4994505
+
+country: CO
+name: Colombia
+monetization: FLATRATE
+
+## https://more.tv/devushka-s-tatuirovkoy-drakona
+
+country: RU
+name: Russia
+monetization: ADS
+
+## https://video.unext.jp/title/SID0023543
+
+country: JP
+name: Japan
+monetization: FLATRATE
+
+bandwidth: 4001512
+width: 1920
+height: 1080
+codecs: avc1.4d4028
+mimeType: video/mp4
+id: 6
+4767620428 bytes
+
+bandwidth: 2441488
+width: 1280
+height: 720
+codecs: avc1.4d401f
+mimeType: video/mp4
+id: 5
+2443 kbps
+
+## https://www.hbomax.com/tr/en/movies/girl-with-the-dragon-tattoo/e51c8366-7aed-4af9-bc7e-f7e8188ac7da
+
+country: TR
+name: Turkey
+monetization: FLATRATE
+
+bandwidth: 6812664
+width: 1280
+height: 720
+codecs: avc1.64001f
+mimeType: video/mp4
+role: main
+period duration: PT1554.8199333333332S
+id: v0
+
+Video: MPEG4 Video (H264) 1280x720 29.97fps 2442kbps [V: h264 high L3.1,
+yuv420p, 1280x720, 2442 kb/s]
+
+## https://app.primevideo.com/detail?gti=amzn1.dv.gti.af7c8b6a-1595-4fd6-b627-be6d13851f8e
+
+country: CA
+name: Canada
+monetization: FLATRATE
+
+entitlement message: Free trial of Crave
+
 ## https://www.netflix.com/title/70207663
 
 country: US
