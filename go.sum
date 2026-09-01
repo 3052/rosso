@@ -2,12 +2,12 @@
 41.neocities.org/diana v1.10.2/go.mod h1:3CvzWYXnKzn7z2ulAfEXhRMQKMiOp9+EUQjIERRqX38=
 41.neocities.org/luna v1.35.0 h1:DULwl4/UquECiuednDha3TsDznIFZSdSIFF/CpsQNSo=
 41.neocities.org/luna v1.35.0/go.mod h1:AjU5D4+fxCgyL1sYkmvwadeegk1ZmqJwcy96Kt5b4pU=
-41.neocities.org/maya v1.43.0 h1:xRPlTF3gjFJ4cmfDkehOL4XbsFlcrVUiSPVuZ0BVG/Q=
-41.neocities.org/maya v1.43.0/go.mod h1:KBi5T/A4pfqf5gjGjS8nn2/hNFpFGPsVVUGAxPEFQo4=
+41.neocities.org/maya v1.43.5 h1:l15OXX+8jiW95l12vdsrPQF9VXtVoWip+wjecxowb80=
+41.neocities.org/maya v1.43.5/go.mod h1:ayXeEvSBJSFtoK2OAK5M/InblJ8yw9QncQSFo6JhuEQ=
 41.neocities.org/protobuf v1.7.5 h1:CMBWP0vaneVYha2/VtKFiZAEdg3LOsJ5TNRPjzHSx1o=
 41.neocities.org/protobuf v1.7.5/go.mod h1:rodstWMPJn6uy7G5afSR2GCz4v4Q8rBbiFn9hOd/k5o=
-41.neocities.org/sofia v1.14.9 h1:CPVuyVx7IgmWLyTGDRr5HxaL0A5Xa1gNawyIOPTUDvE=
-41.neocities.org/sofia v1.14.9/go.mod h1:jA3cDM3wZ95T6fAw+cdBLRUp2Idk7aHjOyrXx9vbODo=
+41.neocities.org/sofia v1.15.1 h1:M9m+27zygj4tmbg9JDF/igLV/s77Wr1XD/d+h1lYS5E=
+41.neocities.org/sofia v1.15.1/go.mod h1:jA3cDM3wZ95T6fAw+cdBLRUp2Idk7aHjOyrXx9vbODo=
 filippo.io/nistec v0.0.4 h1:F14ZHT5htWlMnQVPndX9ro9arf56cBhQxq4LnDI491s=
 filippo.io/nistec v0.0.4/go.mod h1:PK/lw8I1gQT4hUML4QGaqljwdDaFcMyFKSXN7kjrtKI=
 github.com/emmansun/gmsm v0.44.1 h1:zDTkdtLWFG0vCbhPV+k9pte14tix/eK71At9Iai9fP4=

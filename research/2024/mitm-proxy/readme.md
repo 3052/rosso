@@ -38,9 +38,4 @@ https://docs.mitmproxy.org/stable/overview-features#blocklist
 Press `O` to enter options. Move to `modify_headers` and press Enter. Then press
 `a` to add a new entry. Press Esc when finished, then `q`.
 
-~~~
-/~q/X-Forwarded-For/99.224.0.0
-/~u hello.world/X-Forwarded-For/99.224.0.0
-~~~
-
 https://docs.mitmproxy.org/stable/overview-features#modify-headers

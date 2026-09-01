@@ -1,7 +1,5 @@
 # unext
 
-https://wikipedia.org/wiki/Shuhari
-
 1. watch now with a free trial
 2. Japan VPN
 3. get started now
@@ -13,11 +11,12 @@ https://wikipedia.org/wiki/Shuhari
 7. month
 8. date
 9. e-mail
+   - mail.tm
 10. password
 11. phone
 - 0312345678
 12. next
-13. card number
+13. card number - NEW CARD EACH TIME
 14. name of card
 15. month
 16. year

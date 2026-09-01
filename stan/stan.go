@@ -12,6 +12,9 @@ import (
    "strings"
 )
 
+// Australia
+const x_forwarded_for = "202.0.0.0"
+
 // session.go
 var BaseUrl = []string{
    "aws.stan.video",
@@ -128,7 +131,7 @@ func (a *AppSession) FetchMedia(id int, quality, drm string) (*Media, error) {
    if err != nil {
       return nil, err
    }
-   req.Header.Set("x-forwarded-for", "1.128.0.0")
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    req.URL.RawQuery = url.Values{
       "capabilities.drm": {drm},
       "format":           {"dash"}, // hls

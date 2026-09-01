@@ -1,4 +1,3 @@
-// unext.go
 package unext
 
 import (
@@ -210,12 +209,12 @@ func Step5GetPlaylist(accessToken, code, playMode string) (*PlaylistUrl, error) 
    body := map[string]any{
       "query": playlistQuery,
       "variables": map[string]any{
-         "code":               code,
-         "playMode":           playMode,
          "bitrateLow":         192,
+         "code":               code,
          "codec":              []string{"H264"},
          "disableRegionCheck": true,
          "keyOnly":            false,
+         "playMode":           playMode,
          "playType":           "STREAMING",
          "validationOnly":     false,
       },

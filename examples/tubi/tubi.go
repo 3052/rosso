@@ -20,7 +20,6 @@ type client struct {
    Widevine    maya.FlagString
    content_id  maya.FlagInt
    dash        maya.FlagString
-   min_bitrate maya.FlagInt
 
    cache maya.Cache
 }
@@ -40,7 +39,6 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "content-id", Value: &c.content_id},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -90,6 +88,5 @@ func (c *client) do_dash() error {
       Device:     string(c.Widevine),
       Drm:        maya.DrmWidevine,
       License:    license,
-      MinBitrate: int(c.min_bitrate),
    })
 }

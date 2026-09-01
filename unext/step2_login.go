@@ -1,4 +1,3 @@
-// step2_login.go
 package unext
 
 import (
@@ -8,7 +7,10 @@ import (
    "net/http"
 )
 
-// Step2Login authenticates with email/password and returns the post_auth_endpoint.
+// Japan
+const x_forwarded_for = "133.0.0.0"
+
+// Step2Login authenticates with email/password and returns the post_auth_endpoint
 func Step2Login(email, password, challengeID string) (string, error) {
    loginURL := "https://oauth.unext.jp/oauth2/login"
    body := map[string]any{
@@ -28,7 +30,7 @@ func Step2Login(email, password, challengeID string) (string, error) {
    if err != nil {
       return "", fmt.Errorf("step2: creating request: %w", err)
    }
-   req.Header.Set("x-forwarded-for", "159.26.119.122")
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    resp, err := clientDo(req)
    if err != nil {
       return "", fmt.Errorf("step2: sending request: %w", err)

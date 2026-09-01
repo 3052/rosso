@@ -24,7 +24,6 @@ type client struct {
    profile     maya.FlagString
    threads     maya.FlagInt
    username    maya.FlagString
-   min_bitrate maya.FlagInt
 
    cache maya.Cache
 }
@@ -47,7 +46,6 @@ func (c *client) do() error {
       {Name: "profile-id", Value: &c.profile},
       {Name: "address", Value: &c.address},
       {Name: "dash-id", Value: &c.dash},
-      {Name: "min-bitrate", Value: &c.min_bitrate, Needs: "dash-id"},
       {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -121,7 +119,6 @@ func (c *client) do_dash() error {
       Device:     string(c.PlayReady),
       Drm:        maya.DrmPlayReady,
       License:    license,
-      MinBitrate: int(c.min_bitrate),
       Threads:    int(c.threads),
    })
 }

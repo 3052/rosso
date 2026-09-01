@@ -130,9 +130,9 @@ func (c *client) do_dash_id() error {
       )
    }
    return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
-      Device:     string(c.PlayReady),
-      Drm:        maya.DrmPlayReady,
-      License:    license,
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
    })
 }
 

@@ -8,7 +8,8 @@ import (
    "net/url"
 )
 
-const x_forwarded_for = "178.132.106.134"
+// France
+const x_forwarded_for = "2.4.0.0"
 
 // doRequest logs the method and URL, then performs the HTTP request.
 func doRequest(req *http.Request) (*http.Response, error) {

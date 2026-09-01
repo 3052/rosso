@@ -15,6 +15,9 @@ import (
 // hard coded in JavaScript
 const api_key = "4_Ml_fJ47GnBAW6FrPzMxh0w"
 
+// Belgium
+const x_forwarded_for = "195.0.0.0"
+
 func FetchAssetId(path string) (string, error) {
    req, err := http.NewRequest("GET",
       (&url.URL{
@@ -261,7 +264,7 @@ func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
       return nil, err
    }
    req.Header.Set("authorization", "Bearer "+s.SessionToken)
-   req.Header.Set("x-forwarded-for", "91.90.123.17")
+   req.Header.Set("x-forwarded-for", x_forwarded_for)
    resp, err := do(req)
    if err != nil {
       return nil, err

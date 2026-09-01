@@ -107,9 +107,9 @@ func (c *client) do_dash() error {
       return err
    }
    return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.Widevine),
-      Drm:        maya.DrmWidevine,
-      License:    playback.LicenseWidevine,
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: playback.LicenseWidevine,
    })
 }
 
