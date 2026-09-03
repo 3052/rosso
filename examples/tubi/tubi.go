@@ -19,7 +19,8 @@ func main() {
 type client struct {
    Widevine   maya.FlagString
    content_id maya.FlagInt
-   dash       maya.FlagString
+   dash_id    maya.FlagString
+   bitrate    maya.FlagBool
 
    cache maya.Cache
 }
@@ -38,7 +39,8 @@ func (c *client) do() error {
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "content-id", Value: &c.content_id},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
+      {Name: "bitrate", Value: &c.bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -49,8 +51,8 @@ func (c *client) do() error {
    if c.content_id >= 1 {
       return c.do_content_id()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "tubi")
 }
@@ -72,7 +74,7 @@ func (c *client) do_content_id() error {
    return c.cache.Encode(manifest, &video.LicenseServer)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       server   tubi.LicenseServer
@@ -81,10 +83,13 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
+   if c.bitrate {
+      return maya.DashBitrate(string(c.dash_id), &manifest)
+   }
    license := func(body []byte) ([]byte, error) {
       return tubi.AcquireLicense(&server, body)
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,
