@@ -117,7 +117,7 @@ func (c *client) do_audio() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(&stream_info.Url.Url)
+   manifest, err := maya.DashList(&stream_info.Url.Url)
    if err != nil {
       return err
    }
@@ -133,7 +133,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,

@@ -95,7 +95,7 @@ func (c *client) do_dash_id() error {
       }
       return unext.Step6GetLicense(licenseURL, playlist.PlayToken, challenge)
    }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,
@@ -139,7 +139,7 @@ func (c *client) do_episode_code() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(mpdURL)
+   manifest, err := maya.DashList(mpdURL)
    if err != nil {
       return err
    }

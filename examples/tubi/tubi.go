@@ -17,9 +17,9 @@ func main() {
 }
 
 type client struct {
-   Widevine    maya.FlagString
-   content_id  maya.FlagInt
-   dash        maya.FlagString
+   Widevine   maya.FlagString
+   content_id maya.FlagInt
+   dash       maya.FlagString
 
    cache maya.Cache
 }
@@ -65,7 +65,7 @@ func (c *client) do_content_id() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(address)
+   manifest, err := maya.DashList(address)
    if err != nil {
       return err
    }
@@ -84,9 +84,9 @@ func (c *client) do_dash() error {
    license := func(body []byte) ([]byte, error) {
       return tubi.AcquireLicense(&server, body)
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.Widevine),
-      Drm:        maya.DrmWidevine,
-      License:    license,
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.Widevine),
+      Drm:     maya.DrmWidevine,
+      License: license,
    })
 }

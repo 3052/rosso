@@ -17,13 +17,13 @@ func main() {
 }
 
 type client struct {
-   PlayReady   maya.FlagString
-   address     maya.FlagString
-   dash        maya.FlagString
-   password    maya.FlagString
-   profile     maya.FlagString
-   threads     maya.FlagInt
-   username    maya.FlagString
+   PlayReady maya.FlagString
+   address   maya.FlagString
+   dash      maya.FlagString
+   password  maya.FlagString
+   profile   maya.FlagString
+   threads   maya.FlagInt
+   username  maya.FlagString
 
    cache maya.Cache
 }
@@ -95,7 +95,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(stream)
+   manifest, err := maya.DashList(stream)
    if err != nil {
       return err
    }
@@ -115,11 +115,11 @@ func (c *client) do_dash() error {
    license := func(body []byte) ([]byte, error) {
       return crave.AcquireLicense(body, &profile_token, &playback)
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.PlayReady),
-      Drm:        maya.DrmPlayReady,
-      License:    license,
-      Threads:    int(c.threads),
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: license,
+      Threads: int(c.threads),
    })
 }
 

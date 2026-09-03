@@ -17,16 +17,16 @@ func main() {
 }
 
 type client struct {
-   PlayReady   maya.FlagString
-   dash        maya.FlagString
-   edit        maya.FlagString
-   initiate    maya.FlagString
-   login       maya.FlagBool
-   movie       maya.FlagString
-   search      maya.FlagString
-   season      maya.FlagInt
-   show        maya.FlagString
-   threads     maya.FlagInt
+   PlayReady maya.FlagString
+   dash      maya.FlagString
+   edit      maya.FlagString
+   initiate  maya.FlagString
+   login     maya.FlagBool
+   movie     maya.FlagString
+   search    maya.FlagString
+   season    maya.FlagInt
+   show      maya.FlagString
+   threads   maya.FlagInt
 
    cache maya.Cache
 }
@@ -95,11 +95,11 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
-      Device:     string(c.PlayReady),
-      Drm:        maya.DrmPlayReady,
-      License:    playback.PlayReadyRequest,
-      Threads:    int(c.threads),
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: playback.PlayReadyRequest,
+      Threads: int(c.threads),
    })
 }
 
@@ -117,7 +117,7 @@ func (c *client) do_edit() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(address)
+   manifest, err := maya.DashList(address)
    if err != nil {
       return err
    }

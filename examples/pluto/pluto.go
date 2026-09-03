@@ -69,7 +69,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: pluto.FetchWidevine,
@@ -86,7 +86,7 @@ func (c *client) do_episode() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(episode)
+   manifest, err := maya.DashList(episode)
    if err != nil {
       return err
    }
@@ -100,7 +100,7 @@ func (c *client) do_movie() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(series.GetMovieUrl())
+   manifest, err := maya.DashList(series.GetMovieUrl())
    if err != nil {
       return err
    }

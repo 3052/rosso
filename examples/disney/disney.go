@@ -17,16 +17,16 @@ func main() {
 }
 
 type client struct {
-   Email       maya.FlagString
-   PlayReady   maya.FlagString
-   address     maya.FlagString
-   hls         maya.FlagString
-   media       maya.FlagString
-   passcode    maya.FlagString
-   profile     maya.FlagString
-   refresh     maya.FlagBool
-   season      maya.FlagString
-   threads     maya.FlagInt
+   Email     maya.FlagString
+   PlayReady maya.FlagString
+   address   maya.FlagString
+   hls       maya.FlagString
+   media     maya.FlagString
+   passcode  maya.FlagString
+   profile   maya.FlagString
+   refresh   maya.FlagBool
+   season    maya.FlagString
+   threads   maya.FlagInt
 
    cache maya.Cache
 }
@@ -126,11 +126,11 @@ func (c *client) do_hls() error {
    if err != nil {
       return err
    }
-   return maya.DownloadHls(string(c.hls), &manifest, &maya.Options{
-      Device:     string(c.PlayReady),
-      Drm:        maya.DrmPlayReady,
-      License:    token.FetchPlayReady,
-      Threads:    int(c.threads),
+   return maya.HlsDownload(string(c.hls), &manifest, &maya.Options{
+      Device:  string(c.PlayReady),
+      Drm:     maya.DrmPlayReady,
+      License: token.FetchPlayReady,
+      Threads: int(c.threads),
    })
 }
 
@@ -144,7 +144,7 @@ func (c *client) do_media() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListHls(stream)
+   manifest, err := maya.HlsList(stream)
    if err != nil {
       return err
    }

@@ -89,7 +89,7 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: media.LicensePlayReady,
@@ -124,7 +124,7 @@ func (c *client) do_program_id() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(address)
+   manifest, err := maya.DashList(address)
    if err != nil {
       return err
    }

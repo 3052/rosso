@@ -69,7 +69,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(dash)
+   manifest, err := maya.DashList(dash)
    if err != nil {
       return err
    }
@@ -82,7 +82,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, nil)
+   return maya.DashDownload(string(c.dash), &manifest, nil)
 }
 
 func (c *client) do_email_password() error {

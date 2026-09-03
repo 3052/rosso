@@ -129,7 +129,7 @@ func (c *client) do_dash_id() error {
          string(c.DeviceTypeId),
       )
    }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: license,
@@ -193,7 +193,7 @@ func (c *client) do_playback() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(clean)
+   manifest, err := maya.DashList(clean)
    if err != nil {
       return err
    }

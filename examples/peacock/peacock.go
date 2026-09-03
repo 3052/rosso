@@ -95,7 +95,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(endpoint)
+   manifest, err := maya.DashList(endpoint)
    if err != nil {
       return err
    }
@@ -111,7 +111,7 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash_id), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: playout.AcquireLicense,

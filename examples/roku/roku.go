@@ -106,7 +106,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DownloadDash(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: playback.LicenseWidevine,
@@ -134,7 +134,7 @@ func (c *client) do_roku_id() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListDash(address)
+   manifest, err := maya.DashList(address)
    if err != nil {
       return err
    }

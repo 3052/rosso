@@ -74,7 +74,7 @@ func (c *client) do_browse() error {
    if err != nil {
       return err
    }
-   manifest, err := maya.ListHls(address)
+   manifest, err := maya.HlsList(address)
    if err != nil {
       return err
    }
@@ -87,7 +87,7 @@ func (c *client) do_hls() error {
    if err != nil {
       return err
    }
-   return maya.DownloadHls(string(c.hls), &manifest, nil)
+   return maya.HlsDownload(string(c.hls), &manifest, nil)
 }
 
 func (c *client) do_username_password() error {

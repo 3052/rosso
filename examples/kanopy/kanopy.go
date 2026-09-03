@@ -104,7 +104,7 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   maya_manifest, err := maya.ListDash(address)
+   maya_manifest, err := maya.DashList(address)
    if err != nil {
       return err
    }
@@ -124,7 +124,7 @@ func (c *client) do_dash_id() error {
    license := func(body []byte) ([]byte, error) {
       return kanopy.CreateLicense(&login, &manifest, body)
    }
-   return maya.DownloadDash(string(c.dash_id), &maya_manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &maya_manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,
