@@ -18,7 +18,7 @@ func main() {
 type client struct {
    Widevine maya.FlagString
    address  maya.FlagString
-   dash     maya.FlagString
+   dash_id  maya.FlagString
 
    cache maya.Cache
 }
@@ -37,7 +37,7 @@ func (c *client) do() error {
    flags := maya.FlagSet{
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "address", Value: &c.address},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -47,8 +47,8 @@ func (c *client) do() error {
       return c.cache.Encode(c)
    case c.address != "":
       return c.do_address()
-   case c.dash != "":
-      return c.do_dash()
+   case c.dash_id != "":
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "plex")
 }
@@ -81,7 +81,7 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, media, user)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       media    plex.Media
@@ -94,7 +94,7 @@ func (c *client) do_dash() error {
    license := func(body []byte) ([]byte, error) {
       return plex.AcquireWidevineLicense(&media, &user, body)
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,

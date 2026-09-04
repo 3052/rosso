@@ -20,7 +20,7 @@ type client struct {
    PlayReady maya.FlagString
    address   maya.FlagString
    audio     maya.FlagString
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    episode   maya.FlagString
    season    maya.FlagString
 
@@ -44,7 +44,7 @@ func (c *client) do() error {
       {Name: "season-id", Value: &c.season},
       {Name: "audio-language", Value: &c.audio},
       {Name: "episode-id", Value: &c.episode, Needs: "audio-language"},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -58,8 +58,8 @@ func (c *client) do() error {
       return c.do_season()
    case c.audio != "":
       return c.do_audio()
-   case c.dash != "":
-      return c.do_dash()
+   case c.dash_id != "":
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "rakuten")
 }
@@ -124,7 +124,7 @@ func (c *client) do_audio() error {
    return c.cache.Encode(manifest, stream_info)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest    maya.Manifest
       stream_info rakuten.StreamInfo
@@ -133,7 +133,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: stream_info.FetchLicense,

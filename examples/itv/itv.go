@@ -20,7 +20,7 @@ func main() {
 type client struct {
    Widevine maya.FlagString
    address  maya.FlagString
-   dash     maya.FlagString
+   dash_id  maya.FlagString
    playlist maya.FlagString
    threads  maya.FlagInt
 
@@ -42,7 +42,7 @@ func (c *client) do() error {
       {Name: "widevine-folder", Value: &c.Widevine},
       {Name: "address", Value: &c.address},
       {Name: "playlist", Value: &c.playlist},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
       {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -57,8 +57,8 @@ func (c *client) do() error {
    if c.playlist != "" {
       return c.do_playlist()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "itv")
 }
@@ -79,7 +79,7 @@ func (c *client) do_address() error {
    return nil
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest   maya.Manifest
       media_file itv.MediaFile
@@ -88,7 +88,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: media_file.FetchKeyService,

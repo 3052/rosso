@@ -20,7 +20,7 @@ func main() {
 type client struct {
    Widevine  maya.FlagString
    address   maya.FlagString
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    link_code maya.FlagBool
    mubi_id   maya.FlagInt
    season    maya.FlagInt
@@ -47,7 +47,7 @@ func (c *client) do() error {
       {Name: "address", Value: &c.address, Usage: "film or series URL"},
       {Name: "season", Value: &c.season, Needs: "address"},
       {Name: "mubi-id", Value: &c.mubi_id},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -70,8 +70,8 @@ func (c *client) do() error {
    if c.mubi_id >= 1 {
       return c.do_mubi()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "mubi")
 }
@@ -101,7 +101,7 @@ func (c *client) do_address_season() error {
    return nil
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       session  mubi.Session
@@ -110,7 +110,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: session.FetchWidevine,

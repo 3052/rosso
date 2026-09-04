@@ -21,7 +21,7 @@ type client struct {
    ContentId maya.FlagString
    PlayReady maya.FlagString
    cookie    maya.FlagBool
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    password  maya.FlagString
    username  maya.FlagString
 
@@ -46,7 +46,7 @@ func (c *client) do() error {
       {Name: "password", Value: &c.password, Needs: "username"},
       {Name: "content-id", Value: &c.ContentId},
       {Name: "use-cookie", Value: &c.cookie, Needs: "content-id"},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -65,8 +65,8 @@ func (c *client) do() error {
    if flags.IsSet(&c.ContentId) {
       return c.do_content_id()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "paramount")
 }
@@ -99,7 +99,7 @@ func (c *client) do_content_id() error {
    return c.cache.Encode(c, manifest)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    // 1. manifest
    var manifest maya.Manifest
    err := c.cache.Decode(&manifest)
@@ -125,7 +125,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: session.Fetch,

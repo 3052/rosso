@@ -19,7 +19,7 @@ type client struct {
    email    maya.FlagString
    password maya.FlagString
    address  maya.FlagString
-   dash     maya.FlagString
+   dash_id  maya.FlagString
 
    cache maya.Cache
 }
@@ -32,7 +32,7 @@ func (c *client) do() error {
       {Name: "email", Value: &c.email, Needs: "password"},
       {Name: "password", Value: &c.password, Needs: "email"},
       {Name: "address", Value: &c.address},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -45,8 +45,8 @@ func (c *client) do() error {
    if c.address != "" {
       return c.do_address()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "cineMember")
 }
@@ -65,24 +65,24 @@ func (c *client) do_address() error {
    if err != nil {
       return err
    }
-   dash, err := stream.GetDash()
+   manifest, err := stream.GetDash()
    if err != nil {
       return err
    }
-   manifest, err := maya.DashList(dash)
+   maya_manifest, err := maya.DashList(manifest)
    if err != nil {
       return err
    }
-   return c.cache.Encode(manifest)
+   return c.cache.Encode(maya_manifest)
 }
 
-func (c *client) do_dash() error {
-   var manifest maya.Manifest
-   err := c.cache.Decode(&manifest)
+func (c *client) do_dash_id() error {
+   var maya_manifest maya.Manifest
+   err := c.cache.Decode(&maya_manifest)
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, nil)
+   return maya.DashDownload(string(c.dash_id), &maya_manifest, nil)
 }
 
 func (c *client) do_email_password() error {

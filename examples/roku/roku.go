@@ -21,7 +21,7 @@ type client struct {
    Widevine           maya.FlagString
    account_activation maya.FlagBool
    activation_status  maya.FlagBool
-   dash               maya.FlagString
+   dash_id            maya.FlagString
    roku_id            maya.FlagString
    use_account        maya.FlagBool
 
@@ -45,7 +45,7 @@ func (c *client) do() error {
       {Name: "activation-status", Value: &c.activation_status},
       {Name: "roku-id", Value: &c.roku_id},
       {Name: "use-account", Value: &c.use_account, Needs: "roku-id"},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -62,8 +62,8 @@ func (c *client) do() error {
    if c.roku_id != "" {
       return c.do_roku_id()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "roku")
 }
@@ -97,7 +97,7 @@ func (c *client) do_activation_status() error {
    return c.cache.Encode(activation_status)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playback roku.Playback
@@ -106,7 +106,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: playback.LicenseWidevine,

@@ -36,7 +36,7 @@ func main() {
 
 type client struct {
    Widevine  maya.FlagString
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    email     maya.FlagString
    password  maya.FlagString
    query     maya.FlagString
@@ -69,7 +69,7 @@ func (c *client) do() error {
       {Name: "tracking", Value: &c.tracking},
       {Name: "season", Value: &c.season, Needs: "tracking"},
       {Name: "subtitles", Value: &c.subtitles},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
       {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -98,13 +98,13 @@ func (c *client) do() error {
    if c.subtitles {
       return c.do_subtitles()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "canal")
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       player   canal.Player
@@ -113,7 +113,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: player.FetchWidevine,

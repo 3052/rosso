@@ -18,7 +18,7 @@ func main() {
 
 type client struct {
    PlayReady maya.FlagString
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    edit      maya.FlagString
    initiate  maya.FlagString
    login     maya.FlagBool
@@ -50,7 +50,7 @@ func (c *client) do() error {
       {Name: "show-id", Value: &c.show, Needs: "season"},
       {Name: "season", Value: &c.season, Needs: "show-id"},
       {Name: "edit-id", Value: &c.edit},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -78,13 +78,13 @@ func (c *client) do() error {
    if c.edit != "" {
       return c.do_edit()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "hboMax")
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playback hboMax.Playback
@@ -93,7 +93,7 @@ func (c *client) do_dash() error {
    if err != nil {
       return err
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: playback.PlayReadyRequest,

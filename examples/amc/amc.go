@@ -25,7 +25,7 @@ type client struct {
    series           maya.FlagInt
    season           maya.FlagInt
    episode_or_movie maya.FlagInt
-   dash             maya.FlagString
+   dash_id          maya.FlagString
 
    cache maya.Cache
 }
@@ -49,7 +49,7 @@ func (c *client) do() error {
       {Name: "series", Value: &c.series},
       {Name: "season", Value: &c.season},
       {Name: "episode-or-movie", Value: &c.episode_or_movie},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -74,13 +74,13 @@ func (c *client) do() error {
    if c.episode_or_movie >= 1 {
       return c.do_episode_or_movie()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "amc")
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest maya.Manifest
       playback amc.Playback
@@ -97,7 +97,7 @@ func (c *client) do_dash() error {
          body,
       )
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.Widevine),
       Drm:     maya.DrmWidevine,
       License: license,

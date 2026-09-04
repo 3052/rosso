@@ -19,7 +19,7 @@ func main() {
 type client struct {
    PlayReady maya.FlagString
    address   maya.FlagString
-   dash      maya.FlagString
+   dash_id   maya.FlagString
    password  maya.FlagString
    profile   maya.FlagString
    threads   maya.FlagInt
@@ -45,7 +45,7 @@ func (c *client) do() error {
       {Name: "password", Value: &c.password, Needs: "username"},
       {Name: "profile-id", Value: &c.profile},
       {Name: "address", Value: &c.address},
-      {Name: "dash-id", Value: &c.dash},
+      {Name: "dash-id", Value: &c.dash_id},
       {Name: "threads", Value: &c.threads, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
@@ -65,8 +65,8 @@ func (c *client) do() error {
    if c.address != "" {
       return c.do_address()
    }
-   if c.dash != "" {
-      return c.do_dash()
+   if c.dash_id != "" {
+      return c.do_dash_id()
    }
    return flags.Usage(os.Stderr, "crave")
 }
@@ -102,7 +102,7 @@ func (c *client) do_address() error {
    return c.cache.Encode(manifest, media, playback)
 }
 
-func (c *client) do_dash() error {
+func (c *client) do_dash_id() error {
    var (
       manifest      maya.Manifest
       playback      crave.Playback
@@ -115,7 +115,7 @@ func (c *client) do_dash() error {
    license := func(body []byte) ([]byte, error) {
       return crave.AcquireLicense(body, &profile_token, &playback)
    }
-   return maya.DashDownload(string(c.dash), &manifest, &maya.Options{
+   return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
       License: license,
