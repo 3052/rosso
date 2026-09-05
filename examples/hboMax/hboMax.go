@@ -17,17 +17,17 @@ func main() {
 }
 
 type client struct {
+   cache     maya.Cache
    PlayReady maya.FlagString
-   dash_id   maya.FlagString
-   edit      maya.FlagString
    initiate  maya.FlagString
    login     maya.FlagBool
-   movie     maya.FlagString
    search    maya.FlagString
-   season    maya.FlagInt
+   movie     maya.FlagString
    show      maya.FlagString
-
-   cache maya.Cache
+   season    maya.FlagInt
+   edit_id   maya.FlagString
+   dash_id   maya.FlagString
+   bitrate   maya.FlagBool
 }
 
 func (*client) CachePath() string {
@@ -49,8 +49,9 @@ func (c *client) do() error {
       {Name: "movie-id", Value: &c.movie},
       {Name: "show-id", Value: &c.show, Needs: "season"},
       {Name: "season", Value: &c.season, Needs: "show-id"},
-      {Name: "edit-id", Value: &c.edit},
+      {Name: "edit-id", Value: &c.edit_id},
       {Name: "dash-id", Value: &c.dash_id},
+      {Name: "bitrate", Value: &c.bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -75,8 +76,8 @@ func (c *client) do() error {
          return c.do_show_season()
       }
    }
-   if c.edit != "" {
-      return c.do_edit()
+   if c.edit_id != "" {
+      return c.do_edit_id()
    }
    if c.dash_id != "" {
       return c.do_dash_id()
@@ -93,6 +94,9 @@ func (c *client) do_dash_id() error {
    if err != nil {
       return err
    }
+   if c.bitrate {
+      return maya.DashBitrate(string(c.dash_id), &manifest)
+   }
    return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
       Drm:     maya.DrmPlayReady,
@@ -100,13 +104,13 @@ func (c *client) do_dash_id() error {
    })
 }
 
-func (c *client) do_edit() error {
+func (c *client) do_edit_id() error {
    var login hboMax.Login
    err := c.cache.Decode(&login)
    if err != nil {
       return err
    }
-   playback, err := hboMax.PlayReadyRequest(login.Token, string(c.edit))
+   playback, err := hboMax.PlayReadyRequest(login.Token, string(c.edit_id))
    if err != nil {
       return err
    }
