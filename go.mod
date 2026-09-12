@@ -1,6 +1,6 @@
 module 41.neocities.org/rosso
 
-go 1.26.0
+go 1.27.0
 
 require 41.neocities.org/maya v1.45.4
 
