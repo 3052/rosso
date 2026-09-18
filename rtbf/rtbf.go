@@ -20,11 +20,7 @@ const x_forwarded_for = "195.0.0.0"
 
 func FetchAssetId(path string) (string, error) {
    req, err := http.NewRequest("GET",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "bff-service.rtbf.be",
-         Path:   "/auvio/v1.23/pages" + path,
-      }).String(),
+      "https://bff-service.rtbf.be/auvio/v1.23/pages"+path,
       nil,
    )
    if err != nil {
@@ -63,14 +59,14 @@ func FetchAssetId(path string) (string, error) {
 }
 
 func GetPath(urlData string) (string, error) {
-   parse, err := url.Parse(urlData)
+   parsedURL, err := url.Parse(urlData)
    if err != nil {
       return "", err
    }
-   if parse.Scheme == "" {
+   if parsedURL.Scheme == "" {
       return "", errors.New("invalid URL: scheme is missing")
    }
-   return parse.Path, nil
+   return parsedURL.Path, nil
 }
 
 func do(req *http.Request) (*http.Response, error) {
@@ -91,11 +87,7 @@ func FetchAccount(id, password string) (*Account, error) {
       "password": {password},
    }.Encode()
    req, err := http.NewRequest("POST",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "login.auvio.rtbf.be",
-         Path:   "/accounts.login",
-      }).String(),
+      "https://login.auvio.rtbf.be/accounts.login",
       strings.NewReader(body),
    )
    if err != nil {
@@ -125,11 +117,7 @@ func (a *Account) Identity() (*Identity, error) {
       "login_token": {a.SessionInfo.CookieValue},
    }.Encode()
    req, err := http.NewRequest("POST",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "login.auvio.rtbf.be",
-         Path:   "/accounts.getJWT",
-      }).String(),
+      "https://login.auvio.rtbf.be/accounts.getJWT",
       strings.NewReader(body),
    )
    if err != nil {
@@ -164,16 +152,14 @@ func (*Entitlement) CachePath() string {
 }
 
 func (e *Entitlement) FetchWidevine(body []byte) ([]byte, error) {
-   u := &url.URL{
-      Scheme: "https",
-      Host:   "exposure.api.redbee.live",
-      Path:   "/v2/license/customer/RTBF/businessunit/Auvio/widevine",
-      RawQuery: url.Values{
-         "contentId":  {e.AssetId},
-         "ls_session": {e.PlayToken},
-      }.Encode(),
+   params := url.Values{
+      "contentId":  {e.AssetId},
+      "ls_session": {e.PlayToken},
    }
-   req, err := http.NewRequest("POST", u.String(), bytes.NewReader(body))
+   target := "https://exposure.api.redbee.live/v2/license/customer/RTBF/businessunit/Auvio/widevine?" +
+      params.Encode()
+
+   req, err := http.NewRequest("POST", target, bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
@@ -221,11 +207,7 @@ func (i *Identity) Session() (*Session, error) {
       return nil, err
    }
    req, err := http.NewRequest("POST",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path:   "/v2/customer/RTBF/businessunit/Auvio/auth/gigyaLogin",
-      }).String(),
+      "https://exposure.api.redbee.live/v2/customer/RTBF/businessunit/Auvio/auth/gigyaLogin",
       bytes.NewReader(body),
    )
    if err != nil {
@@ -250,16 +232,11 @@ type Session struct {
 }
 
 func (s *Session) Entitlement(assetId string) (*Entitlement, error) {
-   req, err := http.NewRequest("GET",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "exposure.api.redbee.live",
-         Path: fmt.Sprintf(
-            "/v2/customer/RTBF/businessunit/Auvio/entitlement/%v/play", assetId,
-         ),
-      }).String(),
-      nil,
+   target := fmt.Sprintf(
+      "https://exposure.api.redbee.live/v2/customer/RTBF/businessunit/Auvio/entitlement/%s/play",
+      assetId,
    )
+   req, err := http.NewRequest("GET", target, nil)
    if err != nil {
       return nil, err
    }

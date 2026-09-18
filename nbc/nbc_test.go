@@ -1,9 +1,6 @@
 package nbc
 
-import (
-   "os"
-   "testing"
-)
+import "testing"
 
 var video_tests = []struct {
    url     string
@@ -25,19 +22,6 @@ var video_tests = []struct {
       program: "episode",
       url:     "https://nbc.com/saturday-night-live/video/november-1-miles-teller/9000454168",
    },
-}
-
-func TestPlayReady(t *testing.T) {
-   cache, err := os.UserCacheDir()
-   if err != nil {
-      t.Fatal(err)
-   }
-   err = os.WriteFile(
-      cache+"/nbc/PlayReady", []byte(playReady().String()), os.ModePerm,
-   )
-   if err != nil {
-      t.Fatal(err)
-   }
 }
 
 func TestVideo(t *testing.T) {

@@ -21,47 +21,44 @@ import (
 const drmProxySecret = "Whn8QFuLFM7Heiz6fYCYga7cYPM8ARe6"
 
 //go:embed page.gql
-var query_page string
+var queryPage string
 
 func FetchWidevine(body []byte) ([]byte, error) {
-   req, err := http.NewRequest(
-      "POST",
-      (&url.URL{
-         Scheme:   "https",
-         Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-         Path:     "/drm-proxy/license/widevine",
-         RawQuery: build_query("widevine"),
-      }).String(),
-      bytes.NewReader(body),
-   )
+   req, err := http.NewRequest("POST", licenseURL("widevine"), bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
    req.Header.Set("content-type", "application/octet-stream")
+
    resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    return io.ReadAll(resp.Body)
 }
 
 // https://nbc.com/saturday-night-live/video/november-15-glen-powell/9000454161
 func GetName(urlData string) (string, error) {
-   parse, err := url.Parse(urlData)
+   parsedURL, err := url.Parse(urlData)
    if err != nil {
       return "", err
    }
-   return strings.TrimPrefix(parse.Path, "/"), nil
+   return strings.TrimPrefix(parsedURL.Path, "/"), nil
 }
 
-func build_query(drmType string) string {
+func PlayReady() string {
+   return licenseURL("playready")
+}
+
+func buildQuery(drmType string) string {
    timestamp := strconv.FormatInt(time.Now().UnixMilli(), 10)
+
    mac := hmac.New(sha256.New, []byte(drmProxySecret))
-   // Use io.WriteString to write string data directly to the Writer
-   io.WriteString(mac, timestamp)
-   io.WriteString(mac, drmType)
+   fmt.Fprint(mac, timestamp, drmType)
    hash := hex.EncodeToString(mac.Sum(nil))
+
    return url.Values{
       "device": {"web"},
       "hash":   {hash},
@@ -75,13 +72,10 @@ func do(req *http.Request) (*http.Response, error) {
    return http.DefaultClient.Do(req)
 }
 
-func playReady() *url.URL {
-   return &url.URL{
-      Scheme:   "https",
-      Host:     "drmproxy.digitalsvc.apps.nbcuni.com",
-      Path:     "/drm-proxy/license/playready",
-      RawQuery: build_query("playready"),
-   }
+// licenseURL returns the DRM-proxy licence URL for the given DRM type.
+func licenseURL(drmType string) string {
+   return "https://drmproxy.digitalsvc.apps.nbcuni.com/drm-proxy/license/" +
+      drmType + "?" + buildQuery(drmType)
 }
 
 type Metadata struct {
@@ -92,7 +86,7 @@ type Metadata struct {
 
 func FetchMetadata(name string) (*Metadata, error) {
    body, err := json.Marshal(map[string]any{
-      "query": query_page,
+      "query": queryPage,
       "variables": map[string]string{
          "app":      "nbc",
          "name":     name,
@@ -104,27 +98,24 @@ func FetchMetadata(name string) (*Metadata, error) {
    if err != nil {
       return nil, err
    }
-   req, err := http.NewRequest(
-      "POST",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "friendship.nbc.com",
-         Path:   "/v3/graphql",
-      }).String(),
-      bytes.NewReader(body),
-   )
+
+   req, err := http.NewRequest("POST", "https://friendship.nbc.com/v3/graphql", bytes.NewReader(body))
    if err != nil {
       return nil, err
    }
    req.Header.Set("content-type", "application/json")
+   req.Header.Add("x-tve-platform", "web")
+
    resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
+
    var result struct {
       Data *struct {
          Page *struct {
@@ -135,44 +126,43 @@ func FetchMetadata(name string) (*Metadata, error) {
          Message string
       }
    }
-   err = json.NewDecoder(resp.Body).Decode(&result)
-   if err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
       return nil, err
    }
    if len(result.Errors) >= 1 {
       return nil, errors.New(result.Errors[0].Message)
    }
+
    return result.Data.Page.Metadata, nil
 }
 
 func (m *Metadata) FetchStream() (*Stream, error) {
-   req, err := http.NewRequest(
-      "GET",
-      (&url.URL{
-         Scheme: "https",
-         Host:   "lemonade.nbc.com",
-         Path:   fmt.Sprintf("/v1/vod/%v/%v", m.MpxAccountId, m.MpxGuid),
-         RawQuery: url.Values{
-            "platform":        {"web"},
-            "programmingType": {m.ProgrammingType},
-         }.Encode(),
-      }).String(),
-      nil,
+   params := url.Values{
+      "platform":        {"web"},
+      "programmingType": {m.ProgrammingType},
+   }
+   target := fmt.Sprintf(
+      "https://lemonade.nbc.com/v1/vod/%d/%d?%s",
+      m.MpxAccountId, m.MpxGuid, params.Encode(),
    )
+
+   req, err := http.NewRequest("GET", target, nil)
    if err != nil {
       return nil, err
    }
+
    resp, err := do(req)
    if err != nil {
       return nil, err
    }
    defer resp.Body.Close()
+
    if resp.StatusCode != http.StatusOK {
       return nil, errors.New(resp.Status)
    }
+
    result := &Stream{}
-   err = json.NewDecoder(resp.Body).Decode(result)
-   if err != nil {
+   if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
       return nil, err
    }
    return result, nil
@@ -190,5 +180,3 @@ func (s *Stream) GetManifest() (*url.URL, error) {
    manifest.Path = strings.Replace(manifest.Path, "_2sec", "", 1)
    return manifest, nil
 }
-
-// nbc.go
