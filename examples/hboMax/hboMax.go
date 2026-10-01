@@ -27,7 +27,6 @@ type client struct {
    season    maya.FlagInt
    edit_id   maya.FlagString
    dash_id   maya.FlagString
-   bitrate   maya.FlagBool
 }
 
 func (*client) CachePath() string {
@@ -51,7 +50,6 @@ func (c *client) do() error {
       {Name: "season", Value: &c.season, Needs: "show-id"},
       {Name: "edit-id", Value: &c.edit_id},
       {Name: "dash-id", Value: &c.dash_id},
-      {Name: "bitrate", Value: &c.bitrate, Needs: "dash-id"},
    }
    if err := flags.Parse(os.Args[1:]); err != nil {
       return err
@@ -93,9 +91,6 @@ func (c *client) do_dash_id() error {
    err := c.cache.Decode(&manifest, &playback)
    if err != nil {
       return err
-   }
-   if c.bitrate {
-      return maya.DashBitrate(string(c.dash_id), &manifest)
    }
    return maya.DashDownload(string(c.dash_id), &manifest, &maya.Options{
       Device:  string(c.PlayReady),
