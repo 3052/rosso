@@ -1,5 +1,7 @@
 # Wink (Russia) — Registration Attempts
 
+https://justwatch.com/ru/провайдер/more-tv
+
 ## Platform
 - Original URL: `https://more.tv/devushka-s-tatuirovkoy-drakona`
 - Redirected to: `https://wink.ru/`

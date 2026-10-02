@@ -1,5 +1,7 @@
 # Summary: Why Okko TV is not gettable for a US-based user
 
+https://justwatch.com/ru/провайдер/okko
+
 ## The goal
 Sign up for okko.tv from the United States.
 
